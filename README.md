@@ -17,7 +17,7 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 + Redis
 
 ```
-cd /opt git clone https://github.com/vaestvita/thoth
+cd /opt git clone https://github.com/estvita/thoth
 cd thoth
 
 python3 -m venv .venv
