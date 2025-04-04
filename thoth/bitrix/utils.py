@@ -228,8 +228,8 @@ def event_processor(request):
         # Проверка наличия приложения в базе данных
         try:
             appinstance = AppInstance.objects.get(application_token=application_token)
-            # Обновление токенa
-            if access_token:
+            # Обновление токенa от админа
+            if access_token and appinstance.portal.user_id == user_id:
                 appinstance.access_token = access_token
                 appinstance.save()
 
