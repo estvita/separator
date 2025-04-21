@@ -1,0 +1,61 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Django",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "runserver",
+                "0.0.0.0:8080"
+            ],
+            "django": true,
+            "autoStartBrowser": false
+        },
+        {
+            "name": "Worker Win",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "celery",
+            "console": "integratedTerminal",
+            "args": ["-A", "config.celery_app", "worker", "-l", "info", "--pool", "solo"],
+
+        },
+        {
+            "name": "Worker Lin",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "celery",
+            "console": "integratedTerminal",
+            "args": ["-A", "config.celery_app", "worker", "-l", "info", "-c", "3"],
+
+        },
+        {
+            "name": "Beat",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "celery",
+            "console": "integratedTerminal",
+            "args": ["-A", "config.celery_app", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"],
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Django, Worker Win",
+            "configurations": ["Django", "Worker Win",]
+        },
+        {
+            "name": "Django, Worker Lin",
+            "configurations": ["Django", "Worker Lin",]
+        },
+        {
+            "name": "Django, Beat, Worker",
+            "configurations": ["Django", "Worker Lin", "Beat"]
+        },
+    ]
+}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}
+  WAWeb Sessions
+{% endblock title %}
+
+{% block content %}
+<div class="container">
+  <h3>Ваши номера WhatsApp Web</h3>
+  <p>Установите наше приложение: <a target="_blank" href="https://www.bitrix24.kz/apps/app/thothkz.whatsapp_web/">WhatsApp Web Grey</a></p>
+  {% if sessions %}
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Номер</th>
+          <th>Статус</th>
+          <th>Срок действия</th>
+          <th>Line ID</th>
+          <th>Bitrix24</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for session in sessions %}
+          <tr>
+            <!-- Phone -->
+            <td>
+              {% if session.show_link %}
+                <a href="{% url 'waweb:send_message' session_id=session.session %}">
+                  {{ session.phone|default:"Not connected" }}
+                </a>
+              {% else %}
+              <a href="{% url 'waweb:qr_code_page' session_id=session.session %}">
+                {{ session.phone|default:"Not connected" }}
+              </a>
+              {% endif %}
+            </td>
+       
+            <!-- Status -->
+            <td>
+                {{ session.status }}
+            </td>
+            <!-- Expiry Date -->
+            <td>
+              {% if session.date_end %}
+                {{ session.date_end|date:"Y-m-d H:i:s" }}
+              {% else %}
+                Not Set
+              {% endif %}
+            </td>
+            <!-- Line ID -->
+            <td>
+              {% if session.line %}
+                <span style="color: green;">{{ session.line.line_id }} - 
+                  <a href="https://{{ session.line.app_instance.portal.domain }}" target="_blank">{{ session.line.app_instance.portal.domain }}</a>                  
+                </span>
+              {% else %}
+                No line
+              {% endif %}
+            </td>
+            <!-- Bitrix24 -->
+            <td>
+              <form method="POST" action="{% url 'waweb:wa_sessions' %}">
+                {% csrf_token %}
+                <div class="form-group d-flex align-items-center">
+                  <select id="app_instance" name="app_instance" class="form-control mr-2">
+                    {% if session.app_instance %}
+                      <option value="{{ session.app_instance.id }}" selected>
+                        {{ session.app_instance.portal.domain }}
+                      </option>
+                    {% else %}
+                      <option value="" disabled selected>Select portal</option>
+                    {% endif %}
+                    {% for instance in app_instances %}
+                      <option value="{{ instance.id }}">{{ instance.portal.domain }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="hidden" name="session_id" value="{{ session.id }}" />
+                  <button type="submit" name="action" value="link" class="btn btn-secondary">Connect</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>You don't have any connected sessions.</p>
+  {% endif %}
+
+  <!-- Форма для добавления нового номера -->
+  <a href="{% url 'waweb:connect_number' %}" class="btn btn-primary">Добавить номер</a>
+
+</div>
+{% endblock content %}

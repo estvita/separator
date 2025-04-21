@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h3>Настройки Voice бота</h3>
+
+<form method="post">
+    {% csrf_token %}
+
+    <!-- Блок API -->
+    <fieldset>
+        <legend>API</legend>
+        {{ api_key_form.provider }}
+        {{ api_key_form.key }} <a href="https://platform.openai.com/api-keys" target="_blank">Получить ключ</a>
+    </fieldset>
+
+    <br>
+
+    <!-- Блок Бот -->
+    <fieldset>
+        <legend>Бот</legend>
+        {{ voice_form.name }}
+        {{ voice_form.vocal }}
+        <br>
+        {{ voice_form.instruction }}
+        <br>
+        {{ voice_form.welcome_msg }}
+        <br>
+        {{ voice_form.model }}
+    </fieldset>
+    
+    <br>
+
+    <!-- Блок Экспертные настройки (сворачивающийся блок) -->
+    <details>
+        <summary style="font-weight: bold; cursor: pointer;">Дополнительные функции</summary>
+        <fieldset>
+            {{ voice_form.transfer_uri }}
+            <br>
+            {{ voice_form.functions }}
+        </fieldset>
+
+    </details>
+    <details>
+        <summary style="font-weight: bold; cursor: pointer;">Экспертные настройки</summary>
+        <fieldset>
+            <label>Temperature</label><br>
+            {{ voice_form.temperature }}
+            <br>
+            <label>Максимальное количество токенов</label><br>
+            {{ voice_form.max_tokens }}
+
+        </fieldset>
+    </details>
+
+    <br>
+
+    <button type="submit">Сохранить</button>
+</form>
+<a href="{% url 'voice:voice_list' %}" class="button">Вернуться</a>
+{% endblock %}

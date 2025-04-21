@@ -1,0 +1,38 @@
+{% load wagtailcore_tags navigation_tags i18n  %}
+
+<header>
+    {% get_site_root as site_root %}
+    <ul class="navbar-nav me-auto">
+        {% if request.user.is_authenticated %}
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'users:detail' request.user.pk %}">{% translate "My Profile" %}</a>
+        </li>
+        <li class="nav-item">
+          {# URL provided by django-allauth/account/urls.py #}
+          <a class="nav-link" href="{% url 'account_logout' %}">{% translate "Sign Out" %}</a>
+        </li>
+        {% else %}
+        {% if ACCOUNT_ALLOW_REGISTRATION %}
+        <li class="nav-item">
+          {# URL provided by django-allauth/account/urls.py #}
+          <a id="sign-up-link" class="nav-link" href="{% url 'account_signup' %}">{% translate "Sign Up" %}</a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+          {# URL provided by django-allauth/account/urls.py #}
+          <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
+        </li>
+        {% endif %}
+        {% for menuitem in site_root.get_children.live.in_menu %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% pageurl menuitem %}">{{ menuitem.specific.get_menu_title }}</a>
+        </li>
+        {% endfor %}
+        <li class="nav-item">
+            <a class="nav-link" target="_blank" href="{% url 'chat_sso_redirect' %}">Чат</a>
+        </li>
+        <!-- <li class="nav-item dropdown ms-auto">
+          {% include "includes/language_selector.html" %}
+        </li> -->
+      </ul>
+</header>

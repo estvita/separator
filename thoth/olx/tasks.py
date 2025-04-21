@@ -1,131 +1,170 @@
 import logging
-
+from django.utils import timezone
+from django.core.mail import send_mail
 import requests
+import redis
 from celery import shared_task
 
-from thoth.bitrix.crest import call_method
+import thoth.bitrix.crest as bitrix
+import thoth.bitrix.tasks as bitrix_tasks
 
 from .models import OlxUser
-from .utills import refresh_token
+from .utils import refresh_token, deactivate_task
 
 logger = logging.getLogger("django")
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+
+
+@shared_task
+def send_message(chat_id, text, files=None):
+    threadid, olx_user_id, _ = chat_id.split("-")
+    user = OlxUser.objects.get(olx_id=olx_user_id)
+    api_url = f"https://www.{user.olxapp.client_domain}/api/partner/threads/{threadid}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {user.access_token}",
+        "Version": "2.0",
+    }
+
+    payload = {"text": text}
+    if files:
+        payload.update({
+            "text": "files",
+            "attachments": [{"url": file["link"]} for file in files]
+        })
+
+    response = requests.post(api_url, headers=headers, json=payload)
+
+    if response.status_code == 401 and refresh_token(olx_user_id):
+        headers["Authorization"] = f"Bearer {user.access_token}"
+        response = requests.post(api_url, headers=headers, json=payload)
+
+
+    if response.status_code == 200:
+        msg_data = response.json().get("data")
+        message_id = msg_data.get("id")
+        redis_client.set(f'olx:{threadid}', message_id)
+
+    return response.json()
 
 
 @shared_task
 def get_threads(olx_user_id):
     try:
         user = OlxUser.objects.get(olx_id=olx_user_id)
-        # Логируем информацию о пользователе
-        logger.info(f"Processing OLX threads for user {user.olx_id}")
+        bitrix_user = user.line.app_instance.portal.user_id
 
-        # Получаем домен и токен авторизации из модели OlxUser
+        current_time = timezone.now()
+
+        if current_time > user.date_end:
+            deactivate_task(olx_user_id)
+            payload = {
+                'USER_ID': bitrix_user,
+                'MESSAGE': 'Проверка сообщений на OLX остановлена в связи с окончанием действия тарифа. Тарифы и сопособы оплаты на сайте https://gulin.kz/'
+            }
+            bitrix.call_method(user.line.app_instance, 'im.notify.system.add', payload)
+            return "Subscription expired, task terminated."
+
         olx_app = user.olxapp
-        api_url = f"https://www.{olx_app.client_domain}/api/partner/threads/"
+        BASE_URL = f"https://www.{olx_app.client_domain}"
+        api_url = f"{BASE_URL}/api/partner/threads/"
         headers = {
             "Authorization": f"Bearer {user.access_token}",
             "Version": "2.0",
         }
 
-        # Выполняем GET-запрос к API OLX
         response = requests.get(api_url, headers=headers)
-
-        # Проверяем статус ответа
         if response.status_code == 200:
-            # Логируем успешный ответ
             threads = response.json().get("data", [])
-            logger.debug(f"Received {len(threads)} threads for user {user.olx_id}")
-
-            # Обрабатываем каждый thread, где есть непрочитанные сообщения
+            # Обрабатываем каждый thread
             for thread in threads:
                 unread_count = thread.get("unread_count", 0)
-                if unread_count != 0:
-                    thread_id = thread.get("id")
-                    advert_id = thread.get("advert_id")
-                    interlocutor_id = thread.get("interlocutor_id")
-                    messages_url = f"https://www.{olx_app.client_domain}/api/partner/threads/{thread_id}/messages"
-                    messages_response = requests.get(messages_url, headers=headers)
+                if unread_count == 0:
+                    continue
+                thread_id = thread.get("id")
+                advert_id = thread.get("advert_id")
+                advert_url = f"{BASE_URL}/d/{advert_id}/"
+                interlocutor_id = thread.get("interlocutor_id")
+                chat_id = f"{thread_id}-{olx_user_id}-{interlocutor_id}"
+                # получить имя пользователя
+                user_url = f"{BASE_URL}/api/partner/users/{interlocutor_id}"
+                user_info = requests.get(user_url, headers=headers)
+                if user_info.status_code == 200:
+                    user_data = user_info.json().get("data", {})
+                    user_name = user_data.get("name")
+                messages_url = f"{BASE_URL}/api/partner/threads/{thread_id}/messages"
+                messages = requests.get(messages_url, headers=headers)
+                if messages.status_code == 200:
+                    messages = messages.json().get("data", [])
+                    # Если тред уже есть в базе
+                    if redis_client.exists(f"olx:{thread_id}"):
+                        last_message = redis_client.get(f"olx:{thread_id}").decode('utf-8')
+                        for message in messages:
+                            message_id = message.get("id")
+                            message_type = message.get("type")
+                            text = message.get("text")
+                            attachments = message.get("attachments", [])
 
-                    if messages_response.status_code == 200:
-                        messages = messages_response.json().get("data", [])
-                        logger.debug(
-                            f"Received {len(messages)} messages for thread {thread_id}",
-                        )
-
-                        # Отбираем последние непрочитанные сообщения с типом "received"
-                        received_messages = [
-                            msg for msg in messages if msg["type"] == "received"
-                        ]
-                        unread_messages = sorted(
-                            received_messages,
-                            key=lambda x: x["created_at"],
-                        )[-unread_count:]
-
-                        # Отправляем выбранные непрочитанные сообщения
-                        for msg in unread_messages:
-                            logger.debug(
-                                f"Unread Received Message in thread {thread_id}: {msg}",
-                            )
-
-                            # Формируем массив файлов, если есть прикрепления
-                            files = []
-                            for attachment in msg.get("attachments", []):
-                                files.append({"url": attachment.get("url")})
-
-                            payload = {
-                                "CONNECTOR": "thoth_olx",
-                                "LINE": user.line.line_id,
-                                "MESSAGES": [
-                                    {
-                                        "user": {
-                                            "id": interlocutor_id,
-                                        },
-                                        "chat": {
-                                            "id": f"{thread_id}-{olx_user_id}-{interlocutor_id}",
-                                            "url": f"https://www.{olx_app.client_domain}/d/{advert_id}/",
-                                        },
-                                        "message": {
-                                            "text": msg.get("text", "none"),
-                                            "files": files,
-                                        },
-                                    },
-                                ],
-                            }
-                            logger.debug(f"data for b24 message {payload}")
-                            call_method(
-                                user.line.app_instance,
-                                "imconnector.send.messages",
-                                payload,
-                            )
-
-                        # Помечаем диалог как прочитанный
-                        commands_url = f"https://www.{olx_app.client_domain}/api/partner/threads/{thread_id}/commands"
-                        requests.post(
-                            commands_url,
-                            headers=headers,
-                            json={"command": "mark-as-read"},
-                        )
-
+                            if int(message_id) > int(last_message):
+                                redis_client.set(f'olx:{thread_id}', message_id)
+                                if message_type == "received":
+                                    bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, "thoth_olx",
+                                                                        user.line.line_id, False, user_name, message_id,
+                                                                        attachments, None, chat_id, advert_url, interlocutor_id)
+                                elif message_type == "sent":
+                                    bitrix_tasks.message_add.delay(user.line.app_instance.id, user.line.line_id, 
+                                                                    interlocutor_id, text, "thoth_olx")
+                    
+                    # если треда нет в базе, то берем послденее полученное сообщение
                     else:
-                        logger.error(
-                            f"Failed to retrieve messages for thread {thread_id}. "
-                            f"Status Code: {messages_response.status_code}, Response: {messages_response.json()}",
-                        )
+                        received_messages = [message for message in messages if message['type'] == 'received']
+                        message = received_messages[-1] if received_messages else None
+                        if message:
+                            message_id = message.get("id")
+                            text = message.get("text")
+                            attachments = message.get("attachments", [])
+                            redis_client.set(f'olx:{thread_id}', message_id)
+                            bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, "thoth_olx",
+                                                                user.line.line_id, False, user_name, message_id,
+                                                                attachments, None, chat_id, advert_url, interlocutor_id)
 
+                                
+                commands_url = f"{BASE_URL}/api/partner/threads/{thread_id}/commands"
+                resp = requests.post(commands_url, headers=headers, json={"command": "mark-as-read"})
+
+        
         elif response.status_code == 401:
-            refresh_token(olx_user_id)
+            resp = refresh_token(olx_user_id)
+            if resp.status_code != 200:
+                if user.line:
+                    message = f'Проверка сообщений на OLX ({olx_user_id}) остановлена из-за проблемы. Переподключите аккаунт OLX на сайте https://gulin.kz/. Поллный текст ошибки {resp.json()}'
+                    payload = {
+                        'USER_ID': bitrix_user,
+                        'MESSAGE': message
+                    }
+
+                    bitrix.call_method(user.line.app_instance, 'im.notify.system.add', payload)
+
+                    send_mail(
+                        subject="OLX отключен из-за проблемы",
+                        message=message,
+                        from_email="noreply@thoth.kz",
+                        recipient_list=[user.owner],
+                        fail_silently=False,
+                    )
 
         else:
             # Логируем ошибки, если ответ не 200
-            logger.error(
+            logger.debug(
                 f"Failed to retrieve threads for user {user.olx_id}. "
                 f"Status Code: {response.status_code}, Response: {response.json()}",
             )
 
     except OlxUser.DoesNotExist:
         # Логируем ошибку, если пользователь не найден
-        logger.error(f"User with ID {olx_user_id} does not exist.")
+        logger.debug(f"User with ID {olx_user_id} does not exist.")
     except Exception as e:
         # Логируем любые другие ошибки, которые могут возникнуть
-        logger.error(
+        logger.debug(
             f"An error occurred while processing OLX threads for user {olx_user_id}: {e!s}",
         )

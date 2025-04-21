@@ -1,8 +1,11 @@
 from allauth.account.forms import SignupForm
-from allauth.socialaccount.forms import SignupForm as SocialSignupForm
+# from allauth.socialaccount.forms import SignupForm as SocialSignupForm
 from django.contrib.auth import forms as admin_forms
 from django.forms import EmailField
+from django import forms
 from django.utils.translation import gettext_lazy as _
+
+from phonenumber_field.formfields import PhoneNumberField
 
 from .models import User
 
@@ -29,16 +32,27 @@ class UserAdminCreationForm(admin_forms.UserCreationForm):
 
 
 class UserSignupForm(SignupForm):
-    """
-    Form that will be rendered on a user sign up section/screen.
-    Default fields will be added automatically.
-    Check UserSocialSignupForm for accounts created from social.
-    """
+    phone_number = PhoneNumberField(
+        label=_("Phone number"),
+        required=True,
+        region="KZ",
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "+77071234567",
+            }
+        )
+    )
+
+    def save(self, request):
+        user = super().save(request)
+        user.phone_number = self.cleaned_data.get("phone_number")
+        user.save()
+        return user
 
 
-class UserSocialSignupForm(SocialSignupForm):
-    """
-    Renders the form when user has signed up using social accounts.
-    Default fields will be added automatically.
-    See UserSignupForm otherwise.
-    """
+# class UserSocialSignupForm(SocialSignupForm):
+#     """
+#     Renders the form when user has signed up using social accounts.
+#     Default fields will be added automatically.
+#     See UserSignupForm otherwise.
+#     """

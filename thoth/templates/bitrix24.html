@@ -3,21 +3,24 @@
 {% block content %}
   <div class="container">
     <h3>Ваши Bitrix24</h3>
+    <p>Установите наше приложение: <a target="_blank" href="https://www.bitrix24.kz/apps/partner/19913664/">Маркет Битрикс24</a></p>
     {% if user_portals %}
       <table class="table table-bordered">
         <thead>
           <tr>
             <th>Портал</th>
-            <th>Приложение</th>
+            <th>Приложение (статус)</th>
           </tr>
         </thead>
         <tbody>
           {% for portal in user_portals %}
             <tr>
-              <td>{{ portal.domain }}</td>
+              <td>
+                <a href="https://{{ portal.domain }}" target="_blank">{{ portal.domain }}</a>
+              </td>
               <td>
                 {% for instance in portal.installations.all %}
-                  {{ instance.app.name }}
+                  <a href="{{ instance.app.page_url }}">{{ instance.app.name }}</a> ({{ instance.status }})
                   {% if not forloop.last %},{% endif %}
                 {% empty %}
                   No App Instances

@@ -6,13 +6,14 @@
 {% block content %}
   <div class="container">
     <h3>Ваши OLX аккаунты</h3>
+    <p>Установите наше приложение: <a target="_blank" href="https://www.bitrix24.kz/apps/app/thothkz.olxkz/">OLX</a></p>
     {% if olx_accounts %}
       <table class="table table-bordered">
         <thead>
           <tr>
-            <th>OLX App</th>
-            <th>OLX User ID</th>
-            <th>Email</th>
+            <th>OLX</th>
+            <th>ID</th>
+            <th>Срок</th>
             <th>Line ID</th>
             <th>Портал</th>
           </tr>
@@ -22,7 +23,7 @@
             <tr>
               <td>{{ account.olxapp }}</td>
               <td>{{ account.olx_id }}</td>
-              <td>{{ account.email }}</td>
+              <td>{{ account.date_end }}</td>
               <td>
                 {% if account.line %}
                 <span style="color: green;">{{ account.line.line_id }} - {{ account.line.app_instance.portal.domain }}</span>
@@ -60,7 +61,7 @@
       {% csrf_token %}
       <div style="width:30%;" class="form-group d-flex align-items-center">
         <select id="olx_app" name="olx_app" class="form-control mr-2">
-          {% for app in olx_apps %}<option value="{{ app.id }}">{{ app }}</option>{% endfor %}
+          {% for app in olx_apps %}<option value="{{ app.id }}">{{ app.client_domain }}</option>{% endfor %}
         </select>
         <button type="submit" name="action" value="connect" class="btn btn-primary">Подключить</button>
       </div>

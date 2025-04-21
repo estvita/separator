@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}
+  WhatsApp Phones
+{% endblock title %}
+
+{% block content %}
+<div class="container">
+  <h3>Ваши номера WhatsApp (WABA)</h3>
+  <p>Установите наше приложение: <a target="_blank" href="https://www.bitrix24.kz/apps/app/thothkz.whatsapp_waba/">WhatsApp Business API</a></p>
+  {% if phones %}
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Phone</th>
+          <th>Срок </th>
+          <th>Line ID</th>
+          <th>Bitrix24</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for phone in phones %}
+          <tr>
+            <td><a href="{% url 'phone-details' phone.id %}">{{ phone.phone }}</a></td>
+            <td>{{ phone.date_end }}</td>
+            <td>
+              {% if phone.line %}
+                <span style="color: green;">{{ phone.line.line_id }} - 
+                  <a href="https://{{ phone.line.app_instance.portal.domain }}" target="_blank">{{ phone.line.app_instance.portal.domain }}</a>
+                </span>
+              {% else %}
+              No line
+              {% endif %}
+            </td>
+            <td>
+              <form method="POST" action="{% url 'waba' %}">
+                {% csrf_token %}
+                <div class="form-group d-flex align-items-center">
+                  <select id="app_instance" name="app_instance" class="form-control mr-2">
+                    {% if phone.app_instance %}
+                      <option value="{{ phone.app_instance.id }}" selected>{{ phone.app_instance.portal }}</option>
+                    {% else %}
+                      <option value="" disabled selected>Select portal</option>
+                    {% endif %}
+                    {% for instance in app_instances %}
+                      <option value="{{ instance.id }}">{{ instance.portal.domain }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="hidden" name="phone_id" value="{{ phone.id }}" />
+                  <button type="submit" name="action" value="link" class="btn btn-secondary">Connect</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>You don't have any connected numbers.</p>
+  {% endif %}
+
+  <!-- Форма для добавления нового телефона -->
+  <!-- <h3>Подключить номер (<a href="/faq/" target="_blank">инструкция</a>)</h3> -->
+
+    <a href="/waba/request?request-id={{ request_id }}" class="btn btn-primary">Подключить номер</a>
+
+    <!-- <a href="/waba/manual-add" class="btn btn-secondary">Add Phone Manually</a> -->
+
+</div>
+{% endblock content %}

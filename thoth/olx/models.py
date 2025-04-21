@@ -76,21 +76,22 @@ class OlxUser(models.Model):
         default=10,
         help_text="Frequency of OLX server polling in minutes.",
     )
+    date_end = models.DateTimeField(null=True, blank=True)
     olx_id = models.CharField(max_length=50, unique=True)
     email = models.EmailField(blank=True, null=True)
     name = models.CharField(max_length=255, blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
+    phone = models.CharField(max_length=255, blank=True, null=True)
     access_token = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        editable=False,
+        # editable=False,
     )
     refresh_token = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        editable=False,
+        # editable=False,
     )
 
     def __str__(self):

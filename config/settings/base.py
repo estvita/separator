@@ -5,10 +5,6 @@ from pathlib import Path
 
 import environ
 
-import random
-import string
-import os
-
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # thoth/
 APPS_DIR = BASE_DIR / "thoth"
@@ -19,18 +15,18 @@ if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
     env.read_env(str(BASE_DIR / ".env"))
 
+CHATWOOT_ENABLED = env.bool("CHATWOOT_ENABLED", default=False)
+CHATWOOT_ID = env("CHATWOOT_ID", default=1)
+WABA_APP_ID = env("WABA_APP_ID", default=1)
+THOTH_BITRIX = env("THOTH_BITRIX", default="")
+WABWEB_SRV = env("WABWEB_SRV", default=1)
+WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="https://gulin.kz")
+WAGTAIL_CMS_URL = env("WAGTAIL_CMS_URL", default="cms/")
+WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
+WAGTAILEMBEDS_RESPONSIVE_HTML = True
+WAGTAILDOCS_EXTENSIONS = ['csv', 'docx', 'odt', 'pdf', 'pptx', 'rtf', 'txt', 'xlsx', 'zip']
 
-SECRET_KEY = env('DJANGO_SECRET_KEY', default='')
-
-if not SECRET_KEY:
-    from django.core.management.utils import get_random_secret_key
-    SECRET_KEY = get_random_secret_key()
-
-    # Запись в .env файл
-    with open(os.path.join(BASE_DIR, '.env'), 'a') as env_file:
-        env_file.write(f'\nDJANGO_SECRET_KEY={SECRET_KEY}\n')
-
-
+SONET_GROUP_ID = env("SONET_GROUP_ID", default=6)
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -40,11 +36,11 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # though not all of them may be available with every OS.
 # In Windows, this must be set to your system time zone.
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Almaty"
 # https://docs.djangoproject.com/en/dev/ref/settings/#language-code
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ru"
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
-# from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 # LANGUAGES = [
 #     ('en', _('English')),
 #     ('fr-fr', _('French')),
@@ -59,6 +55,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#locale-paths
 LOCALE_PATHS = [str(BASE_DIR / "locale")]
 
+WAGTAIL_I18N_ENABLED = True
+USE_L10N = True
+
+WAGTAIL_CONTENT_LANGUAGES = LANGUAGES = [
+    ('en', _("English")),
+    ('ru', _("Russian")),
+    ('kk', _("Қазақша")),
+]
 
 
 # DATABASES
@@ -76,6 +80,16 @@ ROOT_URLCONF = "config.urls"
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
 WSGI_APPLICATION = "config.wsgi.application"
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/2',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
 # APPS
 # ------------------------------------------------------------------------------
 DJANGO_APPS = [
@@ -83,6 +97,7 @@ DJANGO_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.sites",
+    "django.contrib.flatpages",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # "django.contrib.humanize", # Handy template tags
@@ -95,12 +110,36 @@ THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
     "allauth.mfa",
-    "allauth.socialaccount",
+    # "allauth.socialaccount",
     "django_celery_beat",
     "rest_framework",
     "rest_framework.authtoken",
     "corsheaders",
     "drf_spectacular",
+    # "ckeditor",
+    "phonenumber_field",
+]
+
+WAGTAIL_APPS = [
+    'wagtail.contrib.forms',
+    'wagtail.contrib.redirects',
+    'wagtail.embeds',
+    'wagtailseo',
+    'wagtail.sites',
+    'wagtail.users',
+    'wagtail.snippets',
+    'wagtail.documents',
+    'wagtail.images',
+    'wagtail.search',
+    'wagtail.admin',
+    'wagtail',
+    'wagtail.contrib.settings',
+    'django.contrib.sitemaps',
+    'modelcluster',
+    'taggit',
+    'wagtailcodeblock',
+    'wagtail.locales',
+    # 'wagtail.contrib.simple_translation',
 ]
 
 LOCAL_APPS = [
@@ -109,9 +148,14 @@ LOCAL_APPS = [
     "thoth.bitrix",
     "thoth.waba",
     "thoth.olx",
+    "thoth.chatwoot",
+    "thoth.waweb",
+    "thoth.tariff",
+    "thoth.bot",
+    "thoth.home",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + WAGTAIL_APPS + LOCAL_APPS
 
 # MIGRATIONS
 # ------------------------------------------------------------------------------
@@ -131,6 +175,7 @@ AUTH_USER_MODEL = "users.User"
 LOGIN_REDIRECT_URL = "users:redirect"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-url
 LOGIN_URL = "account_login"
+LOGIN_REDIRECT_URL = "/"
 
 # PASSWORDS
 # ------------------------------------------------------------------------------
@@ -165,8 +210,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
 
 # STATIC
@@ -213,6 +260,7 @@ TEMPLATES = [
                 "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
                 "thoth.users.context_processors.allauth_settings",
+                "wagtail.contrib.settings.context_processors.settings",
             ],
         },
     },
@@ -250,20 +298,21 @@ EMAIL_BACKEND = env(
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
 
+EMAIL_HOST = env("DJANGO_EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_USE_TLS = env.bool("DJANGO_EMAIL_USE_TLS", default=False)
+EMAIL_USE_SSL = env.bool("DJANGO_EMAIL_USE_SSL", default=True)
+EMAIL_PORT = env.int("DJANGO_EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("DJANGO_EMAIL_HOST_USER", default="your-email@gmail.com")
+EMAIL_HOST_PASSWORD = env("DJANGO_EMAIL_HOST_PASSWORD", default="")
+
 # ADMIN
 # ------------------------------------------------------------------------------
 # Django Admin URL.
-
-ADMIN_URL = env('DJANGO_ADMIN_URL', default='')
-
-if not ADMIN_URL:
-    ADMIN_URL = ''.join(random.choices(string.ascii_letters + string.digits, k=50)) + '/'
-
-    # Запись в .env файл
-    with open(os.path.join(BASE_DIR, '.env'), 'a') as env_file:
-        env_file.write(f'DJANGO_ADMIN_URL={ADMIN_URL}\n')
-
-
+ADMIN_URL = "admin/"
+# https://docs.djangoproject.com/en/dev/ref/settings/#admins
+ADMINS = [("""Anton Gulin""", "gulin@thoth.kz")]
+# https://docs.djangoproject.com/en/dev/ref/settings/#managers
+MANAGERS = ADMINS
 # https://cookiecutter-django.readthedocs.io/en/latest/settings.html#other-environment-settings
 # Force the `admin` sign in process to go through the `django-allauth` workflow
 DJANGO_ADMIN_FORCE_ALLAUTH = env.bool("DJANGO_ADMIN_FORCE_ALLAUTH", default=False)
@@ -299,9 +348,11 @@ if USE_TZ:
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-broker_url
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-result_backend
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+# CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = None
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#result-extended
-CELERY_RESULT_EXTENDED = True
+# CELERY_RESULT_EXTENDED = True
+CELERY_RESULT_EXTENDED = None
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#result-backend-always-retry
 # https://github.com/celery/celery/pull/6122
 CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
@@ -315,10 +366,10 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-time-limit
 # TODO: set to whatever value is adequate in your circumstances
-CELERY_TASK_TIME_LIMIT = 5 * 60
+CELERY_TASK_TIME_LIMIT = 12000
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-soft-time-limit
 # TODO: set to whatever value is adequate in your circumstances
-CELERY_TASK_SOFT_TIME_LIMIT = 60
+CELERY_TASK_SOFT_TIME_LIMIT = 10800
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#beat-scheduler
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#worker-send-task-events
@@ -329,24 +380,23 @@ CELERY_TASK_SEND_SENT_EVENT = True
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", False)
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_LOGIN_METHODS = {'email'}
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # https://docs.allauth.org/en/latest/account/configuration.html
-# ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_EMAIL_VERIFICATION = env.bool("ACCOUNT_EMAIL_VERIFICATION", default="none")
+ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="none")
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "thoth.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
 ACCOUNT_FORMS = {"signup": "thoth.users.forms.UserSignupForm"}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_ADAPTER = "thoth.users.adapters.SocialAccountAdapter"
+# SOCIALACCOUNT_ADAPTER = "thoth.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_FORMS = {"signup": "thoth.users.forms.UserSocialSignupForm"}
+# SOCIALACCOUNT_FORMS = {"signup": "thoth.users.forms.UserSocialSignupForm"}
 
 # django-rest-framework
 # -------------------------------------------------------------------------------
@@ -376,3 +426,16 @@ SPECTACULAR_SETTINGS = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+# CKEditor Settings
+# CKEDITOR_UPLOAD_PATH = 'uploads/'
+# CKEDITOR_CONFIGS = {
+#     'default':
+#         {
+#             'toolbar': 'full',
+#             'width': 'auto',
+#             'extraPlugins': ','.join([
+#                 'codesnippet',
+#             ]),
+#         },
+# }

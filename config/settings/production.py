@@ -79,7 +79,7 @@ STORAGES = {
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
 DEFAULT_FROM_EMAIL = env(
     "DJANGO_DEFAULT_FROM_EMAIL",
-    default="thoth <thoth@example.com>",
+    default="thoth <noreply@thoth.kz>",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
 SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
@@ -88,6 +88,8 @@ EMAIL_SUBJECT_PREFIX = env(
     "DJANGO_EMAIL_SUBJECT_PREFIX",
     default="[thoth] ",
 )
+
+
 
 # ADMIN
 # ------------------------------------------------------------------------------
@@ -141,14 +143,19 @@ LOGGING = {
             "level": "ERROR",
             "propagate": True,
         },
-        "django.security.DisallowedHost": {
-            "level": "ERROR",
-            "handlers": ["console", "mail_admins"],
-            "propagate": True,
-        },
+        # "django.security.DisallowedHost": {
+        #     "level": "ERROR",
+        #     "handlers": ["console", "mail_admins"],
+        #     "propagate": True,
+        # },
     },
 }
 
-
+# django-rest-framework
+# -------------------------------------------------------------------------------
+# Tools that generate code samples can use SERVERS to point to the correct domain
+SPECTACULAR_SETTINGS["SERVERS"] = [
+    {"url": "https://gulin.kz", "description": "Production server"},
+]
 # Your stuff...
 # ------------------------------------------------------------------------------

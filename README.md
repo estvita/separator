@@ -22,7 +22,7 @@ cd thoth
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements/production.txt
+pip install -r requirements/last.txt
 
 cp docs/example/env_example .env nano .env replace ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
 Replace the value of DATABASE_URL with your own (the psql database must be created beforehand)
@@ -63,8 +63,22 @@ journalctl -u thoth -f
 ```
 
 
-## Integration
+## Integrations
 
 + [Bitrix24 CRM](docs/bitrix.md)
-+ [(WhatsApp) WABA](docs/waba.md)
++ [WhatsApp - WABA](docs/waba.md)
++ [WhatsApp - WEB](docs/waweb.md)
 + [OLX](docs/olx.md)
++ [Chatwoot](docs/chatwoot.md)
+
++ [Openai chat-bot](docs/openai_bot.md)
++ [Openai voice-bot](docs/openai_voice.md)
+
+
+## User Service Pages
+/portals/ - Bitrix24
+/olx/accounts/ - OLX
+/waba/ - waba
+/waweb/ - whatsapp web
+/bots/ - openai assistants
+/voices/ - openai voice

@@ -7,10 +7,14 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from rest_framework.views import APIView
 
+from django_celery_beat.models import PeriodicTask
+from django.utils import timezone
+
 from thoth.olx.models import OlxApp
 from thoth.olx.models import OlxUser
 
 from .serializers import OlxAuthorizationSerializer
+from thoth.tariff.utils import get_trial
 
 logger = logging.getLogger("olx")
 
@@ -79,9 +83,22 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                     olx_user.refresh_token = refresh_token
                     olx_user.save()
                     messages.success(request, "OLX Tokens successfully updated")
+
+                    # Активация периодической задачи если она отключена 
+                    task_name = f"Pull threads {olx_id}"
+                    try:
+                        periodic_task = PeriodicTask.objects.get(name=task_name)
+                        if not periodic_task.enabled:
+                            periodic_task.enabled = True
+                            periodic_task.last_run_at = timezone.now()
+                            periodic_task.save()
+                            messages.success(request, f"Periodic task '{task_name}' activated.")
+                    except PeriodicTask.DoesNotExist:
+                        logger.warning(f"Task '{task_name}' does not exist and cannot be activated.")
+
                 else:
                     # Создание нового пользователя с указанием владельца
-                    OlxUser.objects.create(
+                    olx_acc = OlxUser.objects.create(
                         olxapp=account,
                         olx_id=olx_id,
                         email=user_data["email"],
@@ -91,6 +108,9 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                         refresh_token=refresh_token,
                         owner=request.user,
                     )
+                    if not olx_acc.date_end:
+                        olx_acc.date_end = get_trial(request.user, "olx")
+                    olx_acc.save()
                     messages.success(request, "OLX Account successfully added")
 
                 return redirect("olx-accounts")
@@ -104,3 +124,4 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
             logger.error(f"Failed to obtain tokens: {response.json()}")
             messages.error(request, f"Failed to obtain tokens: {response.json()}")
             return redirect("olx-accounts")
+        

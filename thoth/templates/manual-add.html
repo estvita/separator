@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}
+  Добавить WABA и телефон
+{% endblock title %}
+
+{% block content %}
+<div class="container">
+  <h3>Добавить телефон вручную</h3>
+  
+  <!-- Инструкция -->
+  <div class="instructions">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/sdrclPA3POk?si=HAECvEBFKiIiw7ZD" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    <p>Пожалуйста, заполните следующие поля, чтобы добавить WhatsApp Business API аккаунт и телефон.</p>
+    <p>Данные для подключения на стороне facebook</p>
+    <ul>
+        <li>Создайте приложение на https://developers.facebook.com/apps/ (Другое, Компания)</li>
+        <li>Подключите продукт WhatsApp</li>
+        <li>Быстрый старт > Настройка введите url и маркер</li>
+        <li>URL обратного вызова: https://gulin.kz/api/waba/?api-key=d8e28fd02cdc7141f60a65ac58690bd8a9e31524</li>
+        <li>Подтверждение маркера: bec736f7-86ed-4cf0-b72e-52d666f78569</li>
+        <li>Там же после сохранения включите "messages"</li>
+        <li>Добавьте номер телефона в разделе настройка API, скопируйте в форму значения "ID номера телефона" и "ID аккаунта WhatsApp Business"</li>
+        <li>В разделе "Пользователи - системные" создайте пользователя и сгенерируйте маркер (access_token) https://business.facebook.com/latest/settings/</li>
+        <li>Полученные данные введите в форму ниже</li>
+    </ul>
+    <p>Данные для подключения, полученные в facebook</p>
+    <ul>
+      <li>Заполните поле WABA ID для идентификации вашего аккаунта WhatsApp Business.</li>
+      <li>Введите ваш телефонный номер и соответствующий ID телефона.</li>
+      <li>Убедитесь, что у вас есть корректный access_token для работы с API.</li>
+    </ul>
+    <p>В случае необходимости эту процедуру может провести наша техподдержка при предоставлении доступа к аккаунту facebook (услуга платная)</p>
+  </div>
+
+  <!-- Форма для добавления WABA и телефона -->
+  <form style="width: 60%;" method="POST" action="{% url 'manual-add' %}">
+    {% csrf_token %}
+    <div class="form-group">
+      <label for="waba_id">WABA ID</label>
+      <input type="text" class="form-control" id="waba_id" name="waba_id" required>
+    </div>
+    
+    <div class="form-group">
+      <label for="phone">Phone</label>
+      <input type="text" class="form-control" id="phone" name="phone" required>
+    </div>
+    
+    <div class="form-group">
+      <label for="phone_id">Phone ID</label>
+      <input type="text" class="form-control" id="phone_id" name="phone_id" required>
+    </div>
+    
+    <div class="form-group">
+      <label for="access_token">Access Token</label>
+      <input type="text" class="form-control" id="access_token" name="access_token" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Добавить</button>
+  </form>
+</div>
+{% endblock content %}

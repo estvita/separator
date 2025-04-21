@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %} 
+
+{% block body_class %}template-articlepage{% endblock %}
+
+{% block content %}
+    <h2>{{ page.title }}</h2>
+
+    {% for block in page.body %}
+        {% if block.block_type == "rich_text" %}
+            <div>{{ block.value|richtext }}</div>
+        {% elif block.block_type == "code" %}
+            {% include_block block %}
+        {% endif %}
+    {% endfor %}
+{% endblock %}

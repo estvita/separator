@@ -7,6 +7,11 @@ hiredis==3.0.0  # https://github.com/redis/hiredis-py
 celery==5.4.0  # pyup: < 6.0  # https://github.com/celery/celery
 django-celery-beat==2.6.0  # https://github.com/celery/django-celery-beat
 flower==2.0.1  # https://github.com/mher/flower
+openai
+wagtail
+wagtail-seo
+wagtailcodeblock
+django-phonenumber-field[phonenumberslite]
 
 # Django
 # ------------------------------------------------------------------------------

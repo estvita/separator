@@ -5,38 +5,34 @@ from thoth.bitrix.crest import call_method
 from thoth.bitrix.models import Line
 from thoth.bitrix.utils import messageservice_add
 
-from .models import Phone
-from .models import Waba
+from .models import App, Waba, Phone, Template
 
+@admin.register(App)
+class AppAdmin(admin.ModelAdmin):
+    list_display = ("client_id", "verify_token")
 
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
-    list_display = ("name", "verify_token", "owner")
-    fields = ("name", "access_token", "owner")
+    list_display = ("waba_id", "owner")
+    list_per_page = 30
+
+@admin.register(Template)
+class TemplateAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "lang", "owner", "waba", "status")
+    list_per_page = 30
 
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
-    list_display = ("phone", "phone_id", "owner", "waba", "line", "sms_service")
+    list_display = ("phone_id", "phone", "owner", "waba", "line", "sms_service")
     search_fields = ("phone", "phone_id")
-    fields = (
-        "app_instance",
-        "phone",
-        "phone_id",
-        "waba",
-        "owner",
-        "line",
-        "sms_service",
-    )
-    readonly_fields = (
-        "line",
-    )
+    list_per_page = 30
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
 
         # создание открытой линии
-        if not obj.line:
+        if not obj.line and obj.app_instance:
             line_data = {
                 "PARAMS": {
                     "LINE_NAME": obj.phone,
@@ -66,7 +62,12 @@ class PhoneAdmin(admin.ModelAdmin):
 
 
         # Регистрация SMS-провайдера
-        if obj.sms_service and not obj.old_sms_service:
+        if obj.sms_service:
+            if not obj.line or not obj.app_instance:
+                obj.sms_service = False
+                obj.save()
+                messages.error(request, 'phone not have line (not connected to bitrix24)')
+                return
             # Проверка наличия объекта auth_token
             owner = obj.line.app_instance.app.owner
             if not hasattr(owner, 'auth_token'):
@@ -78,11 +79,14 @@ class PhoneAdmin(admin.ModelAdmin):
             api_key = owner.auth_token.key
             resp = messageservice_add(obj.app_instance, obj.phone, obj.line.line_id, api_key, 'waba')
             if 'error' in resp:
-                obj.sms_service = False
-                obj.save()
                 messages.error(request, resp)
+            else:
+                messages.info(request, resp)
 
-        elif not obj.sms_service and obj.old_sms_service:
+        elif not obj.sms_service:
+            if not obj.line or not obj.app_instance:
+                messages.error(request, 'phone not have line (not connected to bitrix24)')
+                return
             phone = ''.join(filter(str.isalnum, obj.phone))
             resp = call_method(
                 obj.app_instance,
@@ -91,6 +95,7 @@ class PhoneAdmin(admin.ModelAdmin):
             )
             if 'error' in resp:
                 messages.error(request, resp)
+            else:
+                messages.info(request, resp)
 
-        obj.old_sms_service = obj.sms_service
         obj.save()

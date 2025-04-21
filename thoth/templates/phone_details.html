@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}
+  Send WhatsApp Message
+{% endblock title %}
+
+{% block content %}
+<div class="container">
+  <h3>Send Message via {{ phone.phone }}</h3>
+  <form style="width: 40%;" method="POST">
+    {% csrf_token %}
+    
+    <!-- Поле для ввода телефонов получателей (многострочное) -->
+    <div class="form-group">
+      <label for="recipient_phone">Recipient Phones (one per line)</label>
+      <textarea class="form-control" id="recipient_phone" name="recipient_phone" placeholder="Enter recipient phone numbers, one per line" rows="4" required></textarea>
+    </div>
+
+    <!-- Поле выбора шаблона -->
+    <div class="form-group">
+      <label for="template">Template (<a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">Add New</a>)</label>
+      <select class="form-control" id="template" name="template">
+        {% for template in templates %}
+          <option value="{{ template.id }}">{{ template }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Send</button>
+  </form>
+</div>
+{% endblock content %}

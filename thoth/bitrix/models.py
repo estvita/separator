@@ -7,20 +7,17 @@ from django.utils import timezone
 
 
 class App(models.Model):
-    APP_NAME = [
-        ("olx", "olx"),
-        ("waba", "waba"),
-    ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
     site = models.ForeignKey(
-        Site, on_delete=models.CASCADE, related_name="apps", blank=True, null=True
+        Site, on_delete=models.SET_NULL, related_name="apps", blank=True, null=True
     )
-    name = models.CharField(max_length=255, blank=True, choices=APP_NAME)
+    name = models.CharField(max_length=255, blank=True, unique=False)
+    page_url = models.CharField(max_length=255, blank=True, default="/")
     connector = models.BooleanField(default=False)
-    client_id = models.CharField(max_length=255, blank=True, unique=True)
+    client_id = models.CharField(max_length=255, blank=True, unique=False)
     client_secret = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
@@ -34,7 +31,7 @@ class Bitrix(models.Model):
     domain = models.CharField(max_length=255, unique=True)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         blank=True,
         null=True,
     )
@@ -51,20 +48,31 @@ class Bitrix(models.Model):
 class AppInstance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
-    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name="installations")
+    app = models.ForeignKey(App, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True)
     portal = models.ForeignKey(
-        Bitrix, on_delete=models.CASCADE, related_name="installations"
+        Bitrix, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True
     )
     auth_status = models.CharField(max_length=1)
     access_token = models.CharField(max_length=255, blank=True)
     refresh_token = models.CharField(max_length=255, blank=True)
     application_token = models.CharField(max_length=255, blank=True)
     storage_id = models.CharField(max_length=255, blank=True)
+    status = models.IntegerField(default=0, blank=True)
+    attempts = models.IntegerField(default=0, blank=True)
 
     def __str__(self):
         return f"{self.app.name} on {self.portal.domain}"
+
+
+class AdminMessage(models.Model):
+    app_instance = models.ManyToManyField(AppInstance, related_name='messages')
+    message = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.message
 
 
 class Line(models.Model):
@@ -78,7 +86,7 @@ class Line(models.Model):
 
 
 class VerificationCode(models.Model):
-    portal = models.OneToOneField(Bitrix, on_delete=models.CASCADE)
+    portal = models.OneToOneField(Bitrix, on_delete=models.SET_NULL, blank=True, null=True)
     code = models.UUIDField(default=uuid.uuid4)
     expires_at = models.DateTimeField()
 

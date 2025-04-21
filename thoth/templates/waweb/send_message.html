@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Send Message via {{ session.phone }}</h1>
+
+{% if session.status == "disconnected" %}
+    <p style="color: red;">Сессия отключена. Пожалуйста, повторно подключите номер.</p>
+{% else %}
+    <form method="post">
+        {% csrf_token %}
+        {{ form.recipients }}
+        {{ form.message }}
+        <button type="submit">Отправить</button>
+    </form>
+{% endif %}
+
+<a href="{% url 'waweb:wa_sessions' %}">Вернуться назад</a>
+{% endblock %}

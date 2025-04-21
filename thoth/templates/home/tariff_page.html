@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+
+{% block content %}
+    <h1>{{ page.title }}</h1>
+
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 2px solid black;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+
+    <!-- Фильтр по сервисам -->
+    <label for="service-filter">Выберите услугу:</label>
+    <select id="service-filter">
+        <option value="all">Все услуги</option>
+        {% for service in services %}
+            <option value="{{ service.name }}">{{ service.name }}</option>
+        {% endfor %}
+    </select>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Услуга</th>
+                <th>Пробный</th>
+                <th>Цена</th>
+                <th>Валюта</th>
+                <th>Период</th>
+                <th>Описание</th>
+            </tr>
+        </thead>
+        <tbody id="tariff-table">
+            {% for tariff in tariffs %}
+                <tr class="tariff-row" data-service="{{ tariff.service.name }}">
+                    <td>{{ tariff.service.name }}</td>
+                    <td>{% if tariff.is_trial %}✅ Да {% else %}❌ Нет {% endif %}</td>
+                    <td>{{ tariff.price }}</td>
+                    <td>{{ tariff.get_currency_display }}</td>
+                    <td>{{ tariff.duration }}/{{ tariff.get_period_display }}</td>
+                    <td>{{ tariff.description }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6">Тарифов пока нет</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Выводим текстовое описание из RichTextBlock -->
+    {% for block in page.body %}
+        {% if block.block_type == "rich_text" %}
+            <div>{{ block.value|richtext }}</div>
+        {% endif %}
+    {% endfor %}
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var filter = document.getElementById("service-filter");
+            var rows = document.querySelectorAll(".tariff-row");
+
+            filter.addEventListener("change", function () {
+                var selectedService = this.value;
+
+                rows.forEach(function (row) {
+                    if (selectedService === "all" || row.getAttribute("data-service") === selectedService) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+            });
+        });
+    </script>
+
+{% endblock %}

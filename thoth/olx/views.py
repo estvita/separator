@@ -1,13 +1,10 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from thoth.bitrix.crest import call_method
-from thoth.bitrix.models import AppInstance
-from thoth.bitrix.models import Line
+from thoth.bitrix.models import AppInstance, Line
 
-from .models import OlxApp
-from .models import OlxUser
+from .models import OlxApp, OlxUser
 
 
 @login_required

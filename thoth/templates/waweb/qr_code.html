@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Сканируйте QR-код</h1>
+<img src="data:image/png;base64,{{ qr_image }}" alt="QR Code">
+<p>QR-код готов. Используйте его для подключения.</p>
+<a href="{% url 'waweb:wa_sessions' %}">Вернуться</a>
+{% endblock %}

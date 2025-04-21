@@ -1,8 +1,10 @@
-# waba/urls.py
 from django.urls import path
-
-from .api.views import WabaWebhook
+from . import views
 
 urlpatterns = [
-    path("", WabaWebhook.as_view(), name="waba_webhook"),
+    path('', views.waba_view, name='waba'),
+    path('callback/', views.facebook_callback, name='facebook_callback'),
+    path('request/', views.save_request, name='save_request'),
+    # path('manual-add/', views.manual_add, name='manual-add'),
+    path('phone/<int:phone_id>/', views.phone_details, name='phone-details'),
 ]

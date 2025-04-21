@@ -272,9 +272,11 @@ tags
 dump.rdb
 
 ### Project template
-mailpit
 thoth/media/
 
 .pytest_cache/
+.ipython/
 .env
-db.sqlite
+.envs/*
+!.envs/.local/
+test.py

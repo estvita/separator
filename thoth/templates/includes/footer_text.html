@@ -1,0 +1,9 @@
+{% load wagtailcore_tags %}
+
+<div class="footer-container">
+    {% for block in footer_blocks %}
+        <div class="footer-item">
+            {{ block.value|richtext }}
+        </div>
+    {% endfor %}
+</div>

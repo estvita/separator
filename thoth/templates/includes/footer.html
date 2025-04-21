@@ -1,0 +1,16 @@
+{# Load navigation_tags at the top of the file: #}
+{% load navigation_tags %}
+<footer>
+    {% with github_url=settings.home.NavigationSettings.github_url %}
+        {% if github_url %}
+            <p>
+                Follow me on:
+                {% if github_url %}
+                    <a target="_blank" href="{{ github_url }}">GitHub</a>
+                {% endif %}
+            </p>
+        {% endif %}
+    {% endwith %}
+    {# Add footer_text: #}
+    {% get_footer_text %}
+</footer>

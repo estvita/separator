@@ -4,29 +4,44 @@ import logging
 import os
 import re
 import uuid
+import redis
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 
 from rest_framework import status
 from rest_framework.response import Response
 
-import thoth.olx.utills
-import thoth.waba.utils
+import thoth.olx.tasks as olx_tasks
+import thoth.waba.utils as waba
 from thoth.olx.models import OlxUser
 from thoth.waba.models import Phone
 
+from thoth.waweb.models import WaSession
+import thoth.waweb.utils as waweb
+import thoth.waweb.tasks as waweb_tasks
+
 from .crest import call_method
 from .models import App, AppInstance, Bitrix, Line, VerificationCode
+import thoth.bitrix.tasks as bitrix_tasks
 
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+
+THOTH_BITRIX = settings.THOTH_BITRIX
 
 logger = logging.getLogger("django")
 
-EVENTS = [
+GENERAL_EVENTS = [
+    "ONAPPUNINSTALL",
+]
+
+CONNECTOR_EVENTS = [
     "ONIMCONNECTORMESSAGEADD",
     "ONIMCONNECTORLINEDELETE",
     "ONIMCONNECTORSTATUSDELETE",
-    "ONAPPUNINSTALL",
 ]
+
+ALL_EVENTS = GENERAL_EVENTS + CONNECTOR_EVENTS
 
 
 def thoth_logo(connetor):
@@ -54,8 +69,10 @@ def register_connector(appinstance: AppInstance, api_key: str):
 
     call_method(appinstance, "imconnector.register", payload)
 
-    # Подписка на события
-    for event in EVENTS:
+# Подписка на события
+def events_bind(events: dict, appinstance: AppInstance, api_key: str):
+    url = appinstance.app.site
+    for event in events:
         payload = {
             "event": event,
             "HANDLER": f"https://{url}/api/bitrix/?api-key={api_key}",
@@ -70,23 +87,12 @@ def messageservice_add(appinstance, phone, line, api_key, service):
     filtered_text = ''.join(filter(str.isalnum, phone))
     payload = {
         "CODE": f"THOTH_{filtered_text}_{line}",
-        "NAME": f"THOTH ({phone})",
+        "NAME": f"gulin.kz ({phone})",
         "TYPE": "SMS",
         "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
     }
 
     return call_method(appinstance, "messageservice.sender.add", payload)
-
-
-def get_personal_mobile(users):
-    personal_mobiles = []
-    for user_id, user_info in users.items():
-        if user_info.get("external_auth_id") == "imconnector":
-            phones = user_info.get("phones", {})
-            personal_mobile = phones.get("personal_mobile")
-            if personal_mobile:
-                personal_mobiles.append(personal_mobile)
-    return personal_mobiles
 
 
 def extract_files(data):
@@ -114,6 +120,19 @@ def extract_files(data):
 
     return files
 
+
+def upload_file(appinstance, storage_id, fileContent, filename):
+    payload = {
+        "id": storage_id,
+        "fileContent": fileContent,
+         "data": {"NAME": filename},
+         "generateUniqueName": True,
+    }
+    upload_to_bitrix = call_method(appinstance, "disk.folder.uploadfile", payload)
+    if "result" in upload_to_bitrix:
+        return upload_to_bitrix["result"]
+    else:
+        return None
 
 def get_line(app_instance, line_id):
     line_data = call_method(
@@ -145,6 +164,9 @@ def process_placement(request):
                 finded_object = OlxUser.objects.filter(line=line).first()
             elif connector == "thoth_waba":
                 finded_object = Phone.objects.filter(line=line).first()
+            elif connector == "thoth_waweb":
+                finded_object = WaSession.objects.filter(line=line).first()
+            
             if finded_object:
                 return Response("Ничего не изменилось, спасибо.")
 
@@ -159,6 +181,11 @@ def process_placement(request):
                     phone.line = line
                     phone.save()
 
+                elif connector == "thoth_waweb":
+                    phone = WaSession.objects.get(phone=line_name)
+                    phone.line = line
+                    phone.save()
+
                 payload = {
                     "CONNECTOR": connector,
                     "LINE": line_id,
@@ -168,7 +195,7 @@ def process_placement(request):
                 return Response("Линия подключена, спасибо.")
 
         except Line.DoesNotExist:
-            return Response("Создать линию можно на app.thoth.kz, спасибо.")
+            return Response("Для изменения линии, удалите текущую в интерфейса CRM, а затем заоново подключите аккаунт на портале gulin.kz.")
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -180,35 +207,61 @@ def process_placement(request):
 
 def sms_processor(request):
     data = request.data
-    application_token = data.get("auth[application_token]", {})
+    application_token = data.get("auth[application_token]")
     appinstance = AppInstance.objects.get(application_token=application_token)
-    domain = data.get("auth[domain]", {})
-    sms_msg = data.get("type", {})
-    message_body = data.get("message_body", {})
+    message_body = data.get("message_body")
+    code = data.get("code", {})
+    phones = []
+    message_to = re.sub(r'\D', '', data.get("message_to"))
+    phones.append(message_to)
+    line = re.search(r"_(\d+)$", code).group(1)
+
+    status_data = {
+        "CODE": code,
+        "MESSAGE_ID": data.get("message_id"),
+        "STATUS": "delivered"
+    }
+
+    bitrix_tasks.call_api.delay(application_token, "messageservice.message.status.update", status_data)
+
+    # начать диалог в открытых линиях
+    service = request.query_params.get('service')
+    bitrix_tasks.message_add.delay(appinstance.id, line, message_to, message_body, f"thoth_{service}")
 
     # Messages from SMS gate
-    if sms_msg == "SMS":
-        phones = []
-        message_to = data.get("message_to", {})
-        phones.append(message_to)
+    if service == "waba":
+        # Проверяем наличие "template+" в начале message_body
+        if not message_body.startswith("template+"):
+            return Response(
+                {"error": "Message body must start with 'template+'"})
 
         try:
-            template, language = message_body.split("+")
+            # Убираем "template+" и разбиваем на три части
+            _, template_name, language = message_body.split("+", 2)
         except ValueError as e:
             logger.error(f"Error splitting message_body: {message_body} - {e!s}")
             return Response(
-                {"error": "Invalid message body content"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+                {"error": "Invalid message body format, expected 'template+name+lang'"})
         message = {
             "type": "template",
-            "template": {"name": template, "language": {"code": language}},
+            "template": {"name": template_name, "language": {"code": language}},
         }
-        code = data.get("code", {})
-        line = re.search(r"_(\d+)$", code).group(1)
 
-        thoth.waba.utils.send_message(appinstance, message, line, phones)
-        return Response({"status": "message processed"}, status=status.HTTP_200_OK)
+        waba.send_message(appinstance, message, line, phones)
+    
+    elif service == "waweb":
+        sender  = re.search(r'_(\d+)_', code).group(1)
+        try:
+            wa = WaSession.objects.get(phone=sender)
+            resp = waweb.send_message(wa.session, message_to, message_body)
+            if resp.status_code == 201:
+                waweb.store_msg(resp)
+        except wa.DoesNotExist:
+            raise ValueError(f"No WaSession found for phone number: {sender}")
+        except Exception as e:
+            print(f"Failed to send message to {message_to}: {e}")
+
+    return Response({"status": "message processed"}, status=status.HTTP_200_OK)
 
 
 def event_processor(request):
@@ -232,10 +285,13 @@ def event_processor(request):
             if access_token and appinstance.portal.user_id == user_id:
                 appinstance.access_token = access_token
                 appinstance.save()
+                if event == "ONAPPINSTALL":
+                    return Response({"message": "ok"})
 
         except AppInstance.DoesNotExist:
             # Если событие ONAPPINSTALL
             if event == "ONAPPINSTALL":
+                scope = data.get("auth[scope]", {})
                 # Получение приложения по app_id
                 try:
                     app = App.objects.get(id=app_id)
@@ -275,30 +331,41 @@ def event_processor(request):
 
                 appinstance = AppInstance.objects.create(**appinstance_data)
 
+
                 # Получаем storage_id и сохраняем его
                 storage_id_data = call_method(appinstance, "disk.storage.getforapp", {})
                 storage_id = storage_id_data["result"]["ID"]
                 appinstance.storage_id = storage_id
                 appinstance.save()
 
-                # Регистрируем коннектор
-                register_connector(appinstance, api_key)
+                # Регистрация коннектора/ подписка на события
+                if app.connector:
+                    register_connector(appinstance, api_key)
+                    events_bind(ALL_EVENTS, appinstance, api_key)
+                else:
+                    events_bind(GENERAL_EVENTS, appinstance, api_key)
 
-                # Если тиражное приложение отправлем код
-                if auth_status == "F":
-                    code = uuid.uuid4()
-                    VerificationCode.objects.create(
-                        portal=portal,
-                        code=code,
-                        expires_at=timezone.now() + timedelta(days=1),
-                    )
+                # Если портал уже прявязан
+                if portal.owner:
+                    return Response('App successfully created and linked')
 
-                    payload = {
-                        "message": f"Ваш код подтверждения: {code}",
-                        "USER_ID": appinstance.portal.user_id,
-                    }
+                code = uuid.uuid4()
+                VerificationCode.objects.create(
+                    portal=portal,
+                    code=code,
+                    expires_at=timezone.now() + timedelta(days=1),
+                )
 
-                    call_method(appinstance, "im.notify.system.add", payload)
+                payload = {
+                    "message": f"Ваш код подтверждения: {code}. Введите его на странице https://{appinstance.app.site}/portals/",
+                    "USER_ID": appinstance.portal.user_id,
+                }
+
+                call_method(appinstance, "im.notify.system.add", payload)
+
+                # создание лида в битриксе если есть права
+                if "user_basic" in scope and THOTH_BITRIX:
+                    bitrix_tasks.create_deal.delay(appinstance.id, THOTH_BITRIX, app.name)
 
                 return Response(
                     {"message": "App and portal successfully created and linked."},
@@ -313,8 +380,29 @@ def event_processor(request):
         # Обработка события ONIMCONNECTORMESSAGEADD
         if event == "ONIMCONNECTORMESSAGEADD":
             connector = data.get("data[CONNECTOR]")
-            line = data.get("data[LINE]", {})
+            line_id = data.get("data[LINE]")
             message_id = data.get("data[MESSAGES][0][im][message_id]")
+            chat_id = data.get("data[MESSAGES][0][im][chat_id]")
+            chat = data.get("data[MESSAGES][0][chat][id]")
+            status_data = {
+                "CONNECTOR": connector,
+                "LINE": line_id,
+                "MESSAGES": [
+                    {
+                        "im": {
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                        },
+                    },
+                ],
+            }
+
+            bitrix_tasks.call_api.delay(application_token, "imconnector.send.status.delivery", status_data)
+
+            # Проверяем наличие сообщения в редис (отправлено из других сервисов )
+            if redis_client.exists(f'bitrix:{domain}:{message_id}'):
+                return Response({'message': 'loop message'})
+            
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
             text = data.get("data[MESSAGES][0][message][text]", None)
             if text:
@@ -327,9 +415,9 @@ def event_processor(request):
 
             # If WABA connector
             if connector == "thoth_waba":
-                chat_id = data.get("data[MESSAGES][0][im][chat_id]")
+
                 message = {
-                    "biz_opaque_callback_data": f"{line}_{chat_id}_{message_id}",
+                    "biz_opaque_callback_data": f"{line_id}_{chat_id}_{message_id}",
                 }
 
                 if not files and text:
@@ -346,86 +434,56 @@ def event_processor(request):
                         "language": {"code": language},
                     }
 
-                # Получаем список пользователей и номера телефонов
-                user_list = call_method(
-                    appinstance, "im.chat.user.list", {"CHAT_ID": chat_id}
-                )
-                if user_list:
-                    users = call_method(
-                        appinstance, "im.user.list.get", {"ID": user_list["result"]}
-                    )
-                    phones = get_personal_mobile(users["result"])
+                # Если есть файлы, отправляем сообщение с каждым файлом отдельно
+                if files:
+                    for file in files:
+                        # Определяем тип файла и добавляем его к сообщению
+                        if file["type"] == "image":
+                            message["type"] = "image"
+                            message["image"] = {"link": file["link"]}
+                        elif file["type"] in ["file", "video", "audio"]:
+                            message["type"] = "document"
+                            message["document"] = {
+                                "link": file["link"],
+                                "filename": file["name"],
+                            }
 
-                    # Если есть файлы, отправляем сообщение с каждым файлом отдельно
+                resp = waba.send_message(appinstance, message, line_id, chat, user_id)
+
+                if resp.status_code != 200:
+                    error = resp.json()
+                    if "error" in error:
+                        error = error.get("error")
+                        message = error.get("message")
+                        details = None
+                        error_data = error.get("error_data", {})
+                        if error_data:
+                            details = error_data.get("details")
+                        payload = {
+                            "message": f"{message} {details}",
+                            "USER_ID": user_id
+                        }
+                        resp = call_method(appinstance, "im.notify.system.add", payload)
+
+            elif connector == "thoth_waweb":
+                try:
+                    line = Line.objects.get(line_id=line_id, app_instance=appinstance)
+                    wa = WaSession.objects.get(line=line)
                     if files:
                         for file in files:
-                            file_message = message.copy()
+                            waweb_tasks.send_message_task.delay(str(wa.session), [chat], file, 'media')
+                    resp = waweb.send_message(wa.session, chat, text)
+                    if resp.status_code == 201:
+                        waweb.store_msg(resp)
+                except Exception as e:
+                    print(f'Failed to send waweb message: {str(e)}')
+                    return Response({'error': f'Failed to send message: {str(e)}'})
 
-                            # Определяем тип файла и добавляем его к сообщению
-                            if file["type"] == "image":
-                                file_message["type"] = "image"
-                                file_message["image"] = {"link": file["link"]}
-                            elif file["type"] in ["file", "video", "audio"]:
-                                file_message["type"] = "document"
-                                file_message["document"] = {
-                                    "link": file["link"],
-                                    "filename": file["name"],
-                                }
-
-                            thoth.waba.utils.send_message(
-                                appinstance, file_message, line, phones
-                            )
-                    else:
-                        # Если файлов нет, отправляем только текстовое сообщение
-                        thoth.waba.utils.send_message(
-                            appinstance, message, line, phones
-                        )
 
             # If OLX connector
             elif connector == "thoth_olx":
-                chat_id = data.get("data[MESSAGES][0][chat][id]")
-                resp = thoth.olx.utills.send_message(chat_id, text, files)
-                if resp.status_code == 200:
-                    payload = {
-                        "CONNECTOR": "thoth_olx",
-                        "LINE": line,
-                        "MESSAGES": [
-                            {
-                                "im": {
-                                    "chat_id": chat_id,
-                                    "message_id": message_id,
-                                },
-                            },
-                        ],
-                    }
+                olx_tasks.send_message.delay(chat, text, files)
 
-                    call_method(
-                        appinstance, "imconnector.send.status.delivery", payload
-                    )
-
-                else:
-                    error_text = resp.json()["error"]["detail"]
-                    _, _, interlocutor_id = chat_id.split("-")
-
-                    payload = {
-                        "CONNECTOR": "thoth_olx",
-                        "LINE": line,
-                        "MESSAGES": [
-                            {
-                                "user": {
-                                    "id": interlocutor_id,
-                                },
-                                "chat": {
-                                    "id": chat_id,
-                                },
-                                "message": {
-                                    "text": f"This is a response from the OLX server: {error_text}",
-                                },
-                            },
-                        ],
-                    }
-
-                    call_method(appinstance, "imconnector.send.messages", payload)
 
             return Response(
                 {"status": "ONIMCONNECTORMESSAGEADD event processed"},
@@ -446,6 +504,12 @@ def event_processor(request):
 
                 elif connector == "thoth_waba":
                     phone = line.phones.first()
+                    if phone:
+                        phone.line = None
+                        phone.save()
+                
+                elif connector == "thoth_waweb":
+                    phone = line.wawebs.first()
                     if phone:
                         phone.line = None
                         phone.save()
