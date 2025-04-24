@@ -52,7 +52,8 @@ def send_message(chat_id, text, files=None):
 def get_threads(olx_user_id):
     try:
         user = OlxUser.objects.get(olx_id=olx_user_id)
-        bitrix_user = user.line.app_instance.portal.user_id
+        connector_code = user.line.connector.code
+        bitrix_user = user.line.portal.user_id
 
         current_time = timezone.now()
 
@@ -108,12 +109,12 @@ def get_threads(olx_user_id):
                             if int(message_id) > int(last_message):
                                 redis_client.set(f'olx:{thread_id}', message_id)
                                 if message_type == "received":
-                                    bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, "thoth_olx",
+                                    bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, connector_code,
                                                                         user.line.line_id, False, user_name, message_id,
                                                                         attachments, None, chat_id, advert_url, interlocutor_id)
                                 elif message_type == "sent":
                                     bitrix_tasks.message_add.delay(user.line.app_instance.id, user.line.line_id, 
-                                                                    interlocutor_id, text, "thoth_olx")
+                                                                    interlocutor_id, text, connector_code)
                     
                     # если треда нет в базе, то берем послденее полученное сообщение
                     else:
@@ -124,7 +125,7 @@ def get_threads(olx_user_id):
                             text = message.get("text")
                             attachments = message.get("attachments", [])
                             redis_client.set(f'olx:{thread_id}', message_id)
-                            bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, "thoth_olx",
+                            bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, connector_code,
                                                                 user.line.line_id, False, user_name, message_id,
                                                                 attachments, None, chat_id, advert_url, interlocutor_id)
 

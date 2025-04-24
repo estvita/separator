@@ -27,7 +27,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("waba/", include("thoth.waba.urls")),
     path("chat/", include("thoth.chatwoot.urls")),
-    path('waweb/', include('thoth.waweb.urls', namespace='waweb')),
+    path('waweb/', include('thoth.waweb.urls')),
     path('bots/', include('thoth.bot.urls_bot', namespace='bot')),
     path('voices/', include('thoth.bot.urls_voice', namespace='voice')),
     # Your stuff: custom urls includes go here

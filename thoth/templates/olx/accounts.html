@@ -15,7 +15,7 @@
             <th>ID</th>
             <th>Срок</th>
             <th>Line ID</th>
-            <th>Портал</th>
+            <th>Bitrix24 line</th>
           </tr>
         </thead>
         <tbody>
@@ -26,7 +26,7 @@
               <td>{{ account.date_end }}</td>
               <td>
                 {% if account.line %}
-                <span style="color: green;">{{ account.line.line_id }} - {{ account.line.app_instance.portal.domain }}</span>
+                <span style="color: green;">{{ account.line.line_id }} - {{ account.line.portal.domain }}</span>
                 {% else %}
                   No Line
                 {% endif %}
@@ -35,15 +35,16 @@
                 <form method="POST" action="{% url 'olx-accounts' %}">
                   {% csrf_token %}
                   <div class="form-group d-flex align-items-center">
-                    <select id="app_instance" name="app_instance" class="form-control mr-2">
-                      {% if account.app_instance %}
-                        <option value="{{ account.app_instance.id }}" selected>{{ account.app_instance }}</option>
-                      {% else %}
-                        <option value="" disabled selected>Портал Битрикс24</option>
-                      {% endif %}
-                      {% for instance in app_instances %}<option value="{{ instance.id }}">{{ instance.portal }}</option>{% endfor %}
+                    <select id="line_id" name="line_id" class="form-control mr-2">
+                      <option value="" disabled {% if not wa.line %}selected{% endif %}>Выберите линию</option>
+                      {% for line in olx_lines %}
+                      <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
+                      {% endfor %}
+                      {% for instance in instances %}
+                      <option value="create__{{ instance.id }}">➕ линия {{ instance.portal.domain }}</option>
+                      {% endfor %}
                     </select>
-                    <input type="hidden" name="olx_user_id" value="{{ account.id }}" />
+                    <input type="hidden" name="olx_id" value="{{ account.id }}" />
                     <button type="submit" name="action" value="link" class="btn btn-secondary">Подключить</button>
                   </div>
                 </form>

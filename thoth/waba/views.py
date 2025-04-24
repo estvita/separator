@@ -5,7 +5,6 @@ from urllib.parse import parse_qs, urlparse
 from django.contrib import messages
 from django.db.models import Q
 
-import re
 import redis
 import requests
 import json
@@ -18,17 +17,16 @@ from django.utils import timezone
 
 from urllib.parse import urlencode
 
-from thoth.bitrix.crest import call_method
+import thoth.bitrix.utils as bitrix_utils
 
 import logging
 
 from thoth.users.models import User
-from thoth.bitrix.models import AppInstance, Line
+from thoth.bitrix.models import AppInstance, Line, Connector
 
 from django.conf import settings
 
 from .models import App, Waba, Phone, Template
-from thoth.bitrix.utils import messageservice_add
 import thoth.waba.utils as utils
 
 import thoth.waba.tasks as wa_tasks
@@ -155,106 +153,28 @@ def save_request(request):
 
 @login_required
 def waba_view(request):
+    connector_service = "waba"
+    connector = Connector.objects.filter(service=connector_service).first()
     phones = Phone.objects.filter(owner=request.user)
-    app_instances = AppInstance.objects.filter(
-        app__name="waba",
-        portal__owner=request.user,
-    )
-    request_id = str(uuid.uuid4())    
+    instances = AppInstance.objects.filter(owner=request.user, app__connectors=connector)
+    waba_lines = Line.objects.filter(connector=connector, owner=request.user)
+    request_id = str(uuid.uuid4())
 
     if request.method == "POST":
-        action = request.POST.get("action")
+        phone_id = request.POST.get("phone_id")
+        line_id = request.POST.get("line_id")
 
-        if action == "link":
-            phone_id = request.POST.get("phone_id")
-            app_instance_id = request.POST.get("app_instance")
+        phone = get_object_or_404(Phone, id=phone_id, owner=request.user)
 
-            try:
-                phone = Phone.objects.get(id=phone_id, owner=request.user)
-                app_instance = AppInstance.objects.get(id=app_instance_id)
-
-                if phone.line:
-                    # Проверяем, совпадает ли app_instance
-                    if phone.line.app_instance == app_instance:
-                        return redirect("waba")
-
-                    # Если app_instance отличается, удаляем старую линию, создаём новую
-                    old_line = phone.line
-                    phone.line = None
-                    call_method(
-                        old_line.app_instance,
-                        "imopenlines.config.delete",
-                        {"CONFIG_ID": old_line.line_id},
-                    )
-
-                # Создаем новую линию
-                line_data = {
-                    "PARAMS": {
-                        "LINE_NAME": phone.phone,
-                        }}
-
-                create_line = call_method(
-                    app_instance, "imopenlines.config.add", line_data
-                )
-
-                if "result" in create_line:
-                    # Линия успешно создана
-                    line = Line.objects.create(
-                        line_id=create_line["result"],
-                        app_instance=app_instance,
-                    )
-                    phone.line = line
-                    phone.app_instance = app_instance
-                    phone.save()
-
-                    # Активируем линию в Bitrix24
-                    payload = {
-                        "CONNECTOR": "thoth_waba",
-                        "LINE": line.line_id,
-                        "ACTIVE": 1,
-                    }
-                    activate_resp = call_method(app_instance, "imconnector.activate", payload)
-
-                    if activate_resp.get("error"):
-                        messages.error(request, activate_resp)
-                        return redirect("waba")
-
-                if phone.sms_service:
-                    owner = phone.line.app_instance.app.owner
-                    if not hasattr(owner, 'auth_token'):
-                        phone.sms_service = False
-                        phone.save()
-                        messages.error(request, f"API key not found for user {owner}. Operation aborted.")
-                        return redirect("waba")
-                    api_key = owner.auth_token.key
-                    resp = messageservice_add(app_instance, phone.phone, phone.line.line_id, api_key, 'waba')
-                    if 'error' in resp:
-                        phone.sms_service = False
-                        phone.save()
-                    messages.success(request, 'success')
+        bitrix_utils.connect_line(request, line_id, phone, connector, "waba")
 
 
-            except Phone.DoesNotExist:
-                messages.error(request, "Phone does not exist:", phone_id)
-                print("Phone does not exist:", phone_id)
-            except AppInstance.DoesNotExist:
-                messages.error(request, "AppInstance does not exist:", app_instance_id)
-                print("AppInstance does not exist:", app_instance_id)
-            except Exception as e:
-                messages.error(request, "Unexpected error:", str(e))
-                print("Unexpected error:", str(e))
-
-        return redirect("waba")
-
-    return render(
-        request,
-        "waba.html",
-        {
-            "phones": phones,
-            "app_instances": app_instances,
-            "request_id": request_id,
-        },
-    )
+    return render(request, "waba.html", {
+        "phones": phones,
+        "waba_lines": waba_lines,
+        "instances": instances,
+        "request_id": request_id,
+    })
 
 
 @csrf_exempt

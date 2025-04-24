@@ -1,16 +1,12 @@
 {# Load navigation_tags at the top of the file: #}
 {% load navigation_tags %}
 <footer>
-    {% with github_url=settings.home.NavigationSettings.github_url %}
-        {% if github_url %}
-            <p>
-                Follow me on:
-                {% if github_url %}
-                    <a target="_blank" href="{{ github_url }}">GitHub</a>
-                {% endif %}
-            </p>
-        {% endif %}
-    {% endwith %}
-    {# Add footer_text: #}
     {% get_footer_text %}
+    {% if SHOW_FOOTER_LINKS %}
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <a target="_blank" href="https://github.com/estvita/thoth" title="GitHub thoth">
+            <i class="fab fa-github"></i>
+        </a>
+        <a target="_blank" href="https://gulin.kz">Anton Gulin</a>
+    {% endif %}
 </footer>

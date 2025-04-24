@@ -260,6 +260,7 @@ TEMPLATES = [
                 "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
                 "thoth.users.context_processors.allauth_settings",
+                "thoth.context_processors.footer_links_visibility",
                 "wagtail.contrib.settings.context_processors.settings",
             ],
         },
@@ -426,7 +427,7 @@ SPECTACULAR_SETTINGS = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
-
+SHOW_FOOTER_LINKS = env.bool("SHOW_FOOTER_LINKS", default=True)
 # CKEditor Settings
 # CKEDITOR_UPLOAD_PATH = 'uploads/'
 # CKEDITOR_CONFIGS = {

@@ -16,7 +16,7 @@
           <th>Статус</th>
           <th>Срок действия</th>
           <th>Line ID</th>
-          <th>Bitrix24</th>
+          <th>Bitrix24 Line</th>
         </tr>
       </thead>
       <tbody>
@@ -25,11 +25,11 @@
             <!-- Phone -->
             <td>
               {% if session.show_link %}
-                <a href="{% url 'waweb:send_message' session_id=session.session %}">
+                <a href="{% url 'send_message' session_id=session.session %}">
                   {{ session.phone|default:"Not connected" }}
                 </a>
               {% else %}
-              <a href="{% url 'waweb:qr_code_page' session_id=session.session %}">
+              <a href="{% url 'qr_code_page' session_id=session.session %}">
                 {{ session.phone|default:"Not connected" }}
               </a>
               {% endif %}
@@ -51,7 +51,7 @@
             <td>
               {% if session.line %}
                 <span style="color: green;">{{ session.line.line_id }} - 
-                  <a href="https://{{ session.line.app_instance.portal.domain }}" target="_blank">{{ session.line.app_instance.portal.domain }}</a>                  
+                  <a href="https://{{ session.line.portal.domain }}" target="_blank">{{ session.line.portal.domain }}</a>                  
                 </span>
               {% else %}
                 No line
@@ -59,19 +59,16 @@
             </td>
             <!-- Bitrix24 -->
             <td>
-              <form method="POST" action="{% url 'waweb:wa_sessions' %}">
+              <form method="POST" action="{% url 'waweb' %}">
                 {% csrf_token %}
                 <div class="form-group d-flex align-items-center">
-                  <select id="app_instance" name="app_instance" class="form-control mr-2">
-                    {% if session.app_instance %}
-                      <option value="{{ session.app_instance.id }}" selected>
-                        {{ session.app_instance.portal.domain }}
-                      </option>
-                    {% else %}
-                      <option value="" disabled selected>Select portal</option>
-                    {% endif %}
-                    {% for instance in app_instances %}
-                      <option value="{{ instance.id }}">{{ instance.portal.domain }}</option>
+                  <select id="line_id" name="line_id" class="form-control mr-2">
+                    <option value="" disabled {% if not wa.line %}selected{% endif %}>Выберите линию</option>
+                    {% for line in wa_lines %}
+                      <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
+                    {% endfor %}
+                    {% for instance in instances %}
+                      <option value="create__{{ instance.id }}">➕ линия {{ instance.portal.domain }}</option>
                     {% endfor %}
                   </select>
                   <input type="hidden" name="session_id" value="{{ session.id }}" />
@@ -88,7 +85,7 @@
   {% endif %}
 
   <!-- Форма для добавления нового номера -->
-  <a href="{% url 'waweb:connect_number' %}" class="btn btn-primary">Добавить номер</a>
+  <a href="{% url 'connect_number' %}" class="btn btn-primary">Добавить номер</a>
 
 </div>
 {% endblock content %}

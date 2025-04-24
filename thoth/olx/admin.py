@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import OlxApp
 from .models import OlxUser
 
+from thoth.bitrix.models import Connector
+import thoth.bitrix.utils as bitrix_utils
 
 @admin.register(OlxApp)
 class OlxAppAdmin(admin.ModelAdmin):
@@ -34,32 +36,11 @@ class OlxUserAdmin(admin.ModelAdmin):
     # def save_model(self, request, obj, form, change):
     #     super().save_model(request, obj, form, change)
 
-    #     # Проверяем, есть ли привязка к объекту Битрикс и отсутствует ли линия
-    #     if obj.bitrix and not obj.line:
-    #         # Создание открытой линии в Битрикс
-    #         line_data = {
-    #             "PARAMS": {
-    #                 "LINE_NAME": f"THOTH_OLX_{obj.olx_id}",
-    #             },
-    #         }
-
-    #         create_line = call_method(obj.bitrix, "imopenlines.config.add", line_data)
-
-    #         # Активация открытой линии
-    #         if "result" in create_line:
-    #             # Создаем запись в модели Line и связываем её с текущим объектом OlxUser
-    #             line = Line.objects.create(
-    #                 line_id=create_line["result"],
-    #                 portal=obj.bitrix,
-    #                 content_object=obj,
-    #             )
-    #             obj.line = line
-    #             obj.save()
-
-    #             payload = {
-    #                 "CONNECTOR": "thoth_olx",
-    #                 "LINE": line.line_id,
-    #                 "ACTIVE": 1,
-    #             }
-
-    #             call_method(obj.bitrix, "imconnector.activate", payload)
+        # ПОКА НЕТ ПРЯМОЙ ПРИВЯЗКИ к app_instance 
+        # if obj.line:
+        #     line_id = obj.line.line_id
+        # else:
+        #     line_id = f"create__{obj.app_instance.id}"
+        # connector_service = "olx"
+        # connector = Connector.objects.filter(service=connector_service).first()
+        # bitrix_utils.connect_line(request, line_id, obj, connector, connector_service)

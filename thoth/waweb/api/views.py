@@ -205,12 +205,12 @@ class WaEventsHandler(GenericViewSet):
                         redis_client.setex(f'chatwoot:{cw_msg_id}', 600, cw_msg_id)
                 
                 # отправка сообщения в битрикс
-                if session.app_instance:
+                if session.line:
                     file_url = None
                     attach = None
                     text = payload.get("content") or fileName
                     if file_data:
-                        domain = session.app_instance.portal.domain
+                        domain = session.line.portal.domain
                         chat_key = f'bitrix_chat:{domain}:{session.line.line_id}:{remoteJid}'
                         if redis_client.exists(chat_key):
                             chat_id = redis_client.get(chat_key).decode('utf-8')
@@ -224,7 +224,8 @@ class WaEventsHandler(GenericViewSet):
                                 if upload_file:
                                     file_url = upload_file.get("DOWNLOAD_URL")
                     if fromme:
-                        bitrix_tasks.message_add.delay(session.app_instance.id, session.line.line_id, remoteJid, text, "thoth_waweb")
+                        bitrix_tasks.message_add.delay(session.app_instance.id, session.line.line_id, 
+                                                       remoteJid, text, session.line.connector.code)
                         if file_url:
                             file_upd = {
                                 "CHAT_ID": chat_id,
@@ -243,7 +244,7 @@ class WaEventsHandler(GenericViewSet):
                                     "name": fileName
                                 }
                             ]
-                        bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, "thoth_waweb", session.line.line_id,
+                        bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, session.line.connector.code, session.line.line_id,
                                                             False, pushName, message_id, attach, profilepic_url)
                         
 
@@ -296,9 +297,10 @@ class WaEventsHandler(GenericViewSet):
                     utils.store_msg(wa_resp)
 
                 # Если подключен битрикс
-                if session.app_instance:
+                if session.line:
                     cleaned_phone = re.sub(r'\D', '', phone_number)
-                    bitrix_tasks.message_add.delay(session.app_instance.id, session.line.line_id, cleaned_phone, content, "thoth_waweb")
+                    bitrix_tasks.message_add.delay(session.app_instance.id, session.line.line_id, 
+                                                   cleaned_phone, content, session.line.connector.code)
             
             if attachments:
                 for attachment in attachments:

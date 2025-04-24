@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import App, AppInstance, Bitrix, Line, AdminMessage
+from .models import App, AppInstance, Bitrix, Line, AdminMessage, Connector
 import thoth.bitrix.tasks as bitrix_tasks
 
 
@@ -57,11 +57,14 @@ class BitrixAdmin(admin.ModelAdmin):
     readonly_fields = ("domain", "client_endpoint", "user_id")
     list_per_page = 30
 
+@admin.register(Connector)
+class ConnectorAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "service")
+    list_per_page = 30
 
 @admin.register(Line)
 class LineAdmin(admin.ModelAdmin):
-    list_display = ("line_id", "app_instance")
-    readonly_fields = ("line_id", "app_instance")
+    list_display = ("line_id", "app_instance", "owner")
     search_fields = ("line_id",)
     list_per_page = 30
 

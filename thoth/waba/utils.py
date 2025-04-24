@@ -266,7 +266,7 @@ def message_processing(request):
         return
 
 
-    bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, "thoth_waba",
+    bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
                                         phone.line.line_id, False, name,
                                         message_id, file_url, filename)
 

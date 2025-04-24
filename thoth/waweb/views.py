@@ -7,9 +7,8 @@ from django.conf import settings
 from .forms import SendMessageForm
 from django.utils import timezone
 from thoth.tariff.utils import get_trial
-from thoth.bitrix.models import AppInstance, Line
-import thoth.bitrix.crest as bitrix
-from thoth.bitrix.utils import messageservice_add
+from thoth.bitrix.models import AppInstance, Line, Connector
+import thoth.bitrix.utils as bitrix_utils
 
 from .tasks import send_message_task
 
@@ -17,11 +16,11 @@ WABWEB_SRV = settings.WABWEB_SRV
 
 @login_required
 def wa_sessions(request):
+    connector_service = "waweb"
+    connector = Connector.objects.filter(service=connector_service).first()
     sessions = WaSession.objects.filter(owner=request.user)
-    app_instances = AppInstance.objects.filter(
-        app__name="waweb",
-        portal__owner=request.user,
-    )
+    instances = AppInstance.objects.filter(owner=request.user, app__connectors=connector)
+    wa_lines = Line.objects.filter(connector=connector, owner=request.user)
 
     # Проверка наличия активных сессий
     for session in sessions:
@@ -31,87 +30,20 @@ def wa_sessions(request):
             session.show_link = False
 
     if request.method == "POST":
-        action = request.POST.get("action")
+        session_id = request.POST.get("session_id")
+        line_id = request.POST.get("line_id")
+        phone = get_object_or_404(WaSession, id=session_id, owner=request.user)
 
-        if action == "link":
-            session_id = request.POST.get("session_id")
-            app_instance_id = request.POST.get("app_instance")
+        bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
 
-            try:
-                wa_session = WaSession.objects.get(id=session_id, owner=request.user)
-                app_instance = AppInstance.objects.get(id=app_instance_id, owner=request.user)
-                if wa_session.line:
-                    # если подключено к существующему порталу
-                    if wa_session.line.app_instance == app_instance:
-                        messages.error(request, "Номер уже подключен к этмоу порталу.")
-                        return redirect("waweb:wa_sessions")
-                    # если подключено к другому порталу, то удалить линию
-                    old_line = wa_session.line
-                    wa_session.line = None
-                    bitrix.call_method(old_line.app_instance, "imopenlines.config.delete",
-                        {"CONFIG_ID": old_line.line_id})
-                    
-                line_data = {
-                    "PARAMS": {
-                        "LINE_NAME": wa_session.phone
-                    }
-                }
-                create_line = bitrix.call_method(app_instance, "imopenlines.config.add", line_data)
-                if "result" in create_line:
-                    messages.success(request, create_line.get("result"))
-                    line = Line.objects.create(
-                        line_id=create_line["result"],
-                        app_instance=app_instance,
-                    )
-                    wa_session.line = line
-                    wa_session.app_instance = app_instance
-                    wa_session.save()
-
-                    payload = {
-                        "CONNECTOR": "thoth_waweb",
-                        "LINE": line.line_id,
-                        "ACTIVE": 1,
-                    }
-                    activate_resp = bitrix.call_method(app_instance, "imconnector.activate", payload)
-                    if activate_resp.get("error"):
-                        messages.error(request, activate_resp.get("error"))
-                        return redirect("waweb:wa_sessions")
-                    else:
-                        messages.success(request, activate_resp.get("result"))
-                else:
-                    messages.error(request, create_line)                            
-                    return redirect("waweb:wa_sessions")
-                    
-            
-                if wa_session.sms_service:
-                    owner = request.user
-                    if not hasattr(owner, 'auth_token'):
-                        wa_session.sms_service = False
-                        wa_session.save()
-                        messages.error(request, f"API key not found for user {owner}. Operation aborted.")
-                        return redirect("waweb:wa_sessions")
-                    api_key = owner.auth_token.key
-                    resp = messageservice_add(app_instance, wa_session.phone, wa_session.line.line_id, api_key, 'waweb')
-                    if 'error' in resp:
-                        wa_session.sms_service = False
-                        wa_session.save()
-                        messages.error(request, resp.get("error"))
-                    else:
-                        messages.success(request, resp.get("result"))
-                return redirect("waweb:wa_sessions")
-                    
-            
-            except AppInstance.DoesNotExist:
-                messages.error(request, "AppInstance does not exist:", app_instance_id)
-                print("AppInstance does not exist:", app_instance_id)
-            except Exception as e:
-                messages.error(request, "Unexpected error:", str(e))
-                print("Unexpected error:", str(e))
-
-
-    return render(request, 'waweb/wa_sessions.html', 
-                  {'sessions': sessions,
-                   "app_instances": app_instances,})
+    
+    return render(
+        request, 'waweb/wa_sessions.html', {
+             "sessions": sessions,
+             "instances": instances,
+             "wa_lines": wa_lines,
+        }
+    )
 
 
 @login_required
@@ -148,7 +80,7 @@ def connect_number(request, session_id=None):
         if img_data:
             img_data = img_data.split(",", 1)[1]
             request.session['qr_image'] = img_data
-            return redirect('waweb:qr_code_page', session_id=session_id)
+            return redirect('qr_code_page', session_id=session_id)
         else:
             url = f"{wa_server.url}instance/delete/{session_id}"
             del_data = requests.delete(url, headers=headers)
@@ -159,7 +91,7 @@ def connect_number(request, session_id=None):
         del_data = requests.delete(url, headers=headers)
         new_session.delete()
         messages.error(request, "Failed to initiate session.")
-    return redirect('waweb:wa_sessions')
+    return redirect('waweb')
 
 
 @login_required
@@ -177,10 +109,10 @@ def qr_code_page(request, session_id):
                 qr_image = img_data.split(",", 1)[1]
             else:
                 messages.error(request, "Failed to restart session.")
-                return redirect('waweb:wa_sessions')
+                return redirect('waweb')
         else:
             messages.error(request, "Failed to restart session.")
-            return redirect('waweb:wa_sessions')
+            return redirect('waweb')
     return render(request, 'waweb/qr_code.html', {
         'session_id': session_id,
         'qr_image': qr_image,
@@ -194,12 +126,12 @@ def send_message_view(request, session_id):
 
     if timezone.now() > session.date_end:
         messages.error(request, f'Срок дествия вашего тарифа истек {session.date_end}')
-        return redirect('waweb:wa_sessions')
+        return redirect('waweb')
 
     if request.method == "POST":
         if session.status == 'close':
             messages.error(request, "Телефон не подключен. Необходимо произвести повторное подключение.")
-            return redirect('waweb:wa_sessions')
+            return redirect('waweb')
         form = SendMessageForm(request.POST)
         if form.is_valid():
             recipients_raw = form.cleaned_data['recipients']
@@ -209,7 +141,7 @@ def send_message_view(request, session_id):
             send_message_task.delay(str(session.session), recipients, message, "string", True)
             
             messages.success(request, "Задача на отправку сообщений создана.")
-            return redirect('waweb:wa_sessions')
+            return redirect('waweb')
     else:
         form = SendMessageForm()
 

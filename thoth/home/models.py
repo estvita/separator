@@ -12,12 +12,7 @@ from wagtail.fields import (
 )
 from wagtail.admin.panels import (
     FieldPanel,
-    MultiFieldPanel,
     PublishingPanel,
-)
-from wagtail.contrib.settings.models import (
-    BaseGenericSetting,
-    register_setting,
 )
 
 from wagtail.snippets.models import register_snippet
@@ -88,20 +83,6 @@ class TariffPage(SeoMixin, Page):
         context["tariffs"] = Tariff.objects.all()
         context["services"] = Service.objects.all()
         return context
-
-
-@register_setting
-class NavigationSettings(BaseGenericSetting):
-    github_url = models.URLField(verbose_name="GitHub URL", blank=True)
-
-    panels = [
-        MultiFieldPanel(
-            [
-                FieldPanel("github_url"),
-            ],
-            "Social settings",
-        )
-    ]
 
 
 @register_snippet

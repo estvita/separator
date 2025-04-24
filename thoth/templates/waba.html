@@ -15,7 +15,7 @@
           <th>Phone</th>
           <th>Срок </th>
           <th>Line ID</th>
-          <th>Bitrix24</th>
+          <th>Bitrix24 Line</th>
         </tr>
       </thead>
       <tbody>
@@ -26,7 +26,7 @@
             <td>
               {% if phone.line %}
                 <span style="color: green;">{{ phone.line.line_id }} - 
-                  <a href="https://{{ phone.line.app_instance.portal.domain }}" target="_blank">{{ phone.line.app_instance.portal.domain }}</a>
+                  <a href="https://{{ phone.line.portal.domain }}" target="_blank">{{ phone.line.portal.domain }}</a>
                 </span>
               {% else %}
               No line
@@ -36,14 +36,15 @@
               <form method="POST" action="{% url 'waba' %}">
                 {% csrf_token %}
                 <div class="form-group d-flex align-items-center">
-                  <select id="app_instance" name="app_instance" class="form-control mr-2">
-                    {% if phone.app_instance %}
-                      <option value="{{ phone.app_instance.id }}" selected>{{ phone.app_instance.portal }}</option>
-                    {% else %}
-                      <option value="" disabled selected>Select portal</option>
-                    {% endif %}
-                    {% for instance in app_instances %}
-                      <option value="{{ instance.id }}">{{ instance.portal.domain }}</option>
+                  <select id="line_id" name="line_id" class="form-control mr-2">
+                    <option value="" disabled {% if not phone.line %}selected{% endif %}>Выберите линию</option>
+                  
+                    {% for line in waba_lines %}
+                      <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
+                    {% endfor %}
+
+                    {% for instance in instances %}
+                    <option value="create__{{ instance.id }}">➕ линия {{ instance.portal.domain }}</option>
                     {% endfor %}
                   </select>
                   <input type="hidden" name="phone_id" value="{{ phone.id }}" />
@@ -59,12 +60,7 @@
     <p>You don't have any connected numbers.</p>
   {% endif %}
 
-  <!-- Форма для добавления нового телефона -->
-  <!-- <h3>Подключить номер (<a href="/faq/" target="_blank">инструкция</a>)</h3> -->
-
     <a href="/waba/request?request-id={{ request_id }}" class="btn btn-primary">Подключить номер</a>
-
-    <!-- <a href="/waba/manual-add" class="btn btn-secondary">Add Phone Manually</a> -->
 
 </div>
 {% endblock content %}

@@ -9,7 +9,7 @@ from django.utils import timezone
 from .crest import call_method
 from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
-from .models import AppInstance, Bitrix, VerificationCode
+from .models import AppInstance, Bitrix, VerificationCode, Line
 
 
 @login_required
@@ -72,6 +72,10 @@ def portals(request):
                         portal.owner = request.user
                         portal.save()
                         AppInstance.objects.filter(portal=portal).update(owner=request.user)
+                        lines = Line.objects.filter(portal=portal)
+                        for line in lines:
+                            line.owner = request.user
+                            line.save()
                         verification.delete()
                         messages.success(request, "Портал и связанные приложения успешно закреплены за вами.")
                     else:

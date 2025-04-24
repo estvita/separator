@@ -1,28 +1,27 @@
 import base64
 import json
 import logging
-import os
 import re
 import uuid
 import redis
 from datetime import timedelta
 from django.utils import timezone
+from django.contrib import messages
 from django.conf import settings
+from django.shortcuts import redirect, get_object_or_404
 
 from rest_framework import status
 from rest_framework.response import Response
 
 import thoth.olx.tasks as olx_tasks
 import thoth.waba.utils as waba
-from thoth.olx.models import OlxUser
-from thoth.waba.models import Phone
 
 from thoth.waweb.models import WaSession
 import thoth.waweb.utils as waweb
 import thoth.waweb.tasks as waweb_tasks
 
 from .crest import call_method
-from .models import App, AppInstance, Bitrix, Line, VerificationCode
+from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector
 import thoth.bitrix.tasks as bitrix_tasks
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -41,33 +40,116 @@ CONNECTOR_EVENTS = [
     "ONIMCONNECTORSTATUSDELETE",
 ]
 
-ALL_EVENTS = GENERAL_EVENTS + CONNECTOR_EVENTS
 
-
-def thoth_logo(connetor):
-    dir = os.path.dirname(os.path.abspath(__file__))
-    image = os.path.join(dir, "img", f"{connetor}.svg")
-
-    with open(image, "rb") as file:
-        image_data = file.read()
-        encoded_image = base64.b64encode(image_data).decode("utf-8")
-        return f"data:image/svg+xml;base64,{encoded_image}"
-
-
-# Регистрация коннектора
-def register_connector(appinstance: AppInstance, api_key: str):
-    connetor = appinstance.app.name
-    url = appinstance.app.site
+# Регистрация SMS-провайдера
+def messageservice_add(appinstance, phone, line, api_key, service):
+    url = appinstance.app.site    
     payload = {
-        "ID": f"thoth_{connetor}",
-        "NAME": f"THOTH {connetor.upper()}",
-        "ICON": {
-            "DATA_IMAGE": thoth_logo(connetor),
-        },
-        "PLACEMENT_HANDLER": f"https://{url}/api/bitrix/placement/?api-key={api_key}&inst={appinstance.id}",
+        "CODE": f"THOTH_{phone}_{line}",
+        "NAME": f"gulin.kz ({phone})",
+        "TYPE": "SMS",
+        "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
     }
 
-    call_method(appinstance, "imconnector.register", payload)
+    return call_method(appinstance, "messageservice.sender.add", payload)
+
+
+def connect_line(request, line_id, entity, connector, redirect_to):
+    line_id = str(line_id)
+    if line_id.startswith("create__"):
+        instance_id = line_id.split("__")[1]
+        app_instance = get_object_or_404(AppInstance, id=instance_id, owner=request.user)
+        if not app_instance.portal:
+            messages.error(request, "Невозможно создать линию: портал не найден")
+            return redirect(redirect_to)
+        if entity.line:
+            call_method(app_instance, "imconnector.activate", {
+                "CONNECTOR": connector.code,
+                "LINE": entity.line.line_id,
+                "ACTIVE": 0,
+            })
+        if connector.service == "olx":
+            line_name = entity.olx_id
+        else:
+            line_name = entity.phone
+        create_payload = {"PARAMS": {"LINE_NAME": line_name}}
+        result = call_method(app_instance, "imopenlines.config.add", create_payload)
+        if result and result.get("result"):
+            new_line_id = result["result"]
+            line = Line.objects.create(
+                line_id=new_line_id,
+                portal=app_instance.portal,
+                connector=connector,
+                app_instance=app_instance,
+                owner=request.user
+            )
+            entity.line = line
+            entity.app_instance = app_instance
+            entity.save()
+
+            activate_payload = {
+                "CONNECTOR": connector.code,
+                "LINE": new_line_id,
+                "ACTIVE": 1,
+            }
+            call_method(app_instance, "imconnector.activate", activate_payload)
+            messages.success(request, f"Создана и подключена линия {new_line_id}")
+        else:
+            messages.error(request, f"Ошибка при создании линии: {result}")
+        return redirect(redirect_to)
+    else:
+        line = get_object_or_404(Line, id=line_id)
+        if not line:
+            messages.error(request, f"Линия {line_id} не найдена")
+            return redirect(redirect_to)
+        app_instance = line.app_instance
+        if hasattr(entity, 'sms_service'):
+            owner = app_instance.app.owner
+            if not hasattr(owner, "auth_token"):
+                entity.sms_service = False
+                entity.save()
+                messages.error(request, f"API key not found for user {owner}. Операция прервана.")
+                return redirect(redirect_to)
+            api_key = owner.auth_token.key
+            phone = re.sub(r'\D', '', entity.phone)
+            if entity.sms_service:
+                resp = messageservice_add(app_instance, phone, line.line_id, api_key, connector.service)
+                if "error" in resp:
+                    entity.sms_service = False
+                    entity.save()
+                    messages.error(request, f"Ошибка подключения SMS канала:{resp}")
+                else:
+                    messages.success(request, "SMS канал подключен")
+            else:
+                resp = call_method(app_instance, "messageservice.sender.delete", {"CODE": f"THOTH_{phone}_{line.line_id}"})
+                if "result" in resp:
+                    messages.success(request, "SMS канал отключен")
+                else:
+                    messages.error(request, f"Ошибка отключения SMS канала:{resp}")
+        
+        if entity.line == line:
+            messages.success(request, "Выбрана та же линия")
+            return redirect(redirect_to)
+        if entity.line:
+            call_method(app_instance, "imconnector.activate", {
+                "CONNECTOR": connector.code,
+                "LINE": entity.line.line_id,
+                "ACTIVE": 0,
+            })
+        response = call_method(app_instance, "imconnector.activate", {
+            "CONNECTOR": connector.code,
+            "LINE": line.line_id,
+            "ACTIVE": 1,
+        })
+        if response.get("result"):
+            entity.line = line
+            entity.app_instance = app_instance
+            entity.save()
+            messages.success(request, "Линия подключена")
+
+    messages.success(request, "Настройки обновлены")
+    return redirect(redirect_to)
+
 
 # Подписка на события
 def events_bind(events: dict, appinstance: AppInstance, api_key: str):
@@ -78,21 +160,37 @@ def events_bind(events: dict, appinstance: AppInstance, api_key: str):
             "HANDLER": f"https://{url}/api/bitrix/?api-key={api_key}",
         }
 
-        call_method(appinstance, "event.bind", payload)
+        bitrix_tasks.call_api.delay(appinstance.application_token, "event.bind", payload)
 
 
-# Регистрация SMS-провайдера
-def messageservice_add(appinstance, phone, line, api_key, service):
+def register_connector(appinstance: AppInstance, api_key: str, connector):
     url = appinstance.app.site
-    filtered_text = ''.join(filter(str.isalnum, phone))
-    payload = {
-        "CODE": f"THOTH_{filtered_text}_{line}",
-        "NAME": f"gulin.kz ({phone})",
-        "TYPE": "SMS",
-        "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
-    }
 
-    return call_method(appinstance, "messageservice.sender.add", payload)
+    if not connector.icon:
+        return None
+
+    try:
+        with open(connector.icon.path, "rb") as file:
+            image_data = file.read()
+            encoded_image = base64.b64encode(image_data).decode("utf-8")
+            connector_logo = f"data:image/svg+xml;base64,{encoded_image}"
+
+        payload = {
+            "ID": connector.code,
+            "NAME": connector.name,
+            "ICON": {
+                "DATA_IMAGE": connector_logo,
+            },
+            "PLACEMENT_HANDLER": f"https://{url}/api/bitrix/placement/?api-key={api_key}&inst={appinstance.id}",
+        }
+
+        bitrix_tasks.call_api.delay(appinstance.application_token, "imconnector.register", payload)
+        events_bind(CONNECTOR_EVENTS, appinstance, api_key)
+
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        return None
 
 
 def extract_files(data):
@@ -134,75 +232,46 @@ def upload_file(appinstance, storage_id, fileContent, filename):
     else:
         return None
 
-def get_line(app_instance, line_id):
-    line_data = call_method(
-        app_instance, "imopenlines.config.get", {"CONFIG_ID": line_id}
-    )
-    if "result" not in line_data:
-        return Response({"error": f"{line_data}"})
-    line_name = line_data["result"]["LINE_NAME"]
-    return line_name
-
 
 def process_placement(request):
     try:
         data = request.data
         placement_options = data.get("PLACEMENT_OPTIONS", {})
         inst = request.query_params.get("inst", {})
+        domain = request.query_params.get("DOMAIN")
 
         placement_options = json.loads(placement_options)
         line_id = placement_options.get("LINE")
-        connector = placement_options.get("CONNECTOR")
+        connector_code = placement_options.get("CONNECTOR")
 
-        app_instance = AppInstance.objects.get(id=inst)
-
-        line_name = get_line(app_instance, line_id)
-
-        try:
-            line = Line.objects.get(line_id=line_id, app_instance=app_instance)
-            if connector == "thoth_olx":
-                finded_object = OlxUser.objects.filter(line=line).first()
-            elif connector == "thoth_waba":
-                finded_object = Phone.objects.filter(line=line).first()
-            elif connector == "thoth_waweb":
-                finded_object = WaSession.objects.filter(line=line).first()
-            
-            if finded_object:
-                return Response("Ничего не изменилось, спасибо.")
-
-            else:
-                if connector == "thoth_olx":
-                    olxuser = OlxUser.objects.get(olx_id=line_name)
-                    olxuser.line = line
-                    olxuser.save()
-
-                elif connector == "thoth_waba":
-                    phone = Phone.objects.get(phone=line_name)
-                    phone.line = line
-                    phone.save()
-
-                elif connector == "thoth_waweb":
-                    phone = WaSession.objects.get(phone=line_name)
-                    phone.line = line
-                    phone.save()
-
-                payload = {
-                    "CONNECTOR": connector,
-                    "LINE": line_id,
-                    "ACTIVE": 1,
-                }
-                call_method(app_instance, "imconnector.activate", payload)
-                return Response("Линия подключена, спасибо.")
-
-        except Line.DoesNotExist:
-            return Response("Для изменения линии, удалите текущую в интерфейса CRM, а затем заоново подключите аккаунт на портале gulin.kz.")
+        app_instance = AppInstance.objects.filter(id=inst).first()
+        if not app_instance:
+            return Response("app not found")
+        portal = Bitrix.objects.filter(domain=domain).first()
+        if not portal:
+            return Response("bitrix not found")
+        connector = Connector.objects.filter(code=connector_code).first()
+        if not connector:
+            return Response("connector not found")
+        
+        line, created = Line.objects.get_or_create(
+            line_id=line_id,
+            portal=portal,
+            connector=connector,
+            app_instance=app_instance,
+            owner=app_instance.owner
+        )
+        # payload = {
+        #     "CONNECTOR": connector_code,
+        #     "LINE": line_id,
+        #     "ACTIVE": 1
+        # }
+        # bitrix_tasks.call_api.delay(app_instance.application_token, "imconnector.activate", payload)
+        return Response(f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/")
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return Response(
-            {"error": "An unexpected error occurred"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        return Response({"error": "An unexpected error occurred"})
 
 
 def sms_processor(request):
@@ -331,19 +400,18 @@ def event_processor(request):
 
                 appinstance = AppInstance.objects.create(**appinstance_data)
 
-
                 # Получаем storage_id и сохраняем его
-                storage_id_data = call_method(appinstance, "disk.storage.getforapp", {})
-                storage_id = storage_id_data["result"]["ID"]
-                appinstance.storage_id = storage_id
-                appinstance.save()
+                storage_data = call_method(appinstance, "disk.storage.getforapp", {})
+                if "result" in storage_data:
+                    storage_id = storage_data["result"]["ID"]
+                    appinstance.storage_id = storage_id
+                    appinstance.save()
 
                 # Регистрация коннектора/ подписка на события
-                if app.connector:
-                    register_connector(appinstance, api_key)
-                    events_bind(ALL_EVENTS, appinstance, api_key)
-                else:
-                    events_bind(GENERAL_EVENTS, appinstance, api_key)
+                events_bind(GENERAL_EVENTS, appinstance, api_key)
+                if app.connectors.exists():
+                    for connector in app.connectors.all():
+                        register_connector(appinstance, api_key, connector)
 
                 # Если портал уже прявязан
                 if portal.owner:
@@ -379,13 +447,16 @@ def event_processor(request):
 
         # Обработка события ONIMCONNECTORMESSAGEADD
         if event == "ONIMCONNECTORMESSAGEADD":
-            connector = data.get("data[CONNECTOR]")
+            connector_code = data.get("data[CONNECTOR]")
+            connector = get_object_or_404(Connector, code=connector_code)
+            if not connector:
+                return Response({'Connector not found'})
             line_id = data.get("data[LINE]")
             message_id = data.get("data[MESSAGES][0][im][message_id]")
             chat_id = data.get("data[MESSAGES][0][im][chat_id]")
             chat = data.get("data[MESSAGES][0][chat][id]")
             status_data = {
-                "CONNECTOR": connector,
+                "CONNECTOR": connector_code,
                 "LINE": line_id,
                 "MESSAGES": [
                     {
@@ -414,7 +485,7 @@ def event_processor(request):
                 files = extract_files(data)
 
             # If WABA connector
-            if connector == "thoth_waba":
+            if connector.service == "waba":
 
                 message = {
                     "biz_opaque_callback_data": f"{line_id}_{chat_id}_{message_id}",
@@ -465,7 +536,7 @@ def event_processor(request):
                         }
                         resp = call_method(appinstance, "im.notify.system.add", payload)
 
-            elif connector == "thoth_waweb":
+            elif connector.service == "waweb":
                 try:
                     line = Line.objects.get(line_id=line_id, app_instance=appinstance)
                     wa = WaSession.objects.get(line=line)
@@ -479,11 +550,9 @@ def event_processor(request):
                     print(f'Failed to send waweb message: {str(e)}')
                     return Response({'error': f'Failed to send message: {str(e)}'})
 
-
             # If OLX connector
-            elif connector == "thoth_olx":
+            elif connector.service == "olx":
                 olx_tasks.send_message.delay(chat, text, files)
-
 
             return Response(
                 {"status": "ONIMCONNECTORMESSAGEADD event processed"},
@@ -492,23 +561,26 @@ def event_processor(request):
 
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")
-            connector = data.get("data[connector]")
+            connector_code = data.get("data[connector]")
+            connector = get_object_or_404(Connector, code=connector_code)
+            if not connector:
+                return Response({'Connector not found'})
             try:
                 line = Line.objects.get(line_id=line_id, app_instance=appinstance)
 
-                if connector == "thoth_olx":
+                if connector.service == "olx":
                     olxuser = line.olx_users.first()
                     if olxuser:
                         olxuser.line = None
                         olxuser.save()
 
-                elif connector == "thoth_waba":
+                elif connector.service == "waba":
                     phone = line.phones.first()
                     if phone:
                         phone.line = None
                         phone.save()
                 
-                elif connector == "thoth_waweb":
+                elif connector.service == "waweb":
                     phone = line.wawebs.first()
                     if phone:
                         phone.line = None
@@ -526,9 +598,7 @@ def event_processor(request):
         elif event == "ONIMCONNECTORLINEDELETE":
             line_id = data.get("data")
             try:
-                line = Line.objects.filter(
-                    line_id=line_id, app_instance=appinstance
-                ).first()
+                line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
                 if line:
                     line.delete()
                 return Response({"status": "Line deleted"}, status=status.HTTP_200_OK)
