@@ -1,5 +1,5 @@
-import logging
 from urllib.parse import urlparse
+from celery.utils.log import get_task_logger
 
 import requests
 from django.db import transaction
@@ -7,7 +7,7 @@ from django.http import JsonResponse
 
 from .models import AppInstance
 
-logger = logging.getLogger("django")
+logger = get_task_logger(__name__)
 
 
 def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted_refresh=False):
@@ -16,10 +16,9 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
 
     try:
         payload = {"auth": access_token, **data}
-        logger.debug(f"Data sent to b24: {payload}")
         response = requests.post(f"{endpoint}{b24_method}", json=payload, allow_redirects=False)
         appinstance.status = response.status_code
-
+        logger.info(response.json())
         if response.status_code == 302 and not attempted_refresh:
             new_url = response.headers['Location']
             parsed_url = urlparse(new_url)
@@ -52,7 +51,6 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
                     logger.error(f"Token refresh failed. portal {appinstance.portal.domain} {response.json()}")
                     return JsonResponse({"detail": "Token refresh failed, aborting."}, status=500)
         
-        logger.debug(f"Request ended: {response} {response.json()}")
         return response.json()
 
     except (requests.HTTPError, Exception) as e:
@@ -70,6 +68,7 @@ def refresh_token(appinstance: AppInstance):
     try:
         response = requests.post("https://oauth.bitrix.info/oauth/token/", data=payload)
         response_data = response.json()
+        logger.info(response.json())
 
         if response.status_code != 200:
             raise Exception(f"Failed to refresh token: {appinstance.portal.domain} {response_data}")
