@@ -102,6 +102,13 @@ def connect_line(request, line_id, entity, connector, redirect_to):
         if not line:
             messages.error(request, f"Линия {line_id} не найдена")
             return redirect(redirect_to)
+        # Проверка, не занята ли линия другим entity
+        entity_model = type(entity)
+        usage_count = entity_model.objects.filter(line=line).exclude(pk=entity.pk).count()
+        if usage_count > 0:
+            messages.error(request, "Эта линия уже используется.")
+            return redirect(redirect_to)
+        
         app_instance = line.app_instance
         if hasattr(entity, 'sms_service'):
             owner = app_instance.app.owner

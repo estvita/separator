@@ -15,7 +15,8 @@
                 "0.0.0.0:8080"
             ],
             "django": true,
-            "autoStartBrowser": false
+            "autoStartBrowser": false,
+            "python": "${workspaceFolder}/.venv/bin/python"
         },
         {
             "name": "Worker Win",
@@ -33,7 +34,7 @@
             "module": "celery",
             "console": "integratedTerminal",
             "args": ["-A", "config.celery_app", "worker", "-l", "info", "-c", "3"],
-
+            "python": "${workspaceFolder}/.venv/bin/python",
         },
         {
             "name": "Beat",
