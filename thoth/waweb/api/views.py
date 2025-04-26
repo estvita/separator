@@ -47,7 +47,7 @@ class WaEventsHandler(GenericViewSet):
         event = event_data.get("event")
         data = event_data.get("data", {})
         apikey = event_data.get('apikey')
-        if apikey:
+        if apikey and session.apikey != apikey:
             session.apikey = apikey
             session.save()
 
@@ -56,8 +56,9 @@ class WaEventsHandler(GenericViewSet):
         
         if event == "connection.update":
             state = data.get('state')
-            session.status = state
-            session.save()
+            if session.status != state:
+                session.status = state
+                session.save()
             if state == "open":
                 if not session.phone:
                     wuid = data.get("wuid")

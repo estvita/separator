@@ -138,7 +138,8 @@ def get_threads(olx_user_id):
             resp = refresh_token(olx_user_id)
             if resp.status_code != 200:
                 if user.line:
-                    message = f'Проверка сообщений на OLX ({olx_user_id}) остановлена из-за проблемы. Переподключите аккаунт OLX на сайте https://gulin.kz/. Поллный текст ошибки {resp.json()}'
+                    domain = user.line.app_instance.app.site
+                    message = f'Проверка сообщений на OLX ({olx_user_id}) остановлена из-за проблемы. Переподключите аккаунт OLX на сайте https://{domain}/olx/accounts/. Поллный текст ошибки {resp.json()}'
                     payload = {
                         'USER_ID': bitrix_user,
                         'MESSAGE': message

@@ -66,9 +66,8 @@ def refresh_token(appinstance: AppInstance):
         "refresh_token": appinstance.refresh_token,
     }
     try:
-        response = requests.post("https://oauth.bitrix.info/oauth/token/", data=payload)
+        response = requests.post("https://oauth.bitrix.info/oauth/token/", data=payload, timeout=5)
         response_data = response.json()
-        logger.info(response.json())
 
         if response.status_code != 200:
             raise Exception(f"Failed to refresh token: {appinstance.portal.domain} {response_data}")
@@ -77,11 +76,9 @@ def refresh_token(appinstance: AppInstance):
         appinstance.refresh_token = response_data["refresh_token"]
 
         with transaction.atomic():
-            appinstance.save()
+            appinstance.save(update_fields=["access_token", "refresh_token"])
 
         return appinstance
     except Exception as e:
-        logger.error(
-            f"Error refreshing token: {e}",
-        )
+        logger.error(f"Error refreshing token: {e}")
         return JsonResponse({"detail": str(e)}, status=500)

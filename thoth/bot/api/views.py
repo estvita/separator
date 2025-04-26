@@ -3,9 +3,23 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+
+import os
+import re
+import requests
+import threading
+import redis
+from urllib.parse import urlparse
+from io import BytesIO
+
+from openai import OpenAI
+
 from thoth.bot.models import Voice, Bot
 from thoth.bot.utils import get_tools_for_bot
 from thoth.bot.tasks import message_processing
+
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+
 
 class BotHandler(GenericViewSet):
     def create(self, request, *args, **kwargs):
@@ -13,11 +27,12 @@ class BotHandler(GenericViewSet):
         bot_id = request.query_params.get('id')
         if not bot_id:
             return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
+
         try:
             bot = Bot.objects.get(id=bot_id)
         except Bot.DoesNotExist:
             return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
-        
+
         if bot.expiration_date and timezone.now() > bot.expiration_date:
             return Response("tariff has expired", status=status.HTTP_402_PAYMENT_REQUIRED)
 
@@ -26,9 +41,75 @@ class BotHandler(GenericViewSet):
         sender_type = sender.get('type')
 
         if event == "message_created" and sender_type != "agent_bot":
-            message_processing.delay(data, bot_id)
+            message_type = data.get('message_type')
+            content = data.get('content')
+            client = OpenAI(api_key=bot.token.key)
+            attachments = data.get('attachments', [])
+            if attachments:
+                for attachment in attachments:
+                    if attachment.get('file_type') == "audio" and bot.speech_to_text:
+                        data_url = attachment.get('data_url')
+                        parsed_url = urlparse(data_url)
+                        filename = os.path.basename(parsed_url.path)
+                        response = requests.get(data_url, stream=True)
+                        if response.status_code == 200:
+                            audio_file = BytesIO(response.content)
+                            audio_file.name = filename
+                            content = client.audio.transcriptions.create(
+                                model=bot.stt_model,
+                                file=audio_file,
+                                response_format="text",
+                            )
 
-        return Response({'message': 'message received'})
+            account = data.get('account')
+            account_id = account.get('id')
+
+            conversation = data.get('conversation')
+            conversation_id = conversation.get('id')
+
+            if not bot.agent_bot or not content:
+                return Response("message should not be processed")
+
+            meta = conversation.get('meta', {})
+            sender_meta = meta.get('sender', {})
+            sender_phone = sender_meta.get('phone_number')
+            labels = conversation.get('labels', [])
+
+            if sender_phone:
+                contact_id = re.sub(r'\D', '', sender_phone)
+            else:
+                contact_inbox = conversation.get('contact_inbox', {})
+                contact_id = contact_inbox.get('source_id')
+
+            conversation_status = conversation.get('status')
+            role = "user" if message_type == "incoming" else "assistant"
+            redis_key = f"bot:{account_id}:{contact_id}"
+            thread_id = redis_client.get(redis_key)
+
+            self.debounce_handle(redis_key, content, thread_id, bot_id, role, conversation_status,
+                                 message_type, labels, account_id, conversation_id, sender_meta.get('id'))
+        return Response("Processed", status=status.HTTP_200_OK)
+
+    def debounce_handle(self, redis_key, content, thread_id, bot_id, role,
+                        conversation_status, message_type, labels, account_id, conversation_id, sender_id):
+        debounce_time = 10
+        buffer_key = f"buffer:{redis_key}"
+        timer_key = f"timer:{redis_key}"
+
+        redis_client.rpush(buffer_key, content)
+
+        if not redis_client.exists(timer_key):
+            def flush_messages():
+                messages = redis_client.lrange(buffer_key, 0, -1)
+                grouped_messages = '\n'.join(messages)
+                redis_client.delete(buffer_key)
+                redis_client.delete(timer_key)                
+                message_processing.delay(
+                    thread_id, redis_key, bot_id, role, grouped_messages, conversation_status,
+                    message_type, labels, account_id, conversation_id, sender_id)
+
+            redis_client.setex(timer_key, debounce_time, '1')
+            threading.Timer(debounce_time, flush_messages).start()
     
 
 class VoiceDetails(GenericViewSet):

@@ -2,14 +2,11 @@ import requests
 import redis
 from celery import shared_task
 from rest_framework.response import Response
-from urllib.parse import urlparse
 from django.core.mail import send_mail
 import openai
 from openai import OpenAI
-import os
 import re
 import json
-from io import BytesIO
 from thoth.bot.models import Bot
 import thoth.chatwoot.utils as chatwoot
 
@@ -19,65 +16,17 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5)
-def message_processing(self, data, bot_id):
+def message_processing(self, thread_id, redis_key, bot_id, role, content, conversation_status,
+                       message_type, labels, account_id, conversation_id, sender_id):
     try:
         bot = Bot.objects.get(id=bot_id)
     except Bot.DoesNotExist:
         return "Bot not found"
 
     # Extract message details
-    message_type = data.get('message_type')
-    content = data.get('content')
-    
     client = OpenAI(api_key=bot.token.key)
 
-    attachments = data.get('attachments', [])
-    if attachments:
-        for attachment in attachments:
-            if attachment.get('file_type') == "audio" and bot.speech_to_text:
-                data_url = attachment.get('data_url')
-                parsed_url = urlparse(data_url)
-                filename = os.path.basename(parsed_url.path)
-                response = requests.get(data_url, stream=True)
-                if response.status_code == 200:
-                    audio_file = BytesIO(response.content)
-                    audio_file.name = filename
-                    content = client.audio.transcriptions.create(
-                        model=bot.stt_model,
-                        file=audio_file,
-                        response_format="text",
-                    )
-
-    account = data.get('account')
-    account_id = account.get('id')
-
-    conversation = data.get('conversation')
-    conversation_id = conversation.get('id')
-
-    if not bot.agent_bot or not content:
-        return Response("message should not be processed")
-
-    meta = conversation.get('meta', {})
-    sender_meta = meta.get('sender', {})
-    sender_phone = sender_meta.get('phone_number')
-    sender_id = sender_meta.get('id')
-    labels = conversation.get('labels', [])
-
-    if sender_phone:
-        contact_id = sender_phone[-10:]
-    else:
-        contact_inbox = conversation.get('contact_inbox', {})
-        contact_id = contact_inbox.get('source_id')
-
-    conversation_status = conversation.get('status')
-    role = "user" if message_type == "incoming" else "assistant"
-    
-    redis_key = f"bot:{account_id}:{contact_id}"
-    thread_id = redis_client.get(redis_key)
-
-    if thread_id:
-        thread_id = thread_id.decode("utf-8")
-    else:    
+    if not thread_id:
         thread = client.beta.threads.create()
         thread_id = thread.id
         redis_client.set(redis_key, thread_id)
