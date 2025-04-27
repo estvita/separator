@@ -97,8 +97,10 @@ class BotHandler(GenericViewSet):
         timer_key = f"timer:{redis_key}"
 
         redis_client.rpush(buffer_key, content)
+        ttl = redis_client.ttl(timer_key)
+        redis_client.setex(timer_key, debounce_time, '1')
 
-        if not redis_client.exists(timer_key):
+        if ttl <= 0:
             def flush_messages():
                 messages = redis_client.lrange(buffer_key, 0, -1)
                 grouped_messages = '\n'.join(messages)
@@ -108,7 +110,6 @@ class BotHandler(GenericViewSet):
                     thread_id, redis_key, bot_id, role, grouped_messages, conversation_status,
                     message_type, labels, account_id, conversation_id, sender_id)
 
-            redis_client.setex(timer_key, debounce_time, '1')
             threading.Timer(debounce_time, flush_messages).start()
     
 
