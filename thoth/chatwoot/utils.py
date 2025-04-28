@@ -21,7 +21,7 @@ def call_api(url, data=None, files=None, access_token=None, method="post"):
         access_token = chatwoot.platform_key
     headers = {"api_access_token": access_token}
 
-    return requests.request(method, api_url, json=data, files=files, headers=headers)
+    return requests.request(method, api_url, json=data, files=files, headers=headers, timeout=5)
 
 
 def generate_password(length=12):
