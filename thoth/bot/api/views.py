@@ -36,6 +36,9 @@ class BotHandler(GenericViewSet):
         if bot.expiration_date and timezone.now() > bot.expiration_date:
             return Response("tariff has expired", status=status.HTTP_402_PAYMENT_REQUIRED)
 
+        if not bot.agent_bot:
+            return Response("agent bot not connected")
+            
         event = data.get('event')
         sender = data.get('sender', {})
         sender_type = sender.get('type')
@@ -55,11 +58,15 @@ class BotHandler(GenericViewSet):
                         if response.status_code == 200:
                             audio_file = BytesIO(response.content)
                             audio_file.name = filename
-                            content = client.audio.transcriptions.create(
-                                model=bot.stt_model,
-                                file=audio_file,
-                                response_format="text",
-                            )
+                            try:
+                                content = client.audio.transcriptions.create(
+                                    model=bot.stt_model,
+                                    file=audio_file,
+                                    response_format="text",
+                                )
+                            except Exception as e:
+                                print(f"An transcriptions error occurred: {e}")
+                                return Response("Error processing audio file", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             account = data.get('account')
             account_id = account.get('id')
@@ -67,7 +74,7 @@ class BotHandler(GenericViewSet):
             conversation = data.get('conversation')
             conversation_id = conversation.get('id')
 
-            if not bot.agent_bot or not content:
+            if not content:
                 return Response("message should not be processed")
 
             meta = conversation.get('meta', {})
@@ -93,8 +100,8 @@ class BotHandler(GenericViewSet):
     def debounce_handle(self, redis_key, content, thread_id, bot_id, role,
                         conversation_status, message_type, labels, account_id, conversation_id, sender_id):
         debounce_time = 10
-        buffer_key = f"buffer:{redis_key}"
-        timer_key = f"timer:{redis_key}"
+        buffer_key = f"buffer:{redis_key}:{message_type}"
+        timer_key = f"timer:{redis_key}:{message_type}"
 
         redis_client.rpush(buffer_key, content)
         ttl = redis_client.ttl(timer_key)

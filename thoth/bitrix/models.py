@@ -60,7 +60,7 @@ class AppInstance(models.Model):
     )
     app = models.ForeignKey(App, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True)
     portal = models.ForeignKey(
-        Bitrix, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True
+        Bitrix, on_delete=models.CASCADE, related_name="installations", blank=True, null=True
     )
     auth_status = models.CharField(max_length=1)
     access_token = models.CharField(max_length=255, blank=True)
