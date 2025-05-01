@@ -80,6 +80,7 @@ ROOT_URLCONF = "config.urls"
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
 WSGI_APPLICATION = "config.wsgi.application"
 
+
 # APPS
 # ------------------------------------------------------------------------------
 DJANGO_APPS = [
@@ -143,6 +144,7 @@ LOCAL_APPS = [
     "thoth.tariff",
     "thoth.bot",
     "thoth.home",
+    "thoth.dify",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + WAGTAIL_APPS + LOCAL_APPS

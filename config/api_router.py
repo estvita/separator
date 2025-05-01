@@ -7,12 +7,14 @@ from thoth.users.api.views import UserViewSet
 from thoth.waba.api.views import WabaWebhook
 from thoth.waweb.api.views import WaEventsHandler
 from thoth.bot.api.views import BotHandler, VoiceDetails
+from thoth.dify.api.views import DifyReceiver
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 
 router.register("users", UserViewSet)
 router.register("bitrix", PortalViewSet)
 router.register("waba", WabaWebhook)
+router.register("dify", DifyReceiver, basename="dify")
 router.register("bot", BotHandler, basename="bot")
 router.register("voice", VoiceDetails, basename="voice")
 router.register("waweb", WaEventsHandler, basename="waevents")

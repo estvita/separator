@@ -56,7 +56,6 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
 }
 
 .container {
@@ -66,7 +65,6 @@ body {
 .footer {
   background-color: #e3e0e0;
   padding: 10px;
-  margin-top: auto;
 }
 
 .footer-container {

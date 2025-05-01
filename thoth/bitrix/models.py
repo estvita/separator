@@ -6,9 +6,11 @@ from django.db import models
 from django.utils import timezone
 
 
+def generate_uuid():
+    return f"gulin_{uuid.uuid4()}"
 
 class Connector(models.Model):
-    code = models.CharField(max_length=255, default=f"gulin_{uuid.uuid4()}", unique=True)
+    code = models.CharField(max_length=255, default=generate_uuid, unique=True)
     service = models.CharField(max_length=255, blank=True, null=True)
     name = models.CharField(max_length=255, default="gulin.kz", unique=False)
     icon = models.FileField(upload_to='connector_icons/', blank=True, null=True)
@@ -60,7 +62,7 @@ class AppInstance(models.Model):
     )
     app = models.ForeignKey(App, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True)
     portal = models.ForeignKey(
-        Bitrix, on_delete=models.CASCADE, related_name="installations", blank=True, null=True
+        Bitrix, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True
     )
     auth_status = models.CharField(max_length=1)
     access_token = models.CharField(max_length=255, blank=True)

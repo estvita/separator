@@ -14,6 +14,50 @@ CHATWOOT_ID = settings.CHATWOOT_ID
 SITE_ID = settings.SITE_ID
 
 
+class ChatwootClient:
+    def __init__(self, account_id):
+
+        self.account_id = account_id
+        self.chatwoot = Chatwoot.objects.get(id=CHATWOOT_ID)
+        self.user = User.objects.get(account__id=self.account_id)
+        self.base_url = f"{self.chatwoot.url}api/v1/accounts/{self.account_id}/conversations"
+        self.headers = {"api_access_token": self.user.access_token}
+
+    def get_conversations_labels(self, conversation_id):
+        url = f"{self.base_url}/{conversation_id}/labels"
+        try:
+            resp = requests.get(url, headers=self.headers)
+            resp.raise_for_status()
+            return resp.json().get("payload", [])
+        except requests.RequestException as e:
+            return "error"
+
+    def remove_conversation_label(self, conversation_id, label):
+        # Получаем текущие метки
+        labels = self.get_conversations_labels(conversation_id)
+        if labels == "error":
+            return "Не удалось получить текущие метки"
+        
+        # Удаляем переданную метку, если она существует в списке
+        if label in labels:
+            labels.remove(label)
+        else:
+            return f"Метка {label} не найдена в текущем списке"
+        
+        url = f"{self.base_url}/{conversation_id}/labels"
+        
+        try:
+            resp = requests.post(url, json={"labels": labels}, headers=self.headers)
+            resp.raise_for_status()
+            return f"Метка {label} успешно удалена."
+        except requests.RequestException as e:
+            return "Возникла ошибка, попробуйте позже"        
+    
+    def updtae_contact(self, contact_id, params):
+        url = f"{self.chatwoot.url}api/v1/accounts/{self.account_id}/contacts/{contact_id}"
+        return requests.put(url, json=params, headers=self.headers)
+
+
 def call_api(url, data=None, files=None, access_token=None, method="post"):
     chatwoot = Chatwoot.objects.get(id=CHATWOOT_ID)
     api_url = f"{chatwoot.url}{url}"
@@ -21,7 +65,7 @@ def call_api(url, data=None, files=None, access_token=None, method="post"):
         access_token = chatwoot.platform_key
     headers = {"api_access_token": access_token}
 
-    return requests.request(method, api_url, json=data, files=files, headers=headers, timeout=5)
+    return requests.request(method, api_url, json=data, files=files, headers=headers)
 
 
 def generate_password(length=12):
@@ -46,7 +90,7 @@ def generate_password(length=12):
     return ''.join(password)
 
 
-def create_bot(user, bot_name, id_bot):
+def create_bot(user, bot_name, id_bot, type="bot"):
     site = Site.objects.get(id=SITE_ID)
     chatwoot_user = User.objects.get(owner=user)
     account_id = chatwoot_user.account.id
@@ -55,7 +99,7 @@ def create_bot(user, bot_name, id_bot):
 
     payload = {
         "name": bot_name,
-        "outgoing_url": f"https://{site.domain}/api/bot/?id={id_bot}&api-key={token}"
+        "outgoing_url": f"https://{site.domain}/api/{type}/?id={id_bot}&api-key={token}"
     }
     try:
         resp = call_api(url, data=payload, access_token=chatwoot_user.access_token)
@@ -168,7 +212,7 @@ def create_chatwoot_user(email, user):
     send_mail(
         subject="Welcome to chat.thoth.kz!",
         message=f"Hello,\n\nYour chat account has been successfully created. \n\n Your login: {email}\n Your password: {password}\n\nBest regards,\nYour Team",
-        from_email="noreply@thoth.kz",
+        from_email=settings.EMAIL_HOST_USER,
         recipient_list=[email],
         fail_silently=False,
     )

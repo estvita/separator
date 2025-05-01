@@ -5,7 +5,6 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 import os
-import re
 import requests
 import threading
 import redis
@@ -36,9 +35,6 @@ class BotHandler(GenericViewSet):
         if bot.expiration_date and timezone.now() > bot.expiration_date:
             return Response("tariff has expired", status=status.HTTP_402_PAYMENT_REQUIRED)
 
-        if not bot.agent_bot:
-            return Response("agent bot not connected")
-            
         event = data.get('event')
         sender = data.get('sender', {})
         sender_type = sender.get('type')
@@ -58,35 +54,26 @@ class BotHandler(GenericViewSet):
                         if response.status_code == 200:
                             audio_file = BytesIO(response.content)
                             audio_file.name = filename
-                            try:
-                                content = client.audio.transcriptions.create(
-                                    model=bot.stt_model,
-                                    file=audio_file,
-                                    response_format="text",
-                                )
-                            except Exception as e:
-                                print(f"An transcriptions error occurred: {e}")
-                                return Response("Error processing audio file", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                            content = client.audio.transcriptions.create(
+                                model=bot.stt_model,
+                                file=audio_file,
+                                response_format="text",
+                            )
 
-            account = data.get('account')
+            account = data.get('account', {})
             account_id = account.get('id')
 
-            conversation = data.get('conversation')
+            conversation = data.get('conversation', {})
             conversation_id = conversation.get('id')
 
-            if not content:
+            if not bot.agent_bot or not content:
                 return Response("message should not be processed")
 
             meta = conversation.get('meta', {})
             sender_meta = meta.get('sender', {})
-            sender_phone = sender_meta.get('phone_number')
             labels = conversation.get('labels', [])
-
-            if sender_phone:
-                contact_id = re.sub(r'\D', '', sender_phone)
-            else:
-                contact_inbox = conversation.get('contact_inbox', {})
-                contact_id = contact_inbox.get('source_id')
+            contact_inbox = conversation.get('contact_inbox', {})
+            contact_id = contact_inbox.get('contact_id')
 
             conversation_status = conversation.get('status')
             role = "user" if message_type == "incoming" else "assistant"
@@ -100,8 +87,8 @@ class BotHandler(GenericViewSet):
     def debounce_handle(self, redis_key, content, thread_id, bot_id, role,
                         conversation_status, message_type, labels, account_id, conversation_id, sender_id):
         debounce_time = 10
-        buffer_key = f"buffer:{redis_key}:{message_type}"
-        timer_key = f"timer:{redis_key}:{message_type}"
+        buffer_key = f"buffer:{redis_key}"
+        timer_key = f"timer:{redis_key}"
 
         redis_client.rpush(buffer_key, content)
         ttl = redis_client.ttl(timer_key)

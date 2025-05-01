@@ -1,6 +1,7 @@
 import logging
 from django.utils import timezone
 from django.core.mail import send_mail
+from django.conf import settings
 import requests
 import redis
 from celery import shared_task
@@ -150,7 +151,7 @@ def get_threads(olx_user_id):
                     send_mail(
                         subject="OLX отключен из-за проблемы",
                         message=message,
-                        from_email="noreply@thoth.kz",
+                        from_email=settings.EMAIL_HOST_USER,
                         recipient_list=[user.owner],
                         fail_silently=False,
                     )

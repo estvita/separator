@@ -45,7 +45,7 @@ class BotAdminForm(forms.ModelForm):
 class BotAdmin(admin.ModelAdmin):
     form = BotAdminForm
     list_display = ("id", "name", "expiration_date", "agent_bot", "owner")
-    list_filter = ("model", "owner")
+    list_filter = ("model", )
     list_per_page = 50
 
 

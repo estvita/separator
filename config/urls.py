@@ -30,6 +30,7 @@ urlpatterns = [
     path('waweb/', include('thoth.waweb.urls')),
     path('bots/', include('thoth.bot.urls_bot', namespace='bot')),
     path('voices/', include('thoth.bot.urls_voice', namespace='voice')),
+    path('dify/', include('thoth.dify.urls')),
     # Your stuff: custom urls includes go here
     # ...
     path(settings.WAGTAIL_CMS_URL, include(wagtailadmin_urls)),
@@ -88,4 +89,4 @@ if settings.DEBUG:
 
 admin.site.site_header = "Admin"
 admin.site.site_title = "Admin Portal"
-admin.site.index_title = "Welcome to gulin.kz"
+admin.site.index_title = "Welcome to Admin Portal"

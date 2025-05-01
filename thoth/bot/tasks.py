@@ -3,6 +3,7 @@ import redis
 from celery import shared_task
 from rest_framework.response import Response
 from django.core.mail import send_mail
+from django.conf import settings
 import openai
 from openai import OpenAI
 import re
@@ -10,7 +11,8 @@ import json
 from thoth.bot.models import Bot
 import thoth.chatwoot.utils as chatwoot
 
-from thoth.bot.utils import ChatwootClient, bitrix_user_add
+from thoth.bitrix.utils import bitrix_user_add
+from thoth.chatwoot.utils import ChatwootClient
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -71,7 +73,7 @@ def message_processing(self, thread_id, redis_key, bot_id, role, content, conver
         send_mail(
             subject=f"Ошибка бота: {run.last_error.code}",
             message=run.last_error.message,
-            from_email="noreply@thoth.kz",
+            from_email=settings.EMAIL_HOST_USER,
             recipient_list=[bot.owner],
             fail_silently=False,
         )

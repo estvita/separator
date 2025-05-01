@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
 from openai import OpenAI
 from .models import ApiKey, Bot, Voice
 from .forms import ApiKeyForm, BotForm, VoiceForm
@@ -22,9 +23,8 @@ def check_openai_api_key(api_key):
 def bot_delete(request, bot_id):
     bot = get_object_or_404(Bot, id=bot_id, owner=request.user)
 
-    # Удаление бота из Chatwoot с обработкой ошибок
     try:
-        if bot.agent_bot is not None:
+        if bot.agent_bot:
             resp = chatwoot.delete_bot(request.user, bot.agent_bot.id)
             if resp.status_code == 200:
                 messages.success(request, f"Бот '{bot.name}' успешно удалён из чата.")
@@ -33,8 +33,6 @@ def bot_delete(request, bot_id):
                     request,
                     f"Не удалось удалить бота '{bot.name}' из чата. Код ответа: {resp.status_code}"
                 )
-        else:
-            messages.warning(request, "У бота нет связанного agent_bot для удаления из чата.")
     except Exception as e:
         messages.warning(request, f"Ошибка при удалении бота из Chatwoot: {str(e)}")
 
@@ -127,7 +125,7 @@ def bot_form_view(request, bot_id=None):
                     tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
                 )
 
-            if not bot.agent_bot:
+            if settings.CHATWOOT_ENABLED and not bot.agent_bot:
                 agent_bot = chatwoot.create_bot(request.user, bot.name, bot.id)
                 if agent_bot:
                     bot.agent_bot = agent_bot
