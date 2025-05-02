@@ -28,7 +28,7 @@ class BotHandler(GenericViewSet):
             return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
 
         try:
-            bot = Bot.objects.get(id=bot_id)
+            bot = Bot.objects.get(id=bot_id, owner=request.user)
         except Bot.DoesNotExist:
             return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
 
@@ -113,7 +113,7 @@ class VoiceDetails(GenericViewSet):
         if not bot_id:
             return Response({"error": "Bot ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        bot = get_object_or_404(Voice, id=bot_id)
+        bot = get_object_or_404(Voice, id=bot_id, owner=request.user)
         if timezone.now() > bot.expiration_date:
             return Response("tariff has expired", status=status.HTTP_402_PAYMENT_REQUIRED)
         

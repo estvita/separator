@@ -10,8 +10,13 @@ def generate_uuid():
     return f"gulin_{uuid.uuid4()}"
 
 class Connector(models.Model):
+    TYPE_CHOICES = [
+        ('olx', 'OLX'),
+        ('waweb', 'WhatsApp Web'),
+        ('waba', 'WhatsApp API'),
+    ]
     code = models.CharField(max_length=255, default=generate_uuid, unique=True)
-    service = models.CharField(max_length=255, blank=True, null=True)
+    service = models.CharField(max_length=255, choices=TYPE_CHOICES, blank=True, null=True)
     name = models.CharField(max_length=255, default="gulin.kz", unique=False)
     icon = models.FileField(upload_to='connector_icons/', blank=True, null=True)
 

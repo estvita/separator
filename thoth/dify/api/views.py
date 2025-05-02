@@ -22,7 +22,7 @@ class DifyReceiver(ViewSet):
         if not bot_id:
             return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
         try:
-            bot = Dify.objects.get(id=bot_id)
+            bot = Dify.objects.get(id=bot_id, owner=request.user)
         except Dify.DoesNotExist:
             return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
 
@@ -46,19 +46,17 @@ class DifyReceiver(ViewSet):
             dify_response = None
 
             if bot.type == "workflow":
+                inputs = {"content": content}
                 workflow_client = WorkflowClient(bot.api_key, bot.base_url)
 
-                inputs = {
-                    "content": content
-                }
                 try:
                     response = workflow_client.run(inputs, response_mode="blocking", user=contact_id)
                     response.raise_for_status()
                     response = response.json()
-                    dify_response = response.get("data", {}).get("outputs", {}).get("text")
+                    dify_response = response.get("data", {}).get("outputs", {}).get("text", "")
                 except requests.RequestException as e:
                     print(f"Error sending response to chat: {e}")
-                    return Response("Error sending the message.", status=500)
+                    return Response("Error sending the message.", status=response.status_code)
 
             elif bot.type == "chatflow":
                 chatflow_client = ChatClient(bot.api_key, bot.base_url)
@@ -73,7 +71,7 @@ class DifyReceiver(ViewSet):
                         thread_id = response.get("conversation_id")
                         redis_client.set(redis_key, thread_id)
                 except requests.RequestException as e:
-                    return Response("Error sending the message.", status=500)
+                    return Response("Error sending the message.", status=response.status_code)
 
             if dify_response:
                 payload = {
