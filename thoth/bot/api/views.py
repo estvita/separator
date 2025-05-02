@@ -1,7 +1,6 @@
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 import os
@@ -113,11 +112,15 @@ class VoiceDetails(GenericViewSet):
         if not bot_id:
             return Response({"error": "Bot ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        bot = get_object_or_404(Voice, id=bot_id, owner=request.user)
+        try:
+            bot = Voice.objects.get(id=bot_id)
+        except Voice.DoesNotExist:
+            return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
+        
         if timezone.now() > bot.expiration_date:
             return Response("tariff has expired", status=status.HTTP_402_PAYMENT_REQUIRED)
         
-        tools = get_tools_for_bot(request.user, bot, "voice")
+        tools = get_tools_for_bot(bot.owner, bot, "voice")
         
         response = {
             "flavor": bot.model.provider.name,
