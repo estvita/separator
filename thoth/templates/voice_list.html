@@ -15,26 +15,42 @@
     <tbody>
         {% for voice in voices %}
         <tr>
-            <td><a href="{% url 'voice:voice_edit' voice.id %}">{{ voice.name }}</a></td>
-            <td>{{ voice.expiration_date }}</td>
-            <td>{{ voice.id }}</td>
-            <td>{{ voice.password }}</td>
-            <td>
-                <a href="{% url 'voice:voice_edit' voice.id %}" class="btn btn-warning btn-sm">Редактировать</a>
-                <form action="{% url 'voice:voice_delete' voice.id %}" method="post" style="display:inline;">
-                    {% csrf_token %}
+        <td><a href="{% url 'voice:voice_edit' voice.id %}">{{ voice.name }}</a></td>
+        <td>{{ voice.expiration_date }}</td>
+        <td>{{ voice.id }}</td>
+        <td>
+            <span title="Click To Copy" class="password-field" data-password="{{ voice.password }}">
+                {% with pwd=voice.password %}
+                    {{ pwd|slice:":5" }}{% for i in "123456789"|slice:":%(diff)d" %}•{% endfor %}
+                {% endwith %}
+            </span>
+        </td>
+        <td>
+        <a href="{% url 'voice:voice_edit' voice.id %}" class="btn btn-warning btn-sm">Редактировать</a>
+        <form action="{% url 'voice:voice_delete' voice.id %}" method="post" style="display:inline;">
+            {% csrf_token %}
                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этого бота?');">
                         Удалить
                     </button>
-                </form>
-            </td>
+        </form>
+        </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="3" class="text-center">Нет ботов</td>
+            <td colspan="5" class="text-center">Нет ботов</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 <a href="{% url 'voice:voice_new' %}" class="btn btn-primary">Создать нового бота</a>
+
+<script>
+document.querySelectorAll('.password-field').forEach(function(el){
+    el.addEventListener('click', function(){
+        navigator.clipboard.writeText(el.getAttribute('data-password'));
+        el.style.background = "#e6ffe6";
+        setTimeout(() => { el.style.background = ""; }, 400);
+    });
+});
+</script>
 {% endblock %}
