@@ -95,12 +95,16 @@
       {% comment %}
       Script tags with only code, no src (defer by default). To run
       with a "defer" so that you run inline code:
+      {% endcomment %}
       <script>
         window.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('a[href^="http"]').forEach(link => {
+              link.setAttribute("target", "_blank");
+              link.setAttribute("rel", "nofollow noopener");
           /* Run whatever you want */
         });
+    });
       </script>
-      {% endcomment %}
     {% endblock inline_javascript %}
     <script>
       (function(w,d,u){
