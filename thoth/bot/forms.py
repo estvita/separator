@@ -1,6 +1,7 @@
 from django import forms
 from django.db import models
-from .models import Bot, Model, ApiKey, Feature, Voice, Vocal
+from .models import Bot, Model, ApiKey, Feature, Voice, Vocal, Feature
+from thoth.dify.models import Dify
 
 class ApiKeyForm(forms.ModelForm):
     class Meta:
@@ -72,10 +73,18 @@ class VoiceForm(forms.ModelForm):
         widget=forms.SelectMultiple(attrs={'size': '5'}),
         required=False,
     )
-    
+    dify_workflow = forms.ModelChoiceField(
+        queryset=Dify.objects.none(),
+        required=False,
+        label="Workflow"
+    )
+
     class Meta:
         model = Voice
-        fields = ["name", "model", "vocal", "instruction", "welcome_msg", "transfer_uri", "temperature", "max_tokens"]
+        fields = [
+            "name", "model", "vocal", "instruction", "welcome_msg", "transfer_uri",
+            "dify_workflow", "functions", "temperature", "max_tokens"
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Название'}),
             'instruction': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Опишите боту его задачу'}),
@@ -97,7 +106,10 @@ class VoiceForm(forms.ModelForm):
         self.fields['model'].required = True
         self.fields['model'].label_from_instance = lambda obj: f"{obj.name} (max tokens: {obj.max_completion_tokens})"
 
+        # Доступные воркфлоу только владельца
         if user:
+            self.fields['dify_workflow'].queryset = Dify.objects.filter(owner=user, type='workflow')
+
             self.fields['functions'].queryset = Feature.objects.filter(
                 type="function",
                 engine="voice"
@@ -107,3 +119,40 @@ class VoiceForm(forms.ModelForm):
 
         if self.instance and self.instance.pk:
             self.fields['functions'].initial = self.instance.features.filter(type="function")
+
+
+DESCRIPTION_OPENAI_EXAMPLE = {
+    "name": "get_time", 
+    "type": "function", 
+    "parameters": {
+        "type": "object", 
+        "required": [], 
+        "properties": {}
+        }, 
+    "description": "Если пользователь хочет узнать время"
+    }
+
+
+class FeatureForm(forms.ModelForm):
+    name = forms.CharField(
+        widget=forms.TextInput(),
+        initial='Название',
+        required=True,
+    )
+    description_openai = forms.JSONField(
+        initial=DESCRIPTION_OPENAI_EXAMPLE,
+        required=True,
+    )
+    description_human = forms.CharField(
+        widget=forms.TextInput(),
+        initial='Описание',
+        required=True,
+    )
+
+    class Meta:
+        model = Feature
+        fields = ['name', 'description_human', 'description_openai']
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)

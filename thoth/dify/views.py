@@ -44,7 +44,7 @@ def dify_form_view(request, dify_id=None):
                     else:
                         messages.success(request, 'Бот успешно обновлён.')
 
-                    if settings.CHATWOOT_ENABLED and not instance.agent_bot:
+                    if settings.CHATWOOT_ENABLED and not instance.agent_bot and instance.type != "workflow":
                         agent_bot = chatwoot.create_bot(request.user, f"Dify bot: {instance.id}", instance.id, "dify")
                         if agent_bot:
                             instance.agent_bot = agent_bot

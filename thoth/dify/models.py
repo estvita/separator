@@ -8,7 +8,7 @@ from django.conf import settings
 class Dify(models.Model):
     TYPE_CHOICES = [
         ('chatflow', 'Chatflow'),
-        # ('workflow', 'Workflow'),
+        ('workflow', 'Workflow'),
     ]
     type = models.CharField(max_length=10, choices=TYPE_CHOICES, default="chatflow")
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='dify')

@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<h3>Настройки Voice бота</h3>
+<h3>Настройки голосового бота</h3>
 
 <form method="post">
     {% csrf_token %}
@@ -28,6 +28,12 @@
         <br>
         {{ voice_form.model }}
     </fieldset>
+
+    <fieldset>
+        <legend>Привязка к Dify.ai</legend>
+        {{ voice_form.dify_workflow }}
+    </fieldset>
+
     
     <br>
 
@@ -55,7 +61,8 @@
 
     <br>
 
-    <button type="submit">Сохранить</button>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
 </form>
+<br>
 <a href="{% url 'voice:voice_list' %}" class="button">Вернуться</a>
 {% endblock %}

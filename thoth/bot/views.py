@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 from openai import OpenAI
-from .models import ApiKey, Bot, Voice
-from .forms import ApiKeyForm, BotForm, VoiceForm
+from .models import ApiKey, Bot, Voice, Feature
+from .forms import ApiKeyForm, BotForm, VoiceForm, FeatureForm
 from thoth.tariff.utils import get_trial
 import thoth.chatwoot.utils as chatwoot
 from thoth.bot.utils import get_tools_for_bot
@@ -223,3 +223,39 @@ def voice_delete(request, voice_id):
     messages.success(request, f"Бот '{voice.name}' успешно удалён из локальной базы.")
 
     return redirect('/voices')
+
+
+@login_required
+def feature_list_view(request):
+    features = Feature.objects.filter(owner=request.user)
+    return render(request, 'feature/feature_list.html', {'features': features})
+
+@login_required
+def feature_form_view(request, feature_id=None):
+    if feature_id:
+        feature = get_object_or_404(Feature, id=feature_id, owner=request.user)
+    else:
+        feature = None
+
+    if request.method == 'POST':
+        form = FeatureForm(request.POST, instance=feature, user=request.user)
+        if form.is_valid():
+            instance = form.save(commit=False)
+            instance.owner = request.user
+            instance.privacy = 'private'
+            instance.engine = 'voice'
+            instance.type = 'function'
+            instance.save()
+            messages.success(request, 'Функция успешно сохранена.')
+            return redirect('voice:feature_list')
+    else:
+        form = FeatureForm(instance=feature, user=request.user)
+    return render(request, 'feature/feature_form.html', {'form': form, 'feature': feature})
+
+@login_required
+def feature_delete_view(request, feature_id):
+    feature = get_object_or_404(Feature, id=feature_id, owner=request.user)
+    if request.method == "POST":
+        feature.delete()
+        messages.success(request, 'Функция успешно удалена.')
+    return redirect('voice:feature_list')

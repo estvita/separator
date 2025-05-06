@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h3>Список функций</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Название</th>
+            <th>Описание</th>
+            <th>Workflow</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for feature in features %}
+        <tr>
+            <td>{{ feature.name }}</td>
+            <td>{{ feature.description_human|truncatechars:50 }}</td>
+            <td>{{ feature.dify_workflow }}</td>
+            <td>
+                <a href="{% url 'voice:feature_edit' feature.id %}" class="btn btn-warning btn-sm">Редактировать</a>
+                <form action="{% url 'voice:feature_delete' feature.id %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Удалить функцию?');">
+                        Удалить
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4" class="text-center">Нет функций</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'voice:feature_new' %}" class="btn btn-primary">Создать новую функцию</a>
+<a href="{% url 'voice:voice_list' %}" class="btn btn-secondary ms-2">Голосовые боты</a>
+{% endblock %}

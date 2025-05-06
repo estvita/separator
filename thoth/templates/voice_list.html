@@ -19,7 +19,7 @@
         <td>{{ voice.expiration_date }}</td>
         <td>{{ voice.id }}</td>
         <td>
-            <span title="Click To Copy" class="password-field" data-password="{{ voice.password }}">
+            <span style="cursor:pointer" title="Click To Copy" class="password-field" data-password="{{ voice.password }}">
                 {% with pwd=voice.password %}
                     {{ pwd|slice:":5" }}{% for i in "123456789"|slice:":%(diff)d" %}•{% endfor %}
                 {% endwith %}
@@ -43,6 +43,7 @@
     </tbody>
 </table>
 <a href="{% url 'voice:voice_new' %}" class="btn btn-primary">Создать нового бота</a>
+<a href="{% url 'voice:feature_list' %}" class="btn btn-secondary ms-2">Функции</a>
 
 <script>
 document.querySelectorAll('.password-field').forEach(function(el){

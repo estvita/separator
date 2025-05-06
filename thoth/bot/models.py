@@ -4,6 +4,7 @@ from django.db import models
 from django.conf import settings
 from thoth.chatwoot.models import AgentBot
 from thoth.bitrix.models import AppInstance
+from thoth.dify.models import Dify
 
 class Provider(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -102,6 +103,9 @@ class Voice(models.Model):
     token = models.ForeignKey('ApiKey', on_delete=models.SET_NULL, related_name="voices", null=True, blank=True)
     model = models.ForeignKey('Model', on_delete=models.SET_NULL, related_name="voices", null=True, blank=True)
     vocal = models.ForeignKey('Vocal', on_delete=models.SET_NULL, related_name="voices", null=True, blank=True)
+    dify_workflow = models.ForeignKey(Dify, on_delete=models.SET_NULL, 
+                                      related_name="voices", null=True, blank=True,
+                                      limit_choices_to={'type': 'workflow'})
     instruction = models.TextField()
     welcome_msg = models.TextField(null=True, blank=True)
     transfer_uri = models.CharField(max_length=255, null=True, blank=True)
