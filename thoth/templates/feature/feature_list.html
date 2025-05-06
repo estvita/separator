@@ -7,7 +7,6 @@
         <tr>
             <th>Название</th>
             <th>Описание</th>
-            <th>Workflow</th>
             <th>Действия</th>
         </tr>
     </thead>
@@ -16,7 +15,6 @@
         <tr>
             <td>{{ feature.name }}</td>
             <td>{{ feature.description_human|truncatechars:50 }}</td>
-            <td>{{ feature.dify_workflow }}</td>
             <td>
                 <a href="{% url 'voice:feature_edit' feature.id %}" class="btn btn-warning btn-sm">Редактировать</a>
                 <form action="{% url 'voice:feature_delete' feature.id %}" method="post" style="display:inline;">
