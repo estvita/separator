@@ -227,7 +227,7 @@ def voice_delete(request, voice_id):
 
 @login_required
 def feature_list_view(request):
-    features = Feature.objects.filter(owner=request.user)
+    features = Feature.objects.filter(owner=request.user, type="function", engine="voice")
     return render(request, 'feature/feature_list.html', {'features': features})
 
 @login_required

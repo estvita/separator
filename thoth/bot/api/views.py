@@ -135,7 +135,7 @@ class VoiceDetails(GenericViewSet):
                 "temperature": bot.temperature,
                 "max_tokens": bot.max_tokens,
                 "dify_url": bot.dify_workflow.base_url,
-                "api_key": bot.dify_workflow.api_key,
+                "dify_key": bot.dify_workflow.api_key,
             }
         }
         
