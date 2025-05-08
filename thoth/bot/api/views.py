@@ -140,6 +140,6 @@ class VoiceDetails(GenericViewSet):
 
         if bot.dify_workflow:
             response[flavor]["dify_url"] = bot.dify_workflow.base_url
-            response[flavor]["api_key"] = bot.dify_workflow.api_key
+            response[flavor]["dify_key"] = bot.dify_workflow.api_key
         
         return Response(response, status=status.HTTP_200_OK)
