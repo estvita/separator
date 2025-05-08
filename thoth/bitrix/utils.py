@@ -24,12 +24,10 @@ from .crest import call_method
 from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector
 import thoth.bitrix.tasks as bitrix_tasks
 
-from thoth.chatwoot.utils import ChatwootClient
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 THOTH_BITRIX = settings.THOTH_BITRIX
-SONET_GROUP_ID = settings.SONET_GROUP_ID
 
 logger = logging.getLogger("django")
 
@@ -42,21 +40,6 @@ CONNECTOR_EVENTS = [
     "ONIMCONNECTORLINEDELETE",
     "ONIMCONNECTORSTATUSDELETE",
 ]
-
-def bitrix_user_add(bot, email, account_id, conversation_id, contact_id):
-    chatwoot_client = ChatwootClient(account_id=account_id)
-    chatwoot_client.updtae_contact(contact_id, {"email": email})
-    payload = {
-        "EMAIL": email,
-        "SONET_GROUP_ID": SONET_GROUP_ID,
-        "EXTRANET": "Y",
-    }
-    resp = call_method(bot.bitrix, "user.add", payload)
-    if "result" in resp:
-        chatwoot_client.remove_conversation_label(conversation_id, bot.follow_up)
-        return "Приглашение успешно отправлено, проверьте вашу почту"
-    elif "error" in resp:
-        return f"ERROOR!! Кандидат не приглашен. Текст ошибки {resp.get('error_description')}"
 
 
 # Регистрация SMS-провайдера

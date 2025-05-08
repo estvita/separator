@@ -20,12 +20,11 @@ from wagtail.snippets.models import register_snippet
 from wagtail.blocks import RichTextBlock
 from wagtailcodeblock.blocks import CodeBlock
 
-from wagtailseo.models import SeoMixin, SeoType
 
 from thoth.tariff.models import Tariff, Service
 
 
-class HomePage(SeoMixin, Page):
+class HomePage(Page):
     body = RichTextField(blank=True)
     menu_title = models.CharField(blank=True)
 
@@ -34,14 +33,13 @@ class HomePage(SeoMixin, Page):
     ]
     promote_panels = Page.promote_panels + [
         FieldPanel("menu_title"),
-    ] + SeoMixin.seo_panels
-    seo_content_type = SeoType.ARTICLE
+    ]
 
     def get_menu_title(self):
         return self.menu_title if self.menu_title else self.title
 
 
-class ArticlePage(SeoMixin, Page):
+class ArticlePage(Page):
     menu_title = models.CharField(blank=True)
     body = StreamField([
         ("rich_text", RichTextBlock()),
@@ -53,15 +51,13 @@ class ArticlePage(SeoMixin, Page):
     ]
     promote_panels = Page.promote_panels + [
         FieldPanel("menu_title"),
-    ] + SeoMixin.seo_panels
-
-    seo_content_type = SeoType.ARTICLE
+    ]
 
     def get_menu_title(self):
         return self.menu_title if self.menu_title else self.title
 
 
-class TariffPage(SeoMixin, Page):
+class TariffPage(Page):
     menu_title = models.CharField(blank=True)
     body = StreamField([
         ("rich_text", RichTextBlock()),
@@ -73,7 +69,7 @@ class TariffPage(SeoMixin, Page):
 
     promote_panels = Page.promote_panels + [
         FieldPanel("menu_title"),
-    ] + SeoMixin.seo_panels
+    ]
 
     def get_menu_title(self):
         return self.menu_title if self.menu_title else self.title

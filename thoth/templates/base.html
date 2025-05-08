@@ -4,11 +4,22 @@
 {% get_current_language as LANGUAGE_CODE %}
 <html lang="{{ LANGUAGE_CODE }}">
   <head>
-    {% include "wagtailseo/meta.html" %}
     <meta charset="utf-8" />
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+    <!-- SEO Meta Tags -->
+    <title>
+      {% block title %}
+        {% if page %}
+          {{ page.seo_title|default:page.title }}
+        {% else %}
+          Default Title
+        {% endif %}
+      {% endblock %}
+    </title>
+    <meta name="description" content="{% block description %}{{ page.search_description }}{% endblock %}">
+    <link rel="canonical" href="{{ request.build_absolute_uri }}">
     {% block css %}
       <!-- Latest compiled and minified Bootstrap CSS -->
       <link rel="stylesheet"
@@ -42,7 +53,6 @@
     {% endblock javascript %}
   </head>
   <body class="{% block bodyclass %}{% endblock bodyclass %}">
-    {% include "wagtailseo/struct_data.html" %}
     {% block body %}
     <div class="mb-1">
       <nav class="navbar navbar-expand-md navbar-light bg-light">

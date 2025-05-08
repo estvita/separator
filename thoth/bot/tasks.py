@@ -11,7 +11,6 @@ import json
 from thoth.bot.models import Bot
 import thoth.chatwoot.utils as chatwoot
 
-from thoth.bitrix.utils import bitrix_user_add
 from thoth.chatwoot.utils import ChatwootClient
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -101,14 +100,6 @@ def message_processing(self, thread_id, redis_key, bot_id, role, content, conver
 
                 elif func == "remove_label":
                     resp = chatwoot_client.remove_conversation_label(conversation_id, bot.follow_up)
-
-                elif func == "bitrix_user_add":
-                    if not bot.bitrix:
-                        resp = "error: bitrix not connected to bot"
-                    else:
-                        arguments = json.loads(tool.function.arguments)
-                        email = arguments.get('email')
-                        resp = bitrix_user_add(bot, email, account_id, conversation_id, sender_id)
 
                 tool_outputs.append({
                     "tool_call_id": tool.id,

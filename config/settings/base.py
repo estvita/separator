@@ -26,8 +26,6 @@ WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
 WAGTAILEMBEDS_RESPONSIVE_HTML = True
 WAGTAILDOCS_EXTENSIONS = ['csv', 'docx', 'odt', 'pdf', 'pptx', 'rtf', 'txt', 'xlsx', 'zip']
 
-SONET_GROUP_ID = env("SONET_GROUP_ID", default=6)
-
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
@@ -115,7 +113,6 @@ WAGTAIL_APPS = [
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.embeds',
-    'wagtailseo',
     'wagtail.sites',
     'wagtail.users',
     'wagtail.snippets',
