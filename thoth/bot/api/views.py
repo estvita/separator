@@ -121,10 +121,11 @@ class VoiceDetails(GenericViewSet):
             return Response("tariff has expired", status=status.HTTP_402_PAYMENT_REQUIRED)
         
         tools = get_tools_for_bot(bot.owner, bot, "voice")
-        
+        flavor = bot.model.provider.name
+
         response = {
-            "flavor": bot.model.provider.name,
-            bot.model.provider.name: {
+            "flavor": flavor,
+            flavor: {
                 "model": bot.model.name,
                 "key": bot.token.key if bot.token else None,
                 "voice": bot.vocal.vocal,
@@ -134,9 +135,11 @@ class VoiceDetails(GenericViewSet):
                 "transfer_uri": bot.transfer_uri,
                 "temperature": bot.temperature,
                 "max_tokens": bot.max_tokens,
-                "dify_url": bot.dify_workflow.base_url,
-                "dify_key": bot.dify_workflow.api_key,
             }
         }
+
+        if bot.dify_workflow:
+            response[flavor]["dify_url"] = bot.dify_workflow.base_url
+            response[flavor]["dify_url"] = bot.dify_workflow.api_key
         
         return Response(response, status=status.HTTP_200_OK)

@@ -63,9 +63,6 @@ class VoiceAdminForm(forms.ModelForm):
 @admin.register(Voice)
 class VoiceAdmin(admin.ModelAdmin):
     form = VoiceAdminForm
-    list_display = ("id", "name", "expiration_date", "owner")
-    fields = ("id", "password", "name", "expiration_date", "owner",
-              "token", "model", "vocal", "instruction", "welcome_msg", "features",
-              "transfer_uri", "temperature", "max_tokens")
-    list_filter = ("model", "owner")
+    list_display = ("id", "name", "dify_workflow", "expiration_date", "owner")
+    list_filter = ("model", )
     list_per_page = 50
