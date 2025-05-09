@@ -5,6 +5,7 @@ import re
 import uuid
 import redis
 from datetime import timedelta
+from django.db import transaction
 from django.utils import timezone
 from django.contrib import messages
 from django.conf import settings
@@ -416,28 +417,36 @@ def event_processor(request):
                     appinstance.save()
 
                 # Регистрация коннектора/ подписка на события
-                events_bind(GENERAL_EVENTS, appinstance, api_key)
-                if app.connectors.exists():
-                    for connector in app.connectors.all():
-                        register_connector(appinstance, api_key, connector)
+                def register_events_and_connectors():
+                    events_bind(GENERAL_EVENTS, appinstance, api_key)
+                    if app.connectors.exists():
+                        for connector in app.connectors.all():
+                            register_connector(appinstance, api_key, connector)
+
+                transaction.on_commit(register_events_and_connectors)
 
                 # Если портал уже прявязан
                 if portal.owner:
                     return Response('App successfully created and linked')
-
-                code = uuid.uuid4()
-                VerificationCode.objects.create(
+                
+                code = VerificationCode.objects.filter(
                     portal=portal,
-                    code=code,
-                    expires_at=timezone.now() + timedelta(days=1),
-                )
+                ).first()
+
+                if not code:
+                    code = uuid.uuid4()
+                    VerificationCode.objects.create(
+                        portal=portal,
+                        code=code,
+                        expires_at=timezone.now() + timedelta(days=1),
+                    )
 
                 payload = {
                     "message": f"Ваш код подтверждения: {code}. Введите его на странице https://{appinstance.app.site}/portals/",
                     "USER_ID": appinstance.portal.user_id,
                 }
 
-                call_method(appinstance, "im.notify.system.add", payload)
+                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
 
                 # создание лида в битриксе если есть права
                 if "user_basic" in scope and THOTH_BITRIX:
