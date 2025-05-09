@@ -26,6 +26,8 @@ WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
 WAGTAILEMBEDS_RESPONSIVE_HTML = True
 WAGTAILDOCS_EXTENSIONS = ['csv', 'docx', 'odt', 'pdf', 'pptx', 'rtf', 'txt', 'xlsx', 'zip']
 
+BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
+
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug

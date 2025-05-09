@@ -23,7 +23,7 @@ class AdminMessageAdmin(admin.ModelAdmin):
                 'USER_ID': app_instance.portal.user_id,
                 'MESSAGE': message,
             }
-            bitrix_tasks.call_api.delay(app_instance.application_token, "im.notify.system.add", payload)
+            bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
 
 
 @admin.register(App)

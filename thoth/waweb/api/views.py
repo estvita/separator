@@ -235,7 +235,7 @@ class WaEventsHandler(GenericViewSet):
                                 "SILENT_MODE": "Y",
                                 "MESSAGE": fileName
                             }
-                            bitrix_tasks.call_api.delay(session.app_instance.application_token, "im.disk.file.commit", file_upd)
+                            bitrix_tasks.call_api.delay(session.app_instance.id, "im.disk.file.commit", file_upd)
                     else:
                         attach = None
                         if file_url:

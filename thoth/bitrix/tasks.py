@@ -2,6 +2,7 @@ import redis
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.core.exceptions import ObjectDoesNotExist
+from django.conf import settings
 
 from .crest import call_method
 from .models import AppInstance
@@ -12,9 +13,9 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5)
-def call_api(self, application_token, method, payload):
+def call_api(self, id, method, payload):
     try:
-        appinstance = AppInstance.objects.get(application_token=application_token)
+        appinstance = AppInstance.objects.get(id=id)
         call_method(appinstance, method, payload)
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
@@ -24,8 +25,8 @@ def call_api(self, application_token, method, payload):
 def get_app_info():
     app_instances = AppInstance.objects.all()
     for app_instance in app_instances:
-        if app_instance.attempts < 3:
-            call_method(app_instance, "app.info", {})
+        if app_instance.attempts < settings.BITRIX_CHECK_APP_ATTEMTS:
+            call_api.delay(app_instance.id, "app.info", {})
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5)

@@ -168,7 +168,7 @@ def events_bind(events: dict, appinstance: AppInstance, api_key: str):
             "HANDLER": f"https://{url}/api/bitrix/?api-key={api_key}",
         }
 
-        bitrix_tasks.call_api.delay(appinstance.application_token, "event.bind", payload)
+        bitrix_tasks.call_api.delay(appinstance.id, "event.bind", payload)
 
 
 def register_connector(appinstance: AppInstance, api_key: str, connector):
@@ -192,7 +192,7 @@ def register_connector(appinstance: AppInstance, api_key: str, connector):
             "PLACEMENT_HANDLER": f"https://{url}/api/bitrix/placement/?api-key={api_key}&inst={appinstance.id}",
         }
 
-        bitrix_tasks.call_api.delay(appinstance.application_token, "imconnector.register", payload)
+        bitrix_tasks.call_api.delay(appinstance.id, "imconnector.register", payload)
         events_bind(CONNECTOR_EVENTS, appinstance, api_key)
 
     except FileNotFoundError:
@@ -274,7 +274,7 @@ def process_placement(request):
         #     "LINE": line_id,
         #     "ACTIVE": 1
         # }
-        # bitrix_tasks.call_api.delay(app_instance.application_token, "imconnector.activate", payload)
+        # bitrix_tasks.call_api.delay(app_instance.id, "imconnector.activate", payload)
         return Response(f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/")
 
     except Exception as e:
@@ -299,7 +299,7 @@ def sms_processor(request):
         "STATUS": "delivered"
     }
 
-    bitrix_tasks.call_api.delay(application_token, "messageservice.message.status.update", status_data)
+    bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
 
     # начать диалог в открытых линиях
     service = request.query_params.get('service')
@@ -476,7 +476,7 @@ def event_processor(request):
                 ],
             }
 
-            bitrix_tasks.call_api.delay(application_token, "imconnector.send.status.delivery", status_data)
+            bitrix_tasks.call_api.delay(appinstance.id, "imconnector.send.status.delivery", status_data)
 
             # Проверяем наличие сообщения в редис (отправлено из других сервисов )
             if redis_client.exists(f'bitrix:{domain}:{message_id}'):
