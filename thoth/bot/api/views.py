@@ -86,8 +86,8 @@ class BotHandler(GenericViewSet):
     def debounce_handle(self, redis_key, content, thread_id, bot_id, role,
                         conversation_status, message_type, labels, account_id, conversation_id, sender_id):
         debounce_time = 10
-        buffer_key = f"buffer:{redis_key}"
-        timer_key = f"timer:{redis_key}"
+        buffer_key = f"buffer:{message_type}:{redis_key}"
+        timer_key = f"timer:{message_type}:{redis_key}"
 
         redis_client.rpush(buffer_key, content)
         ttl = redis_client.ttl(timer_key)
