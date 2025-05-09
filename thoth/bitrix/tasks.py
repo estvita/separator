@@ -16,7 +16,7 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 def call_api(self, id, method, payload):
     try:
         appinstance = AppInstance.objects.get(id=id)
-        call_method(appinstance, method, payload)
+        return call_method(appinstance, method, payload)
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
 
