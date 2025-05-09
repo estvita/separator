@@ -429,11 +429,13 @@ def event_processor(request):
                 if portal.owner:
                     return Response('App successfully created and linked')
                 
-                code = VerificationCode.objects.filter(
+                verify_code = VerificationCode.objects.filter(
                     portal=portal,
                 ).first()
 
-                if not code:
+                if verify_code:
+                    code = verify_code.code
+                else:
                     code = uuid.uuid4()
                     VerificationCode.objects.create(
                         portal=portal,
