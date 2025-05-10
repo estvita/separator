@@ -26,7 +26,7 @@ from thoth.tariff.models import Tariff, Service
 
 class HomePage(Page):
     body = RichTextField(blank=True)
-    menu_title = models.CharField(blank=True)
+    menu_title = models.CharField(blank=True, max_length=150)
 
     content_panels = Page.content_panels + [
         FieldPanel('body'),
@@ -40,7 +40,7 @@ class HomePage(Page):
 
 
 class ArticlePage(Page):
-    menu_title = models.CharField(blank=True)
+    menu_title = models.CharField(blank=True, max_length=150)
     body = StreamField([
         ("rich_text", RichTextBlock()),
         ("code", CodeBlock(label="Code")),
@@ -58,7 +58,7 @@ class ArticlePage(Page):
 
 
 class TariffPage(Page):
-    menu_title = models.CharField(blank=True)
+    menu_title = models.CharField(blank=True, max_length=150)
     body = StreamField([
         ("rich_text", RichTextBlock()),
     ], blank=True)

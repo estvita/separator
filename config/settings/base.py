@@ -20,7 +20,7 @@ CHATWOOT_ID = env("CHATWOOT_ID", default=1)
 WABA_APP_ID = env("WABA_APP_ID", default=1)
 THOTH_BITRIX = env("THOTH_BITRIX", default="")
 WABWEB_SRV = env("WABWEB_SRV", default=1)
-WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="https://gulin.kz")
+WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="https://example.com")
 WAGTAIL_CMS_URL = env("WAGTAIL_CMS_URL", default="cms/")
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
 WAGTAILEMBEDS_RESPONSIVE_HTML = True
