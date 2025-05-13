@@ -27,6 +27,7 @@ WAGTAILEMBEDS_RESPONSIVE_HTML = True
 WAGTAILDOCS_EXTENSIONS = ['csv', 'docx', 'odt', 'pdf', 'pptx', 'rtf', 'txt', 'xlsx', 'zip']
 
 BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
+OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 
 # GENERAL
 # ------------------------------------------------------------------------------

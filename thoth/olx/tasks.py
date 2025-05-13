@@ -10,10 +10,53 @@ import thoth.bitrix.crest as bitrix
 import thoth.bitrix.tasks as bitrix_tasks
 
 from .models import OlxUser
-from .utils import refresh_token, deactivate_task
+from .utils import deactivate_task
 
 logger = logging.getLogger("django")
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+
+@shared_task
+def refresh_token(olx_user_id):
+    user = OlxUser.objects.get(olx_id=olx_user_id)
+    olx_app = user.olxapp
+    api_url = f"https://www.{olx_app.client_domain}/api/open/oauth/token"
+
+    payload = {
+        "grant_type": "refresh_token",
+        "client_id": olx_app.client_id,
+        "client_secret": olx_app.client_secret,
+        "refresh_token": user.refresh_token,
+    }
+
+    get_token = requests.post(api_url, json=payload)
+    if user.status != get_token.status_code:
+        user.status = get_token.status_code
+
+    if get_token.status_code == 200:
+        user.attempts = 0
+        token_data = get_token.json()
+        user.access_token = token_data.get("access_token")
+        user.refresh_token = token_data.get("refresh_token")
+        user.save()
+        logger.info(f"Tokens updated successfully for user {user.olx_id}")
+    else:
+        user.attempts += 1
+        user.save()
+        deactivate_task(user.olx_id)
+        logger.debug(
+            f"Failed to refresh token for user {user.olx_id}. Status code: {get_token.status_code}, Response: {get_token.json()}"
+        )
+    return get_token
+
+
+@shared_task
+def refresh_tokens():
+    accounts = OlxUser.objects.all()
+    for account in accounts:
+        if account.attempts > settings.OLX_CHECK_ATTEMTS:
+            continue
+        if timezone.now() > account.date_end:
+            refresh_token.delay(account.olx_id)
 
 
 @shared_task
@@ -56,9 +99,7 @@ def get_threads(olx_user_id):
         connector_code = user.line.connector.code
         bitrix_user = user.line.portal.user_id
 
-        current_time = timezone.now()
-
-        if current_time > user.date_end:
+        if timezone.now() > user.date_end:
             deactivate_task(olx_user_id)
             payload = {
                 'USER_ID': bitrix_user,
@@ -76,6 +117,10 @@ def get_threads(olx_user_id):
         }
 
         response = requests.get(api_url, headers=headers)
+        if user.status != response.status_code:
+            user.status = response.status_code
+            user.save()
+            
         if response.status_code == 200:
             threads = response.json().get("data", [])
             # Обрабатываем каждый thread

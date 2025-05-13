@@ -93,6 +93,8 @@ class OlxUser(models.Model):
         null=True,
         # editable=False,
     )
+    status = models.IntegerField(default=0, blank=True)
+    attempts = models.IntegerField(default=0, blank=True)
 
     def __str__(self):
         return f"{self.name} ({self.olx_id})"

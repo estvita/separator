@@ -17,18 +17,20 @@ class OlxUserAdmin(admin.ModelAdmin):
         "olx_id",
         "owner",
         "date_end",
-        "email",
-        "line",
+        "status",
+        "attempts",
     )
     search_fields = ("olx_id", "email", "name", "phone")
     readonly_fields = (
-        # "access_token",
-        # "refresh_token",
+        "access_token",
+        "refresh_token",
         "olx_id",
         "email",
         "name",
         "phone",
         "olxapp",
+        "status",
+        "attempts",
         # "line",
     )
     list_per_page = 30

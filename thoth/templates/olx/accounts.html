@@ -11,8 +11,7 @@
       <table class="table table-bordered">
         <thead>
           <tr>
-            <th>OLX</th>
-            <th>ID</th>
+            <th>ID (Status)</th>
             <th>Срок</th>
             <th>Line ID</th>
             <th>Bitrix24 line</th>
@@ -21,8 +20,7 @@
         <tbody>
           {% for account in olx_accounts %}
             <tr>
-              <td>{{ account.olxapp }}</td>
-              <td>{{ account.olx_id }}</td>
+              <td>{{ account.olx_id }} ({{ account.status }})</td>
               <td>{{ account.date_end }}</td>
               <td>
                 {% if account.line %}
