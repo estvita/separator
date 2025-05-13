@@ -20,7 +20,8 @@ class OlxUserAdmin(admin.ModelAdmin):
         "status",
         "attempts",
     )
-    search_fields = ("olx_id", "email", "name", "phone")
+    search_fields = ("olx_id", )
+    list_filter = ("status", )
     readonly_fields = (
         "access_token",
         "refresh_token",
