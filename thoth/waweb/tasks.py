@@ -1,4 +1,5 @@
 import requests
+from django.utils import timezone
 from celery import shared_task
 import thoth.waweb.utils as utils
 from django.conf import settings
@@ -18,7 +19,10 @@ def send_message_task(session_id, recipients, content, cont_type="string", from_
 
 @shared_task
 def delete_sessions():
-    sessions = WaSession.objects.filter(phone__isnull=True)
+    sessions = WaSession.objects.filter(
+        phone__isnull=True,
+        date_end__lt=timezone.now()
+    )
     wa_server = WaServer.objects.get(id=WABWEB_SRV)
     headers = {"apikey": wa_server.api_key}
     for session in sessions:
