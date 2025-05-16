@@ -42,14 +42,7 @@
       <!-- Your stuff: Third-party javascript libraries go here -->
       <!-- place project specific Javascript in this file -->
       <script defer src="{% static 'js/project.js' %}"></script>
-      <!-- Google tag (gtag.js) -->
-      <script async src="https://www.googletagmanager.com/gtag/js?id=G-33XNMJS79W"></script>
-      <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-33XNMJS79W');
-      </script>
+
     {% endblock javascript %}
   </head>
   <body class="{% block bodyclass %}{% endblock bodyclass %}">
@@ -116,11 +109,5 @@
     });
       </script>
     {% endblock inline_javascript %}
-    <script>
-      (function(w,d,u){
-              var s=d.createElement('script');s.async=true;s.src=u+'?'+(Date.now()/60000|0);
-              var h=d.getElementsByTagName('script')[0];h.parentNode.insertBefore(s,h);
-      })(window,document,'https://cdn-ru.bitrix24.kz/b28374468/crm/site_button/loader_2_ba2yve.js');
-    </script>
   </body>
 </html>
