@@ -14,34 +14,31 @@ from .tasks import send_message_task
 
 WABWEB_SRV = settings.WABWEB_SRV
 
+
 @login_required
 def wa_sessions(request):
     connector_service = "waweb"
     connector = Connector.objects.filter(service=connector_service).first()
+    if request.method == "POST":
+        session_id = request.POST.get("session_id")
+        line_id = request.POST.get("line_id")
+        phone = get_object_or_404(WaSession, id=session_id, owner=request.user)
+        bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
+        return redirect('waweb')
+
     sessions = WaSession.objects.filter(owner=request.user)
     instances = AppInstance.objects.filter(owner=request.user, app__connectors=connector)
     wa_lines = Line.objects.filter(connector=connector, owner=request.user)
 
     # Проверка наличия активных сессий
     for session in sessions:
-        if session.status == "open":
-            session.show_link = True
-        else:
-            session.show_link = False
+        session.show_link = session.status == "open"
 
-    if request.method == "POST":
-        session_id = request.POST.get("session_id")
-        line_id = request.POST.get("line_id")
-        phone = get_object_or_404(WaSession, id=session_id, owner=request.user)
-
-        bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
-
-    
     return render(
         request, 'waweb/wa_sessions.html', {
-             "sessions": sessions,
-             "instances": instances,
-             "wa_lines": wa_lines,
+            "sessions": sessions,
+            "instances": instances,
+            "wa_lines": wa_lines,
         }
     )
 
