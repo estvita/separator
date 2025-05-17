@@ -20,13 +20,18 @@ def send_message_task(session_id, recipients, content, cont_type="string", from_
 
 
 @shared_task
-def delete_sessions():
+def delete_sessions(days=None):
     now = timezone.now()
-    month_ago = now - timedelta(days=30)
-    sessions = WaSession.objects.filter(
-        Q((Q(phone__isnull=True) | Q(phone='')) & Q(date_end__lt=now)) |
-        Q(date_end__lt=month_ago)
-    )
+    filters = Q((Q(phone__isnull=True) | Q(phone='')) & Q(date_end__lt=now))
+    if days is not None:
+        try:
+            days_int = int(days)
+            date_limit = now - timedelta(days=days_int)
+            filters = filters | Q(date_end__lt=date_limit)
+        except (TypeError, ValueError):
+            pass
+
+    sessions = WaSession.objects.filter(filters)
     wa_server = WaServer.objects.get(id=WABWEB_SRV)
     headers = {"apikey": wa_server.api_key}
     for session in sessions:
