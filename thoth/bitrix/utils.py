@@ -124,8 +124,6 @@ def connect_line(request, line_id, entity, connector, redirect_to):
             if entity.sms_service:
                 resp = messageservice_add(app_instance, phone, line.line_id, api_key, connector.service)
                 if "error" in resp:
-                    entity.sms_service = False
-                    entity.save()
                     messages.error(request, f"Ошибка подключения SMS канала:{resp}")
                 else:
                     messages.success(request, "SMS канал подключен")

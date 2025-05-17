@@ -1,5 +1,7 @@
 import requests
 from django.utils import timezone
+from django.db.models import Q
+from datetime import timedelta
 from celery import shared_task
 import thoth.waweb.utils as utils
 from django.conf import settings
@@ -19,9 +21,11 @@ def send_message_task(session_id, recipients, content, cont_type="string", from_
 
 @shared_task
 def delete_sessions():
+    now = timezone.now()
+    month_ago = now - timedelta(days=30)
     sessions = WaSession.objects.filter(
-        phone__isnull=True,
-        date_end__lt=timezone.now()
+        Q((Q(phone__isnull=True) | Q(phone='')) & Q(date_end__lt=now)) |
+        Q(date_end__lt=month_ago)
     )
     wa_server = WaServer.objects.get(id=WABWEB_SRV)
     headers = {"apikey": wa_server.api_key}

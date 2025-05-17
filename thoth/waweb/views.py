@@ -49,6 +49,14 @@ def wa_sessions(request):
 @login_required
 def connect_number(request, session_id=None):
     if not session_id:
+        # проверка наличия неподключенных сессий
+        sessions = WaSession.objects.filter(
+            phone__isnull=True,
+            owner=request.user
+        )
+        if sessions:
+            messages.warning(request, "У вас уже есть незавершенное подключение. Нажмите 'Подключить'")
+            return redirect('waweb')
         # Создаем новую сессию
         new_session = WaSession.objects.create(owner=request.user)
         session_id = new_session.session

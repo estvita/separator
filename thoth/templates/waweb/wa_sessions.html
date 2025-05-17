@@ -26,11 +26,11 @@
             <td>
               {% if session.show_link %}
                 <a href="{% url 'send_message' session_id=session.session %}">
-                  {{ session.phone|default:"Not connected" }}
+                  {{ session.phone|default:"Подключить" }}
                 </a>
               {% else %}
               <a href="{% url 'qr_code_page' session_id=session.session %}">
-                {{ session.phone|default:"Not connected" }}
+                {{ session.phone|default:"Подключить" }}
               </a>
               {% endif %}
             </td>
