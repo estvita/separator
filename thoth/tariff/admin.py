@@ -13,6 +13,6 @@ class TrialAdmin(admin.ModelAdmin):
 
 @admin.register(Tariff)
 class TariffAdmin(admin.ModelAdmin):
-    list_filter = ("service", "period")
+    list_filter = ("service", "period", "is_trial")
     list_display = ("service", "duration", "price", "is_trial")
     list_per_page = 50
