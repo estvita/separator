@@ -7,6 +7,7 @@ import requests
 from django.contrib.sites.models import Site
 from django.conf import settings
 import redis
+import logging
 import uuid
 import re
 from django.utils import timezone
@@ -24,6 +25,8 @@ SITE_ID = settings.SITE_ID
 WABWEB_SRV = settings.WABWEB_SRV
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+
+logger = logging.getLogger("django")
 
 
 class WaEventsHandler(GenericViewSet):
@@ -43,6 +46,10 @@ class WaEventsHandler(GenericViewSet):
             session = WaSession.objects.get(session=sessionid)
         except WaSession.DoesNotExist:
             return Response({'error': f'WaSession with sessionId {sessionid} does not exist'})
+        
+        if not session.owner:
+            logger.info(event_data)
+            return Response({'error': 'Session has no owner'})
         
         event = event_data.get("event")
         data = event_data.get("data", {})

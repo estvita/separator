@@ -1,6 +1,7 @@
 import requests
 import random
 import string
+import logging
 import re
 from rest_framework.authtoken.models import Token
 from django.contrib.sites.models import Site
@@ -12,7 +13,7 @@ from .models import Chatwoot, User, Account, PhoneNumber, AgentBot, Feature, Lim
 
 CHATWOOT_ID = settings.CHATWOOT_ID
 SITE_ID = settings.SITE_ID
-
+logger = logging.getLogger("django")
 
 class ChatwootClient:
     def __init__(self, account_id):
@@ -143,7 +144,7 @@ def create_chatwoot_user(email, user):
 
     create_user = call_api(f"{url}users", user_payload)
     if create_user.status_code != 200:
-        print("Failed to create user in Chatwoot", create_user.json())
+        logger.error("Failed to create user in Chatwoot", create_user.json())
         return {"error": "Failed to create user in Chatwoot"}
 
     user_data = create_user.json()
@@ -171,7 +172,7 @@ def create_chatwoot_user(email, user):
 
     create_account = call_api(f'{url}accounts', account_payload)
     if create_account.status_code != 200:
-        print("create_account", create_account.json())
+        logger.error("create_account", create_account.json())
         return {"error": "Failed to create account in Chatwoot"}
 
     account_data = create_account.json()
@@ -196,6 +197,7 @@ def create_chatwoot_user(email, user):
     account_user = call_api(f'{url}accounts/{account_id}/account_users', data=account_user_payload)
 
     if account_user.status_code != 200:
+        logger.error("account_user", account_user.json())
         return {"error": "Failed to assign user to account"}
 
     # Save user data in the database
@@ -210,8 +212,8 @@ def create_chatwoot_user(email, user):
 
     # Send email with account credentials
     send_mail(
-        subject="Welcome to chat.thoth.kz!",
-        message=f"Hello,\n\nYour chat account has been successfully created. \n\n Your login: {email}\n Your password: {password}\n\nBest regards,\nYour Team",
+        subject=f"Welcome to {chatwoot.url}!",
+        message=f"Hello,\n\nYour chat account has been successfully created. \n\n Your login: {email}\n Your password: {password}\n\nBest regards,\ {chatwoot.url}",
         from_email=settings.EMAIL_HOST_USER,
         recipient_list=[email],
         fail_silently=False,
