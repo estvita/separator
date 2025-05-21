@@ -43,6 +43,12 @@ class UserSignupForm(SignupForm):
         )
     )
 
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number')
+        if User.objects.filter(phone_number=phone).exists():
+            raise forms.ValidationError(_("Пользователь с таким номером уже существует."))
+        return phone
+
     def save(self, request):
         user = super().save(request)
         user.phone_number = self.cleaned_data.get("phone_number")

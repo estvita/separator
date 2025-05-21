@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from thoth.waweb.models import WaSession, WaServer
 from rest_framework import permissions
 import requests
-from django.contrib.sites.models import Site
+
 from django.conf import settings
 import redis
 import logging
@@ -13,7 +13,7 @@ import re
 from django.utils import timezone
 
 import thoth.chatwoot.utils as chatwoot
-from thoth.chatwoot.models import Inbox
+from thoth.chatwoot.tasks import new_inbox
 import thoth.waweb.tasks as tasks
 
 import thoth.waweb.utils as utils
@@ -21,7 +21,7 @@ import thoth.bitrix.utils as bitrix_utils
 import thoth.bitrix.tasks as bitrix_tasks
 
 
-SITE_ID = settings.SITE_ID
+
 WABWEB_SRV = settings.WABWEB_SRV
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -56,7 +56,7 @@ class WaEventsHandler(GenericViewSet):
         apikey = event_data.get('apikey')
         if apikey and session.apikey != apikey:
             session.apikey = apikey
-            session.save()
+            session.save(update_fields=["apikey"])
 
         wa_server = WaServer.objects.get(id=WABWEB_SRV)
         headers = {"apikey": session.apikey}
@@ -65,56 +65,29 @@ class WaEventsHandler(GenericViewSet):
             state = data.get('state')
             if session.status != state:
                 session.status = state
-                session.save()
+                session.save(update_fields=["status"])
+
             if state == "open":
                 if not session.phone:
                     wuid = data.get("wuid")
                     number = wuid.split("@")[0]
-                    if WaSession.objects.filter(phone=number).exists():
-                        response = requests.delete(
-                            f"{wa_server.url}instance/logout/{sessionid}",
-                            headers={"apikey": wa_server.api_key},
-                        )
-                        response = requests.delete(
-                            f"{wa_server.url}instance/delete/{sessionid}",
-                            headers={"apikey": wa_server.api_key},
-                        )
+                    session.phone = number
+                    session.save(update_fields=["phone"])
+
+                    if WaSession.objects.exclude(pk=session.pk).filter(phone=number).exists():
+                        headers = {"apikey": wa_server.api_key}
+                        response = requests.delete(f"{wa_server.url}instance/logout/{sessionid}", headers=headers)
+                        response = requests.delete(f"{wa_server.url}instance/delete/{sessionid}", headers=headers)
                         session.delete()
                         return Response({'error': 'Phone number already in use, session deleted'})
-                    session.phone = number
-                    session.save()
+
                 
                 # создание Inbox в чатвут
                 if not settings.CHATWOOT_ENABLED:
                     return Response({'message': 'event processed. close'})
                 
                 if not session.inbox:
-                    site = Site.objects.get(id=SITE_ID)
-
-                    inbox_data = {
-                        'name': number,
-                        'lock_to_single_conversation': True,
-                        'channel': {
-                            'type': 'api',
-                            'webhook_url': f'https://{site.domain}/api/waweb/{sessionid}/send/'
-                        }
-                    }
-                    resp = chatwoot.add_inbox(session.owner, inbox_data)
-                    if "result" in resp:
-                        result = resp.get('result', {})
-                        try:
-                            inbox, created = Inbox.objects.update_or_create(
-                                owner=session.owner,
-                                id=result.get('inbox_id'),
-                                defaults={
-                                    'account': result.get('account'),
-                                }
-                            )
-                            session.inbox = inbox
-                            session.save()
-                        except Exception as e:
-                            print('EROOR!!', e)
-                            return Response({'error': f'Failed to create/update Inbox: {str(e)}'}, status=500)
+                    new_inbox.delay(sessionid, number)
 
 
         elif event in ["messages.upsert", "send.message"]:

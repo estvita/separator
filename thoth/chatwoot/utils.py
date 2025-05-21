@@ -144,8 +144,8 @@ def create_chatwoot_user(email, user):
 
     create_user = call_api(f"{url}users", user_payload)
     if create_user.status_code != 200:
-        logger.error("Failed to create user in Chatwoot", create_user.json())
-        return {"error": "Failed to create user in Chatwoot"}
+        raise Exception(f"Failed to create user in Chatwoot: {create_user.status_code}")
+
 
     user_data = create_user.json()
     user_id = user_data.get('id')
@@ -172,8 +172,7 @@ def create_chatwoot_user(email, user):
 
     create_account = call_api(f'{url}accounts', account_payload)
     if create_account.status_code != 200:
-        logger.error("create_account", create_account.json())
-        return {"error": "Failed to create account in Chatwoot"}
+        raise Exception("create account error: {create_account.status_code}")
 
     account_data = create_account.json()
     account_id = account_data.get('id')
@@ -197,8 +196,7 @@ def create_chatwoot_user(email, user):
     account_user = call_api(f'{url}accounts/{account_id}/account_users', data=account_user_payload)
 
     if account_user.status_code != 200:
-        logger.error("account_user", account_user.json())
-        return {"error": "Failed to assign user to account"}
+        raise Exception(f"account_user error: {account_user}")
 
     # Save user data in the database
     chatwoot_user, created = User.objects.update_or_create(
@@ -267,7 +265,7 @@ def add_inbox(user, payload):
 
         return {"result": {"inbox_id": inbox_id, "account": chatwoot_user.account}}
     except User.DoesNotExist:
-        return
+        return {f"chatwoot user not found"}
 
 
 def whatsapp_webhook(data, phone_number):
