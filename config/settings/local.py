@@ -21,8 +21,6 @@ ALLOWED_HOSTS = [
     "dev.thoth.kz",
 ]  # noqa: S104
 
-CSRF_TRUSTED_ORIGINS=["https://dev.thoth.kz",]
-
 # CACHES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
@@ -36,7 +34,7 @@ CACHES = {
 # EMAIL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-host
-EMAIL_HOST = env("EMAIL_HOST", default="mailpit")
+EMAIL_HOST = "localhost"
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-port
 EMAIL_PORT = 1025
 

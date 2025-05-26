@@ -104,36 +104,24 @@ class OlxUser(models.Model):
             self.periodicity = 10
         super().save(*args, **kwargs)
 
-        # Проверка наличия привязки к AppInstance
         if self.line:
-            # создание задачи на периодическую проверку сообщений olx
             self.add_shedule_task()
 
     def add_shedule_task(self):
-        # Создаем или получаем интервал
         interval, created = IntervalSchedule.objects.get_or_create(
             every=self.periodicity,
             period=IntervalSchedule.MINUTES,
         )
 
-        # Генерируем имя задачи
         task_name = f"Pull threads {self.olx_id}"
 
-        # Проверяем наличие задачи с таким же именем
         try:
             existing_task = PeriodicTask.objects.get(name=task_name)
-            # Если задача найдена, проверяем, совпадает ли интервал
             if existing_task.interval != interval:
-                # Если интервал отличается, обновляем задачу
                 existing_task.interval = interval
                 existing_task.save()
-                logger.info(f"Task '{task_name}' updated with new interval.")
-            else:
-                logger.info(
-                    f"Task '{task_name}' already exists with the correct interval.",
-                )
+
         except PeriodicTask.DoesNotExist:
-            # Если задачи с таким именем нет, создаем новую задачу
             PeriodicTask.objects.create(
                 name=task_name,
                 task="thoth.olx.tasks.get_threads",
@@ -141,4 +129,3 @@ class OlxUser(models.Model):
                 args=json.dumps([self.olx_id]),
                 start_time=timezone.now(),
             )
-            logger.info(f"Task '{task_name}' created.")

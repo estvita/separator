@@ -308,7 +308,7 @@ def get_sso_link(user):
 
 def get_contact(user, phone):
     cleaned_phone = re.sub(r'\D', '', phone)
-    PhoneNumber.objects.get_or_create(phone=cleaned_phone)
+    # PhoneNumber.objects.get_or_create(phone=cleaned_phone)
     chatwoot_user = User.objects.get(owner=user)
 
     url = f"api/v1/accounts/{chatwoot_user.account.id}/contacts"

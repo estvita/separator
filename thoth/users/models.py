@@ -1,3 +1,4 @@
+from django.db import models
 from typing import ClassVar
 
 from django.contrib.auth.models import AbstractUser
@@ -39,3 +40,11 @@ class User(AbstractUser):
 
         """
         return reverse("users:detail", kwargs={"pk": self.id})
+    
+
+class Notifications(models.Model):
+    code = models.CharField(max_length=255)
+    message = models.TextField()
+
+    def __str__(self):
+        return self.code

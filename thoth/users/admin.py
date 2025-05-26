@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
-from .models import User
+from .models import User, Notifications
 
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
     # Force the `admin` sign in process to go through the `django-allauth` workflow:
@@ -38,7 +38,7 @@ class UserAdmin(auth_admin.UserAdmin):
     )
     list_display = ["email", "name", "phone_number", "is_superuser"]
     list_per_page = 30
-    search_fields = ["name"]
+    search_fields = ["name", "email", "phone_number"]
     ordering = ["id"]
     add_fieldsets = (
         (
@@ -49,3 +49,9 @@ class UserAdmin(auth_admin.UserAdmin):
             },
         ),
     )
+
+
+@admin.register(Notifications)
+class NotificationsAdmin(admin.ModelAdmin):
+    list_display = ("code", "id")
+    list_per_page = 30

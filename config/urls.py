@@ -29,7 +29,7 @@ urlpatterns = [
     path("chat/", include("thoth.chatwoot.urls")),
     path('waweb/', include('thoth.waweb.urls')),
     path('bots/', include('thoth.bot.urls_bot', namespace='bot')),
-    path('voices/', include('thoth.bot.urls_voice', namespace='voice')),
+    # path('voices/', include('thoth.bot.urls_voice', namespace='voice')),
     path('dify/', include('thoth.dify.urls')),
     # Your stuff: custom urls includes go here
     # ...

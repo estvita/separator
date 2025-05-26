@@ -38,14 +38,10 @@ def refresh_token(olx_user_id):
         user.access_token = token_data.get("access_token")
         user.refresh_token = token_data.get("refresh_token")
         user.save()
-        logger.info(f"Tokens updated successfully for user {user.olx_id}")
     else:
         user.attempts += 1
         user.save()
         deactivate_task(user.olx_id)
-        logger.debug(
-            f"Failed to refresh token for user {user.olx_id}. Status code: {get_token.status_code}, Response: {get_token.json()}"
-        )
     return get_token
 
 
@@ -202,17 +198,11 @@ def get_threads(olx_user_id):
                     )
 
         else:
-            # Логируем ошибки, если ответ не 200
-            logger.debug(
-                f"Failed to retrieve threads for user {user.olx_id}. "
-                f"Status Code: {response.status_code}, Response: {response.json()}",
-            )
+            logger.error(f"Failed to retrieve threads {user.olx_id}. Response: {response.json()}")
 
     except OlxUser.DoesNotExist:
-        # Логируем ошибку, если пользователь не найден
         logger.debug(f"User with ID {olx_user_id} does not exist.")
     except Exception as e:
-        # Логируем любые другие ошибки, которые могут возникнуть
         logger.debug(
             f"An error occurred while processing OLX threads for user {olx_user_id}: {e!s}",
         )

@@ -35,7 +35,7 @@ class AppAdmin(admin.ModelAdmin):
 @admin.register(AppInstance)
 class AppInstanceAdmin(admin.ModelAdmin):
     list_display = ("app", "owner", "portal_link", "status", "attempts")
-    search_fields = ("id",)
+    search_fields = ("id", "application_token")
     readonly_fields = ("app", "portal", 
                        "auth_status", "storage_id", "access_token", 
                        "refresh_token", "application_token", 

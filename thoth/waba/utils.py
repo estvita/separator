@@ -59,7 +59,6 @@ def send_message(appinstance, message, line_id, phone_number):
         logger.error(f"Failed to send message to {phone}: {error}")
         return response
     else:
-        logger.debug(f"Message sent to {phone}. Result: {response.json()}")
         return Response({f"Message sent to {phone}"}, status=status.HTTP_200_OK)
 
 

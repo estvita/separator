@@ -6,6 +6,8 @@ import thoth.bitrix.utils as bitrix_utils
 @admin.register(WaSession)
 class WaSessionAdmin(admin.ModelAdmin):
     list_display = ('session', 'phone', 'date_end', 'status', 'owner')
+    search_fields = ("session", 'phone')
+    list_filter = ("status", )
     readonly_fields = ('session',)
     list_per_page = 30
 

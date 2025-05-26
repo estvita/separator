@@ -29,6 +29,9 @@ WAGTAILDOCS_EXTENSIONS = ['csv', 'docx', 'odt', 'pdf', 'pptx', 'rtf', 'txt', 'xl
 BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 
+VOICE_BOT_DOMAIN = env("VOICE_BOT_DOMAIN", default="exten.bot")
+WAWEB_SYTEM_ID = env("WAWEB_SYTEM_ID", default="")
+
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug

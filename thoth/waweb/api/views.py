@@ -48,7 +48,6 @@ class WaEventsHandler(GenericViewSet):
             return Response({'error': f'WaSession with sessionId {sessionid} does not exist'})
         
         if not session.owner:
-            logger.info(event_data)
             return Response({'error': 'Session has no owner'})
         
         event = event_data.get("event")
@@ -133,6 +132,7 @@ class WaEventsHandler(GenericViewSet):
             }
 
             msg_type = data.get('messageType')
+            fileName = None
 
             if msg_type == 'conversation':
                 payload.update({'content': message.get('conversation')})
@@ -195,8 +195,14 @@ class WaEventsHandler(GenericViewSet):
                         chat_key = f'bitrix_chat:{domain}:{session.line.line_id}:{remoteJid}'
                         if redis_client.exists(chat_key):
                             chat_id = redis_client.get(chat_key).decode('utf-8')
-                            chat_folder = bitrix_utils.call_method(session.app_instance, "im.disk.folder.get", {"CHAT_ID": chat_id})
-                            if "result" in chat_folder:
+                            chat_folder = None
+                            try:
+                                chat_folder = bitrix_utils.call_method(session.app_instance, "im.disk.folder.get", {"CHAT_ID": chat_id})
+                                if isinstance(chat_folder, dict) and chat_folder.get("error"):
+                                    logger.error(chat_folder["detail"])
+                            except Exception as e:
+                                logger.error(f"Bitrix error: {e}")
+                            if chat_folder and "result" in chat_folder:
                                 bitrix_utils.call_method(session.app_instance, "imopenlines.session.join", {"CHAT_ID": chat_id})
                                 folder_id =  chat_folder.get("result").get("ID")
                                 upload_file = bitrix_utils.upload_file(
@@ -242,12 +248,10 @@ class WaEventsHandler(GenericViewSet):
     def send(self, request, session=None, *args, **kwargs):
         session_id = session
 
-        # Проверяем, передан ли session
         if not session_id:
             return Response({'error': 'session is required'})
 
         try:
-            # Проверяем наличие сессии в базе
             session = WaSession.objects.get(session=session_id)
         except Exception as e:
             return Response({'error': 'An error occurred', 'details': str(e)})
@@ -288,5 +292,4 @@ class WaEventsHandler(GenericViewSet):
                     tasks.send_message_task.delay(str(session.session), [phone_number], attachment, 'media')
                 return Response({'message': 'All files sent successfully'})
 
-        # Если сессия найдена, запрос авторизован
         return Response({'message': f'Session {session_id} authorized'})

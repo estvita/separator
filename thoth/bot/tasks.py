@@ -150,9 +150,10 @@ def message_processing(self, thread_id, redis_key, bot_id, role, content, conver
 
 @shared_task(bind=True)
 def manage_sip_user(self, action, bot_id, password=None):
+    domain = settings.VOICE_BOT_DOMAIN
     from opensipscli import cli
     from opensipscli.args import OpenSIPSCLIArgs
-    command_list = ["user", action, f"{bot_id}@voice.thoth.kz", password]
+    command_list = ["user", action, f"{bot_id}@{domain}", password]
     my_args = OpenSIPSCLIArgs(command=command_list)
     opensipscli = cli.OpenSIPSCLI(options=my_args)
     ret_code = opensipscli.cmdloop()

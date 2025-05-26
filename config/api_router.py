@@ -16,7 +16,7 @@ router.register("bitrix", PortalViewSet)
 router.register("waba", WabaWebhook)
 router.register("dify", DifyReceiver, basename="dify")
 router.register("bot", BotHandler, basename="bot")
-router.register("voice", VoiceDetails, basename="voice")
+# router.register("voice", VoiceDetails, basename="voice")
 router.register("waweb", WaEventsHandler, basename="waevents")
 
 
