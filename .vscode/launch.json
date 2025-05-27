@@ -12,7 +12,7 @@
             "program": "${workspaceFolder}/manage.py",
             "args": [
                 "runserver",
-                "0.0.0.0:8080"
+                "0.0.0.0:8000"
             ],
             "django": true,
             "autoStartBrowser": false,
