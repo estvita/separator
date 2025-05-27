@@ -14,6 +14,10 @@ def get_footer_text(context):
         "footer_blocks": instance.body if instance else []
     }
 
+
 @register.simple_tag(takes_context=True)
 def get_site_root(context):
-    return Site.find_for_request(context["request"]).root_page
+    request = context.get("request")
+    if not request:
+        return ""
+    return Site.find_for_request(request).root_page
