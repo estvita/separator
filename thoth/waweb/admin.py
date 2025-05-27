@@ -1,13 +1,13 @@
 from django.contrib import admin
-from .models import WaSession, WaServer
+from .models import Session, Server
 from thoth.bitrix.models import Connector
 import thoth.bitrix.utils as bitrix_utils
 
-@admin.register(WaSession)
-class WaSessionAdmin(admin.ModelAdmin):
-    list_display = ('session', 'phone', 'date_end', 'status', 'owner')
+@admin.register(Session)
+class SessionAdmin(admin.ModelAdmin):
+    list_display = ('session', 'server', 'phone', 'date_end', 'status', 'owner')
     search_fields = ("session", 'phone')
-    list_filter = ("status", )
+    list_filter = ("status", "server")
     readonly_fields = ('session',)
     list_per_page = 30
 
@@ -22,6 +22,6 @@ class WaSessionAdmin(admin.ModelAdmin):
             connector = Connector.objects.filter(service=connector_service).first()
             bitrix_utils.connect_line(request, line_id, obj, connector, connector_service)
 
-@admin.register(WaServer)
-class WaServerAdmin(admin.ModelAdmin):
+@admin.register(Server)
+class ServerAdmin(admin.ModelAdmin):
     list_display = ('url', 'api_key')

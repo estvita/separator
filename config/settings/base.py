@@ -19,12 +19,12 @@ CHATWOOT_ENABLED = env.bool("CHATWOOT_ENABLED", default=False)
 CHATWOOT_ID = env("CHATWOOT_ID", default=1)
 WABA_APP_ID = env("WABA_APP_ID", default=1)
 THOTH_BITRIX = env("THOTH_BITRIX", default="")
-WABWEB_SRV = env("WABWEB_SRV", default=1)
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="https://example.com")
 WAGTAIL_CMS_URL = env("WAGTAIL_CMS_URL", default="cms/")
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
 WAGTAILEMBEDS_RESPONSIVE_HTML = True
 WAGTAILDOCS_EXTENSIONS = ['csv', 'docx', 'odt', 'pdf', 'pptx', 'rtf', 'txt', 'xlsx', 'zip']
+WA_SESSIONS_PER_SERVER = env("WA_SESSIONS_PER_SERVER", default=100)
 
 BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)

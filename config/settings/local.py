@@ -19,6 +19,7 @@ ALLOWED_HOSTS = [
     "0.0.0.0",
     "127.0.0.1",
     "dev.thoth.kz",
+    "host.docker.internal",
 ]  # noqa: S104
 
 # CACHES

@@ -5,7 +5,7 @@ from rest_framework.routers import SimpleRouter
 from thoth.bitrix.api.views import PortalViewSet
 from thoth.users.api.views import UserViewSet
 from thoth.waba.api.views import WabaWebhook
-from thoth.waweb.api.views import WaEventsHandler
+from thoth.waweb.api.views import EventsHandler
 from thoth.bot.api.views import BotHandler, VoiceDetails
 from thoth.dify.api.views import DifyReceiver
 
@@ -17,7 +17,7 @@ router.register("waba", WabaWebhook)
 router.register("dify", DifyReceiver, basename="dify")
 router.register("bot", BotHandler, basename="bot")
 # router.register("voice", VoiceDetails, basename="voice")
-router.register("waweb", WaEventsHandler, basename="waevents")
+router.register("waweb", EventsHandler, basename="waevents")
 
 
 app_name = "api"

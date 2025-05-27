@@ -5,10 +5,8 @@ import re
 import redis
 import time
 import magic
-from django.conf import settings
-from .models import WaServer
+from .models import Session
 
-WABWEB_SRV = settings.WABWEB_SRV
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -48,8 +46,9 @@ def store_msg(resp):
 
 
 def send_message(session_id, recipient, content, cont_type="string"):
-    wa_server = WaServer.objects.get(id=WABWEB_SRV)
-    headers = {"apikey": wa_server.api_key}
+    session = Session.objects.get(session=session_id)
+    server = session.server
+    headers = {"apikey": server.api_key}
     
     cleaned = re.sub(r'\D', '', recipient)
     
@@ -59,11 +58,11 @@ def send_message(session_id, recipient, content, cont_type="string"):
             "text": content,
             "linkPreview": True,
         }
-        url = f"{wa_server.url}message/sendText/{session_id}"
+        url = f"{server.url}message/sendText/{session_id}"
         return requests.post(url, json=payload, headers=headers)
     
     elif cont_type == "media":
-        url = f"{wa_server.url}message/sendMedia/{session_id}"
+        url = f"{server.url}message/sendMedia/{session_id}"
         mimetype = content.get("mimetype", "")
         base_type = mimetype.split('/')[0]
         mediatype = base_type if base_type in ["image"] else "document"

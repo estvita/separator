@@ -5,9 +5,8 @@ from datetime import timedelta
 from celery import shared_task
 import thoth.waweb.utils as utils
 from django.conf import settings
-from thoth.waweb.models import WaServer, WaSession
+from thoth.waweb.models import Session
 
-WABWEB_SRV = settings.WABWEB_SRV
 
 @shared_task
 def send_message_task(session_id, recipients, content, cont_type="string", from_web=False):
@@ -31,10 +30,10 @@ def delete_sessions(days=None):
         except (TypeError, ValueError):
             pass
 
-    sessions = WaSession.objects.filter(filters)
-    wa_server = WaServer.objects.get(id=WABWEB_SRV)
-    headers = {"apikey": wa_server.api_key}
+    sessions = Session.objects.filter(filters)
     for session in sessions:
-        url = f"{wa_server.url}instance/delete/{session.session}"
+        server = session.server
+        headers = {"apikey": server.api_key}
+        url = f"{server.url}instance/delete/{session.session}"
         requests.delete(url, headers=headers)
         session.delete()

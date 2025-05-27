@@ -1,9 +1,10 @@
 import requests
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from .models import WaSession, WaServer
+from .models import Session, Server
 from django.contrib import messages
 from django.conf import settings
+from django.db.models import Count
 from .forms import SendMessageForm
 from django.utils import timezone
 from thoth.tariff.utils import get_trial
@@ -12,7 +13,7 @@ import thoth.bitrix.utils as bitrix_utils
 
 from .tasks import send_message_task
 
-WABWEB_SRV = settings.WABWEB_SRV
+WA_SESSIONS_PER_SERVER = settings.WA_SESSIONS_PER_SERVER
 
 
 @login_required
@@ -22,15 +23,14 @@ def wa_sessions(request):
     if request.method == "POST":
         session_id = request.POST.get("session_id")
         line_id = request.POST.get("line_id")
-        phone = get_object_or_404(WaSession, id=session_id, owner=request.user)
+        phone = get_object_or_404(Session, id=session_id, owner=request.user)
         bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
         return redirect('waweb')
 
-    sessions = WaSession.objects.filter(owner=request.user)
+    sessions = Session.objects.filter(owner=request.user)
     instances = AppInstance.objects.filter(owner=request.user, app__connectors=connector)
     wa_lines = Line.objects.filter(connector=connector, owner=request.user)
 
-    # Проверка наличия активных сессий
     for session in sessions:
         session.show_link = session.status == "open"
 
@@ -43,38 +43,49 @@ def wa_sessions(request):
     )
 
 
+from django.db.models import Count
+
 @login_required
 def connect_number(request, session_id=None):
     if not session_id:
-        # проверка наличия неподключенных сессий
-        sessions = WaSession.objects.filter(
+        sessions = Session.objects.filter(
             phone__isnull=True,
             owner=request.user
         )
         if sessions:
             messages.warning(request, "У вас уже есть незавершенное подключение. Нажмите 'Подключить'")
             return redirect('waweb')
-        # Создаем новую сессию
-        new_session = WaSession.objects.create(owner=request.user)
+        new_session = Session.objects.create(owner=request.user)
         session_id = new_session.session
 
-        # период
-        if not new_session.date_end:
-            new_session.date_end = get_trial(request.user, "waweb")
+    if not new_session.date_end:
+        new_session.date_end = get_trial(request.user, "waweb")
         new_session.save()
 
-    wa_server = WaServer.objects.get(id=WABWEB_SRV)
-    headers = {"apikey": wa_server.api_key}
-    # Отправляем запрос на старт сессии
+    server = (
+        Server.objects.annotate(connected_sessions=Count('sessions'))
+        .filter(connected_sessions__lt=WA_SESSIONS_PER_SERVER)
+        .order_by('id')
+        .first()
+    )
+    if not server:
+        messages.error(request, "Нет доступных серверов.")
+        new_session.delete()
+        return redirect('waweb')
+
+    new_session.server = server
+    new_session.save()
+
+    headers = {"apikey": server.api_key}
     payload = {
         "instanceName": str(session_id),
         "qrcode": True,
         "integration": "WHATSAPP-BAILEYS",
-        "alwaysOnline": wa_server.always_online,
-        "groupsIgnore": wa_server.groups_ignore,
-        "readMessages": wa_server.read_messages,
+        "alwaysOnline": server.always_online,
+        "groupsIgnore": server.groups_ignore,
+        "readMessages": server.read_messages,
     }
-    response = requests.post(f"{wa_server.url}instance/create", json=payload, headers=headers)
+    response = requests.post(f"{server.url}instance/create", json=payload, headers=headers)
 
     if response.status_code == 201:
         inst_data = response.json()
@@ -85,27 +96,32 @@ def connect_number(request, session_id=None):
         if img_data:
             img_data = img_data.split(",", 1)[1]
             request.session['qr_image'] = img_data
-            return redirect('qr_code_page', session_id=session_id)
-        else:
-            url = f"{wa_server.url}instance/delete/{session_id}"
-            del_data = requests.delete(url, headers=headers)
-            new_session.delete()
-            messages.error(request, "Failed to initiate session.")
+        return redirect('qr_code_page', session_id=session_id)
     else:
-        url = f"{wa_server.url}instance/delete/{session_id}"
-        del_data = requests.delete(url, headers=headers)
+        url = f"{server.url}instance/delete/{session_id}"
+        requests.delete(url, headers=headers)
         new_session.delete()
         messages.error(request, "Failed to initiate session.")
-    return redirect('waweb')
+        return redirect('waweb')
 
 
 @login_required
 def qr_code_page(request, session_id):
     qr_image = request.session.pop('qr_image', '')
     if not qr_image:
-        wa_server = WaServer.objects.get(id=WABWEB_SRV)
-        gr_url = f"{wa_server.url}instance/connect/{session_id}"
-        headers = {"apikey": wa_server.api_key}
+        try:
+            session = Session.objects.get(session=session_id)
+        except Session.DoesNotExist:
+            messages.error(request, "Session not found.")
+            return redirect('waweb')
+
+        server = session.server
+        if not server:
+            messages.error(request, "Session is not attached to a server.")
+            return redirect('waweb')
+
+        gr_url = f"{server.url}instance/connect/{session_id}"
+        headers = {"apikey": server.api_key}
         response = requests.get(gr_url, headers=headers)
         if response.status_code == 200:
             inst_data = response.json()
@@ -124,10 +140,9 @@ def qr_code_page(request, session_id):
     })
 
 
-
 @login_required
 def send_message_view(request, session_id):
-    session = get_object_or_404(WaSession, session=session_id, owner=request.user)
+    session = get_object_or_404(Session, session=session_id, owner=request.user)
 
     if timezone.now() > session.date_end:
         messages.error(request, f'Срок дествия вашего тарифа истек {session.date_end}')

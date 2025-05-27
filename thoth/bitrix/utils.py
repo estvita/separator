@@ -17,7 +17,7 @@ from rest_framework.response import Response
 import thoth.olx.tasks as olx_tasks
 import thoth.waba.utils as waba
 
-from thoth.waweb.models import WaSession
+from thoth.waweb.models import Session
 import thoth.waweb.utils as waweb
 import thoth.waweb.tasks as waweb_tasks
 
@@ -328,12 +328,12 @@ def sms_processor(request):
     elif service == "waweb":
         sender  = re.search(r'_(\d+)_', code).group(1)
         try:
-            wa = WaSession.objects.get(phone=sender)
+            wa = Session.objects.get(phone=sender)
             resp = waweb.send_message(wa.session, message_to, message_body)
             if resp.status_code == 201:
                 waweb.store_msg(resp)
         except wa.DoesNotExist:
-            raise ValueError(f"No WaSession found for phone number: {sender}")
+            raise ValueError(f"No Session found for phone number: {sender}")
         except Exception as e:
             print(f"Failed to send message to {message_to}: {e}")
 
@@ -556,7 +556,7 @@ def event_processor(request):
             elif connector.service == "waweb":
                 try:
                     line = Line.objects.get(line_id=line_id, app_instance=appinstance)
-                    wa = WaSession.objects.get(line=line)
+                    wa = Session.objects.get(line=line)
                     if files:
                         for file in files:
                             waweb_tasks.send_message_task.delay(str(wa.session), [chat], file, 'media')

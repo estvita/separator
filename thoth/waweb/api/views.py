@@ -1,7 +1,7 @@
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from thoth.waweb.models import WaSession, WaServer
+from thoth.waweb.models import Session
 from rest_framework import permissions
 import requests
 
@@ -22,14 +22,12 @@ import thoth.bitrix.tasks as bitrix_tasks
 
 
 
-WABWEB_SRV = settings.WABWEB_SRV
-
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 logger = logging.getLogger("django")
 
 
-class WaEventsHandler(GenericViewSet):
+class EventsHandler(GenericViewSet):
     def create(self, request, *args, **kwargs):
         event_data = request.data
         sessionid = event_data.get('instance')
@@ -43,9 +41,9 @@ class WaEventsHandler(GenericViewSet):
             return Response({'error': 'Invalid UUID format for sessionId'})
 
         try:
-            session = WaSession.objects.get(session=sessionid)
-        except WaSession.DoesNotExist:
-            return Response({'error': f'WaSession with sessionId {sessionid} does not exist'})
+            session = Session.objects.get(session=sessionid)
+        except Session.DoesNotExist:
+            return Response({'error': f'Session with sessionId {sessionid} does not exist'})
         
         if not session.owner:
             return Response({'error': 'Session has no owner'})
@@ -57,7 +55,7 @@ class WaEventsHandler(GenericViewSet):
             session.apikey = apikey
             session.save(update_fields=["apikey"])
 
-        wa_server = WaServer.objects.get(id=WABWEB_SRV)
+        server = session.server
         headers = {"apikey": session.apikey}
         
         if event == "connection.update":
@@ -73,10 +71,10 @@ class WaEventsHandler(GenericViewSet):
                     session.phone = number
                     session.save(update_fields=["phone"])
 
-                    if WaSession.objects.exclude(pk=session.pk).filter(phone=number).exists():
-                        headers = {"apikey": wa_server.api_key}
-                        response = requests.delete(f"{wa_server.url}instance/logout/{sessionid}", headers=headers)
-                        response = requests.delete(f"{wa_server.url}instance/delete/{sessionid}", headers=headers)
+                    if Session.objects.exclude(pk=session.pk).filter(phone=number).exists():
+                        headers = {"apikey": server.api_key}
+                        response = requests.delete(f"{server.url}instance/logout/{sessionid}", headers=headers)
+                        response = requests.delete(f"{server.url}instance/delete/{sessionid}", headers=headers)
                         session.delete()
                         return Response({'error': 'Phone number already in use, session deleted'})
 
@@ -111,7 +109,7 @@ class WaEventsHandler(GenericViewSet):
             if participant:
                 group_message = True
                 params = {"groupJid": remoteJid}
-                group_name = requests.get(f"{wa_server.url}group/findGroupInfos/{sessionid}", params=params, headers=headers)
+                group_name = requests.get(f"{server.url}group/findGroupInfos/{sessionid}", params=params, headers=headers)
                 if group_name.status_code == 200:
                     pushName = group_name.json().get("subject")
             file_data = {}
@@ -119,7 +117,7 @@ class WaEventsHandler(GenericViewSet):
 
             profilepic_url = None
             if not group_message:
-                profilepic = requests.post(f"{wa_server.url}chat/fetchProfilePictureUrl/{sessionid}", 
+                profilepic = requests.post(f"{server.url}chat/fetchProfilePictureUrl/{sessionid}", 
                                         json={"number": remoteJid}, headers=headers)
                 if profilepic.status_code == 200:
                     profilepic = profilepic.json()
@@ -159,7 +157,7 @@ class WaEventsHandler(GenericViewSet):
 
             elif msg_type in ["imageMessage", "documentMessage", "videoMessage", "audioMessage"]:
                 payload.update({'content': message.get(msg_type, {}).get("caption")})
-                media_url = f"{wa_server.url}chat/getBase64FromMediaMessage/{sessionid}"
+                media_url = f"{server.url}chat/getBase64FromMediaMessage/{sessionid}"
                 msg_payload = {"message": {"key": {"id": message_id}}}
                 response = requests.post(media_url, json=msg_payload, headers=headers)
                 if response.status_code == 201:
@@ -252,7 +250,7 @@ class WaEventsHandler(GenericViewSet):
             return Response({'error': 'session is required'})
 
         try:
-            session = WaSession.objects.get(session=session_id)
+            session = Session.objects.get(session=session_id)
         except Exception as e:
             return Response({'error': 'An error occurred', 'details': str(e)})
         

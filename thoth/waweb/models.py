@@ -4,7 +4,7 @@ from thoth.chatwoot.models import Inbox
 from thoth.bitrix.models import AppInstance, Line
 import uuid
 
-class WaServer(models.Model):
+class Server(models.Model):
     url = models.URLField(max_length=255, unique=True, verbose_name="Server URL")
     api_key = models.CharField(max_length=255, verbose_name="API Key")
     groups_ignore = models.BooleanField(default=True)
@@ -14,8 +14,9 @@ class WaServer(models.Model):
     def __str__(self):
         return self.url
 
-class WaSession(models.Model):
+class Session(models.Model):
     session = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    server = models.ForeignKey(Server, on_delete=models.SET_NULL, related_name="sessions", null=True, blank=True)
     apikey = models.CharField(max_length=255, blank=True, null=True)
     instanceId = models.CharField(max_length=255, blank=True, null=True)
     date_end = models.DateTimeField(null=True, blank=True)

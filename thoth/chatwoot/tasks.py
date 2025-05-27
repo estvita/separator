@@ -1,7 +1,7 @@
 from celery import shared_task
 from django.conf import settings
 from django.contrib.sites.models import Site
-from thoth.waweb.models import WaSession
+from thoth.waweb.models import Session
 from thoth.chatwoot.models import Inbox
 
 from thoth.chatwoot.utils import add_inbox
@@ -15,7 +15,7 @@ def new_inbox(self, sessionid, number):
 
     try:
         site = Site.objects.get(id=SITE_ID)
-        session = WaSession.objects.get(session=sessionid)
+        session = Session.objects.get(session=sessionid)
 
         inbox_data = {
             'name': number,
