@@ -14,7 +14,7 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
     access_token = appinstance.access_token
 
     payload = {"auth": access_token, **data}
-    response = requests.post(f"{endpoint}{b24_method}", json=payload, allow_redirects=False, timeout=20)
+    response = requests.post(f"{endpoint}{b24_method}", json=payload, allow_redirects=False)
     appinstance.status = response.status_code
 
     if response.status_code == 302 and not attempted_refresh:
@@ -60,7 +60,7 @@ def refresh_token(appinstance: AppInstance):
         "client_secret": appinstance.app.client_secret,
         "refresh_token": appinstance.refresh_token,
     }
-    response = requests.post("https://oauth.bitrix.info/oauth/token/", data=payload, timeout=5)
+    response = requests.post("https://oauth.bitrix.info/oauth/token/", data=payload)
     try:
         response_data = response.json()
     except Exception:
