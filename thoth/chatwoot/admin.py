@@ -32,8 +32,3 @@ class UserAdmin(admin.ModelAdmin):
 class InboxAdmin(admin.ModelAdmin):
     list_display = ("id", "account", "owner")
     list_per_page = 50
-
-@admin.register(PhoneNumber)
-class PhoneNumberAdmin(admin.ModelAdmin):
-    list_display = ("phone", )
-    list_per_page = 50

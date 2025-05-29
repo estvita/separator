@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from django.conf import settings
 from django.core.mail import send_mail
-from .models import Chatwoot, User, Account, PhoneNumber, AgentBot, Feature, Limit
+from .models import Chatwoot, User, Account, AgentBot, Feature, Limit
 
 CHATWOOT_ID = settings.CHATWOOT_ID
 SITE_ID = settings.SITE_ID
@@ -308,7 +308,6 @@ def get_sso_link(user):
 
 def get_contact(user, phone):
     cleaned_phone = re.sub(r'\D', '', phone)
-    # PhoneNumber.objects.get_or_create(phone=cleaned_phone)
     chatwoot_user = User.objects.get(owner=user)
 
     url = f"api/v1/accounts/{chatwoot_user.account.id}/contacts"

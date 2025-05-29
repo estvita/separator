@@ -3,7 +3,7 @@ from django.conf import settings
 
 
 class Chatwoot(models.Model):
-    url = models.URLField(default='https://chat.thoth.kz/')
+    url = models.URLField(default='https://app.chatwoot.com/')
     platform_key = models.CharField(max_length=255)
     default_role = models.CharField(max_length=255, default="agent")
     api_version = models.CharField(
@@ -32,12 +32,6 @@ class User(models.Model):
     def __str__(self):
         return self.id
 
-
-class PhoneNumber(models.Model):
-    phone = models.CharField(max_length=20, unique=True)
-
-    def __str__(self):
-        return self.phone
 
 
 class Inbox(models.Model):

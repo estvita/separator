@@ -64,6 +64,22 @@ journalctl -u thoth -f
 
 ## Подключение 
 
-+ [Битрикс](docs/bitrix.md)
++ [Битрикс](docs/bitrix.ru.md)
 + [(WhatsApp) WABA](docs/waba.md)
++ [WhatsApp - WEB](docs/waweb.md)
 + [OLX](docs/olx.md)
+
++ [Chatwoot](docs/chatwoot.md)
+
++ [Openai chat-bot](docs/openai_bot.md)
++ [Openai voice-bot](docs/openai_voice.md)
+
+
+## Адреса пользовательстких интерфейсоф
++ /portals/ - Bitrix24
++ /olx/accounts/ - OLX
++ /waba/ - waba
++ /waweb/ - whatsapp web
++ /bots/ - openai assistants
++ /voices/ - openai voice
++ /dify/ - dify bots
