@@ -23,7 +23,13 @@ def wa_sessions(request):
     if request.method == "POST":
         session_id = request.POST.get("session_id")
         line_id = request.POST.get("line_id")
+        if not line_id:
+            messages.warning(request, "Необходимо выбрать линию из списка или создать новую.")
+            return redirect('waweb')
         phone = get_object_or_404(Session, id=session_id, owner=request.user)
+        if phone.line and str(phone.line.id) == str(line_id):
+            messages.warning(request, "Эта линия уже подключена к выбранной сессии.")
+            return redirect('waweb')
         bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
         return redirect('waweb')
 
@@ -42,8 +48,6 @@ def wa_sessions(request):
         }
     )
 
-
-from django.db.models import Count
 
 @login_required
 def connect_number(request, session_id=None):
