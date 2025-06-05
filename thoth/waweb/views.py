@@ -27,6 +27,9 @@ def wa_sessions(request):
             messages.warning(request, "Необходимо выбрать линию из списка или создать новую.")
             return redirect('waweb')
         phone = get_object_or_404(Session, id=session_id, owner=request.user)
+        if not phone.phone:
+            messages.error(request, "Сначала необходимо подключить WhatsApp.")
+            return redirect('waweb')
         if phone.line and str(phone.line.id) == str(line_id):
             messages.warning(request, "Эта линия уже подключена к выбранной сессии.")
             return redirect('waweb')
