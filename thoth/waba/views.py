@@ -283,9 +283,9 @@ def facebook_callback(request):
 
         error = request.GET.get('error')
         if error:
-            query = urlparse(url).query
-            params = parse_qs(query)
-            result = {key: value[0] for key, value in params.items() if key != 'state'}
+            params = request.GET.copy()
+            params.pop('state', None)
+            result = dict(params)
             json_result = json.dumps(result)
             messages.error(request, json_result)
             return redirect('waba')
