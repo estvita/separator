@@ -1,4 +1,5 @@
 import requests
+from requests.exceptions import RequestException
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from .models import Session, Server
@@ -133,8 +134,8 @@ def qr_code_page(request, session_id):
 
         gr_url = f"{server.url}instance/connect/{session_id}"
         headers = {"apikey": server.api_key}
-        response = requests.get(gr_url, headers=headers)
-        if response.status_code == 200:
+        try:
+            response = requests.get(gr_url, headers=headers)
             inst_data = response.json()
             img_data = inst_data.get("base64", "")
             if img_data:
@@ -142,9 +143,10 @@ def qr_code_page(request, session_id):
             else:
                 messages.error(request, "Failed to restart session.")
                 return redirect('waweb')
-        else:
-            messages.error(request, "Failed to restart session.")
+        except RequestException:
+            messages.error(request, "Failed connect to server")
             return redirect('waweb')
+
     return render(request, 'waweb/qr_code.html', {
         'session_id': session_id,
         'qr_image': qr_image,
