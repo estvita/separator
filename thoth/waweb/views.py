@@ -33,7 +33,11 @@ def wa_sessions(request):
         if phone.line and str(phone.line.id) == str(line_id):
             messages.warning(request, "Эта линия уже подключена к выбранной сессии.")
             return redirect('waweb')
-        bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
+        try:
+            bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
+        except Exception as e:
+            messages.error(request, str(e))
+            return redirect('waweb')
         return redirect('waweb')
 
     sessions = Session.objects.filter(owner=request.user)

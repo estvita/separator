@@ -45,15 +45,17 @@ CONNECTOR_EVENTS = [
 
 # Регистрация SMS-провайдера
 def messageservice_add(appinstance, phone, line, api_key, service):
-    url = appinstance.app.site    
+    url = appinstance.app.site
     payload = {
         "CODE": f"THOTH_{phone}_{line}",
         "NAME": f"gulin.kz ({phone})",
         "TYPE": "SMS",
         "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
     }
-
-    return call_method(appinstance, "messageservice.sender.add", payload)
+    try:
+        return call_method(appinstance, "messageservice.sender.add", payload)
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def connect_line(request, line_id, entity, connector, redirect_to):
@@ -123,17 +125,13 @@ def connect_line(request, line_id, entity, connector, redirect_to):
             phone = re.sub(r'\D', '', entity.phone)
             if entity.sms_service:
                 resp = messageservice_add(app_instance, phone, line.line_id, api_key, connector.service)
-                if "error" in resp:
-                    messages.error(request, f"Ошибка подключения SMS канала:{resp}")
-                else:
-                    messages.success(request, "SMS канал подключен")
-                return resp
+                if isinstance(resp, dict) and "error" in resp:
+                    messages.error(request, f"Ошибка подключения SMS канала: {resp['error']}")
             else:
-                resp = call_method(app_instance, "messageservice.sender.delete", {"CODE": f"THOTH_{phone}_{line.line_id}"})
-                if "result" in resp:
-                    messages.success(request, "SMS канал отключен")
-                else:
-                    messages.error(request, f"Ошибка отключения SMS канала:{resp}")
+                try:
+                    call_method(app_instance, "messageservice.sender.delete", {"CODE": f"THOTH_{phone}_{line.line_id}"})
+                except Exception as e:
+                    messages.warning(request, f"Ошибка при удалении SMS канала: {e}")
         
         if entity.line == line:
             messages.success(request, "Выбрана та же линия")
