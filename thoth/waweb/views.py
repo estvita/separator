@@ -97,9 +97,8 @@ def connect_number(request, session_id=None):
         "groupsIgnore": server.groups_ignore,
         "readMessages": server.read_messages,
     }
-    response = requests.post(f"{server.url}instance/create", json=payload, headers=headers)
-
-    if response.status_code == 201:
+    try:
+        response = requests.post(f"{server.url}instance/create", json=payload, headers=headers, timeout=15)
         inst_data = response.json()
         instanceId = inst_data.get("instance", {}).get("instanceId")
         new_session.instanceId = instanceId
@@ -109,9 +108,7 @@ def connect_number(request, session_id=None):
             img_data = img_data.split(",", 1)[1]
             request.session['qr_image'] = img_data
         return redirect('qr_code_page', session_id=session_id)
-    else:
-        url = f"{server.url}instance/delete/{session_id}"
-        requests.delete(url, headers=headers)
+    except RequestException:
         new_session.delete()
         messages.error(request, "Failed to initiate session.")
         return redirect('waweb')
