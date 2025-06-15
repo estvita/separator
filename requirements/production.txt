@@ -106,8 +106,6 @@ tzdata==2025.2
 uritemplate==4.1.1
 urllib3==2.4.0
 vine==5.1.0
-wagtail==7.0
-wagtailcodeblock==1.29.0.2
 wcwidth==0.2.13
 whitenoise==6.9.0
 Willow==1.10.0

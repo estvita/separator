@@ -19,11 +19,7 @@ CHATWOOT_ENABLED = env.bool("CHATWOOT_ENABLED", default=False)
 CHATWOOT_ID = env("CHATWOOT_ID", default=1)
 WABA_APP_ID = env("WABA_APP_ID", default=1)
 THOTH_BITRIX = env("THOTH_BITRIX", default="")
-WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="https://example.com")
-WAGTAIL_CMS_URL = env("WAGTAIL_CMS_URL", default="cms/")
-WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
-WAGTAILEMBEDS_RESPONSIVE_HTML = True
-WAGTAILDOCS_EXTENSIONS = ['csv', 'docx', 'odt', 'pdf', 'pptx', 'rtf', 'txt', 'xlsx', 'zip']
+
 WA_SESSIONS_PER_SERVER = env("WA_SESSIONS_PER_SERVER", default=100)
 
 BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
@@ -45,11 +41,10 @@ TIME_ZONE = "Asia/Almaty"
 LANGUAGE_CODE = "ru"
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
 from django.utils.translation import gettext_lazy as _
-# LANGUAGES = [
-#     ('en', _('English')),
-#     ('fr-fr', _('French')),
-#     ('pt-br', _('Portuguese')),
-# ]
+LANGUAGES = [
+    ('en-US', _('English')),
+    ('ru-RU', _('Russian')),
+]
 # https://docs.djangoproject.com/en/dev/ref/settings/#site-id
 SITE_ID = 1
 # https://docs.djangoproject.com/en/dev/ref/settings/#use-i18n
@@ -59,14 +54,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#locale-paths
 LOCALE_PATHS = [str(BASE_DIR / "locale")]
 
-WAGTAIL_I18N_ENABLED = True
-USE_L10N = True
 
-WAGTAIL_CONTENT_LANGUAGES = LANGUAGES = [
-    ('en', _("English")),
-    ('ru', _("Russian")),
-    ('kk', _("Қазақша")),
-]
+USE_L10N = True
 
 
 # DATABASES
@@ -115,26 +104,6 @@ THIRD_PARTY_APPS = [
     "phonenumber_field",
 ]
 
-WAGTAIL_APPS = [
-    'wagtail.contrib.forms',
-    'wagtail.contrib.redirects',
-    'wagtail.embeds',
-    'wagtail.sites',
-    'wagtail.users',
-    'wagtail.snippets',
-    'wagtail.documents',
-    'wagtail.images',
-    'wagtail.search',
-    'wagtail.admin',
-    'wagtail',
-    'wagtail.contrib.settings',
-    'django.contrib.sitemaps',
-    'modelcluster',
-    'taggit',
-    'wagtailcodeblock',
-    'wagtail.locales',
-    # 'wagtail.contrib.simple_translation',
-]
 
 LOCAL_APPS = [
     "thoth.users",
@@ -146,11 +115,10 @@ LOCAL_APPS = [
     "thoth.waweb",
     "thoth.tariff",
     "thoth.bot",
-    "thoth.home",
     "thoth.dify",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + WAGTAIL_APPS + LOCAL_APPS
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # MIGRATIONS
 # ------------------------------------------------------------------------------
@@ -184,9 +152,7 @@ PASSWORD_HASHERS = [
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -208,7 +174,6 @@ MIDDLEWARE = [
     "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
-    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
 
 # STATIC
@@ -257,7 +222,7 @@ TEMPLATES = [
                 "thoth.users.context_processors.allauth_settings",
                 "thoth.context_processors.footer_links_visibility",
                 "thoth.context_processors.app_links",
-                "wagtail.contrib.settings.context_processors.settings",
+                "thoth.context_processors.installed_apps",
             ],
         },
     },

@@ -12,3 +12,6 @@ def app_links(request):
         'link_waweb': settings.B24_LINK_WAWEB,
         'link_olx': settings.B24_LINK_OLX,
     }
+
+def installed_apps(request):
+    return {"INSTALLED_APPS": settings.INSTALLED_APPS}

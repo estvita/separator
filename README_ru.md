@@ -21,7 +21,7 @@ cd thoth
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements/production.txt
 
 cp docs/example/env_example .env
 nano .env

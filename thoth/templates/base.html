@@ -1,4 +1,4 @@
-{% load static i18n wagtailuserbar %}
+{% load static i18n %}
 
 <!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
@@ -81,7 +81,12 @@
         <div class="container flex-grow-1">
           {% block main %}
             {% block content %}
-              <p>Use this document as a way to quick start any new project.</p>
+              <ul>
+                <li><a href="/portals/">Bitrix24</a></li>
+                <li><a href="/waba/">WhatsApp WABA</a></li>
+                <li><a href="/waweb/">WhatsApp Web</a></li>
+                <li><a href="/olx/accounts/">OLX</a></li>
+              </ul>
             {% endblock content %}
           {% endblock main %}
         </div>

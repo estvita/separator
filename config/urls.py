@@ -4,25 +4,18 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
+import os
+from django.views.generic import TemplateView
 from django.views import defaults as default_views
 from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
-from django.contrib.flatpages.views import flatpage
 
-from wagtail.admin import urls as wagtailadmin_urls
-from wagtail import urls as wagtail_urls
-from wagtail.documents import urls as wagtaildocs_urls
-from wagtail.contrib.sitemaps.views import sitemap
 from django.conf.urls.i18n import i18n_patterns
 
-
 urlpatterns = [
-    # path("", flatpage, {'url': '/'}, name="home"),
-    # path("pages/", include("django.contrib.flatpages.urls")),
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
-    path('sitemap.xml', sitemap),
     path("users/", include("thoth.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     path("waba/", include("thoth.waba.urls")),
@@ -33,8 +26,6 @@ urlpatterns = [
     path('dify/', include('thoth.dify.urls')),
     # Your stuff: custom urls includes go here
     # ...
-    path(settings.WAGTAIL_CMS_URL, include(wagtailadmin_urls)),
-    path('documents/', include(wagtaildocs_urls)),
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]
@@ -55,10 +46,27 @@ urlpatterns += [
     path("", include("thoth.olx.urls")),
 ]
 
-urlpatterns += i18n_patterns(
-    path("", include(wagtail_urls)),
-    prefix_default_language=False,
-)
+if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
+    from wagtail import urls as wagtail_urls
+    from wagtail.admin import urls as wagtailadmin_urls
+    from wagtail.documents import urls as wagtaildocs_urls
+    from wagtail.contrib.sitemaps.views import sitemap
+    from django.conf.urls.i18n import i18n_patterns
+
+    urlpatterns += [
+        path(settings.WAGTAIL_CMS_URL, include(wagtailadmin_urls)),
+        path("documents/", include(wagtaildocs_urls)),
+        path('sitemap.xml', sitemap),
+    ]
+    urlpatterns += i18n_patterns(
+        path("", include(wagtail_urls)),
+        prefix_default_language=False,
+    )
+    
+else:
+    urlpatterns = [
+        path("", TemplateView.as_view(template_name="base.html"), name="home"),
+    ] + urlpatterns
 
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit
@@ -87,6 +95,6 @@ if settings.DEBUG:
         urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
 
 
-admin.site.site_header = "Admin"
+admin.site.site_header = "gulin.kz"
 admin.site.site_title = "Admin Portal"
 admin.site.index_title = "Welcome to Admin Portal"
