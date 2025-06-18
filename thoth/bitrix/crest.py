@@ -9,13 +9,20 @@ from .models import AppInstance
 logger = logging.getLogger("django")
 
 
-def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted_refresh=False):
+def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted_refresh=False, verify=True):
     endpoint = appinstance.portal.client_endpoint
     access_token = appinstance.access_token
 
     payload = {"auth": access_token, **data}
-    response = requests.post(f"{endpoint}{b24_method}", json=payload, allow_redirects=False)
-    appinstance.status = response.status_code
+    try:
+        response = requests.post(f"{endpoint}{b24_method}", json=payload,
+                                allow_redirects=False, timeout=10, verify=verify)
+        appinstance.status = response.status_code
+    except requests.exceptions.SSLError:
+        if verify:
+            return call_method(appinstance, b24_method, data, attempted_refresh, verify=False)
+        else:
+            raise
 
     if response.status_code == 302 and not attempted_refresh:
         new_url = response.headers['Location']
