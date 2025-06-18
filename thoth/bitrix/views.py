@@ -105,13 +105,14 @@ def link_user(request):
     try:
         portal = Bitrix.objects.get(member_id=member_id)
     except Bitrix.DoesNotExist:
-        return HttpResponse("Portal not found", status=404)
+        return redirect("portals")
     except Exception as e:
         return HttpResponse(f"Error: {e}", status=500)
-    portal.owner = request.user
-    portal.save()
-    AppInstance.objects.filter(portal=portal).update(owner=request.user)
-    Line.objects.filter(portal=portal).update(owner=request.user)
+    if portal.owner != request.user:
+        portal.owner = request.user
+        portal.save()
+    AppInstance.objects.filter(portal=portal).exclude(owner=request.user).update(owner=request.user)
+    Line.objects.filter(portal=portal).exclude(owner=request.user).update(owner=request.user)
     request.session.pop("member_id", None)
     return redirect("portals")
 
