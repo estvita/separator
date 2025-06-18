@@ -3,8 +3,10 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
 from .crest import call_method
 from .forms import BitrixPortalForm
@@ -72,10 +74,7 @@ def portals(request):
                         portal.owner = request.user
                         portal.save()
                         AppInstance.objects.filter(portal=portal).update(owner=request.user)
-                        lines = Line.objects.filter(portal=portal)
-                        for line in lines:
-                            line.owner = request.user
-                            line.save()
+                        Line.objects.filter(portal=portal).update(owner=request.user)
                         verification.delete()
                         messages.success(request, "Портал и связанные приложения успешно закреплены за вами.")
                     else:
@@ -96,3 +95,41 @@ def portals(request):
             "verification_form": verification_form,
         },
     )
+
+
+@login_required
+def link_user(request):
+    member_id = request.session.get("member_id")
+    if not member_id:
+        return HttpResponse("member_id not found in session")
+    try:
+        portal = Bitrix.objects.get(member_id=member_id)
+    except Bitrix.DoesNotExist:
+        return HttpResponse("Portal not found", status=404)
+    except Exception as e:
+        return HttpResponse(f"Error: {e}", status=500)
+    portal.owner = request.user
+    portal.save()
+    AppInstance.objects.filter(portal=portal).update(owner=request.user)
+    Line.objects.filter(portal=portal).update(owner=request.user)
+    request.session.pop("member_id", None)
+    return redirect("portals")
+
+
+@csrf_exempt
+def app_settings(request):
+    if request.method == "POST":
+        try:
+            member_id = request.POST.get("member_id")
+            if not member_id:
+                return HttpResponse("Missing member_id")
+            request.session["member_id"] = member_id
+            return redirect("link_user")
+        except Exception as e:
+            return HttpResponse(f"Error: {e}", status=500)
+        
+    elif request.method == "HEAD":
+        return HttpResponse("ok")
+    
+    elif request.method == "GET":
+        return redirect("portals")

@@ -55,7 +55,7 @@ class AppInstanceAdmin(admin.ModelAdmin):
 class BitrixAdmin(admin.ModelAdmin):
     list_display = ("domain", "owner")
     search_fields = ("domain",)
-    readonly_fields = ("domain", "client_endpoint", "user_id")
+    readonly_fields = ("domain", "client_endpoint", "user_id", "member_id")
     list_per_page = 30
 
 @admin.register(Connector)

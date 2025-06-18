@@ -342,16 +342,17 @@ def sms_processor(request):
 def event_processor(request):
     try:
         data = request.data
-        event = data.get("event", {})
-        domain = data.get("auth[domain]", {})
-        user_id = data.get("auth[user_id]", {})
-        auth_status = data.get("auth[status]", {})
-        client_endpoint = data.get("auth[client_endpoint]", {})
-        access_token = data.get("auth[access_token]", {})
-        refresh_token = data.get("auth[refresh_token]", {})
-        application_token = data.get("auth[application_token]", {})
-        api_key = request.query_params.get("api-key", {})
-        app_id = request.query_params.get("app-id", {})
+        event = data.get("event")
+        domain = data.get("auth[domain]")
+        user_id = data.get("auth[user_id]")
+        auth_status = data.get("auth[status]")
+        client_endpoint = data.get("auth[client_endpoint]")
+        access_token = data.get("auth[access_token]")
+        refresh_token = data.get("auth[refresh_token]")
+        application_token = data.get("auth[application_token]")
+        member_id = data.get("auth[member_id]")
+        api_key = request.query_params.get("api-key")
+        app_id = request.query_params.get("app-id")
 
         # Проверка наличия приложения в базе данных
         try:
@@ -371,9 +372,7 @@ def event_processor(request):
                 try:
                     app = App.objects.get(id=app_id)
                 except App.DoesNotExist:
-                    return Response(
-                        {"error": "App not found."}, status=status.HTTP_404_NOT_FOUND
-                    )
+                    return Response({"message": "App not found."})
 
                 try:
                     portal = Bitrix.objects.get(domain=domain)
@@ -381,6 +380,7 @@ def event_processor(request):
                     portal_data = {
                         "domain": domain,
                         "user_id": user_id,
+                        "member_id": member_id,
                         "client_endpoint": client_endpoint,
                         "owner": request.user if auth_status == "L" else None,
                     }
@@ -456,10 +456,7 @@ def event_processor(request):
                     status=status.HTTP_201_CREATED,
                 )
             else:
-                return Response(
-                    {"error": "App not found and not an install event."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"message": "App not found and not an install event."})
 
         # Обработка события ONIMCONNECTORMESSAGEADD
         if event == "ONIMCONNECTORMESSAGEADD":
@@ -633,10 +630,7 @@ def event_processor(request):
                 return Response(f"{appinstance} deleted")
 
         else:
-            return Response(
-                {"error": "Unsupported event"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"message": "Unsupported event"})
 
     except Exception as e:
         logger.error(f"Error occurred: {e!s}")

@@ -2,7 +2,7 @@ from django.urls import path
 
 from .api.views import PlacementOptionsViewSet
 from .api.views import SmsViewSet
-from .views import portals
+from .views import portals, app_settings, link_user
 
 urlpatterns = [
     path(
@@ -11,7 +11,7 @@ urlpatterns = [
         name="placement",
     ),
     path("api/bitrix/sms/", SmsViewSet.as_view({"post": "create"}), name="sms"),
-    # path('api/bitrix/olx/', )
     path("portals/", portals, name="portals"),
-    # other paths...
+    path("app-settings/", app_settings, name="app_settings"),
+    path('link-user/', link_user, name='link_user'),
 ]

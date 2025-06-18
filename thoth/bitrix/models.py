@@ -51,6 +51,7 @@ class Bitrix(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
     user_id = models.CharField(max_length=255, blank=True, null=True)
+    member_id = models.CharField(max_length=255, blank=True, null=True)
     client_endpoint = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
@@ -67,7 +68,7 @@ class AppInstance(models.Model):
     )
     app = models.ForeignKey(App, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True)
     portal = models.ForeignKey(
-        Bitrix, on_delete=models.SET_NULL, related_name="installations", blank=True, null=True
+        Bitrix, on_delete=models.CASCADE, related_name="installations", blank=True, null=True
     )
     auth_status = models.CharField(max_length=1)
     access_token = models.CharField(max_length=255, blank=True)
