@@ -24,9 +24,9 @@ thoth supports working with multiple Evolution API servers
 + In thoth admin panel, create a waweb connector
 + Install [local app in Bitrix](bitrix.md)
 + In the waweb/server/ section, add an Evolution API server
-+ + Server URL = SERVER_URL (Evolution API)
-+ + API Key = AUTHENTICATION_API_KEY (Evolution API)
-+ In thoth’s .env you can use the WA_SESSIONS_PER_SERVER variable – number of WhatsApp sessions per server (default is 100). When this number is reached, thoth will look for the next server; if it is not added in the admin panel, a message about the absence of free servers will be displayed when connecting
+  + Server URL = SERVER_URL (Evolution API)
+  + API Key = AUTHENTICATION_API_KEY (Evolution API)
+  + max_connections – number of WhatsApp sessions per server (default is 100). When this number is reached, thoth will look for the next server; if it is not added in the admin panel, a message about the absence of free servers will be displayed when connecting
 
 **### Connecting a WhatsApp Number to Bitrix24**
 The connection is done from the user interface at /waweb/

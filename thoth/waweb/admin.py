@@ -26,4 +26,4 @@ class SessionAdmin(admin.ModelAdmin):
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
-    list_display = ('url', 'api_key')
+    list_display = ('url', 'api_key', 'max_connections')

@@ -7,6 +7,7 @@ import uuid
 class Server(models.Model):
     url = models.URLField(max_length=255, unique=True, verbose_name="Server URL")
     api_key = models.CharField(max_length=255, verbose_name="API Key")
+    max_connections = models.PositiveIntegerField(default=100)
     groups_ignore = models.BooleanField(default=True)
     always_online = models.BooleanField(default=False)
     read_messages = models.BooleanField(default=False)
