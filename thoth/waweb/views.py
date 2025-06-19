@@ -1,4 +1,6 @@
 import requests
+import redis
+import uuid
 from requests.exceptions import RequestException
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -16,6 +18,9 @@ from .tasks import send_message_task
 
 WA_SESSIONS_PER_SERVER = settings.WA_SESSIONS_PER_SERVER
 
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+
+LINK_TTL = 60 * 60 * 24
 
 @login_required
 def wa_sessions(request):
@@ -64,15 +69,16 @@ def connect_number(request, session_id=None):
             phone__isnull=True,
             owner=request.user
         )
-        if sessions:
+        if sessions and not request.user.integrator:
             messages.warning(request, "У вас уже есть незавершенное подключение. Нажмите 'Подключить'")
             return redirect('waweb')
+        
         new_session = Session.objects.create(owner=request.user)
         session_id = new_session.session
 
     if not new_session.date_end:
         new_session.date_end = get_trial(request.user, "waweb")
-        new_session.save()
+        # new_session.save()
 
     server = (
         Server.objects.annotate(connected_sessions=Count('sessions'))
@@ -80,6 +86,7 @@ def connect_number(request, session_id=None):
         .order_by('id')
         .first()
     )
+
     if not server:
         messages.error(request, "Нет доступных серверов.")
         new_session.delete()
@@ -97,6 +104,7 @@ def connect_number(request, session_id=None):
         "groupsIgnore": server.groups_ignore,
         "readMessages": server.read_messages,
     }
+
     try:
         response = requests.post(f"{server.url}instance/create", json=payload, headers=headers, timeout=15)
         inst_data = response.json()
@@ -108,45 +116,86 @@ def connect_number(request, session_id=None):
             img_data = img_data.split(",", 1)[1]
             request.session['qr_image'] = img_data
         return redirect('qr_code_page', session_id=session_id)
-    except RequestException:
+    except RequestException as e:
+        print("request error:", e)
         new_session.delete()
         messages.error(request, "Failed to initiate session.")
         return redirect('waweb')
 
 
+def get_gr(request, session):
+
+    server = session.server
+    if not server:
+        messages.error(request, "Session is not attached to a server.")
+        return
+    
+    if session.status == "open":
+        messages.warning(request, "Session is connected.")
+        return
+
+    gr_url = f"{server.url}instance/connect/{session.session}"
+    headers = {"apikey": server.api_key}
+    try:
+        response = requests.get(gr_url, headers=headers)
+        inst_data = response.json()
+        img_data = inst_data.get("base64", "")
+        if img_data:
+            qr_image = img_data.split(",", 1)[1]
+            return qr_image
+        else:
+            messages.error(request, "Failed to restart session.")
+            return
+    except RequestException:
+        messages.error(request, "Failed connect to server")
+        return
+
+
 @login_required
 def qr_code_page(request, session_id):
     qr_image = request.session.pop('qr_image', '')
+    try:
+        session = Session.objects.get(session=session_id)
+    except Session.DoesNotExist:
+        messages.error(request, "Session not found.")
+        return redirect('waweb')
+    
     if not qr_image:
-        try:
-            session = Session.objects.get(session=session_id)
-        except Session.DoesNotExist:
-            messages.error(request, "Session not found.")
-            return redirect('waweb')
+        qr_image = get_gr(request, session)
 
-        server = session.server
-        if not server:
-            messages.error(request, "Session is not attached to a server.")
-            return redirect('waweb')
+    if not qr_image:
+        return redirect('waweb')
 
-        gr_url = f"{server.url}instance/connect/{session_id}"
-        headers = {"apikey": server.api_key}
-        try:
-            response = requests.get(gr_url, headers=headers)
-            inst_data = response.json()
-            img_data = inst_data.get("base64", "")
-            if img_data:
-                qr_image = img_data.split(",", 1)[1]
-            else:
-                messages.error(request, "Failed to restart session.")
-                return redirect('waweb')
-        except RequestException:
-            messages.error(request, "Failed connect to server")
-            return redirect('waweb')
+    public_id = redis_client.get(f"public_qr:{session_id}")
+    if not public_id:
+        public_id = str(uuid.uuid4())
+        redis_client.set(f"public_qr:{session_id}", public_id, ex=LINK_TTL)
+        redis_client.set(f"public_qr:{public_id}", str(session_id), ex=LINK_TTL)    
 
     return render(request, 'waweb/qr_code.html', {
-        'session_id': session_id,
         'qr_image': qr_image,
+        'request': request,
+        'public_id': public_id,
+    })
+
+
+def share_qr(request, public_id):
+    session_id = redis_client.get(f"public_qr:{public_id}")
+    if not session_id:
+        messages.error(request, "Временная ссылка истекла или некорректна.")
+        return redirect('waweb')
+    try:
+        session = Session.objects.get(session=session_id)
+    except Session.DoesNotExist:
+        messages.error(request, "Session not found.")
+        return redirect('waweb')
+    qr_image = get_gr(request, session)
+    if not qr_image:
+        return redirect('waweb')
+    return render(request, 'waweb/qr_code.html', {
+        'qr_image': qr_image,
+        'request': request,
+        'public_id': public_id,
     })
 
 

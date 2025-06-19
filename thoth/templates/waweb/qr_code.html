@@ -3,6 +3,11 @@
 {% block content %}
 <h1>Сканируйте QR-код</h1>
 <img src="data:image/png;base64,{{ qr_image }}" alt="QR Code">
-<p>QR-код готов. Используйте его для подключения.</p>
+
+{% if public_id %}
+<p>Публичная ссылка:
+<input type="text" value="{{ request.scheme }}://{{ request.get_host }}/waweb/shareqr/{{ public_id }}/" readonly style="width:300px" onclick="this.select();">
+</p>
+{% endif %}
 <a href="{% url 'waweb' %}">Вернуться</a>
 {% endblock %}
