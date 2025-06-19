@@ -16,7 +16,7 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
     payload = {"auth": access_token, **data}
     try:
         response = requests.post(f"{endpoint}{b24_method}", json=payload,
-                                allow_redirects=False, timeout=10, verify=verify)
+                                allow_redirects=False, timeout=60, verify=verify)
         appinstance.status = response.status_code
     except requests.exceptions.SSLError:
         if verify:

@@ -108,11 +108,14 @@ def link_user(request):
         return redirect("portals")
     except Exception as e:
         return HttpResponse(f"Error: {e}", status=500)
-    if portal.owner != request.user:
+
+    if portal.owner is None:
         portal.owner = request.user
         portal.save()
-    AppInstance.objects.filter(portal=portal).exclude(owner=request.user).update(owner=request.user)
-    Line.objects.filter(portal=portal).exclude(owner=request.user).update(owner=request.user)
+
+    AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
+    Line.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
+
     request.session.pop("member_id", None)
     return redirect("portals")
 
