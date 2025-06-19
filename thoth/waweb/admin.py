@@ -26,4 +26,7 @@ class SessionAdmin(admin.ModelAdmin):
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
-    list_display = ('url', 'api_key', 'max_connections')
+    list_display = ('url', 'api_key', 'max_connections', 'connected')
+
+    def connected(self, obj):
+        return obj.sessions.count()
