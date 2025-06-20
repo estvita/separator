@@ -244,14 +244,14 @@ def process_placement(request):
     try:
         data = request.POST
         placement_options = data.get("PLACEMENT_OPTIONS")
-        inst = request.GET.get("inst")
+        instance_id = request.GET.get("inst")
         domain = request.GET.get("DOMAIN")
 
         placement_options = json.loads(placement_options)
         line_id = placement_options.get("LINE")
         connector_code = placement_options.get("CONNECTOR")
 
-        app_instance = AppInstance.objects.filter(id=inst).first()
+        app_instance = AppInstance.objects.filter(id=instance_id).first()
         if not app_instance:
             return HttpResponse("app not found")
         portal = Bitrix.objects.filter(domain=domain).first()
