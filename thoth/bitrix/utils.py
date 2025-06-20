@@ -341,7 +341,6 @@ def event_processor(request):
         domain = data.get("auth[domain]")
         user_id = data.get("auth[user_id]")
         auth_status = data.get("auth[status]")
-        client_endpoint = data.get("auth[client_endpoint]")
         access_token = data.get("auth[access_token]")
         refresh_token = data.get("auth[refresh_token]")
         application_token = data.get("auth[application_token]")
@@ -379,7 +378,6 @@ def event_processor(request):
                         "domain": domain,
                         "user_id": user_id,
                         "member_id": member_id,
-                        "client_endpoint": client_endpoint,
                         "owner": request.user if auth_status == "L" else None,
                     }
                     portal = Bitrix.objects.create(**portal_data)

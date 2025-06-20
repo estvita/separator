@@ -10,7 +10,6 @@ class PortalSerializer(serializers.ModelSerializer):
             "owner",
             "user_id",
             "domain",
-            "client_endpoint",
         ]
 
     def create(self, validated_data):

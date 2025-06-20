@@ -10,7 +10,7 @@ logger = logging.getLogger("django")
 
 
 def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted_refresh=False, verify=True):
-    endpoint = appinstance.portal.client_endpoint
+    endpoint = f"https://{appinstance.portal.domain}/rest/"
     access_token = appinstance.access_token
 
     payload = {"auth": access_token, **data}
@@ -31,7 +31,6 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
         domain = parsed_url.netloc
         if portal.domain != domain:
             portal.domain = domain
-            portal.client_endpoint = f"https://{domain}/rest/"
             portal.save()
         appinstance.attempts = 0
         appinstance.save()
