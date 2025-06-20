@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from .crest import call_method
+from .utils import process_placement
 from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
 from .models import AppInstance, Bitrix, VerificationCode, Line
@@ -123,6 +124,10 @@ def link_user(request):
 @csrf_exempt
 def app_settings(request):
     if request.method == "POST":
+        data = request.POST
+        placement = data.get("PLACEMENT")
+        if placement == "SETTING_CONNECTOR":
+            return process_placement(request)
         try:
             member_id = request.POST.get("member_id")
             if not member_id:

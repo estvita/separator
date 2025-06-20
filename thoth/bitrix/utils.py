@@ -13,6 +13,7 @@ from django.shortcuts import redirect, get_object_or_404
 
 from rest_framework import status
 from rest_framework.response import Response
+from django.http import HttpResponse
 
 import thoth.olx.tasks as olx_tasks
 import thoth.waba.utils as waba
@@ -187,7 +188,7 @@ def register_connector(appinstance: AppInstance, api_key: str, connector):
             "ICON": {
                 "DATA_IMAGE": connector_logo,
             },
-            "PLACEMENT_HANDLER": f"https://{url}/api/bitrix/placement/?api-key={api_key}&inst={appinstance.id}",
+            "PLACEMENT_HANDLER": f"https://{url}/app-settings/?inst={appinstance.id}",
         }
 
         bitrix_tasks.call_api.delay(appinstance.id, "imconnector.register", payload)
@@ -241,10 +242,10 @@ def upload_file(appinstance, storage_id, fileContent, filename):
 
 def process_placement(request):
     try:
-        data = request.data
-        placement_options = data.get("PLACEMENT_OPTIONS", {})
-        inst = request.query_params.get("inst", {})
-        domain = request.query_params.get("DOMAIN")
+        data = request.POST
+        placement_options = data.get("PLACEMENT_OPTIONS")
+        inst = request.GET.get("inst")
+        domain = request.GET.get("DOMAIN")
 
         placement_options = json.loads(placement_options)
         line_id = placement_options.get("LINE")
@@ -252,14 +253,13 @@ def process_placement(request):
 
         app_instance = AppInstance.objects.filter(id=inst).first()
         if not app_instance:
-            return Response("app not found")
+            return HttpResponse("app not found")
         portal = Bitrix.objects.filter(domain=domain).first()
         if not portal:
-            return Response("bitrix not found")
+            return HttpResponse("bitrix not found")
         connector = Connector.objects.filter(code=connector_code).first()
         if not connector:
-            return Response("connector not found")
-        
+            return HttpResponse("connector not found")
         line, created = Line.objects.get_or_create(
             line_id=line_id,
             portal=portal,
@@ -267,18 +267,13 @@ def process_placement(request):
             app_instance=app_instance,
             owner=app_instance.owner
         )
-        # payload = {
-        #     "CONNECTOR": connector_code,
-        #     "LINE": line_id,
-        #     "ACTIVE": 1
-        # }
-        # bitrix_tasks.call_api.delay(app_instance.id, "imconnector.activate", payload)
-        return Response(f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/")
-
+        return HttpResponse(
+            f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/"
+        )
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return Response({"error": "An unexpected error occurred"})
-
+        return HttpResponse({"An unexpected error occurred"})
+    
 
 def sms_processor(request):
     data = request.data
