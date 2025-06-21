@@ -14,6 +14,8 @@ from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
 from .models import AppInstance, Bitrix, VerificationCode, Line
 
+from thoth.users.models import Message
+
 
 @login_required
 def portals(request):
@@ -87,6 +89,8 @@ def portals(request):
         portal_form = BitrixPortalForm()
         verification_form = VerificationCodeForm()
 
+    message = Message.objects.filter(code="bitrix").first()
+
     return render(
         request,
         "bitrix24.html",
@@ -94,6 +98,7 @@ def portals(request):
             "user_portals": user_portals,
             "portal_form": portal_form,
             "verification_form": verification_form,
+            "message": message,
         },
     )
 

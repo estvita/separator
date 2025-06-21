@@ -43,7 +43,7 @@ class User(AbstractUser):
         return reverse("users:detail", kwargs={"pk": self.id})
     
 
-class Notifications(models.Model):
+class Message(models.Model):
     code = models.CharField(max_length=255)
     message = models.TextField()
 

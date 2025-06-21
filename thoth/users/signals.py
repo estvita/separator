@@ -6,7 +6,7 @@ from django.conf import settings
 
 from thoth.users.tasks import create_user_task
 
-from .models import Notifications
+from .models import Message
 from thoth.waweb.tasks import send_message_task
 
 User = get_user_model()
@@ -17,8 +17,8 @@ def welcome_message(request, confirmation, **kwargs):
     user = confirmation.email_address.user
     phone_number = getattr(user, "phone_number", None)
     try:
-        notification = Notifications.objects.get(code="welcome")
-    except Notifications.DoesNotExist:
+        notification = Message.objects.get(code="welcome")
+    except Message.DoesNotExist:
         notification = None
 
     waweb_id = settings.WAWEB_SYTEM_ID

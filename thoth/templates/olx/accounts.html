@@ -6,7 +6,11 @@
 {% block content %}
   <div class="container">
     <h3>Ваши OLX аккаунты</h3>
-    <p>Установите наше приложение: <a target="_blank" href="{{ link_olx }}">OLX</a></p>
+    {% if message %}
+    <div class="alert alert-info">
+        {{ message.message|safe }}
+    </div>
+    {% endif %}
     {% if olx_accounts %}
       <table class="table table-bordered">
         <thead>
@@ -55,7 +59,7 @@
       <p>No OLX accounts connected yet.</p>
     {% endif %}
     <!-- Форма для добавления нового OLX аккаунта -->
-    <h3>Подключить OLX аккаунт (<a href="/faq/" target="_blank">инструкция</a>)</h3>
+    <h3>Подключить OLX аккаунт</h3>
     <form method="POST" action="{% url 'olx-accounts' %}">
       {% csrf_token %}
       <div style="width:30%;" class="form-group d-flex align-items-center">

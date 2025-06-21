@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
-from .models import User, Notifications
+from .models import User, Message
 
 from django.urls import reverse
 from django.utils.html import format_html
@@ -144,7 +144,7 @@ class UserAdmin(auth_admin.UserAdmin):
     )
 
 
-@admin.register(Notifications)
-class NotificationsAdmin(admin.ModelAdmin):
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
     list_display = ("code", "id")
     list_per_page = 30

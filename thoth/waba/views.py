@@ -21,7 +21,7 @@ import thoth.bitrix.utils as bitrix_utils
 
 import logging
 
-from thoth.users.models import User
+from thoth.users.models import User, Message
 from thoth.bitrix.models import AppInstance, Line, Connector
 
 from django.conf import settings
@@ -168,12 +168,14 @@ def waba_view(request):
 
         bitrix_utils.connect_line(request, line_id, phone, connector, "waba")
 
-
+    message = Message.objects.filter(code="bitrix").first()
+    
     return render(request, "waba.html", {
         "phones": phones,
         "waba_lines": waba_lines,
         "instances": instances,
         "request_id": request_id,
+        "message": message,
     })
 
 

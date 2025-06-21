@@ -7,7 +7,11 @@
 {% block content %}
 <div class="container">
   <h3>Ваши номера WhatsApp Web</h3>
-  <p>Установите наше приложение: <a target="_blank" href="{{ link_waweb }}">WhatsApp Web Grey</a></p>
+    {% if message %}
+    <div class="alert alert-info">
+        {{ message.message|safe }}
+    </div>
+    {% endif %}
   {% if sessions %}
     <table class="table table-bordered">
       <thead>

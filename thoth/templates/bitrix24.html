@@ -3,7 +3,11 @@
 {% block content %}
   <div class="container">
     <h3>Ваши Bitrix24</h3>
-    <p>Установите наше приложение: <a target="_blank" href="{{ link_store }}">Маркет Битрикс24</a></p>
+    {% if message %}
+    <div class="alert alert-info">
+        {{ message.message|safe }}
+    </div>
+    {% endif %}
     {% if user_portals %}
       <table class="table table-bordered">
         <thead>
@@ -33,7 +37,7 @@
     {% else %}
       <p>No Bitrix24 portals found.</p>
     {% endif %}
-    <h4>Привязка портала (<a href="/faq/" target="_blank">инструкция</a>)</h4>
+    <h4>Привязка портала</h4>
     <form method="POST" action="{% url 'portals' %}">
       {% csrf_token %}
       <div style="width: 40%;" class="form-group d-flex align-items-center">

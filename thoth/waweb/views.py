@@ -13,6 +13,8 @@ from thoth.tariff.utils import get_trial
 from thoth.bitrix.models import AppInstance, Line, Connector
 import thoth.bitrix.utils as bitrix_utils
 
+from thoth.users.models import Message
+
 from .tasks import send_message_task
 
 
@@ -51,11 +53,14 @@ def wa_sessions(request):
     for session in sessions:
         session.show_link = session.status == "open"
 
+    message = Message.objects.filter(code="waweb").first()
+
     return render(
         request, 'waweb/wa_sessions.html', {
             "sessions": sessions,
             "instances": instances,
             "wa_lines": wa_lines,
+            "message": message,
         }
     )
 

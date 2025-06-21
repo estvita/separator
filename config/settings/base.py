@@ -219,7 +219,6 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "thoth.users.context_processors.allauth_settings",
                 "thoth.context_processors.footer_links_visibility",
-                "thoth.context_processors.app_links",
                 "thoth.context_processors.installed_apps",
             ],
         },
@@ -387,7 +386,3 @@ SPECTACULAR_SETTINGS = {
 # Your stuff...
 # ------------------------------------------------------------------------------
 SHOW_FOOTER_LINKS = env.bool("SHOW_FOOTER_LINKS", default=True)
-B24_LINK_STORE = env("B24_LINK_STORE", default="https://www.bitrix24.kz/apps/partner/19913664/")
-B24_LINK_WABA = env("B24_LINK_WABA", default="https://www.bitrix24.kz/apps/app/thothkz.whatsapp_waba/")
-B24_LINK_WAWEB = env("B24_LINK_WAWEB", default="https://www.bitrix24.kz/apps/app/thothkz.whatsapp_web/")
-B24_LINK_OLX = env("B24_LINK_OLX", default="https://www.bitrix24.kz/apps/app/thothkz.olxkz/")
