@@ -168,7 +168,7 @@ def waba_view(request):
 
         bitrix_utils.connect_line(request, line_id, phone, connector, "waba")
 
-    message = Message.objects.filter(code="bitrix").first()
+    message = Message.objects.filter(code="waba").first()
     
     return render(request, "waba.html", {
         "phones": phones,
