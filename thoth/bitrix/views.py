@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 
 from .crest import call_method
@@ -33,9 +33,9 @@ def portals(request):
                     verification = VerificationCode.objects.filter(portal=portal).first()
 
                     if verification and verification.is_valid():
-                        code = verification.code  # Используем существующий код
+                        code = verification.code
                     else:
-                        code = uuid.uuid4()  # Генерируем новый код
+                        code = uuid.uuid4()
                         if verification:
                             verification.code = code
                             verification.expires_at = timezone.now() + timedelta(days=1)
@@ -107,7 +107,7 @@ def portals(request):
 def link_user(request):
     member_id = request.session.get("member_id")
     if not member_id:
-        return HttpResponse("member_id not found in session")
+        return HttpResponseForbidden("403 Forbidden")
     try:
         portal = Bitrix.objects.get(member_id=member_id)
     except Bitrix.DoesNotExist:
@@ -129,21 +129,25 @@ def link_user(request):
 @csrf_exempt
 def app_settings(request):
     if request.method == "POST":
-        data = request.POST
+        try:
+            data = request.POST
+            domain = request.GET.get("DOMAIN")
+            member_id = data.get("member_id")
+            Bitrix.objects.get(domain=domain, member_id=member_id)
+        except Bitrix.DoesNotExist:
+            return HttpResponseForbidden("403 Forbidden")
+        except Exception as e:
+            return HttpResponseForbidden(f"403 Forbidden")
+
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
-        try:
-            member_id = request.POST.get("member_id")
-            if not member_id:
-                return HttpResponse("Missing member_id")
+        elif placement == "DEFAULT":
             request.session["member_id"] = member_id
             return redirect("link_user")
-        except Exception as e:
-            return HttpResponse(f"Error: {e}", status=500)
-        
+        else:
+            return redirect("portals")
     elif request.method == "HEAD":
         return HttpResponse("ok")
-    
     elif request.method == "GET":
         return redirect("portals")

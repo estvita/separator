@@ -41,9 +41,6 @@ class App(models.Model):
     def __str__(self):
         return self.name
 
-    def get_instances(self):
-        return self.installations.all()
-
 
 class Bitrix(models.Model):
     domain = models.CharField(max_length=255, unique=True)
@@ -55,9 +52,6 @@ class Bitrix(models.Model):
 
     def __str__(self):
         return self.domain
-
-    def get_instances(self):
-        return self.installations.all()
 
 
 class AppInstance(models.Model):
