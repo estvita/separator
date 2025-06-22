@@ -437,7 +437,7 @@ def event_processor(request):
                     )
 
                 payload = {
-                    "message": f"Ваш код подтверждения: {code}. Введите его на странице https://{appinstance.app.site}/portals/",
+                    "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
                     "USER_ID": appinstance.portal.user_id,
                 }
 

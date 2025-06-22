@@ -17,6 +17,25 @@ from .models import AppInstance, Bitrix, VerificationCode, Line
 from thoth.users.models import Message
 
 
+def link_portal(request, code):
+    try:
+        uuid_code = uuid.UUID(code)
+        verification = VerificationCode.objects.get(code=uuid_code)
+        portal = verification.portal
+
+        if verification.is_valid():
+            portal.owner = request.user
+            portal.save()
+            AppInstance.objects.filter(portal=portal).update(owner=request.user)
+            Line.objects.filter(portal=portal).update(owner=request.user)
+            verification.delete()
+            messages.success(request, "Портал и связанные приложения успешно закреплены за вами.")
+        else:
+            messages.error(request, "Код подтверждения истек.")
+    except (VerificationCode.DoesNotExist, ValueError):
+        messages.error(request, "Неверный код подтверждения.")
+
+
 @login_required
 def portals(request):
     user_portals = Bitrix.objects.filter(owner=request.user)
@@ -50,7 +69,7 @@ def portals(request):
                     appinstance = AppInstance.objects.filter(portal=portal).first()
 
                     payload = {
-                        "message": f"Ваш код подтверждения: {code}",
+                        "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
                         "USER_ID": appinstance.portal.user_id,
                     }
 
@@ -61,33 +80,17 @@ def portals(request):
                     )
                 except Bitrix.DoesNotExist:
                     messages.error(request, "Портал не найден или уже закреплен за другим пользователем.")
-
         
         elif "confirm" in request.POST:
             verification_form = VerificationCodeForm(request.POST)
             if verification_form.is_valid():
-                confirmation_code = verification_form.cleaned_data["confirmation_code"]
-                try:
-                    # Попытка преобразования кода в UUID
-                    uuid_code = uuid.UUID(confirmation_code)
-                    verification = VerificationCode.objects.get(code=uuid_code)
-                    portal = verification.portal
+                code = verification_form.cleaned_data["confirmation_code"]
+                link_portal(request, code)
 
-                    if verification.is_valid():
-                        portal.owner = request.user
-                        portal.save()
-                        AppInstance.objects.filter(portal=portal).update(owner=request.user)
-                        Line.objects.filter(portal=portal).update(owner=request.user)
-                        verification.delete()
-                        messages.success(request, "Портал и связанные приложения успешно закреплены за вами.")
-                    else:
-                        messages.error(request, "Код подтверждения истек.")
-                except (VerificationCode.DoesNotExist, ValueError):
-                    messages.error(request, "Неверный код подтверждения.")
-
-    else:
-        portal_form = BitrixPortalForm()
-        verification_form = VerificationCodeForm()
+    elif request.method == "GET":
+        code = request.GET.get("code")
+        if code:
+            link_portal(request, code)
 
     message = Message.objects.filter(code="bitrix").first()
 
