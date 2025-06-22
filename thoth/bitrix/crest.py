@@ -20,7 +20,7 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
         appinstance.status = response.status_code
     except requests.exceptions.SSLError:
         if verify:
-            response = call_method(appinstance, b24_method, data, attempted_refresh, verify=False)
+            return call_method(appinstance, b24_method, data, attempted_refresh, verify=False)
         else:
             raise
 
