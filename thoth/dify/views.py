@@ -5,7 +5,8 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from .models import Dify
-from thoth.tariff.utils import get_trial
+
+apps = settings.INSTALLED_APPS
 
 import thoth.chatwoot.utils as chatwoot
 
@@ -38,7 +39,9 @@ def dify_form_view(request, dify_id=None):
                 response = requests.get(url, headers=headers, timeout=10)
                 if response.status_code == 200:
                     if not dify_id:
-                        instance.expiration_date = get_trial(request.user, "dify")
+                        if "thoth.tariff" in apps:
+                            from thoth.tariff.utils import get_trial
+                            instance.expiration_date = get_trial(request.user, "dify")
                         instance.save()
                         messages.success(request, 'Бот успешно создан.')
                     else:

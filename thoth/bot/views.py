@@ -5,10 +5,10 @@ from django.conf import settings
 from openai import OpenAI
 from .models import ApiKey, Bot, Voice, Feature
 from .forms import ApiKeyForm, BotForm, VoiceForm, FeatureForm
-from thoth.tariff.utils import get_trial
 import thoth.chatwoot.utils as chatwoot
 from thoth.bot.utils import get_tools_for_bot
 
+apps = settings.INSTALLED_APPS
 
 def check_openai_api_key(api_key):
     client = OpenAI(api_key=api_key)
@@ -130,7 +130,8 @@ def bot_form_view(request, bot_id=None):
                 if agent_bot:
                     bot.agent_bot = agent_bot
             
-            if not bot.expiration_date:
+            if "thoth.tariff" in apps and not bot.expiration_date:
+                from thoth.tariff.utils import get_trial
                 bot.expiration_date = get_trial(request.user, "bot")
             api_key.save()
             bot.save()
@@ -189,7 +190,8 @@ def voice_form_view(request, voice_id=None):
             voice.owner = request.user
             voice.token = api_key
 
-            if not voice.expiration_date:
+            if "thoth.tariff" in apps and not voice.expiration_date:
+                from thoth.tariff.utils import get_trial
                 voice.expiration_date = get_trial(request.user, "voice")
 
             selected_features = voice_form.cleaned_data['functions']

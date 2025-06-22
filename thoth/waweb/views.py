@@ -4,19 +4,21 @@ import uuid
 from requests.exceptions import RequestException
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from .models import Session, Server
 from django.contrib import messages
 from django.db.models import Count, F
-from .forms import SendMessageForm
 from django.utils import timezone
-from thoth.tariff.utils import get_trial
+from django.conf import settings
+
 from thoth.bitrix.models import AppInstance, Line, Connector
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import Message
 
+from .models import Session, Server
+from .forms import SendMessageForm
 from .tasks import send_message_task
 
+apps = settings.INSTALLED_APPS
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
@@ -65,6 +67,33 @@ def wa_sessions(request):
     )
 
 
+def create_instance(session):
+    server = session.server
+    headers = {"apikey": server.api_key}
+    
+    payload = {
+        "instanceName": str(session.session),
+        "qrcode": True,
+        "integration": "WHATSAPP-BAILEYS",
+        "alwaysOnline": server.always_online,
+        "groupsIgnore": server.groups_ignore,
+        "readMessages": server.read_messages,
+    }
+
+    try:
+        response = requests.post(f"{server.url}instance/create", json=payload, headers=headers, timeout=15)
+        inst_data = response.json()
+        instanceId = inst_data.get("instance", {}).get("instanceId")
+        session.instanceId = instanceId
+        session.save()
+        img_data = inst_data.get("qrcode", {}).get("base64", "")
+        img_data = img_data.split(",", 1)[1]
+        return img_data
+    except RequestException as e:
+        print("request error:", e)
+        return None
+
+
 @login_required
 def connect_number(request, session_id=None):
     if not session_id:
@@ -79,7 +108,11 @@ def connect_number(request, session_id=None):
         new_session = Session.objects.create(owner=request.user)
         session_id = new_session.session
 
-    if not new_session.date_end:
+    else:
+        new_session = get_object_or_404(Session, session=session_id, owner=request.user)
+
+    if "thoth.tariff" in apps and not new_session.date_end:
+        from thoth.tariff.utils import get_trial
         new_session.date_end = get_trial(request.user, "waweb")
         # new_session.save()
 
@@ -98,28 +131,12 @@ def connect_number(request, session_id=None):
     new_session.server = server
     new_session.save()
 
-    headers = {"apikey": server.api_key}
-    payload = {
-        "instanceName": str(session_id),
-        "qrcode": True,
-        "integration": "WHATSAPP-BAILEYS",
-        "alwaysOnline": server.always_online,
-        "groupsIgnore": server.groups_ignore,
-        "readMessages": server.read_messages,
-    }
-
     try:
-        response = requests.post(f"{server.url}instance/create", json=payload, headers=headers, timeout=15)
-        inst_data = response.json()
-        instanceId = inst_data.get("instance", {}).get("instanceId")
-        new_session.instanceId = instanceId
-        new_session.save()
-        img_data = inst_data.get("qrcode", {}).get("base64", "")
+        img_data = create_instance(new_session)
         if img_data:
-            img_data = img_data.split(",", 1)[1]
             request.session['qr_image'] = img_data
         return redirect('qr_code_page', session_id=session_id)
-    except RequestException as e:
+    except Exception as e:
         print("request error:", e)
         new_session.delete()
         messages.error(request, "Failed to initiate session.")
@@ -141,13 +158,16 @@ def get_gr(request, session):
     headers = {"apikey": server.api_key}
     try:
         response = requests.get(gr_url, headers=headers)
+        if response.status_code == 404:
+            return create_instance(session)
+        
         inst_data = response.json()
         img_data = inst_data.get("base64", "")
         if img_data:
             qr_image = img_data.split(",", 1)[1]
             return qr_image
         else:
-            messages.error(request, "Failed to restart session.")
+            messages.error(request, f"Failed to restart session. {inst_data}")
             return
     except RequestException:
         messages.error(request, "Failed connect to server")
@@ -206,7 +226,7 @@ def share_qr(request, public_id):
 def send_message_view(request, session_id):
     session = get_object_or_404(Session, session=session_id, owner=request.user)
 
-    if timezone.now() > session.date_end:
+    if session.date_end and timezone.now() > session.date_end:
         messages.error(request, f'Срок дествия вашего тарифа истек {session.date_end}')
         return redirect('waweb')
 

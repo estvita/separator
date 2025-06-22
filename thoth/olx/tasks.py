@@ -51,7 +51,7 @@ def refresh_tokens():
     for account in accounts:
         if account.attempts > settings.OLX_CHECK_ATTEMTS:
             continue
-        if timezone.now() > account.date_end:
+        if account.date_end and timezone.now() > account.date_end:
             refresh_token.delay(account.olx_id)
 
 
@@ -95,7 +95,7 @@ def get_threads(olx_user_id):
         connector_code = user.line.connector.code
         bitrix_user = user.line.portal.user_id
 
-        if timezone.now() > user.date_end:
+        if user.date_end and timezone.now() > user.date_end:
             deactivate_task(olx_user_id)
             payload = {
                 'USER_ID': bitrix_user,

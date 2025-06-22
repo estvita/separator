@@ -88,7 +88,7 @@ class EventsHandler(GenericViewSet):
 
 
         elif event in ["messages.upsert", "send.message"]:
-            if timezone.now() > session.date_end:
+            if session.date_end and timezone.now() > session.date_end:
                 return Response({'error': 'tariff has expired'})
             
             message = data.get('message', {})
@@ -254,7 +254,7 @@ class EventsHandler(GenericViewSet):
         except Exception as e:
             return Response({'error': 'An error occurred', 'details': str(e)})
         
-        if timezone.now() > session.date_end:
+        if session.date_end and timezone.now() > session.date_end:
             return Response({'error': 'tariff has expired'}, status=402)
 
         data = request.data

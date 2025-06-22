@@ -111,7 +111,6 @@ LOCAL_APPS = [
     "thoth.olx",
     "thoth.chatwoot",
     "thoth.waweb",
-    "thoth.tariff",
     "thoth.bot",
     "thoth.dify",
 ]

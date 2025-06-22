@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "taggit",
     "wagtailcodeblock",
     "thoth.home",
+    "thoth.tariff",
 ] + INSTALLED_APPS
 
 MIDDLEWARE = MIDDLEWARE + [

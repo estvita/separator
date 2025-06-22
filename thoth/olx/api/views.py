@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
+from django.conf import settings
 from rest_framework.views import APIView
 
 from django_celery_beat.models import PeriodicTask
@@ -14,7 +15,9 @@ from thoth.olx.models import OlxApp
 from thoth.olx.models import OlxUser
 
 from .serializers import OlxAuthorizationSerializer
-from thoth.tariff.utils import get_trial
+
+
+apps = settings.INSTALLED_APPS
 
 logger = logging.getLogger("olx")
 
@@ -108,7 +111,8 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                         refresh_token=refresh_token,
                         owner=request.user,
                     )
-                    if not olx_acc.date_end:
+                    if "thoth.tariff" in apps and not olx_acc.date_end:
+                        from thoth.tariff.utils import get_trial
                         olx_acc.date_end = get_trial(request.user, "olx")
                     olx_acc.save()
                     messages.success(request, "OLX Account successfully added")

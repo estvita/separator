@@ -74,7 +74,7 @@ def phone_details(request, phone_id):
 
         return redirect('waba')
 
-    if timezone.now() > phone.date_end:
+    if phone.date_end and timezone.now() > phone.date_end:
         messages.error(request, f'Срок дествия вашего тарифа истек {phone.date_end}')
     return render(request, 'phone_details.html', {'phone': phone, 'templates': templates})
 

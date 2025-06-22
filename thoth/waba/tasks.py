@@ -10,12 +10,12 @@ import thoth.chatwoot.utils as chatwoot
 from thoth.chatwoot.models import Inbox
 
 from thoth.users.models import User
-from thoth.tariff.utils import get_trial
 
 from django.http import HttpResponseServerError
 
 from django.conf import settings
 WABA_APP_ID = settings.WABA_APP_ID
+apps = settings.INSTALLED_APPS
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -104,7 +104,8 @@ def add_waba_phone(current_data, code, request_id):
                 phone.waba = waba
                 phone.owner = user
                 phone.phone = phone_number
-                if phone.date_end == None:
+                if "thoth.tariff" in apps and not phone.date_end:
+                    from thoth.tariff.utils import get_trial
                     phone.date_end = get_trial(user, "waba")
                 phone.save()
 

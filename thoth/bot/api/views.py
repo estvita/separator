@@ -117,7 +117,7 @@ class VoiceDetails(GenericViewSet):
         except Voice.DoesNotExist:
             return Response("Bot not found", status=status.HTTP_404_NOT_FOUND)
         
-        if timezone.now() > bot.expiration_date:
+        if bot.expiration_date and timezone.now() > bot.expiration_date:
             return Response("tariff has expired", status=status.HTTP_402_PAYMENT_REQUIRED)
         
         tools = get_tools_for_bot(bot.owner, bot, "voice")

@@ -46,7 +46,7 @@ def send_message(appinstance, message, line_id, phone_number):
     access_token = waba.access_token
     # Найти номер телефона, связанный с Line
     phone = waba.phones.filter(line=line).first()
-    if timezone.now() > phone.date_end:
+    if phone.date_end and timezone.now() > phone.date_end:
         return Response({"error": "phone tariff ended"})
     phone_id = phone.phone_id if phone else None
 
@@ -165,7 +165,7 @@ def message_processing(request):
             logger.error(f"Phone {phone_number} - {phone_number_id} not found")
             return Response({"phone_number not found"})
 
-        if timezone.now() < phone.date_end and settings.CHATWOOT_ENABLED:
+        if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
             # send message to chatwoot 
             chatwoot.whatsapp_webhook(data, phone_number)
 
@@ -180,7 +180,7 @@ def message_processing(request):
         waba = phone.waba
         appinstance = phone.app_instance
 
-        if timezone.now() > phone.date_end:
+        if phone.date_end and timezone.now() > phone.date_end:
             payload = {
                 'message': f'Пришло сообщение в WhatsApp на номер {phone.phone}, но у вас не оплачена интеграция. Проверьте срок тарифа и внесите оплату на https://gulin.kz',
                 'USER_ID': appinstance.portal.user_id
