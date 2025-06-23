@@ -51,8 +51,7 @@ def refresh_tokens():
     for account in accounts:
         if account.attempts > settings.OLX_CHECK_ATTEMTS:
             continue
-        if account.date_end and timezone.now() > account.date_end:
-            refresh_token.delay(account.olx_id)
+        refresh_token.delay(account.olx_id)
 
 
 @shared_task
