@@ -83,8 +83,8 @@ class AppInstanceInline(admin.TabularInline):
     model = AppInstance
     extra = 0
     can_delete = False
-    fields = ("admin_link",)
-    readonly_fields = ("admin_link",)
+    fields = ("admin_link", "status")
+    readonly_fields = ("admin_link", "status")
 
     def admin_link(self, obj):
         if obj.id:
