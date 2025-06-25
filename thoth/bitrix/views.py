@@ -228,7 +228,8 @@ def app_settings(request):
                 request.session["app_url"] = app.page_url
                 return redirect("link_user")
             else:
-                AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
+                if request.user.is_authenticated:
+                    AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
                 return redirect(app.page_url)
         else:
             return redirect("portals")
