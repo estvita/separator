@@ -48,12 +48,12 @@ class Bitrix(models.Model):
         ('https', 'HTTPS'),
     ]
     protocol = models.CharField(max_length=5, choices=PROTOCOL_CHOICES, default='https')
-    domain = models.CharField(max_length=255, unique=True)
+    domain = models.CharField(max_length=255)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
     user_id = models.CharField(max_length=255, blank=True, null=True)
-    member_id = models.CharField(max_length=255, blank=True, null=True)
+    member_id = models.CharField(max_length=255, unique=True, blank=True, null=True)
 
     def __str__(self):
         return self.domain

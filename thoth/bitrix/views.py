@@ -171,10 +171,12 @@ def app_install(request):
         user_id = None
 
     portal, _ = Bitrix.objects.get_or_create(
-        domain=domain,
         member_id=member_id,
-        protocol=proto,
-        user_id = user_id,
+        defaults={
+            "user_id": user_id,
+            "domain": domain,
+            "protocol": proto,
+        }
     )
 
     api_key, _ = Token.objects.get_or_create(user=app.owner)
