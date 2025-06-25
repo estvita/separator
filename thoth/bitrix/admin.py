@@ -53,9 +53,10 @@ class AppInstanceAdmin(admin.ModelAdmin):
 
 @admin.register(Bitrix)
 class BitrixAdmin(admin.ModelAdmin):
-    list_display = ("domain", "owner")
+    list_display = ("domain", "owner", "license_expired")
     search_fields = ("domain",)
     readonly_fields = ("domain", "user_id", "member_id")
+    list_filter = ('license_expired',)
     list_per_page = 30
 
 @admin.register(Connector)

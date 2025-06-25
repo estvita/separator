@@ -3,6 +3,9 @@ import logging
 
 import requests
 from django.db import transaction
+from django.conf import settings
+from thoth.waweb.tasks import send_message_task
+from thoth.users.models import Message
 
 from .models import AppInstance
 
@@ -46,7 +49,21 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
         appinstance.attempts += 1
         appinstance.save()
         if response.status_code == 401:
-            error = response.json().get("error", "")
+            resp = response.json()
+            error = resp.get("error", "")
+            error_description = resp.get("error_description", "")
+            if "REST is available only on commercial plans" in error_description and not appinstance.portal.license_expired:
+                appinstance.portal.license_expired = True
+                appinstance.portal.save()
+                waweb_id = settings.WAWEB_SYTEM_ID
+                if waweb_id and appinstance.owner.phone_number:
+                    try:
+                        notification = Message.objects.get(code="b24_expired")
+                        send_message_task.delay(waweb_id, [str(appinstance.owner.phone_number)], notification.message)
+                    except Message.DoesNotExist:
+                        pass
+                raise Exception("b24 license expired")
+            
             if error == "expired_token" and not attempted_refresh:
                 refreshed = refresh_token(appinstance)
                 if isinstance(refreshed, AppInstance):
