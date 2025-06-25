@@ -21,7 +21,6 @@ import thoth.bitrix.utils as bitrix_utils
 import thoth.bitrix.tasks as bitrix_tasks
 
 
-
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 logger = logging.getLogger("django")
@@ -65,18 +64,17 @@ class EventsHandler(GenericViewSet):
                 session.save(update_fields=["status"])
 
             if state == "open":
-                if not session.phone:
-                    wuid = data.get("wuid")
-                    number = wuid.split("@")[0]
-                    session.phone = number
-                    session.save(update_fields=["phone"])
+                wuid = data.get("wuid")
+                number = wuid.split("@")[0]
+                session.phone = number
+                session.save(update_fields=["phone"])
 
-                    if Session.objects.exclude(pk=session.pk).filter(phone=number).exists():
-                        headers = {"apikey": server.api_key}
-                        response = requests.delete(f"{server.url}instance/logout/{sessionid}", headers=headers)
-                        response = requests.delete(f"{server.url}instance/delete/{sessionid}", headers=headers)
-                        session.delete()
-                        return Response({'error': 'Phone number already in use, session deleted'})
+                if Session.objects.exclude(pk=session.pk).filter(phone=number).exists():
+                    headers = {"apikey": server.api_key}
+                    response = requests.delete(f"{server.url}instance/logout/{sessionid}", headers=headers)
+                    response = requests.delete(f"{server.url}instance/delete/{sessionid}", headers=headers)
+                    session.delete()
+                    return Response({'error': 'Phone number already in use, session deleted'})
 
                 
                 # создание Inbox в чатвут

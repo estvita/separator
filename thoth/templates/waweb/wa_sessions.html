@@ -33,15 +33,17 @@
                   {{ session.phone|default:"Подключить" }}
                 </a>
               {% else %}
-              <a href="{% url 'qr_code_page' session_id=session.session %}">
-                {{ session.phone|default:"Подключить" }}
-              </a>
+                  {{ session.phone }}
               {% endif %}
             </td>
        
             <!-- Status -->
             <td>
+              {% if session.show_link %}
                 {{ session.status }}
+              {% else %}
+                <a href="{% url 'qr_code_page' session_id=session.session %}">Подключить</a>
+              {% endif %}
             </td>
             <!-- Expiry Date -->
             <td>
