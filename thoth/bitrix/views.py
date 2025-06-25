@@ -191,7 +191,12 @@ def app_install(request):
         response = requests.post(f"{proto}://{domain}/rest/event.bind", json=payload)
         response.raise_for_status()
     except requests.RequestException as e:
-        return redirect(app.page_url)
+        resp = response.json()
+        error_description = resp.get("error_description")
+        if "Handler already binded" in error_description:
+            return render(request, "install_finish.html")
+        else:
+            return HttpResponse(f"Bitrix event.bind failed {response.status_code, resp}")
 
     return render(request, "install_finish.html")
 
