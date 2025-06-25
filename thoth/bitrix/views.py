@@ -1,4 +1,5 @@
 import uuid
+import requests
 from datetime import timedelta
 
 from django.contrib import messages
@@ -7,12 +8,13 @@ from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.http import HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.authtoken.models import Token
 
 from .crest import call_method
 from .utils import process_placement
 from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
-from .models import AppInstance, Bitrix, VerificationCode, Line
+from .models import AppInstance, Bitrix, VerificationCode, Line, App
 
 from thoth.users.models import Message
 
@@ -22,12 +24,17 @@ def link_portal(request, code):
         uuid_code = uuid.UUID(code)
         verification = VerificationCode.objects.get(code=uuid_code)
         portal = verification.portal
+        user = request.user
+
+        if not portal:
+            messages.error(request, "Портал по коду не найден.")
+            return
 
         if verification.is_valid():
-            portal.owner = request.user
+            portal.owner = user
             portal.save()
-            AppInstance.objects.filter(portal=portal).update(owner=request.user)
-            Line.objects.filter(portal=portal).update(owner=request.user)
+            AppInstance.objects.filter(portal=portal).update(owner=user)
+            Line.objects.filter(portal=portal).update(owner=user)
             verification.delete()
             messages.success(request, "Портал и связанные приложения успешно закреплены за вами.")
         else:
@@ -109,6 +116,7 @@ def portals(request):
 @login_required
 def link_user(request):
     member_id = request.session.get("member_id")
+    app_url = request.session.get("app_url")
     if not member_id:
         return HttpResponseForbidden("403 Forbidden")
     try:
@@ -126,28 +134,95 @@ def link_user(request):
     Line.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
 
     request.session.pop("member_id", None)
-    return redirect("portals")
+    if app_url:
+        return redirect(app_url)
+    else:
+        return redirect("portals")
+
+
+@csrf_exempt
+def app_install(request):
+    if request.method == "HEAD":
+        return HttpResponse("ok")
+
+    app_id = request.GET.get("app-id")
+    protocol = request.GET.get("PROTOCOL")
+    domain = request.GET.get("DOMAIN")
+    data = request.POST
+
+    member_id = data.get("member_id")
+    auth_id = data.get("AUTH_ID")
+
+    if not app_id or not member_id or not domain or not auth_id:
+        return HttpResponseForbidden("Missing parameters")
+
+    try:
+        app = App.objects.get(id=app_id)
+    except App.DoesNotExist:
+        return HttpResponseForbidden("403 Forbidden: app not found")
+
+    proto = "https" if protocol == "1" else "http"
+
+    try:
+        response = requests.get(f"https://oauth.bitrix24.tech/rest/app.info", params={"auth": auth_id})
+        response.raise_for_status()
+        user_id = response.json().get("result").get("user_id")
+    except requests.RequestException as e:
+        user_id = None
+
+    portal, _ = Bitrix.objects.get_or_create(
+        domain=domain,
+        member_id=member_id,
+        protocol=proto,
+        user_id = user_id,
+    )
+
+    api_key, _ = Token.objects.get_or_create(user=app.owner)
+
+    payload = {
+        "event": "ONAPPINSTALL",
+        "HANDLER": f"https://{app.site}/api/bitrix/?api-key={api_key.key}&app-id={app_id}",
+        "auth": auth_id,
+    }
+
+    try:
+        response = requests.post(f"{proto}://{domain}/rest/event.bind", json=payload)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        return HttpResponse("Bitrix event.bind failed", status=502)
+
+    return render(request, "install_finish.html")
 
 
 @csrf_exempt
 def app_settings(request):
     if request.method == "POST":
         try:
+            app_id = request.GET.get("app-id")
             data = request.POST
             domain = request.GET.get("DOMAIN")
             member_id = data.get("member_id")
-            Bitrix.objects.get(domain=domain, member_id=member_id)
+            portal = Bitrix.objects.get(domain=domain, member_id=member_id)
         except Bitrix.DoesNotExist:
-            return HttpResponseForbidden("403 Forbidden")
+            return redirect("portals")
         except Exception as e:
             return HttpResponseForbidden(f"403 Forbidden")
+        
+        try:
+            app = App.objects.get(id=app_id)
+        except App.DoesNotExist:
+            return HttpResponseForbidden("403 Forbidden: app not found")
 
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
         elif placement == "DEFAULT":
-            request.session["member_id"] = member_id
-            return redirect("link_user")
+            if not portal.owner:
+                request.session["member_id"] = member_id
+                request.session["app_url"] = app.page_url
+                return redirect("link_user")
+            else:
+                return redirect(app.page_url)
         else:
             return redirect("portals")
     elif request.method == "HEAD":

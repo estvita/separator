@@ -354,15 +354,8 @@ def event_processor(request):
             if not appinstance.portal.member_id:
                 appinstance.portal.member_id = member_id
                 appinstance.portal.save()
-            # Обновление токенa от админа
-            if access_token and appinstance.portal.user_id == user_id:
-                appinstance.access_token = access_token
-                appinstance.save()
-                if event == "ONAPPINSTALL":
-                    return Response({"message": "ok"})
 
         except AppInstance.DoesNotExist:
-            # Если событие ONAPPINSTALL
             if event == "ONAPPINSTALL":
                 scope = data.get("auth[scope]", {})
                 # Получение приложения по app_id
@@ -371,17 +364,14 @@ def event_processor(request):
                 except App.DoesNotExist:
                     return Response({"message": "App not found."})
 
-                try:
-                    portal = Bitrix.objects.get(domain=domain)
-                except Bitrix.DoesNotExist:
-                    portal_data = {
+                portal, created = Bitrix.objects.get_or_create(
+                    member_id=member_id,
+                    defaults={
                         "domain": domain,
                         "user_id": user_id,
-                        "member_id": member_id,
                         "owner": request.user if auth_status == "L" else None,
                     }
-                    portal = Bitrix.objects.create(**portal_data)
-
+                )
 
                 # Определяем владельца для AppInstance
                 appinstance_owner = (
@@ -438,7 +428,7 @@ def event_processor(request):
 
                 payload = {
                     "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
-                    "USER_ID": appinstance.portal.user_id,
+                    "USER_ID": user_id,
                 }
 
                 bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)

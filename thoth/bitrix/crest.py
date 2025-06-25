@@ -10,7 +10,8 @@ logger = logging.getLogger("django")
 
 
 def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted_refresh=False, verify=True):
-    endpoint = f"https://{appinstance.portal.domain}/rest/"
+    portal = appinstance.portal
+    endpoint = f"{portal.protocol}://{portal.domain}/rest/"
     access_token = appinstance.access_token
 
     payload = {"auth": access_token, **data}
