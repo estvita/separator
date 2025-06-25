@@ -191,7 +191,7 @@ def app_install(request):
         response = requests.post(f"{proto}://{domain}/rest/event.bind", json=payload)
         response.raise_for_status()
     except requests.RequestException as e:
-        return HttpResponse("Bitrix event.bind failed", status=502)
+        return redirect(app.page_url)
 
     return render(request, "install_finish.html")
 
