@@ -1,10 +1,22 @@
 from django.contrib import admin
+from django import forms
 
 from .models import OlxApp
 from .models import OlxUser
 
-from thoth.bitrix.models import Connector
+from thoth.bitrix.models import Connector, Line
 import thoth.bitrix.utils as bitrix_utils
+
+class UsersForm(forms.ModelForm):
+    class Meta:
+        model = OlxUser
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        owner = self.instance.owner or self.initial.get('owner')
+        if owner:
+            self.fields['line'].queryset = Line.objects.filter(owner=owner)
 
 @admin.register(OlxApp)
 class OlxAppAdmin(admin.ModelAdmin):
@@ -13,6 +25,7 @@ class OlxAppAdmin(admin.ModelAdmin):
 
 @admin.register(OlxUser)
 class OlxUserAdmin(admin.ModelAdmin):
+    form = UsersForm
     list_display = (
         "olx_id",
         "owner",

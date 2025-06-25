@@ -230,6 +230,7 @@ def app_settings(request):
             else:
                 if request.user.is_authenticated:
                     AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
+                    Line.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
                 return redirect(app.page_url)
         else:
             return redirect("portals")

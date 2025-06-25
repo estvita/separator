@@ -1,11 +1,27 @@
 from django.contrib import admin
 from .models import Session, Server
-from thoth.bitrix.models import Connector
+from thoth.bitrix.models import Connector, AppInstance, Line
 import thoth.bitrix.utils as bitrix_utils
 from django.contrib import messages
+from django import forms
+
+
+class SessionForm(forms.ModelForm):
+    class Meta:
+        model = Session
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        owner = self.instance.owner or self.initial.get('owner')
+        if owner:
+            self.fields['app_instance'].queryset = AppInstance.objects.filter(owner=owner)
+            self.fields['line'].queryset = Line.objects.filter(owner=owner)
+
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
+    form = SessionForm
     list_display = ('session', 'server', 'phone', 'date_end', 'status', 'owner')
     search_fields = ("session", 'phone')
     list_filter = ("status", "server")
