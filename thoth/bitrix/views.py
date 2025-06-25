@@ -213,22 +213,22 @@ def app_settings(request):
         except Bitrix.DoesNotExist:
             return redirect("portals")
         except Exception as e:
-            return HttpResponseForbidden(f"403 Forbidden")
-        
-        try:
-            app = App.objects.get(id=app_id)
-        except App.DoesNotExist:
-            return HttpResponseForbidden("403 Forbidden: app not found")
+            return HttpResponseForbidden(f"403 Forbidden")        
 
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
         elif placement == "DEFAULT":
+            try:
+                app = App.objects.get(id=app_id)
+            except App.DoesNotExist:
+                return HttpResponseForbidden("403 Forbidden: app not found")
             if not portal.owner:
                 request.session["member_id"] = member_id
                 request.session["app_url"] = app.page_url
                 return redirect("link_user")
             else:
+                AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
                 return redirect(app.page_url)
         else:
             return redirect("portals")
