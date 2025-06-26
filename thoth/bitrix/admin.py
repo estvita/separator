@@ -6,6 +6,21 @@ from .models import App, AppInstance, Bitrix, Line, AdminMessage, Connector
 import thoth.bitrix.tasks as bitrix_tasks
 
 
+class AppInstanceInline(admin.TabularInline):
+    model = AppInstance
+    fields = ('instance_link', 'app', 'auth_status', 'status', 'attempts')
+    readonly_fields = ('instance_link', 'app', 'auth_status', 'status', 'attempts')
+    extra = 0
+    can_delete = False
+
+    def instance_link(self, obj):
+        if obj.pk:
+            url = reverse("admin:%s_appinstance_change" % obj._meta.app_label, args=[obj.id])
+            return format_html('<a href="{}">{}</a>', url, obj.id)
+        return "-"
+    instance_link.short_description = "ID"
+
+
 class AdminMessageAdmin(admin.ModelAdmin):
     list_display = ('sent_at', 'message')
     fields = ('app_instance', 'message')
@@ -53,6 +68,7 @@ class AppInstanceAdmin(admin.ModelAdmin):
 
 @admin.register(Bitrix)
 class BitrixAdmin(admin.ModelAdmin):
+    inlines = [AppInstanceInline]
     list_display = ("domain", "owner", "license_expired")
     search_fields = ("domain",)
     readonly_fields = ("domain", "user_id", "member_id")
