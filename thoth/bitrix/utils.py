@@ -126,8 +126,8 @@ def connect_line(request, line_id, entity, connector, redirect_to):
             phone = re.sub(r'\D', '', entity.phone)
             if entity.sms_service:
                 resp = messageservice_add(app_instance, phone, line.line_id, api_key, connector.service)
-                if isinstance(resp, dict) and "error" in resp:
-                    messages.error(request, f"Ошибка подключения SMS канала: {resp['error']}")
+                # if isinstance(resp, dict) and "error" in resp:
+                #     messages.error(request, f"Ошибка подключения SMS канала: {resp['error']}")
             else:
                 try:
                     call_method(app_instance, "messageservice.sender.delete", {"CODE": f"THOTH_{phone}_{line.line_id}"})
