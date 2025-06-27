@@ -24,7 +24,7 @@ def olx_accounts(request):
         if action == "connect":
             olx_app_id = request.POST.get("olx_app")
             olx_app = OlxApp.objects.get(id=olx_app_id)
-            return redirect(olx_app.authorization_link)
+            return render(request, "olx/redirect_page.html", {"auth_link": olx_app.authorization_link})
         else:
             olx_id = request.POST.get("olx_id")
             line_id = request.POST.get("line_id")

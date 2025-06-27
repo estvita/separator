@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+if (window.top !== window.self) {
+    window.open("{{ auth_link|safe }}", "_blank");
+} else {
+    window.location = "{{ auth_link|safe }}";
+}
+</script>
+<p>Если вы не были перенаправлены,
+    <button type="button" class="btn btn-primary" onclick="window.open('{{ auth_link|safe }}', '_blank')">
+        Нажмите сюда
+    </button>
+</p>
+{% endblock %}
