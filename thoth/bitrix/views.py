@@ -18,8 +18,8 @@ from .models import AppInstance, Bitrix, VerificationCode, Line, App
 
 from thoth.decorators import login_message_required
 
-from thoth.users.models import Message
-
+from django.contrib.auth import get_user_model, login
+User = get_user_model()
 
 def link_portal(request, code):
     try:
@@ -153,12 +153,12 @@ def app_install(request):
     auth_id = data.get("AUTH_ID")
 
     if not app_id or not member_id or not domain or not auth_id:
-        return HttpResponseForbidden("Missing parameters")
+        return redirect("portals")
 
     try:
         app = App.objects.get(id=app_id)
     except App.DoesNotExist:
-        return HttpResponseForbidden("403 Forbidden: app not found")
+        return redirect("portals")
 
     proto = "https" if protocol == "1" else "http"
 
@@ -167,9 +167,9 @@ def app_install(request):
         response.raise_for_status()
         user_id = response.json().get("result").get("user_id")
     except requests.RequestException as e:
-        user_id = None
+        return redirect("portals")
 
-    portal, _ = Bitrix.objects.get_or_create(
+    portal, created = Bitrix.objects.get_or_create(
         member_id=member_id,
         defaults={
             "user_id": user_id,
@@ -177,6 +177,39 @@ def app_install(request):
             "protocol": proto,
         }
     )
+
+    if not request.user.is_authenticated and not portal.owner:
+        try:
+            user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
+            user_data.raise_for_status()
+            user_data = user_data.json().get("result")
+            user_name = user_data.get("NAME")
+            user_last_name = user_data.get("LAST_NAME")
+            user_email = user_data.get("EMAIL")
+            user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
+            
+            user, created = User.objects.get_or_create(
+                email=user_email,
+                defaults={
+                    "name": f"{user_name} {user_last_name}".strip(),
+                    "first_name": user_name,
+                    "last_name": user_last_name,
+                    "phone_number": user_phone,
+                }
+            )
+
+            portal.owner = user
+            portal.save()
+
+        except Exception as e:
+            print("Error ", e)
+            pass
+
+        try:
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+        except Exception as e:
+            print("Error ", e)
+            pass
 
     api_key, _ = Token.objects.get_or_create(user=app.owner)
 
