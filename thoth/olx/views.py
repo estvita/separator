@@ -1,14 +1,12 @@
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render, get_object_or_404
 
 from thoth.bitrix.models import AppInstance, Line, Connector
 import thoth.bitrix.utils as bitrix_utils
 
-from thoth.users.models import Message
 from .models import OlxApp, OlxUser
+from thoth.decorators import login_message_required
 
-
-@login_required
+@login_message_required(code="olx")
 def olx_accounts(request):
     connector_service = "olx"
     connector = Connector.objects.filter(service=connector_service).first()
@@ -32,14 +30,11 @@ def olx_accounts(request):
 
             bitrix_utils.connect_line(request, line_id, olx_user, connector, "olx-accounts")
 
-    message = Message.objects.filter(code="olx").first()
-
     return render(request, "olx/accounts.html", 
         {
             "olx_accounts": olx_accounts,
             "olx_apps": olx_apps,
             "instances": instances,
             "olx_lines": olx_lines,
-            "message": message,
         }
     )

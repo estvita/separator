@@ -136,7 +136,7 @@ AUTH_USER_MODEL = "users.User"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-redirect-url
 LOGIN_REDIRECT_URL = "users:redirect"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-url
-LOGIN_URL = "account_login"
+LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 
 # PASSWORDS
@@ -341,8 +341,6 @@ CELERY_TASK_SEND_SENT_EVENT = True
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", False)
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_LOGIN_METHODS = {'email'}
-# https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 # https://docs.allauth.org/en/latest/account/configuration.html

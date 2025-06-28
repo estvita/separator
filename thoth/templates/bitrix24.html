@@ -3,11 +3,6 @@
 {% block content %}
   <div class="container">
     <h3>Ваши Bitrix24</h3>
-    {% if message %}
-    <div class="alert alert-info">
-        {{ message.message|safe }}
-    </div>
-    {% endif %}
     {% if user_portals %}
       <table class="table table-bordered">
         <thead>

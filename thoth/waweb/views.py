@@ -13,6 +13,7 @@ from thoth.bitrix.models import AppInstance, Line, Connector
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import Message
+from thoth.decorators import login_message_required
 
 from .models import Session, Server
 from .forms import SendMessageForm
@@ -24,7 +25,7 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_respo
 
 LINK_TTL = 60 * 60 * 24
 
-@login_required
+@login_message_required(code="waweb")
 def wa_sessions(request):
     connector_service = "waweb"
     connector = Connector.objects.filter(service=connector_service).first()
@@ -55,14 +56,11 @@ def wa_sessions(request):
     for session in sessions:
         session.show_link = session.status == "open"
 
-    message = Message.objects.filter(code="waweb").first()
-
     return render(
         request, 'waweb/wa_sessions.html', {
             "sessions": sessions,
             "instances": instances,
             "wa_lines": wa_lines,
-            "message": message,
         }
     )
 

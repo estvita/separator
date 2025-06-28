@@ -7,11 +7,6 @@
 {% block content %}
 <div class="container">
   <h3>Ваши номера WhatsApp (WABA)</h3>
-    {% if message %}
-    <div class="alert alert-info">
-        {{ message.message|safe }}
-    </div>
-    {% endif %}
   {% if phones %}
     <table class="table table-bordered">
       <thead>

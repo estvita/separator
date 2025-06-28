@@ -70,7 +70,7 @@
         {% if messages %}
           {% for message in messages %}
             <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-              {{ message }}
+              {{ message|safe }}
               <button type="button"
                       class="btn-close"
                       data-bs-dismiss="alert"

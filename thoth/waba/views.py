@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlparse
 from django.contrib import messages
 from django.db.models import Q
 
+import logging
 import redis
 import requests
 import json
@@ -12,19 +13,16 @@ import uuid
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseBadRequest, HttpResponseServerError, HttpResponse
-
+from django.conf import settings
 from django.utils import timezone
 
 from urllib.parse import urlencode
+from thoth.decorators import login_message_required
 
 import thoth.bitrix.utils as bitrix_utils
 
-import logging
-
-from thoth.users.models import User, Message
+from thoth.users.models import User
 from thoth.bitrix.models import AppInstance, Line, Connector
-
-from django.conf import settings
 
 from .models import App, Waba, Phone, Template
 import thoth.waba.utils as utils
@@ -151,7 +149,7 @@ def save_request(request):
         return HttpResponseServerError({'error'})
 
 
-@login_required
+@login_message_required(code="waba")
 def waba_view(request):
     connector_service = "waba"
     connector = Connector.objects.filter(service=connector_service).first()
@@ -168,14 +166,11 @@ def waba_view(request):
 
         bitrix_utils.connect_line(request, line_id, phone, connector, "waba")
 
-    message = Message.objects.filter(code="waba").first()
-    
     return render(request, "waba.html", {
         "phones": phones,
         "waba_lines": waba_lines,
         "instances": instances,
         "request_id": request_id,
-        "message": message,
     })
 
 

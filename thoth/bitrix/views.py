@@ -16,6 +16,8 @@ from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
 from .models import AppInstance, Bitrix, VerificationCode, Line, App
 
+from thoth.decorators import login_message_required
+
 from thoth.users.models import Message
 
 
@@ -43,7 +45,7 @@ def link_portal(request, code):
         messages.error(request, "Неверный код подтверждения.")
 
 
-@login_required
+@login_message_required(code="bitrix")
 def portals(request):
     user_portals = Bitrix.objects.filter(owner=request.user)
     portal_form = BitrixPortalForm()
@@ -99,8 +101,6 @@ def portals(request):
         if code:
             link_portal(request, code)
 
-    message = Message.objects.filter(code="bitrix").first()
-
     return render(
         request,
         "bitrix24.html",
@@ -108,7 +108,6 @@ def portals(request):
             "user_portals": user_portals,
             "portal_form": portal_form,
             "verification_form": verification_form,
-            "message": message,
         },
     )
 

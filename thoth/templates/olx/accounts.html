@@ -6,11 +6,6 @@
 {% block content %}
   <div class="container">
     <h3>Ваши OLX аккаунты</h3>
-    {% if message %}
-    <div class="alert alert-info">
-        {{ message.message|safe }}
-    </div>
-    {% endif %}
     {% if olx_accounts %}
       <table class="table table-bordered">
         <thead>
