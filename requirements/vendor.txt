@@ -2,3 +2,4 @@
 
 wagtail
 wagtailcodeblock
+django-hijack

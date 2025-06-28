@@ -29,7 +29,7 @@ import thoth.bitrix.tasks as bitrix_tasks
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-THOTH_BITRIX = settings.THOTH_BITRIX
+VENDOR_BITRIX_INSTANCE = settings.VENDOR_BITRIX_INSTANCE
 
 logger = logging.getLogger("django")
 
@@ -434,8 +434,8 @@ def event_processor(request):
                 bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
 
                 # создание лида в битриксе если есть права
-                if "user_basic" in scope and THOTH_BITRIX:
-                    bitrix_tasks.create_deal.delay(appinstance.id, THOTH_BITRIX, app.name)
+                if "user_basic" in scope and VENDOR_BITRIX_INSTANCE:
+                    bitrix_tasks.create_deal.delay(appinstance.id, VENDOR_BITRIX_INSTANCE, app.name)
 
                 return Response(
                     {"message": "App and portal successfully created and linked."},

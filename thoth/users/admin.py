@@ -8,6 +8,7 @@ from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
 from .models import User, Message
 
+import os
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -17,12 +18,17 @@ from thoth.olx.models import OlxUser
 from thoth.waba.models import Phone
 from thoth.bot.models import Bot
 
+
+bases = (auth_admin.UserAdmin,)
+if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
+    from hijack.contrib.admin import HijackUserAdminMixin
+    bases = (HijackUserAdminMixin, auth_admin.UserAdmin)
+
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
     # Force the `admin` sign in process to go through the `django-allauth` workflow:
     # https://docs.allauth.org/en/latest/common/admin.html#admin
     admin.autodiscover()
     admin.site.login = secure_admin_login(admin.site.login)  # type: ignore[method-assign]
-
 
 class BotInline(admin.TabularInline):
     model = Bot
@@ -107,7 +113,7 @@ class BitrixInline(admin.TabularInline):
 
 
 @admin.register(User)
-class UserAdmin(auth_admin.UserAdmin):
+class UserAdmin(*bases):
     inlines = [BitrixInline, AppInstanceInline, WaWebInline, PhoneInline, OlxUserInline, BotInline]
     form = UserAdminChangeForm
     add_form = UserAdminCreationForm

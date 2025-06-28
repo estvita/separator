@@ -19,12 +19,15 @@ INSTALLED_APPS = [
     "modelcluster",
     "taggit",
     "wagtailcodeblock",
+    "hijack",
+    "hijack.contrib.admin",
     "thoth.home",
     "thoth.tariff",
 ] + INSTALLED_APPS
 
 MIDDLEWARE = MIDDLEWARE + [
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+    "hijack.middleware.HijackUserMiddleware",
 ]
 
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [

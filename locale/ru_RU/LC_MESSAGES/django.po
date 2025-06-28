@@ -1,0 +1,93 @@
+# Translations for the exten.bot project
+# Copyright (C) 2025 Anton Gulin
+# Anton Gulin <toogulin@gmail.com>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-06-28 11:02+0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "English"
+msgstr ""
+
+msgid "Russian"
+msgstr ""
+
+msgid "Sign In"
+msgstr ""
+
+#, python-format
+msgid ""
+"If you have not created an account yet, then please %(link)ssign "
+"up%(end_link)s first."
+msgstr ""
+
+msgid "Sign in with a passkey"
+msgstr ""
+
+msgid "Send me a sign-in code"
+msgstr ""
+
+msgid "Signup"
+msgstr ""
+
+msgid "Sign Up"
+msgstr ""
+
+#, python-format
+msgid "Already have an account? Then please %(link)ssign in%(end_link)s."
+msgstr ""
+
+msgid "Sign up using a passkey"
+msgstr ""
+
+msgid "My Profile"
+msgstr "Профиль"
+
+msgid "Sign Out"
+msgstr ""
+
+msgid "Personal info"
+msgstr ""
+
+msgid "Permissions"
+msgstr ""
+
+msgid "Important dates"
+msgstr ""
+
+msgid "Users"
+msgstr ""
+
+msgid "This email has already been taken."
+msgstr ""
+
+msgid "Phone number"
+msgstr ""
+
+msgid "Пользователь с таким номером уже существует."
+msgstr ""
+
+msgid "Name of User"
+msgstr ""
+
+msgid "First Name"
+msgstr ""
+
+msgid "Last Name"
+msgstr ""
+
+msgid "email address"
+msgstr ""
+
+msgid "Information successfully updated"
+msgstr ""

@@ -18,7 +18,12 @@ if READ_DOT_ENV_FILE:
 CHATWOOT_ENABLED = env.bool("CHATWOOT_ENABLED", default=False)
 CHATWOOT_ID = env("CHATWOOT_ID", default=1)
 WABA_APP_ID = env("WABA_APP_ID", default=1)
-THOTH_BITRIX = env("THOTH_BITRIX", default="")
+
+# ID APP INSTANCE ON VENDOR CRM
+VENDOR_BITRIX_INSTANCE = env("VENDOR_BITRIX_INSTANCE", default="")
+
+# поле для проверки контакта из маркета Б24
+FROM_MARKET_FIELD = env("FROM_MARKET_FIELD", default="UF_CRM_FROM_MARKET")
 
 BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
@@ -47,14 +52,11 @@ LANGUAGES = [
 SITE_ID = 1
 # https://docs.djangoproject.com/en/dev/ref/settings/#use-i18n
 USE_I18N = True
+USE_L10N = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#use-tz
 USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#locale-paths
 LOCALE_PATHS = [str(BASE_DIR / "locale")]
-
-
-USE_L10N = True
-
 
 # DATABASES
 # ------------------------------------------------------------------------------

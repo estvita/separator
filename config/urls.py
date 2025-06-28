@@ -16,6 +16,7 @@ from django.conf.urls.i18n import i18n_patterns
 urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
+    path("i18n/", include("django.conf.urls.i18n")),
     path("users/", include("thoth.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     path("waba/", include("thoth.waba.urls")),
@@ -54,6 +55,7 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
     from django.conf.urls.i18n import i18n_patterns
 
     urlpatterns += [
+        path('hijack/', include('hijack.urls')),
         path(settings.WAGTAIL_CMS_URL, include(wagtailadmin_urls)),
         path("documents/", include(wagtaildocs_urls)),
         path('sitemap.xml', sitemap),

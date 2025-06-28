@@ -1,6 +1,5 @@
 import redis
 from celery import shared_task
-from celery.exceptions import MaxRetriesExceededError
 import logging
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
@@ -13,6 +12,7 @@ logger = logging.getLogger("django")
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
+FROM_MARKET_FIELD = settings.FROM_MARKET_FIELD
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5)
 def call_api(self, id, method, payload):
@@ -135,44 +135,65 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector):
 
 
 @shared_task
-def create_deal(app_instance_id, thoth_bitrix, app_name):
+def create_deal(app_instance_id, vendor_inst_id, app_name):
     app_instance = AppInstance.objects.get(id=app_instance_id)
-    resp = call_method(app_instance, "user.current", {})
-    if "result" in resp:
-        thoth_instance = AppInstance.objects.get(id=thoth_bitrix)
-        resp = resp.get("result", {})
+    user_current = call_method(app_instance, "user.current", {})
+    if "result" in user_current:
+        user_data = user_current.get("result", {})
+        user_email = user_data.get("EMAIL")
+    if not user_email:
+        return
+    user_id = None
+    venrot_instance = AppInstance.objects.get(id=vendor_inst_id)
+    # Поиск контакта в битрикс 
+    payload = {
+        "FILTER": {
+            "EMAIL": user_email
+        },
+        "select": [FROM_MARKET_FIELD]
+    }
+    client_data = call_method(venrot_instance, "crm.contact.list", payload)
+    if "result" in client_data:
+        client_data = client_data.get("result", [])
+        if client_data:
+            from_market = client_data[0].get(FROM_MARKET_FIELD)
+            if from_market == "1":
+                return
+            user_id = client_data[0].get("ID")
+    if not user_id:        
         contact_data = {
             "fields": {
-                "NAME": resp.get("NAME"),
-                "LAST_NAME": resp.get("LAST_NAME"),
+                "NAME": user_data.get("NAME"),
+                "LAST_NAME": user_data.get("LAST_NAME"),
+                FROM_MARKET_FIELD: "1",
                 "EMAIL": [
                     {
-                        "VALUE": resp.get("EMAIL"),
+                        "VALUE": user_email,
                         "VALUE_TYPE": "WORK"
                     }
                 ],
                 "PHONE": [
                     {
-                        "VALUE": resp.get("WORK_PHONE"),
+                        "VALUE": user_data.get("WORK_PHONE"),
                         "VALUE_TYPE": "WORK"
                     },
                     {
-                        "VALUE": resp.get("PERSONAL_MOBILE"),
+                        "VALUE": user_data.get("PERSONAL_MOBILE"),
                         "VALUE_TYPE": "MOBILE"
                     }
                 ]
             }
         }
 
-        create_contact = call_method(thoth_instance, "crm.contact.add", contact_data)
+        create_contact = call_method(venrot_instance, "crm.contact.add", contact_data)
         if "result" in create_contact:
             user_id = create_contact.get("result")
-            if user_id:
-                deal_data = {
-                    "fields": {
-                        "TITLE": f"Установка приложения: {app_name}",
-                        "CONTACT_IDS": [user_id],
-                        "OPENED": "N",
-                    }
-                }
-                call_method(thoth_instance, "crm.deal.add", deal_data)
+    if user_id:
+        deal_data = {
+            "fields": {
+                "TITLE": f"Установка приложения: {app_name}",
+                "CONTACT_IDS": [user_id],
+                "OPENED": "N",
+            }
+        }
+        call_method(venrot_instance, "crm.deal.add", deal_data)
