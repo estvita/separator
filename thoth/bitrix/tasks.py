@@ -137,10 +137,12 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector):
 @shared_task
 def create_deal(app_instance_id, vendor_inst_id, app_name):
     app_instance = AppInstance.objects.get(id=app_instance_id)
-    user_current = call_method(app_instance, "user.current", {})
-    if "result" in user_current:
+    try:
+        user_current = call_method(app_instance, "user.current", {})
         user_data = user_current.get("result", {})
         user_email = user_data.get("EMAIL")
+    except Exception as e:
+        return
     if not user_email:
         return
     user_id = None

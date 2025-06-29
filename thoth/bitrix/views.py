@@ -3,7 +3,6 @@ import requests
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.http import HttpResponse, HttpResponseForbidden
@@ -112,31 +111,59 @@ def portals(request):
     )
 
 
-@login_required
-def link_user(request):
-    member_id = request.session.get("member_id")
-    app_url = request.session.get("app_url")
-    if not member_id:
-        return HttpResponseForbidden("403 Forbidden")
+def get_owner(request):
+    protocol = request.GET.get("PROTOCOL")
+    domain = request.GET.get("DOMAIN")
+    data = request.POST
+
+    member_id = data.get("member_id")
+    auth_id = data.get("AUTH_ID")
+    proto = "https" if protocol == "1" else "http"
     try:
-        portal = Bitrix.objects.get(member_id=member_id)
-    except Bitrix.DoesNotExist:
+        response = requests.get(f"https://oauth.bitrix24.tech/rest/app.info", params={"auth": auth_id})
+        response.raise_for_status()
+        user_id = response.json().get("result").get("user_id")
+    except requests.RequestException as e:
         return redirect("portals")
-    except Exception as e:
-        return HttpResponse(f"Error: {e}", status=500)
 
-    if portal.owner is None:
-        portal.owner = request.user
-        portal.save()
-
-    AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
-    Line.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
-
-    request.session.pop("member_id", None)
-    if app_url:
-        return redirect(app_url)
+    portal, created = Bitrix.objects.get_or_create(
+        member_id=member_id,
+        defaults={
+            "user_id": user_id,
+            "domain": domain,
+            "protocol": proto,
+        }
+    )
+    if int(portal.user_id) != int(user_id):
+        return redirect("portals")
+    
+    if portal.owner:
+        return portal.owner
     else:
-        return redirect("portals")
+        try:
+            user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
+            user_data.raise_for_status()
+            user_data = user_data.json().get("result")
+            user_name = user_data.get("NAME")
+            user_last_name = user_data.get("LAST_NAME")
+            user_email = user_data.get("EMAIL")
+            user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
+            
+            user, created = User.objects.get_or_create(
+                email=user_email,
+                defaults={
+                    "name": f"{user_name} {user_last_name}".strip(),
+                    "first_name": user_name,
+                    "last_name": user_last_name,
+                    "phone_number": user_phone,
+                }
+            )
+            portal.owner = user
+            portal.save()
+            return user
+        except Exception as e:
+            print("Error ", e)
+            return None    
 
 
 @csrf_exempt
@@ -162,51 +189,10 @@ def app_install(request):
 
     proto = "https" if protocol == "1" else "http"
 
-    try:
-        response = requests.get(f"https://oauth.bitrix24.tech/rest/app.info", params={"auth": auth_id})
-        response.raise_for_status()
-        user_id = response.json().get("result").get("user_id")
-    except requests.RequestException as e:
-        return redirect("portals")
-
-    portal, created = Bitrix.objects.get_or_create(
-        member_id=member_id,
-        defaults={
-            "user_id": user_id,
-            "domain": domain,
-            "protocol": proto,
-        }
-    )
-
-    if not request.user.is_authenticated and not portal.owner:
+    if not request.user.is_authenticated:
         try:
-            user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
-            user_data.raise_for_status()
-            user_data = user_data.json().get("result")
-            user_name = user_data.get("NAME")
-            user_last_name = user_data.get("LAST_NAME")
-            user_email = user_data.get("EMAIL")
-            user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
-            
-            user, created = User.objects.get_or_create(
-                email=user_email,
-                defaults={
-                    "name": f"{user_name} {user_last_name}".strip(),
-                    "first_name": user_name,
-                    "last_name": user_last_name,
-                    "phone_number": user_phone,
-                }
-            )
-
-            portal.owner = user
-            portal.save()
-
-        except Exception as e:
-            print("Error ", e)
-            pass
-
-        try:
-            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            owner = get_owner(request)
+            login(request, owner, backend='django.contrib.auth.backends.ModelBackend')
         except Exception as e:
             print("Error ", e)
             pass
@@ -242,28 +228,26 @@ def app_settings(request):
             domain = request.GET.get("DOMAIN")
             member_id = data.get("member_id")
             portal = Bitrix.objects.get(domain=domain, member_id=member_id)
-        except Bitrix.DoesNotExist:
-            return redirect("portals")
         except Exception as e:
-            return HttpResponseForbidden(f"403 Forbidden")        
+            return redirect("portals")
 
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
         elif placement == "DEFAULT":
+            if not request.user.is_authenticated:
+                try:
+                    owner = get_owner(request)
+                    login(request, owner, backend='django.contrib.auth.backends.ModelBackend')
+                except Exception as e:
+                    return redirect("portals")
+            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
+            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
             try:
                 app = App.objects.get(id=app_id)
-            except App.DoesNotExist:
-                return HttpResponseForbidden("403 Forbidden: app not found")
-            if not portal.owner:
-                request.session["member_id"] = member_id
-                request.session["app_url"] = app.page_url
-                return redirect("link_user")
-            else:
-                if request.user.is_authenticated:
-                    AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
-                    Line.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
                 return redirect(app.page_url)
+            except App.DoesNotExist:
+                return redirect("portals")
         else:
             return redirect("portals")
     elif request.method == "HEAD":

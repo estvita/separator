@@ -24,7 +24,7 @@ class User(AbstractUser):
     first_name = CharField(_("First Name"), blank=True, max_length=150)
     last_name = CharField(_("Last Name"), blank=True, max_length=150)
     email = EmailField(_("email address"), unique=True)
-    phone_number = PhoneNumberField(blank=True)
+    phone_number = PhoneNumberField(blank=True, null=True)
     integrator = models.BooleanField(default=False)
     username = None  # type: ignore[assignment]
 

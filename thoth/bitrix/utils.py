@@ -357,7 +357,6 @@ def event_processor(request):
 
         except AppInstance.DoesNotExist:
             if event == "ONAPPINSTALL":
-                scope = data.get("auth[scope]", {})
                 # Получение приложения по app_id
                 try:
                     app = App.objects.get(id=app_id)
@@ -408,6 +407,9 @@ def event_processor(request):
 
                 transaction.on_commit(register_events_and_connectors)
 
+                if VENDOR_BITRIX_INSTANCE:
+                    bitrix_tasks.create_deal.delay(appinstance.id, VENDOR_BITRIX_INSTANCE, app.name)
+
                 # Если портал уже прявязан
                 if portal.owner:
                     return Response('App successfully created and linked')
@@ -432,10 +434,6 @@ def event_processor(request):
                 }
 
                 bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
-
-                # создание лида в битриксе если есть права
-                if "user_basic" in scope and VENDOR_BITRIX_INSTANCE:
-                    bitrix_tasks.create_deal.delay(appinstance.id, VENDOR_BITRIX_INSTANCE, app.name)
 
                 return Response(
                     {"message": "App and portal successfully created and linked."},
