@@ -209,13 +209,13 @@ def create_chatwoot_user(email, user):
     )
 
     # Send email with account credentials
-    send_mail(
-        subject=f"Welcome to {chatwoot.url}!",
-        message=f"Hello,\n\nYour chat account has been successfully created. \n\n Your login: {email}\n Your password: {password}\n\nBest regards,\ {chatwoot.url}",
-        from_email=settings.EMAIL_HOST_USER,
-        recipient_list=[email],
-        fail_silently=False,
-    )
+    # send_mail(
+    #     subject=f"Welcome to {chatwoot.url}!",
+    #     message=f"Hello,\n\nYour chat account has been successfully created. \n\n Your login: {email}\n Your password: {password}\n\nBest regards,\ {chatwoot.url}",
+    #     from_email=settings.EMAIL_HOST_USER,
+    #     recipient_list=[email],
+    #     fail_silently=False,
+    # )
 
     return {"success": "Chatwoot user and account created successfully"}
 
