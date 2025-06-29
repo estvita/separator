@@ -2,6 +2,7 @@ import uuid
 import requests
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils import timezone
@@ -16,6 +17,7 @@ from .forms import VerificationCodeForm
 from .models import AppInstance, Bitrix, VerificationCode, Line, App
 
 from thoth.decorators import login_message_required
+from thoth.users.tasks import create_user_task
 
 from django.contrib.auth import get_user_model, login
 User = get_user_model()
@@ -160,6 +162,10 @@ def get_owner(request):
             )
             portal.owner = user
             portal.save()
+
+            if user_email and settings.CHATWOOT_ENABLED:
+                create_user_task.delay(user_email, user.id)
+                
             return user
         except Exception as e:
             print("Error ", e)
