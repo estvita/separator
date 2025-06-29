@@ -1,15 +1,12 @@
 from allauth.account.signals import email_confirmed, email_confirmation_sent
 from django.dispatch import receiver
-from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from django.conf import settings
 
 from thoth.users.tasks import create_user_task
-
-from .models import Message
 from thoth.waweb.tasks import send_message_task
 
-User = get_user_model()
+from .models import Message
 
 
 @receiver(email_confirmation_sent)
@@ -33,5 +30,12 @@ def email_confirmed_handler(request, email_address, **kwargs):
 
     # Создаём токен после подтверждения почты
     Token.objects.get_or_create(user=user)
+
     if settings.CHATWOOT_ENABLED:
-        create_user_task.delay(email, user.id)
+        from thoth.chatwoot.models import User
+        try:
+            chatwoot_user = User.objects.filter(owner=user).first()
+            if not chatwoot_user:
+                create_user_task.delay(email, user.id)
+        except Exception as e:
+            print("chatwoot_user error", e)
