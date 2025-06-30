@@ -197,15 +197,7 @@ def app_install(request):
         return redirect("portals")
 
     proto = "https" if protocol == "1" else "http"
-
-    if not request.user.is_authenticated:
-        try:
-            owner = get_owner(request)
-            login(request, owner, backend='django.contrib.auth.backends.ModelBackend')
-        except Exception as e:
-            print("Error ", e)
-            pass
-
+    owner = get_owner(request)
     api_key, _ = Token.objects.get_or_create(user=app.owner)
 
     payload = {
@@ -250,8 +242,10 @@ def app_settings(request):
                     login(request, owner, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception as e:
                     return redirect("portals")
-            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
-            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=request.user)
+            else:
+                owner = request.user
+            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
+            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
             try:
                 app = App.objects.get(id=app_id)
                 return redirect(app.page_url)

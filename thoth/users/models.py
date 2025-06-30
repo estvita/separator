@@ -20,9 +20,9 @@ class User(AbstractUser):
     """
 
     # First and last name do not cover name patterns around the globe
-    name = CharField(_("Name of User"), blank=True, max_length=255)
-    first_name = CharField(_("First Name"), blank=True, max_length=150)
-    last_name = CharField(_("Last Name"), blank=True, max_length=150)
+    name = CharField(_("Name of User"), blank=True, null=True, max_length=255)
+    first_name = CharField(_("First Name"), blank=True, null=True, max_length=150)
+    last_name = CharField(_("Last Name"), blank=True, null=True, max_length=150)
     email = EmailField(_("email address"), unique=True)
     phone_number = PhoneNumberField(blank=True, null=True)
     integrator = models.BooleanField(default=False)
