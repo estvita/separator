@@ -127,7 +127,7 @@ def get_owner(request):
         response.raise_for_status()
         user_id = response.json().get("result").get("user_id")
     except requests.RequestException as e:
-        return redirect("portals")
+        return None
 
     portal, created = Bitrix.objects.get_or_create(
         member_id=member_id,
@@ -138,7 +138,7 @@ def get_owner(request):
         }
     )
     if int(portal.user_id) != int(user_id):
-        return redirect("portals")
+        return None
     
     if portal.owner:
         return portal.owner
