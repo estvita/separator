@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authtoken.models import Token
@@ -164,7 +165,9 @@ def get_owner(request):
             portal.save()
 
             if user_email and settings.CHATWOOT_ENABLED:
-                create_user_task.delay(user_email, user.id)
+                def run_task():
+                    create_user_task.delay(user_email, user.id)
+                transaction.on_commit(run_task)
                 
             return user
         except Exception as e:
