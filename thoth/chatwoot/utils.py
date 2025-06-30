@@ -130,6 +130,9 @@ def delete_bot(user, bot_id):
 
 
 def create_chatwoot_user(email, user):
+    chatwoot_user = User.objects.filter(owner=user).first()
+    if chatwoot_user:
+        raise Exception("chatwoot account already exists")
     chatwoot = Chatwoot.objects.get(id=CHATWOOT_ID)
     url = f"platform/api/v1/"
 

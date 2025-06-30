@@ -16,7 +16,7 @@ class Chatwoot(models.Model):
 
 
 class Account(models.Model):
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     id = models.CharField(primary_key=True, max_length=255)
 
     def __str__(self):
@@ -24,14 +24,13 @@ class Account(models.Model):
 
 
 class User(models.Model):
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     id = models.CharField(primary_key=True, max_length=255)
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True)
     access_token = models.CharField(max_length=500)
 
     def __str__(self):
         return self.id
-
 
 
 class Inbox(models.Model):
