@@ -6,7 +6,6 @@ from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authtoken.models import Token
@@ -20,7 +19,7 @@ from .models import AppInstance, Bitrix, VerificationCode, Line, App
 from thoth.decorators import login_message_required
 from thoth.users.tasks import create_user_task
 
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model, login, logout
 User = get_user_model()
 
 def link_portal(request, code):
@@ -122,11 +121,12 @@ def get_owner(request):
     member_id = data.get("member_id")
     auth_id = data.get("AUTH_ID")
     proto = "https" if protocol == "1" else "http"
+
     try:
         response = requests.get(f"https://oauth.bitrix24.tech/rest/app.info", params={"auth": auth_id})
         response.raise_for_status()
         user_id = response.json().get("result").get("user_id")
-    except requests.RequestException as e:
+    except requests.RequestException:
         return None
 
     portal, created = Bitrix.objects.get_or_create(
@@ -137,47 +137,54 @@ def get_owner(request):
             "protocol": proto,
         }
     )
+
     if int(portal.user_id) != int(user_id):
         return None
-    
-    if portal.owner:
-        return portal.owner
-    else:
-        if not request.user.is_authenticated:
-            try:
-                user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
-                user_data.raise_for_status()
-                user_data = user_data.json().get("result")
-                user_name = user_data.get("NAME")
-                user_last_name = user_data.get("LAST_NAME")
-                user_email = user_data.get("EMAIL")
-                user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
-                
-                user, created = User.objects.get_or_create(
-                    email=user_email,
-                    defaults={
-                        "name": f"{user_name} {user_last_name}".strip(),
-                        "first_name": user_name,
-                        "last_name": user_last_name,
-                        "phone_number": user_phone,
-                    }
-                )
-                portal.owner = user
-                portal.save()
 
-                if user_email and settings.CHATWOOT_ENABLED:
-                    def run_task():
-                        create_user_task.delay(user_email, user.id)
-                    transaction.on_commit(run_task)
-                    
-                return user
-            except Exception as e:
-                print("Error ", e)
-                return None   
+    if request.user.is_authenticated:
+        if portal.owner:
+            if portal.owner == request.user:
+                return request.user
+            else:
+                return None
         else:
             portal.owner = request.user
             portal.save()
             return request.user
+
+    if portal.owner:
+        return portal.owner
+    else:
+        try:
+            user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
+            user_data.raise_for_status()
+            user_data = user_data.json().get("result")
+            user_name = user_data.get("NAME")
+            user_last_name = user_data.get("LAST_NAME")
+            user_email = user_data.get("EMAIL")
+            user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
+            user, created = User.objects.get_or_create(
+                email=user_email,
+                defaults={
+                    "name": f"{user_name} {user_last_name}".strip(),
+                    "first_name": user_name,
+                    "last_name": user_last_name,
+                    "phone_number": user_phone,
+                }
+            )
+            portal.owner = user
+            portal.save()
+
+            if user_email and settings.CHATWOOT_ENABLED:
+                from django.db import transaction
+                def run_task():
+                    create_user_task.delay(user_email, user.id)
+                transaction.on_commit(run_task)
+
+            return user
+        except Exception as e:
+            print("Error", e)
+            return None
 
 
 @csrf_exempt
@@ -240,20 +247,26 @@ def app_settings(request):
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
+        
         elif placement == "DEFAULT":
+            try:
+                app = App.objects.get(id=app_id)
+            except Exception:
+                return redirect("portals")
+            app_url = app.page_url
             owner = get_owner(request)
+            if owner is None:
+                if request.user.is_authenticated:
+                    logout(request)
+                return redirect(app_url)
+            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
+            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
             if not request.user.is_authenticated:
                 try:
                     login(request, owner, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception as e:
                     return redirect("portals")
-            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
-            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
-            try:
-                app = App.objects.get(id=app_id)
-                return redirect(app.page_url)
-            except App.DoesNotExist:
-                return redirect("portals")
+            return redirect(app_url)
         else:
             return redirect("portals")
     elif request.method == "HEAD":
