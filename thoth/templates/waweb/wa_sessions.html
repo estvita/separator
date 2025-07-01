@@ -24,8 +24,8 @@
             <!-- Phone -->
             <td>
               {% if session.show_link %}
-                <a class="btn btn-secondary add-number" href="{% url 'send_message' session_id=session.session %}">
-                  {{ session.phone|default:"Подключить" }}
+                <a href="{% url 'send_message' session_id=session.session %}">
+                  {{ session.phone }}
                 </a>
               {% else %}
                   {{ session.phone }}
