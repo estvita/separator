@@ -24,7 +24,7 @@
             <!-- Phone -->
             <td>
               {% if session.show_link %}
-                <a href="{% url 'send_message' session_id=session.session %}">
+                <a class="btn btn-secondary add-number" href="{% url 'send_message' session_id=session.session %}">
                   {{ session.phone|default:"Подключить" }}
                 </a>
               {% else %}
@@ -37,7 +37,7 @@
               {% if session.show_link %}
                 {{ session.status }}
               {% else %}
-                <a href="{% url 'qr_code_page' session_id=session.session %}">Подключить</a>
+                <a class="btn btn-secondary add-number" href="{% url 'qr_code_page' session_id=session.session %}">Подключить</a>
               {% endif %}
             </td>
             <!-- Expiry Date -->
@@ -86,7 +86,20 @@
   {% endif %}
 
   <!-- Форма для добавления нового номера -->
-  <a href="{% url 'connect_number' %}" class="btn btn-primary">Добавить номер</a>
+  <a href="{% url 'connect_number' %}" class="btn btn-primary add-number">Добавить номер</a>
 
-</div>
+  </div>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.add-number').forEach(btn => {
+      btn.addEventListener('click', function(e){
+        btn.textContent = 'Ожидайте...';
+        btn.classList.add('disabled');
+        btn.setAttribute('aria-disabled', 'true');
+        btn.onclick = function(){ return false; };
+      });
+    });
+  });
+  </script>
+
 {% endblock content %}
