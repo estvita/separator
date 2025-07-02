@@ -132,7 +132,7 @@ def connect_number(request, session_id=None):
     try:
         img_data = create_instance(new_session)
         if img_data:
-            request.session['qr_image'] = img_data
+            request.session['qr_image'] = img_data       
         return redirect('qr_code_page', session_id=session_id)
     except Exception as e:
         print("request error:", e)
@@ -193,6 +193,8 @@ def qr_code_page(request, session_id):
         redis_client.set(f"public_qr:{session_id}", public_id, ex=LINK_TTL)
         redis_client.set(f"public_qr:{public_id}", str(session_id), ex=LINK_TTL)    
 
+    message = Message.objects.filter(code="waweb_instruction").first()
+    messages.info(request, message.message)
     return render(request, 'waweb/qr_code.html', {
         'qr_image': qr_image,
         'request': request,
