@@ -141,20 +141,13 @@ def get_owner(request):
     if int(portal.user_id) != int(user_id):
         return None
 
-    if request.user.is_authenticated:
-        if portal.owner:
-            if portal.owner == request.user:
-                return request.user
-            else:
-                return None
-        else:
-            portal.owner = request.user
-            portal.save()
-            return request.user
-
     if portal.owner:
         return portal.owner
     else:
+        if request.user.is_authenticated:
+            portal.owner = request.user
+            portal.save()
+            return request.user
         try:
             user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
             user_data.raise_for_status()
@@ -255,18 +248,22 @@ def app_settings(request):
                 return redirect("portals")
             app_url = app.page_url
             owner = get_owner(request)
+            
             if owner is None:
+                return redirect(app_url)
+            
+            should_login = not request.user.is_authenticated or request.user != owner
+            if should_login:
                 if request.user.is_authenticated:
                     logout(request)
-                return redirect(app_url)
-            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
-            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
-            if not request.user.is_authenticated:
                 try:
                     login(request, owner, backend='django.contrib.auth.backends.ModelBackend')
-                except Exception as e:
+                except Exception:
                     return redirect("portals")
-            return redirect(app_url)
+
+            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
+            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
+            return redirect(f"{app_url}?domain={domain}")
         else:
             return redirect("portals")
     elif request.method == "HEAD":

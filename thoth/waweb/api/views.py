@@ -78,12 +78,10 @@ class EventsHandler(GenericViewSet):
 
                 
                 # создание Inbox в чатвут
-                if not settings.CHATWOOT_ENABLED:
-                    return Response({'message': 'event processed. close'})
-                
-                if not session.inbox:
+                if settings.CHATWOOT_ENABLED and not session.inbox:
                     new_inbox.delay(sessionid, number)
-
+                    return Response({'event processed.'})
+                
 
         elif event in ["messages.upsert", "send.message"]:
             if session.date_end and timezone.now() > session.date_end:

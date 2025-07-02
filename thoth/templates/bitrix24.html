@@ -8,6 +8,7 @@
         <thead>
           <tr>
             <th>Портал</th>
+            <th>Владелец</th>
             <th>Приложение (статус)</th>
           </tr>
         </thead>
@@ -15,7 +16,10 @@
           {% for portal in user_portals %}
             <tr>
               <td>
-                <a href="https://{{ portal.domain }}" target="_blank">{{ portal.domain }}</a>
+                <a href="{{ portal.protocol }}://{{ portal.domain }}" target="_blank">{{ portal.domain }}</a>
+              </td>
+              <td>
+                <a href="{{ portal.protocol }}://{{ portal.domain }}/company/personal/user/{{ portal.user_id }}/" target="_blank">{{ portal.user_id }}</a>
               </td>
               <td>
                 {% for instance in portal.installations.all %}
