@@ -71,7 +71,7 @@ class BitrixAdmin(admin.ModelAdmin):
     inlines = [AppInstanceInline]
     list_display = ("domain", "owner", "license_expired")
     search_fields = ("domain",)
-    readonly_fields = ("domain", "user_id", "member_id")
+    readonly_fields = ("domain", "member_id")
     list_filter = ('license_expired',)
     list_per_page = 30
 

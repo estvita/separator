@@ -120,13 +120,30 @@ def get_owner(request):
 
     member_id = data.get("member_id")
     auth_id = data.get("AUTH_ID")
+    refresh_id = data.get("REFRESH_ID")
     proto = "https" if protocol == "1" else "http"
 
     try:
         response = requests.get(f"https://oauth.bitrix24.tech/rest/app.info", params={"auth": auth_id})
         response.raise_for_status()
-        user_id = response.json().get("result").get("user_id")
+        app_data = response.json().get("result")
+        user_id = app_data.get("user_id")
+        client_id = app_data.get("client_id")
     except requests.RequestException:
+        return None
+    
+    try:
+        profile = requests.post(f"{proto}://{domain}/rest/profile", json={"auth": auth_id})
+        profile_data = profile.json().get("result")
+        is_admin = profile_data.get("ADMIN")
+        if not is_admin:
+            return None
+    except Exception as e:
+        return None
+    
+    try:
+        app = App.objects.get(client_id=client_id)
+    except Exception as e:
         return None
 
     portal, created = Bitrix.objects.get_or_create(
@@ -138,8 +155,14 @@ def get_owner(request):
         }
     )
 
-    if int(portal.user_id) != int(user_id):
-        return None
+    app_instance = AppInstance.objects.filter(portal=portal, app=app).first()
+    if app_instance:
+        app_instance.access_token = auth_id
+        app_instance.refresh_token = refresh_id
+        app_instance.save()
+
+    # if int(portal.user_id) != int(user_id):
+    #     return None
 
     if portal.owner:
         return portal.owner
@@ -250,6 +273,7 @@ def app_settings(request):
             owner = get_owner(request)
             
             if owner is None:
+                logout(request)
                 return redirect(app_url)
             
             should_login = not request.user.is_authenticated or request.user != owner
@@ -259,7 +283,7 @@ def app_settings(request):
                 try:
                     login(request, owner, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception:
-                    return redirect("portals")
+                    return redirect(app_url)
 
             AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
             Line.objects.filter(portal=portal, owner__isnull=True).update(owner=owner)
