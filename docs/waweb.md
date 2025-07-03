@@ -1,4 +1,4 @@
-**## Connecting WhatsApp Web to Bitrix24 (grey integration)**
+![image](https://github.com/user-attachments/assets/370b3d91-dd1c-4be5-8f22-956fbbe09771)**## Connecting WhatsApp Web to Bitrix24 (grey integration)**
 
 The [Evolution API](https://github.com/EvolutionAPI/evolution-api) is used for the connection.
 
@@ -12,6 +12,7 @@ Celery is required for the integration service.
 WEBHOOK_GLOBAL_ENABLED=true
 WEBHOOK_GLOBAL_URL='http://thoth.url/api/waweb/?api-key=XXXX'
 AUTHENTICATION_API_KEY=YYY
+CONFIG_SESSION_PHONE_VERSION=2.3000.1023204200
 ```
 
 where
