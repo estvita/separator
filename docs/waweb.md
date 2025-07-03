@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/370b3d91-dd1c-4be5-8f22-956fbbe09771)**## Connecting WhatsApp Web to Bitrix24 (grey integration)**
+**## Connecting WhatsApp Web to Bitrix24 (grey integration)**
 
 The [Evolution API](https://github.com/EvolutionAPI/evolution-api) is used for the connection.
 
