@@ -194,7 +194,8 @@ def qr_code_page(request, session_id):
         redis_client.set(f"public_qr:{public_id}", str(session_id), ex=LINK_TTL)    
 
     message = Message.objects.filter(code="waweb_instruction").first()
-    messages.info(request, message.message)
+    if message:
+        messages.info(request, message.message)
     return render(request, 'waweb/qr_code.html', {
         'qr_image': qr_image,
         'request': request,
