@@ -55,7 +55,7 @@ class AppInstanceAdmin(admin.ModelAdmin):
                        "auth_status", "storage_id", "access_token", 
                        "refresh_token", "application_token", 
                        "status", "attempts")
-    list_filter = ("app", "status")
+    list_filter = ("app", "status", "auth_status")
     list_per_page = 30
 
     def portal_link(self, obj):

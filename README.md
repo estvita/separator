@@ -24,7 +24,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements/production.txt
 
-cp docs/example/env_example .env nano .env replace ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
+cp docs/example/env_example .env nano .env 
+
+replace ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
 Replace the value of DATABASE_URL with your own (the psql database must be created beforehand)
 
 python manage.py migrate 
@@ -32,6 +34,7 @@ python manage.py collectstatic
 python manage.py createsuperuser
 
 python manage.py runserver 0.0.0.0:8000 (for testing and debugging)
+
 ```
 
 
