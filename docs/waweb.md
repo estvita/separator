@@ -12,6 +12,7 @@ Celery is required for the integration service.
 WEBHOOK_GLOBAL_ENABLED=true
 WEBHOOK_GLOBAL_URL='http://thoth.url/api/waweb/?api-key=XXXX'
 AUTHENTICATION_API_KEY=YYY
+CONFIG_SESSION_PHONE_VERSION=2.3000.1023204200
 ```
 
 where
