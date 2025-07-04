@@ -1,9 +1,5 @@
 DATABASE_URL=postgres://postgres:12345678@127.0.0.1:5432/thoth
-DJANGO_ADMIN_URL=admin/
-CELERY_BROKER_URL=redis://localhost:6379/0
-REDIS_URL=redis://redis:6379/0
 CSRF_TRUSTED_ORIGINS=https://example.com
-DJANGO_ALLOWED_HOSTS=127.0.0.1,example.com
 DJANGO_EMAIL_HOST=smtp.gmail.com
 DJANGO_EMAIL_PORT=465
 DJANGO_EMAIL_USE_TLS=True
