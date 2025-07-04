@@ -45,18 +45,42 @@ CONNECTOR_EVENTS = [
 
 
 # Регистрация SMS-провайдера
-def messageservice_add(appinstance, phone, line, api_key, service):
-    url = appinstance.app.site
-    payload = {
-        "CODE": f"THOTH_{phone}_{line}",
-        "NAME": f"gulin.kz ({phone})",
-        "TYPE": "SMS",
-        "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
-    }
-    try:
-        return call_method(appinstance, "messageservice.sender.add", payload)
-    except Exception as e:
-        return {"error": str(e)}
+def messageservice_add(request, app_instance, entity, service):
+    if hasattr(entity, 'sms_service'):
+        owner = app_instance.app.owner
+        if not hasattr(owner, "auth_token"):
+            entity.sms_service = False
+            entity.save()
+            messages.error(request, f"API key not found for user {owner}. Операция прервана.")
+            return
+        api_key = owner.auth_token.key
+        phone = re.sub(r'\D', '', entity.phone)
+        code = f"gulin.kz_{phone}"
+        if entity.sms_service:
+            try:
+                all_providers = call_method(app_instance, "messageservice.sender.list", {})
+                if "result" in all_providers:
+                    if code in all_providers.get("result"):
+                        return
+            except Exception as e:
+                return {"error": str(e)}
+            url = app_instance.app.site
+            payload = {
+                "CODE": code,
+                "NAME": code,
+                "TYPE": "SMS",
+                "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
+            }
+            try:
+                return call_method(app_instance, "messageservice.sender.add", payload)
+            except Exception as e:
+                messages.error(request, f"Ошибка подключения SMS канала: {e}")
+                return {"error": str(e)}
+        else:
+            try:
+                call_method(app_instance, "messageservice.sender.delete", {"CODE": code})
+            except Exception as e:
+                messages.warning(request, f"Ошибка при удалении SMS канала: {e}")    
 
 
 def connect_line(request, line_id, entity, connector, redirect_to):
@@ -98,6 +122,7 @@ def connect_line(request, line_id, entity, connector, redirect_to):
                 "ACTIVE": 1,
             }
             call_method(app_instance, "imconnector.activate", activate_payload)
+            messageservice_add(request, app_instance, entity, connector.service)
             messages.success(request, f"Создана и подключена линия {new_line_id}")
         else:
             messages.error(request, f"Ошибка при создании линии: {result}")
@@ -115,24 +140,7 @@ def connect_line(request, line_id, entity, connector, redirect_to):
             return redirect(redirect_to)
         
         app_instance = line.app_instance
-        if hasattr(entity, 'sms_service'):
-            owner = app_instance.app.owner
-            if not hasattr(owner, "auth_token"):
-                entity.sms_service = False
-                entity.save()
-                messages.error(request, f"API key not found for user {owner}. Операция прервана.")
-                return redirect(redirect_to)
-            api_key = owner.auth_token.key
-            phone = re.sub(r'\D', '', entity.phone)
-            if entity.sms_service:
-                resp = messageservice_add(app_instance, phone, line.line_id, api_key, connector.service)
-                # if isinstance(resp, dict) and "error" in resp:
-                #     messages.error(request, f"Ошибка подключения SMS канала: {resp['error']}")
-            else:
-                try:
-                    call_method(app_instance, "messageservice.sender.delete", {"CODE": f"THOTH_{phone}_{line.line_id}"})
-                except Exception as e:
-                    messages.warning(request, f"Ошибка при удалении SMS канала: {e}")
+        messageservice_add(request, app_instance, entity, connector.service)
         
         if entity.line == line:
             messages.success(request, "Выбрана та же линия")
@@ -281,10 +289,10 @@ def sms_processor(request):
     appinstance = AppInstance.objects.get(application_token=application_token)
     message_body = data.get("message_body")
     code = data.get("code", {})
+    sender = code.split('_')[-1]
     phones = []
     message_to = re.sub(r'\D', '', data.get("message_to"))
     phones.append(message_to)
-    line = re.search(r"_(\d+)$", code).group(1)
 
     status_data = {
         "CODE": code,
@@ -296,7 +304,7 @@ def sms_processor(request):
 
     # начать диалог в открытых линиях
     service = request.query_params.get('service')
-    bitrix_tasks.message_add.delay(appinstance.id, line, message_to, message_body, f"thoth_{service}")
+    line = None
 
     # Messages from SMS gate
     if service == "waba":
@@ -317,20 +325,22 @@ def sms_processor(request):
             "template": {"name": template_name, "language": {"code": language}},
         }
 
-        waba.send_message(appinstance, message, line, phones)
+        # waba.send_message(appinstance, message, line, phones)
     
     elif service == "waweb":
-        sender  = re.search(r'_(\d+)_', code).group(1)
         try:
             wa = Session.objects.get(phone=sender)
+            line = wa.line
             resp = waweb.send_message(wa.session, message_to, message_body)
             if resp.status_code == 201:
                 waweb.store_msg(resp)
         except wa.DoesNotExist:
-            raise ValueError(f"No Session found for phone number: {sender}")
+            raise ValueError(f"No Session found for phone number: {code}")
         except Exception as e:
             print(f"Failed to send message to {message_to}: {e}")
 
+    if line:
+        bitrix_tasks.message_add.delay(appinstance.id, line.line_id, message_to, message_body, line.connector.code)
     return Response({"status": "message processed"}, status=status.HTTP_200_OK)
 
 
