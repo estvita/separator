@@ -48,7 +48,7 @@ def store_msg(resp):
 def send_message(session_id, recipient, content, cont_type="string"):
     session = Session.objects.get(session=session_id)
     server = session.server
-    headers = {"apikey": server.api_key}
+    headers = {"apikey": session.apikey}
     
     cleaned = re.sub(r'\D', '', recipient)
     

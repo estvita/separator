@@ -132,18 +132,6 @@ def get_owner(request):
     except requests.RequestException:
         return None
     
-    try:
-        profile = requests.post(f"{proto}://{domain}/rest/profile", json={"auth": auth_id})
-        profile_data = profile.json().get("result")
-        is_admin = profile_data.get("ADMIN")
-    except Exception as e:
-        return None
-    
-    try:
-        app = App.objects.get(client_id=client_id)
-    except Exception as e:
-        return None
-
     portal, created = Bitrix.objects.get_or_create(
         member_id=member_id,
         defaults={
@@ -152,6 +140,18 @@ def get_owner(request):
             "protocol": proto,
         }
     )
+    
+    try:
+        app = App.objects.get(client_id=client_id)
+    except Exception as e:
+        return None
+    
+    try:
+        profile = requests.post(f"{proto}://{domain}/rest/profile", json={"auth": auth_id})
+        profile_data = profile.json().get("result")
+        is_admin = profile_data.get("ADMIN")
+    except Exception as e:
+        return None
 
     app_instance = AppInstance.objects.filter(portal=portal, app=app).first()
     if app_instance and is_admin:
