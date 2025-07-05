@@ -136,8 +136,6 @@ def get_owner(request):
         profile = requests.post(f"{proto}://{domain}/rest/profile", json={"auth": auth_id})
         profile_data = profile.json().get("result")
         is_admin = profile_data.get("ADMIN")
-        if not is_admin:
-            return None
     except Exception as e:
         return None
     
@@ -156,13 +154,13 @@ def get_owner(request):
     )
 
     app_instance = AppInstance.objects.filter(portal=portal, app=app).first()
-    if app_instance:
+    if app_instance and is_admin:
         app_instance.access_token = auth_id
         app_instance.refresh_token = refresh_id
         app_instance.save()
 
-    # if int(portal.user_id) != int(user_id):
-    #     return None
+    if int(portal.user_id) != int(user_id):
+        return None
 
     if portal.owner:
         return portal.owner
