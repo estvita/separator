@@ -419,7 +419,7 @@ def event_processor(request):
                     return Response({"message": "App not found."})
                 
                 owner_user = request.user if auth_status == "L" else None
-                
+               
                 portal, created = Bitrix.objects.get_or_create(
                     member_id=member_id,
                     defaults={
@@ -427,15 +427,6 @@ def event_processor(request):
                         "owner": owner_user,
                     }
                 )
-
-                try:
-                    b24_user = get_b24_user(app, portal, access_token, refresh_token)
-                    if owner_user and not b24_user.owner:
-                        b24_user.owner = owner_user
-                        b24_user.save()
-                except Exception as e:
-                    pass
-
                 # Определяем владельца для AppInstance
                 appinstance_owner = (
                     portal.owner
@@ -452,6 +443,14 @@ def event_processor(request):
                 }
 
                 appinstance = AppInstance.objects.create(**appinstance_data)
+
+                try:
+                    b24_user = get_b24_user(app, portal, access_token, refresh_token)
+                    if owner_user and not b24_user.owner:
+                        b24_user.owner = owner_user
+                        b24_user.save()
+                except Exception as e:
+                    pass
 
                 # Получаем storage_id и сохраняем его
                 storage_data = call_method(appinstance, "disk.storage.getforapp", {})
