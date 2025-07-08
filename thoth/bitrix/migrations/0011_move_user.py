@@ -10,10 +10,6 @@ def move_users(apps, schema_editor):
         user_id = getattr(bitrix_obj, 'user_id', None)
         owner = bitrix_obj.owner
 
-        appinstance = AppInstance.objects.filter(portal=bitrix_obj).first()
-        access_token = getattr(appinstance, 'access_token', '') if appinstance else ''
-        refresh_token = getattr(appinstance, 'refresh_token', '') if appinstance else ''
-
         if user_id is not None:
             user = User.objects.create(
                 user_id=user_id,
@@ -22,12 +18,15 @@ def move_users(apps, schema_editor):
                 owner=owner,
                 bitrix=bitrix_obj,
             )
-            Credential.objects.create(
-                user=user,
-                app_instance=appinstance,
-                access_token=access_token,
-                refresh_token=refresh_token,
-            )
+            for appinstance in AppInstance.objects.filter(portal=bitrix_obj):
+                access_token = getattr(appinstance, 'access_token', '')
+                refresh_token = getattr(appinstance, 'refresh_token', '')
+                Credential.objects.create(
+                    user=user,
+                    app_instance=appinstance,
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                )
 
 class Migration(migrations.Migration):
 
