@@ -4,6 +4,7 @@ import logging
 import re
 import uuid
 import redis
+import requests
 from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
@@ -23,7 +24,9 @@ import thoth.waweb.utils as waweb
 import thoth.waweb.tasks as waweb_tasks
 
 from .crest import call_method
-from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector
+from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector, Credential
+from .models import User as B24_user
+
 import thoth.bitrix.tasks as bitrix_tasks
 
 
@@ -42,6 +45,45 @@ CONNECTOR_EVENTS = [
     "ONIMCONNECTORLINEDELETE",
     "ONIMCONNECTORSTATUSDELETE",
 ]
+
+
+def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
+    try:
+        profile = requests.post(f"{portal.protocol}://{portal.domain}/rest/profile", json={"auth": auth_id})
+        profile_data = profile.json().get("result")
+        admin = profile_data.get("ADMIN")
+        user_id = profile_data.get("ID")
+    except Exception as e:
+        raise
+    
+    b24_user, user_created = B24_user.objects.get_or_create(
+        bitrix=portal,
+        user_id=user_id,
+        defaults={
+            "admin": admin
+        }
+    )
+
+    if not user_created:
+        b24_user.admin = admin
+        b24_user.active = True
+        b24_user.save()
+
+    app_instance = AppInstance.objects.filter(portal=portal, app=app).first()
+    if app_instance:
+        cred, created = Credential.objects.get_or_create(
+            app_instance=app_instance,
+            user=b24_user,
+            defaults={
+                "access_token": auth_id,
+                "refresh_token": refresh_id,
+            }
+        )
+        if not created:
+            cred.access_token = auth_id
+            cred.refresh_token = refresh_id
+            cred.save(update_fields=["access_token", "refresh_token"])
+    return b24_user
 
 
 # Регистрация SMS-провайдера
@@ -286,7 +328,9 @@ def process_placement(request):
 def sms_processor(request):
     data = request.data
     application_token = data.get("auth[application_token]")
-    appinstance = AppInstance.objects.get(application_token=application_token)
+    app_instance = AppInstance.objects.filter(application_token=application_token).first()
+    if not app_instance:
+        return HttpResponse("app not found")
     message_body = data.get("message_body")
     code = data.get("code", {})
     sender = code.split('_')[-1]
@@ -300,7 +344,7 @@ def sms_processor(request):
         "STATUS": "delivered"
     }
 
-    bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
+    bitrix_tasks.call_api.delay(app_instance.id, "messageservice.message.status.update", status_data)
 
     # начать диалог в открытых линиях
     service = request.query_params.get('service')
@@ -340,7 +384,7 @@ def sms_processor(request):
             print(f"Failed to send message to {message_to}: {e}")
 
     if line:
-        bitrix_tasks.message_add.delay(appinstance.id, line.line_id, message_to, message_body, line.connector.code)
+        bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
     return Response({"status": "message processed"}, status=status.HTTP_200_OK)
 
 
@@ -356,9 +400,8 @@ def event_processor(request):
         application_token = data.get("auth[application_token]")
         member_id = data.get("auth[member_id]")
         api_key = request.query_params.get("api-key")
-        app_id = request.query_params.get("app-id")
 
-        # Проверка наличия приложения в базе данных
+        # Проверка наличия установки
         try:
             appinstance = AppInstance.objects.get(application_token=application_token)
             if not appinstance.portal.member_id:
@@ -366,35 +409,44 @@ def event_processor(request):
                 appinstance.portal.save()
 
         except AppInstance.DoesNotExist:
-            if event == "ONAPPINSTALL":
+            if event == "ONAPPINSTALL":                
+                
+                app_id = request.query_params.get("app-id")
                 # Получение приложения по app_id
                 try:
                     app = App.objects.get(id=app_id)
                 except App.DoesNotExist:
                     return Response({"message": "App not found."})
-
+                
+                owner_user = request.user if auth_status == "L" else None
+                
                 portal, created = Bitrix.objects.get_or_create(
                     member_id=member_id,
                     defaults={
                         "domain": domain,
-                        "user_id": user_id,
-                        "owner": request.user if auth_status == "L" else None,
+                        "owner": owner_user,
                     }
                 )
+
+                try:
+                    b24_user = get_b24_user(app, portal, access_token, refresh_token)
+                    if owner_user and not b24_user.owner:
+                        b24_user.owner = owner_user
+                        b24_user.save()
+                except Exception as e:
+                    pass
 
                 # Определяем владельца для AppInstance
                 appinstance_owner = (
                     portal.owner
                     if portal.owner
-                    else (request.user if auth_status == "L" else None)
+                    else owner_user
                 )
 
                 appinstance_data = {
                     "app": app,
                     "portal": portal,
                     "auth_status": auth_status,
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
                     "application_token": application_token,
                     "owner": appinstance_owner,
                 }

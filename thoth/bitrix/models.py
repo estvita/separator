@@ -52,12 +52,25 @@ class Bitrix(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
-    user_id = models.CharField(max_length=255, blank=True, null=True)
     member_id = models.CharField(max_length=255, unique=True, blank=True, null=True)
     license_expired = models.BooleanField(default=False)
 
     def __str__(self):
         return self.domain
+
+class User(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, 
+                              on_delete=models.CASCADE, related_name='bitrix_owners',
+                              blank=True, null=True)
+    bitrix = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name='users',
+        blank=True,
+        null=True)
+    user_id = models.PositiveIntegerField()
+    admin = models.BooleanField(default=False)
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.user_id} ({self.bitrix.domain})"
 
 
 class AppInstance(models.Model):
@@ -70,8 +83,6 @@ class AppInstance(models.Model):
         Bitrix, on_delete=models.CASCADE, related_name="installations", blank=True, null=True
     )
     auth_status = models.CharField(max_length=1)
-    access_token = models.CharField(max_length=255, blank=True)
-    refresh_token = models.CharField(max_length=255, blank=True)
     application_token = models.CharField(max_length=255, blank=True)
     storage_id = models.CharField(max_length=255, blank=True)
     status = models.IntegerField(default=0, blank=True)
@@ -81,8 +92,19 @@ class AppInstance(models.Model):
         return f"{self.app.name} on {self.portal.domain}"
 
 
+class Credential(models.Model):
+    app_instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE, related_name='credentials',
+                               blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='credentials',
+                             blank=True, null=True)
+    access_token = models.CharField(max_length=255, blank=True)
+    refresh_token = models.CharField(max_length=255, blank=True)
+
+
 class AdminMessage(models.Model):
-    app_instance = models.ManyToManyField(AppInstance, related_name='messages')
+    app_instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE, related_name='messages',
+                                     null=True, blank=True)
+    app_users = models.ManyToManyField(User, related_name='messages')
     message = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
 

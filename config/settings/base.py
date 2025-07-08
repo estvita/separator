@@ -25,7 +25,9 @@ VENDOR_BITRIX_INSTANCE = env("VENDOR_BITRIX_INSTANCE", default="")
 # поле для проверки контакта из маркета Б24
 FROM_MARKET_FIELD = env("FROM_MARKET_FIELD", default="UF_CRM_FROM_MARKET")
 
+BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
 BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
+
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 
 VOICE_BOT_DOMAIN = env("VOICE_BOT_DOMAIN", default="exten.bot")
@@ -81,7 +83,6 @@ DJANGO_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.sites",
-    "django.contrib.flatpages",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # "django.contrib.humanize", # Handy template tags
@@ -100,7 +101,6 @@ THIRD_PARTY_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "drf_spectacular",
-    # "ckeditor",
     "phonenumber_field",
 ]
 
@@ -170,7 +170,6 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]

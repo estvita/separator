@@ -8,7 +8,6 @@ class PortalSerializer(serializers.ModelSerializer):
         model = Bitrix
         fields = [
             "owner",
-            "user_id",
             "domain",
         ]
 

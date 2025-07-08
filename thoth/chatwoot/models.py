@@ -24,7 +24,7 @@ class Account(models.Model):
 
 
 class User(models.Model):
-    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='chatwoot_owners')
     id = models.CharField(primary_key=True, max_length=255)
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True)
     access_token = models.CharField(max_length=500)
