@@ -8,7 +8,7 @@ from django.conf import settings
 from thoth.waweb.models import Session
 
 
-@shared_task
+@shared_task(queue='waweb')
 def send_message_task(session_id, recipients, content, cont_type="string", from_web=False):
     if cont_type == "media":
         content = utils.download_file(content)
@@ -18,7 +18,7 @@ def send_message_task(session_id, recipients, content, cont_type="string", from_
             utils.store_msg(resp)
 
 
-@shared_task
+@shared_task(queue='waweb')
 def delete_sessions(days=None):
     now = timezone.now()
     filters = Q((Q(phone__isnull=True) | Q(phone='')) & Q(date_end__lt=now))

@@ -33,7 +33,9 @@
             "request": "launch",
             "module": "celery",
             "console": "integratedTerminal",
-            "args": ["-A", "config.celery_app", "worker", "-l", "info", "-c", "3"],
+            "args": ["-A", "config.celery_app", "worker", "-l", 
+                     "info", "-c", "3",
+                     "-Q", "bitrix,olx,waweb,waba,bot"],
             "python": "${workspaceFolder}/.venv/bin/python",
         },
         {

@@ -14,7 +14,7 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 FROM_MARKET_FIELD = settings.FROM_MARKET_FIELD
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=5)
+@shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def call_api(self, id, method, payload):
     try:
         appinstance = AppInstance.objects.get(id=id)
@@ -23,7 +23,7 @@ def call_api(self, id, method, payload):
         raise self.retry(exc=exc)
 
 
-@shared_task
+@shared_task(queue='bitrix')
 def get_app_info():
     app_instances = AppInstance.objects.all()
     for app_instance in app_instances:
@@ -31,7 +31,7 @@ def get_app_info():
             call_api.delay(app_instance.id, "app.info", {})
 
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=5)
+@shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def send_messages(self, app_instance_id, user_phone, text, connector,
                   line, sms=False, pushName=None,
                   message_id=None, attachments=None, profilepic_url=None,
@@ -86,7 +86,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
 
 
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=5)
+@shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def message_add(self, app_instance_id, line_id, user_phone, text, connector):
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
@@ -134,7 +134,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector):
     send_messages.delay(app_instance_id, user_phone, text, connector, line_id, True)
 
 
-@shared_task
+@shared_task(queue='bitrix')
 def create_deal(app_instance_id, vendor_inst_id, app_name):
     app_instance = AppInstance.objects.get(id=app_instance_id)
     try:

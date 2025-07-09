@@ -15,7 +15,7 @@ from .utils import deactivate_task
 logger = logging.getLogger("django")
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-@shared_task
+@shared_task(queue='olx')
 def refresh_token(olx_user_id):
     user = OlxUser.objects.get(olx_id=olx_user_id)
     olx_app = user.olxapp
@@ -45,7 +45,7 @@ def refresh_token(olx_user_id):
     return get_token
 
 
-@shared_task
+@shared_task(queue='olx')
 def refresh_tokens():
     accounts = OlxUser.objects.all()
     for account in accounts:
@@ -54,7 +54,7 @@ def refresh_tokens():
         refresh_token.delay(account.olx_id)
 
 
-@shared_task
+@shared_task(queue='olx')
 def send_message(chat_id, text, files=None):
     threadid, olx_user_id, _ = chat_id.split("-")
     user = OlxUser.objects.get(olx_id=olx_user_id)
@@ -87,7 +87,7 @@ def send_message(chat_id, text, files=None):
     return response.json()
 
 
-@shared_task
+@shared_task(queue='olx')
 def get_threads(olx_user_id):
     try:
         user = OlxUser.objects.get(olx_id=olx_user_id)
