@@ -15,9 +15,19 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 + Redis
 
 ```
+
 cd /opt
 git clone https://github.com/estvita/thoth
 cd thoth
+
+sudo cp docs/example/celery_worker.service /etc/systemd/system/celery_worker.service
+sudo cp docs/example/celery_beat.service /etc/systemd/system/celery_beat.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable celery_worker.service
+sudo systemctl enable celery_beat.service
+sudo systemctl start celery_worker.service
+sudo systemctl start celery_beat.service
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -40,13 +50,15 @@ python manage.py runserver 0.0.0.0:8000   # для тестирования и �
 
 Модуль [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-file#url-schema) позволяет подключать различные базы. См. документацию по ссылке.
 
+
 **## Обновление**
 ```
 cd /opt/thoth
+git  pull
 source .venv/bin/activate
-git pull
 python manage.py migrate
-systemctl restart thoth
+deactivate
+sudo systemctl restart thoth
 ```
 
 **## Прокси-сервер**

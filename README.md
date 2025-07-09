@@ -17,8 +17,18 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 + Redis
 
 ```
-cd /opt git clone https://github.com/estvita/thoth
+cd /opt 
+git clone https://github.com/estvita/thoth
 cd thoth
+
+sudo cp docs/example/celery_worker.service /etc/systemd/system/celery_worker.service
+sudo cp docs/example/celery_beat.service /etc/systemd/system/celery_beat.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable celery_worker.service
+sudo systemctl enable celery_beat.service
+sudo systemctl start celery_worker.service
+sudo systemctl start celery_beat.service
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -37,7 +47,6 @@ python manage.py runserver 0.0.0.0:8000 (for testing and debugging)
 
 ```
 
-
 The default path to access the admin panel is /admin. To set your own path, change the DJANGO_ADMIN_URL variable in the .env file.
 
 ## Database
@@ -47,10 +56,11 @@ The [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-
 
 ```
 cd /opt/thoth
-source .venv/bin/activate
 git pull
+source .venv/bin/activate
 python manage.py migrate
-systemctl restart thoth
+deactivate
+sudo systemctl restart thoth
 ```
 
 
