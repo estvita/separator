@@ -12,12 +12,21 @@ from .models import AppInstance, Credential
 logger = logging.getLogger("django")
 
 
-def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted_refresh=False, verify=True):
+def call_method(appinstance: AppInstance, 
+                b24_method: str, 
+                data: dict, 
+                attempted_refresh=False, 
+                verify=True,
+                admin=None):
+    
     portal = appinstance.portal
-    admin_users = portal.users.filter(admin=True, active=True)
+    if admin is None:
+        active_users = portal.users.filter(active=True)
+    else:
+        active_users = portal.users.filter(admin=admin, active=True)
 
     last_exc = None
-    for b24_user in admin_users:
+    for b24_user in active_users:
         credential = b24_user.credentials.filter(app_instance=appinstance).first()
         if not credential:
             continue
@@ -89,7 +98,7 @@ def call_method(appinstance: AppInstance, b24_method: str, data: dict, attempted
     appinstance.save()
     if last_exc:
         raise last_exc
-    raise Exception("No active admin users for portal")
+    raise Exception("No active users for portal")
 
 
 def refresh_token(credential: Credential):

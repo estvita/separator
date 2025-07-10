@@ -121,7 +121,6 @@ class BitrixAdmin(admin.ModelAdmin):
     list_display = ("domain", "owner", "license_expired")
     search_fields = ("domain", "member_id")
     fields = ("protocol", "domain", "owner", "member_id", "license_expired")
-    readonly_fields = ("member_id", )
     list_filter = ('license_expired',)
     list_per_page = 30
 
