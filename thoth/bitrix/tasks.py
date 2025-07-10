@@ -37,6 +37,12 @@ def upd_refresh_token(period):
         if need_refresh and not credential.app_instance.portal.license_expired:
             refresh_token(credential)
 
+@shared_task(queue='bitrix')
+def get_app_info():
+    app_instances = AppInstance.objects.all()
+    for app_instance in app_instances:
+        if app_instance.attempts < settings.BITRIX_CHECK_APP_ATTEMTS:
+            call_api.delay(app_instance.id, "app.info", {})
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def send_messages(self, app_instance_id, user_phone, text, connector,
