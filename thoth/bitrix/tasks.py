@@ -3,9 +3,11 @@ from celery import shared_task
 import logging
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
-from .crest import call_method
-from .models import AppInstance
+from .crest import call_method, refresh_token
+from .models import AppInstance, Credential
 
 
 logger = logging.getLogger("django")
@@ -24,11 +26,16 @@ def call_api(self, id, method, payload):
 
 
 @shared_task(queue='bitrix')
-def get_app_info():
-    app_instances = AppInstance.objects.all()
-    for app_instance in app_instances:
-        if app_instance.attempts < settings.BITRIX_CHECK_APP_ATTEMTS:
-            call_api.delay(app_instance.id, "app.info", {})
+def upd_refresh_token(period):
+    now = timezone.now()
+    credentials = Credential.objects.all()
+    for credential in credentials:
+        need_refresh = (
+            credential.refresh_date is None or
+            credential.refresh_date < now - timedelta(days=period)
+        )
+        if need_refresh and not credential.app_instance.portal.license_expired:
+            refresh_token(credential)
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')

@@ -154,7 +154,7 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(Credential)
 class CredentialAdmin(admin.ModelAdmin):
-    list_display = ("id", "app_instance", "user")
+    list_display = ("id", "app_instance", "user", "refresh_date")
     list_per_page = 30
 
 

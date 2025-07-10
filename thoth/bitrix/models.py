@@ -99,6 +99,7 @@ class Credential(models.Model):
                              blank=True, null=True)
     access_token = models.CharField(max_length=255, blank=True)
     refresh_token = models.CharField(max_length=255, blank=True)
+    refresh_date = models.DateTimeField(blank=True, null=True)
 
 
 class AdminMessage(models.Model):

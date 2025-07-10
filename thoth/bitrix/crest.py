@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+from django.utils import timezone
 import logging
 
 import requests
@@ -119,6 +120,7 @@ def refresh_token(credential: Credential):
 
     credential.access_token = response_data["access_token"]
     credential.refresh_token = response_data["refresh_token"]
+    credential.refresh_date = timezone.now()
     with transaction.atomic():
-        credential.save(update_fields=["access_token", "refresh_token"])
+        credential.save(update_fields=["access_token", "refresh_token", "refresh_date"])
     return True
