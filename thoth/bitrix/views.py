@@ -271,7 +271,7 @@ def app_settings(request):
                 return redirect(app_url)
             
             should_login = not request.user.is_authenticated or request.user != bitrix_user
-            if should_login:
+            if should_login and app.autologin:
                 if request.user.is_authenticated:
                     logout(request)
                 try:

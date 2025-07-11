@@ -38,6 +38,7 @@ class App(models.Model):
     )
     name = models.CharField(max_length=255, blank=True, unique=False)
     page_url = models.CharField(max_length=255, blank=True, default="/")
+    autologin = models.BooleanField(default=True)
     connectors = models.ManyToManyField(Connector, blank=True, related_name='apps')
     client_id = models.CharField(max_length=255, blank=True, unique=False)
     client_secret = models.CharField(max_length=255, blank=True)
