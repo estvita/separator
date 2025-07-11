@@ -36,4 +36,4 @@ def delete_sessions(days):
         headers = {"apikey": server.api_key}
         url = f"{server.url}instance/delete/{session.session}"
         requests.delete(url, headers=headers)
-        session.delete()
+        # session.delete()
