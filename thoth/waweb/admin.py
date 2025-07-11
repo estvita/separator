@@ -30,19 +30,18 @@ class SessionAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        if obj.app_instance:
-            line_id = obj.line.id if obj.line else f"create__{obj.app_instance.id}"
-            connector_service = "waweb"
-            connector = Connector.objects.filter(service=connector_service).first()
+        if obj.phone and obj.app_instance:
+            app_instance = obj.app_instance
+            line_id = obj.line.id if obj.line else f"create__{app_instance.id}"
             try:
-                resp = bitrix_utils.connect_line(request, line_id, obj, connector, connector_service)
-                messages.info(request, f"Ответ Bitrix24: {resp}")
+                resp = bitrix_utils.connect_line(request, line_id, obj, "waweb")
+                messages.info(request, resp)
             except Exception as e:
-                messages.warning(request, f"Ответ Bitrix24: {e}")
+                messages.warning(request, f"Error: {e}")
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
     list_display = ('url', 'api_key', 'max_connections', 'connected')
 
     def connected(self, obj):
-        return obj.sessions.count()
+        return obj.sessions.filter(status='open').count()

@@ -5,15 +5,15 @@ from requests.exceptions import RequestException
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, F
+from django.db.models import Count, Q, F
 from django.utils import timezone
 from django.conf import settings
 
-from thoth.bitrix.models import AppInstance, Line, Connector
+from thoth.bitrix.models import AppInstance, Line
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import Message
-from thoth.decorators import login_message_required
+from thoth.decorators import login_message_required, user_message
 
 from .models import Session, Server
 from .forms import SendMessageForm
@@ -28,30 +28,24 @@ LINK_TTL = 60 * 60 * 24
 @login_message_required(code="waweb")
 def wa_sessions(request):
     connector_service = "waweb"
-    connector = Connector.objects.filter(service=connector_service).first()
+    sessions = Session.objects.filter(owner=request.user)
+    instances = AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+    wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
+    if not instances:
+        user_message(request, "install_waweb")
     if request.method == "POST":
         session_id = request.POST.get("session_id")
         line_id = request.POST.get("line_id")
-        if not line_id:
-            messages.warning(request, "Необходимо выбрать линию из списка или создать новую.")
-            return redirect('waweb')
+
         phone = get_object_or_404(Session, id=session_id, owner=request.user)
         if not phone.phone:
             messages.error(request, "Сначала необходимо подключить WhatsApp.")
             return redirect('waweb')
-        if phone.line and str(phone.line.id) == str(line_id):
-            messages.warning(request, "Эта линия уже подключена к выбранной сессии.")
-            return redirect('waweb')
         try:
-            bitrix_utils.connect_line(request, line_id, phone, connector, connector_service)
+            bitrix_utils.connect_line(request, line_id, phone, connector_service)
         except Exception as e:
             messages.error(request, str(e))
-            return redirect('waweb')
-        return redirect('waweb')
 
-    sessions = Session.objects.filter(owner=request.user)
-    instances = AppInstance.objects.filter(owner=request.user, app__connectors=connector)
-    wa_lines = Line.objects.filter(connector=connector, owner=request.user)
 
     for session in sessions:
         session.show_link = session.status == "open"
@@ -115,7 +109,9 @@ def connect_number(request, session_id=None):
         # new_session.save()
 
     server = (
-        Server.objects.annotate(connected_sessions=Count('sessions'))
+        Server.objects.annotate(
+            connected_sessions=Count('sessions', filter=Q(sessions__status='open'))
+        )
         .filter(connected_sessions__lt=F('max_connections'))
         .order_by('id')
         .first()

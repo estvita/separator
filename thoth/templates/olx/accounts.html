@@ -42,7 +42,7 @@
                       {% endfor %}
                     </select>
                     <input type="hidden" name="olx_id" value="{{ account.id }}" />
-                    <button type="submit" name="action" value="link" class="btn btn-secondary">Подключить</button>
+                    <button type="submit" name="action" value="link" class="btn btn-secondary connect-btn">Подключить</button>
                   </div>
                 </form>
               </td>
@@ -61,7 +61,7 @@
         <select id="olx_app" name="olx_app" class="form-control mr-2">
           {% for app in olx_apps %}<option value="{{ app.id }}">{{ app.client_domain }}</option>{% endfor %}
         </select>
-        <button type="submit" name="action" value="connect" class="btn btn-primary">Подключить</button>
+        <button type="submit" name="action" value="connect" class="btn btn-primary connect-btn">Подключить</button>
       </div>
     </form>
   </div>

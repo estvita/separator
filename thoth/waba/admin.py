@@ -1,6 +1,5 @@
 from django.contrib import admin
 import thoth.bitrix.utils as bitrix_utils
-from thoth.bitrix.models import Connector
 
 from .models import App, Waba, Phone, Template
 
@@ -34,6 +33,4 @@ class PhoneAdmin(admin.ModelAdmin):
                 line_id = obj.line.id
             else:
                 line_id = f"create__{obj.app_instance.id}"
-            connector_service = "waba"
-            connector = Connector.objects.filter(service=connector_service).first()
-            bitrix_utils.connect_line(request, line_id, obj, connector, connector_service)
+            bitrix_utils.connect_line(request, line_id, obj, "waba")

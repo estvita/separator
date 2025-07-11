@@ -4,10 +4,14 @@ from django.conf import settings
 from django.contrib.sites.models import Site
 from django.db import models
 from django.utils import timezone
-
+from django.core.exceptions import ValidationError
 
 def generate_uuid():
     return f"gulin_{uuid.uuid4()}"
+
+def validate_svg(file):
+    if not file.name.lower().endswith('.svg'):
+        raise ValidationError('Only SVG files!')
 
 class Connector(models.Model):
     TYPE_CHOICES = [
@@ -18,7 +22,7 @@ class Connector(models.Model):
     code = models.CharField(max_length=255, default=generate_uuid, unique=True)
     service = models.CharField(max_length=255, choices=TYPE_CHOICES, blank=True, null=True)
     name = models.CharField(max_length=255, default="gulin.kz", unique=False)
-    icon = models.FileField(upload_to='connector_icons/', blank=True, null=True)
+    icon = models.FileField(upload_to='connector_icons/', blank=True, null=True, validators=[validate_svg])
 
     def __str__(self):
         return self.name

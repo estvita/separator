@@ -17,12 +17,12 @@ from django.conf import settings
 from django.utils import timezone
 
 from urllib.parse import urlencode
-from thoth.decorators import login_message_required
+from thoth.decorators import login_message_required, user_message
 
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import User
-from thoth.bitrix.models import AppInstance, Line, Connector
+from thoth.bitrix.models import AppInstance, Line
 
 from .models import App, Waba, Phone, Template
 import thoth.waba.utils as utils
@@ -152,19 +152,21 @@ def save_request(request):
 @login_message_required(code="waba")
 def waba_view(request):
     connector_service = "waba"
-    connector = Connector.objects.filter(service=connector_service).first()
     phones = Phone.objects.filter(owner=request.user)
-    instances = AppInstance.objects.filter(owner=request.user, app__connectors=connector)
-    waba_lines = Line.objects.filter(connector=connector, owner=request.user)
+    instances = AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+    waba_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
     request_id = str(uuid.uuid4())
+    if not instances:
+        user_message(request, "install_waba")
 
     if request.method == "POST":
         phone_id = request.POST.get("phone_id")
         line_id = request.POST.get("line_id")
-
         phone = get_object_or_404(Phone, id=phone_id, owner=request.user)
-
-        bitrix_utils.connect_line(request, line_id, phone, connector, "waba")
+        try:
+            bitrix_utils.connect_line(request, line_id, phone, connector_service)
+        except Exception as e:
+            messages.error(request, str(e))
 
     return render(request, "waba.html", {
         "phones": phones,

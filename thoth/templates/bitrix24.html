@@ -41,7 +41,7 @@
       {% csrf_token %}
       <div style="width: 40%;" class="form-group d-flex align-items-center">
         {{ verification_form.confirmation_code }}
-       <button type="submit" name="confirm" class="btn btn-primary">Подтвердить</button>
+       <button type="submit" name="confirm" class="btn btn-primary connect-btn">Подтвердить</button>
         </div>
     </form>
     <h4>Получение кода</h4>
@@ -49,7 +49,7 @@
       {% csrf_token %}
       <div style="width: 40%;" class="form-group d-flex align-items-center">
        {{ portal_form.portal_address }}
-      <button type="submit" name="send_code" class="btn btn-secondary">Отправить</button>
+      <button type="submit" name="send_code" class="btn btn-secondary connect-btn">Отправить</button>
       </div>
     </form>
   </div>

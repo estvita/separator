@@ -385,4 +385,3 @@ SPECTACULAR_SETTINGS = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
-SHOW_FOOTER_LINKS = env.bool("SHOW_FOOTER_LINKS", default=True)

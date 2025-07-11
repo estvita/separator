@@ -1,18 +1,20 @@
-from django.shortcuts import redirect, render, get_object_or_404
+from django.shortcuts import render, get_object_or_404
+from django.contrib import messages
 
-from thoth.bitrix.models import AppInstance, Line, Connector
+from thoth.bitrix.models import AppInstance, Line
 import thoth.bitrix.utils as bitrix_utils
 
 from .models import OlxApp, OlxUser
-from thoth.decorators import login_message_required
+from thoth.decorators import login_message_required, user_message
 
 @login_message_required(code="olx")
 def olx_accounts(request):
     connector_service = "olx"
-    connector = Connector.objects.filter(service=connector_service).first()
     olx_accounts = OlxUser.objects.filter(owner=request.user)
-    instances = AppInstance.objects.filter(owner=request.user, app__connectors=connector)
-    olx_lines = Line.objects.filter(connector=connector, owner=request.user)
+    olx_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
+    instances = AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+    if not instances:
+        user_message(request, "install_olx")
 
     olx_apps = OlxApp.objects.all()
 
@@ -27,8 +29,10 @@ def olx_accounts(request):
             olx_id = request.POST.get("olx_id")
             line_id = request.POST.get("line_id")
             olx_user = get_object_or_404(OlxUser, id=olx_id, owner=request.user)
-
-            bitrix_utils.connect_line(request, line_id, olx_user, connector, "olx-accounts")
+            try:
+                bitrix_utils.connect_line(request, line_id, olx_user, connector_service)
+            except Exception as e:
+                messages.error(request, str(e))
 
     return render(request, "olx/accounts.html", 
         {

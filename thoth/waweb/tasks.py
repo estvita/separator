@@ -19,7 +19,7 @@ def send_message_task(session_id, recipients, content, cont_type="string", from_
 
 
 @shared_task(queue='waweb')
-def delete_sessions(days=None):
+def delete_sessions(days):
     now = timezone.now()
     filters = Q((Q(phone__isnull=True) | Q(phone='')) & Q(date_end__lt=now))
     if days is not None:

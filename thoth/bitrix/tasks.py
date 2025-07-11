@@ -34,7 +34,7 @@ def upd_refresh_token(period):
             credential.refresh_date is None or
             credential.refresh_date < now - timedelta(days=period)
         )
-        if need_refresh and not credential.app_instance.portal.license_expired:
+        if need_refresh:
             refresh_token(credential)
 
 @shared_task(queue='bitrix')

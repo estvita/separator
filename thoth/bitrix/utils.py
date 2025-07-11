@@ -125,14 +125,15 @@ def messageservice_add(request, app_instance, entity, service):
                 messages.warning(request, f"Ошибка при удалении SMS канала: {e}")    
 
 
-def connect_line(request, line_id, entity, connector, redirect_to):
+def connect_line(request, line_id, entity, connector_service):
+    if not line_id:
+        messages.warning(request, "Необходимо выбрать линию из списка или создать новую.")
+        return
     line_id = str(line_id)
     if line_id.startswith("create__"):
         instance_id = line_id.split("__")[1]
-        app_instance = get_object_or_404(AppInstance, id=instance_id, owner=request.user)
-        if not app_instance.portal:
-            messages.error(request, "Невозможно создать линию: портал не найден")
-            return redirect(redirect_to)
+        app_instance = get_object_or_404(AppInstance, id=instance_id)
+        connector = app_instance.app.connectors.filter(service=connector_service).first()
         if entity.line:
             call_method(app_instance, "imconnector.activate", {
                 "CONNECTOR": connector.code,
@@ -152,7 +153,7 @@ def connect_line(request, line_id, entity, connector, redirect_to):
                 portal=app_instance.portal,
                 connector=connector,
                 app_instance=app_instance,
-                owner=request.user
+                owner=app_instance.owner
             )
             entity.line = line
             entity.app_instance = app_instance
@@ -168,25 +169,16 @@ def connect_line(request, line_id, entity, connector, redirect_to):
             messages.success(request, f"Создана и подключена линия {new_line_id}")
         else:
             messages.error(request, f"Ошибка при создании линии: {result}")
-        return redirect(redirect_to)
+            return
     else:
-        line = get_object_or_404(Line, id=line_id)
-        if not line:
-            messages.error(request, f"Линия {line_id} не найдена")
-            return redirect(redirect_to)
-        # Проверка, не занята ли линия другим entity
-        entity_model = type(entity)
-        usage_count = entity_model.objects.filter(line=line).exclude(pk=entity.pk).count()
-        if usage_count > 0:
-            messages.error(request, "Эта линия уже используется.")
-            return redirect(redirect_to)
-        
+        if entity.line and str(entity.line.id) == str(line_id):
+            messages.warning(request, "Эта линия уже используется.")
+            return
+        line = get_object_or_404(Line, id=line_id)                
         app_instance = line.app_instance
-        messageservice_add(request, app_instance, entity, connector.service)
-        
-        if entity.line == line:
-            messages.success(request, "Выбрана та же линия")
-            return redirect(redirect_to)
+        connector = app_instance.app.connectors.filter(service=connector_service).first()
+        messageservice_add(request, app_instance, entity, connector.service)       
+
         if entity.line:
             call_method(app_instance, "imconnector.activate", {
                 "CONNECTOR": connector.code,
@@ -203,9 +195,6 @@ def connect_line(request, line_id, entity, connector, redirect_to):
             entity.app_instance = app_instance
             entity.save()
             messages.success(request, "Линия подключена")
-
-    messages.success(request, "Настройки обновлены")
-    return redirect(redirect_to)
 
 
 # Подписка на события
@@ -404,9 +393,6 @@ def event_processor(request):
         # Проверка наличия установки
         try:
             appinstance = AppInstance.objects.get(application_token=application_token)
-            if not appinstance.portal.member_id:
-                appinstance.portal.member_id = member_id
-                appinstance.portal.save()
 
         except AppInstance.DoesNotExist:
             if event == "ONAPPINSTALL":                
