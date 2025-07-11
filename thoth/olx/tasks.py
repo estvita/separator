@@ -78,7 +78,6 @@ def send_message(chat_id, text, files=None):
         headers["Authorization"] = f"Bearer {user.access_token}"
         response = requests.post(api_url, headers=headers, json=payload)
 
-
     if response.status_code == 200:
         msg_data = response.json().get("data")
         message_id = msg_data.get("id")
@@ -91,17 +90,17 @@ def send_message(chat_id, text, files=None):
 def get_threads(olx_user_id):
     try:
         user = OlxUser.objects.get(olx_id=olx_user_id)
-        connector_code = user.line.connector.code
-        bitrix_user = user.line.portal.user_id
+        line = None
+        if user.line:
+            line = user.line
+            connector_code = line.connector.code
+        if not line:
+            deactivate_task(olx_user_id)
+            raise
 
         if user.date_end and timezone.now() > user.date_end:
             deactivate_task(olx_user_id)
-            payload = {
-                'USER_ID': bitrix_user,
-                'MESSAGE': 'Проверка сообщений на OLX остановлена в связи с окончанием действия тарифа. Тарифы и сопособы оплаты на сайте https://gulin.kz/'
-            }
-            bitrix.call_method(user.line.app_instance, 'im.notify.system.add', payload)
-            return "Subscription expired, task terminated."
+            raise
 
         olx_app = user.olxapp
         BASE_URL = f"https://www.{olx_app.client_domain}"
@@ -150,11 +149,11 @@ def get_threads(olx_user_id):
                             if int(message_id) > int(last_message):
                                 redis_client.set(f'olx:{thread_id}', message_id)
                                 if message_type == "received":
-                                    bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, connector_code,
-                                                                        user.line.line_id, False, user_name, message_id,
+                                    bitrix_tasks.send_messages.delay(line.app_instance.id, None, text, connector_code,
+                                                                        line.line_id, False, user_name, message_id,
                                                                         attachments, None, chat_id, advert_url, interlocutor_id)
                                 elif message_type == "sent":
-                                    bitrix_tasks.message_add.delay(user.line.app_instance.id, user.line.line_id, 
+                                    bitrix_tasks.message_add.delay(line.app_instance.id, line.line_id, 
                                                                     interlocutor_id, text, connector_code)
                     
                     # если треда нет в базе, то берем послденее полученное сообщение
@@ -166,27 +165,17 @@ def get_threads(olx_user_id):
                             text = message.get("text")
                             attachments = message.get("attachments", [])
                             redis_client.set(f'olx:{thread_id}', message_id)
-                            bitrix_tasks.send_messages.delay(user.line.app_instance.id, None, text, connector_code,
-                                                                user.line.line_id, False, user_name, message_id,
+                            bitrix_tasks.send_messages.delay(line.app_instance.id, None, text, connector_code,
+                                                                line.line_id, False, user_name, message_id,
                                                                 attachments, None, chat_id, advert_url, interlocutor_id)
-
                                 
                 commands_url = f"{BASE_URL}/api/partner/threads/{thread_id}/commands"
                 resp = requests.post(commands_url, headers=headers, json={"command": "mark-as-read"})
-
         
         elif response.status_code == 401:
             resp = refresh_token(olx_user_id)
             if resp.status_code != 200:
                 if user.line:
-                    domain = user.line.app_instance.app.site
-                    message = f'Проверка сообщений на OLX ({olx_user_id}) остановлена из-за проблемы. Переподключите аккаунт OLX на сайте https://{domain}/olx/accounts/. Поллный текст ошибки {resp.json()}'
-                    payload = {
-                        'USER_ID': bitrix_user,
-                        'MESSAGE': message
-                    }
-
-                    bitrix.call_method(user.line.app_instance, 'im.notify.system.add', payload)
 
                     send_mail(
                         subject="OLX отключен из-за проблемы",
@@ -202,6 +191,4 @@ def get_threads(olx_user_id):
     except OlxUser.DoesNotExist:
         logger.debug(f"User with ID {olx_user_id} does not exist.")
     except Exception as e:
-        logger.debug(
-            f"An error occurred while processing OLX threads for user {olx_user_id}: {e!s}",
-        )
+        raise Exception(f"OLX threads for user {olx_user_id}: {e}")        
