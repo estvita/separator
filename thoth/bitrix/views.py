@@ -248,7 +248,10 @@ def app_settings(request):
             data = request.POST
             domain = request.GET.get("DOMAIN")
             member_id = data.get("member_id")
-            portal = Bitrix.objects.get(domain=domain, member_id=member_id)
+            portal = Bitrix.objects.get(member_id=member_id)
+            if portal.domain != domain:
+                portal.domain = domain
+                portal.save()
         except Exception as e:
             return redirect("portals")
         
@@ -281,7 +284,7 @@ def app_settings(request):
 
             AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=bitrix_user)
             Line.objects.filter(portal=portal, owner__isnull=True).update(owner=bitrix_user)
-            return redirect(f"{app_url}?domain={domain}")
+            return redirect(app_url)
         else:
             return redirect("portals")
     elif request.method == "HEAD":
