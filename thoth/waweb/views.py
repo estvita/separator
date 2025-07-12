@@ -212,6 +212,9 @@ def share_qr(request, public_id):
     qr_image = get_gr(request, session)
     if not qr_image:
         return redirect('waweb')
+    message = Message.objects.filter(code="waweb_instruction").first()
+    if message:
+        messages.info(request, message.message)
     return render(request, 'waweb/qr_code.html', {
         'qr_image': qr_image,
         'request': request,
