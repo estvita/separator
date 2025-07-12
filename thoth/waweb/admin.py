@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import transaction
 from .models import Session, Server
 from thoth.bitrix.models import Connector, AppInstance, Line
 import thoth.bitrix.utils as bitrix_utils
@@ -18,7 +19,6 @@ class SessionForm(forms.ModelForm):
             self.fields['app_instance'].queryset = AppInstance.objects.filter(owner=owner)
             self.fields['line'].queryset = Line.objects.filter(owner=owner)
 
-
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
     form = SessionForm
@@ -33,11 +33,15 @@ class SessionAdmin(admin.ModelAdmin):
         if obj.phone and obj.app_instance:
             app_instance = obj.app_instance
             line_id = obj.line.id if obj.line else f"create__{app_instance.id}"
-            try:
-                resp = bitrix_utils.connect_line(request, line_id, obj, "waweb")
-                messages.info(request, resp)
-            except Exception as e:
-                messages.warning(request, f"Error: {e}")
+
+            def send_connect():
+                try:
+                    resp = bitrix_utils.connect_line(request, line_id, obj, "waweb")
+                    messages.info(request, resp)
+                except Exception as e:
+                    messages.warning(request, f"Error: {e}")
+
+            transaction.on_commit(send_connect)
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):

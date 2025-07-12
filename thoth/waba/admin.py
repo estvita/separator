@@ -1,4 +1,5 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.db import transaction
 import thoth.bitrix.utils as bitrix_utils
 
 from .models import App, Waba, Phone, Template
@@ -29,8 +30,13 @@ class PhoneAdmin(admin.ModelAdmin):
 
         # создание открытой линии
         if obj.app_instance:
-            if obj.line:
-                line_id = obj.line.id
-            else:
-                line_id = f"create__{obj.app_instance.id}"
-            bitrix_utils.connect_line(request, line_id, obj, "waba")
+            app_instance = obj.app_instance
+            line_id = obj.line.id if obj.line else f"create__{app_instance.id}"
+
+            def send_connect():
+                try:
+                    resp = bitrix_utils.connect_line(request, line_id, obj, "waba")
+                    messages.info(request, resp)
+                except Exception as e:
+                    messages.warning(request, f"Error: {e}")
+            transaction.on_commit(send_connect)

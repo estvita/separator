@@ -1,3 +1,4 @@
+import re
 import redis
 from celery import shared_task
 import logging
@@ -8,6 +9,9 @@ from datetime import timedelta
 
 from .crest import call_method, refresh_token
 from .models import AppInstance, Credential
+
+from thoth.waba.models import Phone
+from thoth.waweb.models import Session
 
 
 logger = logging.getLogger("django")
@@ -48,6 +52,52 @@ def get_app_info():
     for app_instance in app_instances:
         if app_instance.attempts < settings.BITRIX_CHECK_APP_ATTEMTS:
             call_api.delay(app_instance.id, "app.info", {})
+
+
+# Регистрация SMS-провайдера
+@shared_task(queue='bitrix')
+def messageservice_add(app_instance_id, entity_id, service):
+    try:
+        app_instance = AppInstance.objects.get(id=app_instance_id)
+        if service == "waweb":
+            entity = Session.objects.get(id=entity_id)
+        elif service == "waba":
+            entity = Phone.objects.get(id=entity_id)
+        if hasattr(entity, 'sms_service'):
+            owner = app_instance.app.owner
+            if not hasattr(owner, "auth_token"):
+                entity.sms_service = False
+                entity.save()
+                raise Exception("Owner has no auth_token!")
+
+            api_key = owner.auth_token.key
+            phone = re.sub(r'\D', '', entity.phone)
+            code = f"gulin.kz_{phone}"
+            if entity.sms_service:
+                try:
+                    all_providers = call_method(app_instance, "messageservice.sender.list", {})
+                except Exception as e:
+                    raise Exception(f"list providers fail: {e}")
+
+                if "result" in all_providers and code in all_providers.get("result"):
+                    raise Exception(f"{code} already exists")
+
+                url = app_instance.app.site
+                payload = {
+                    "CODE": code,
+                    "NAME": code,
+                    "TYPE": "SMS",
+                    "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
+                }
+                return call_method(app_instance, "messageservice.sender.add", payload)
+            else:
+                return call_method(app_instance, "messageservice.sender.delete", {"CODE": code})
+
+        else:
+            raise Exception("Entity has no sms_service attribute!")
+    except Exception as e:
+        raise
+
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def send_messages(self, app_instance_id, user_phone, text, connector,
@@ -96,7 +146,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 identity = user_id or user_phone
                 redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id)
                 if sms:
-                    message_add.delay(app_instance_id, line, user_phone, text, connector)
+                    resp = message_add(app_instance_id, line, user_phone, text, connector)
         return resp
 
     except Exception as e:
@@ -140,16 +190,15 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector):
                         }
                     }]
                 }
-                call_method(app_instance, "imconnector.send.status.delivery", payload_status)
-                return resp
+                return call_method(app_instance, "imconnector.send.status.delivery", payload_status)
             except Exception as e:
                 if attempt >= max_send_attempts - 1:
                     logger.error(f"Exception occurred while sending message: {e}")
                     raise
                 else:
                     self.retry(exc=e)
-
-    send_messages.delay(app_instance_id, user_phone, text, connector, line_id, True)
+    else:
+        return send_messages(app_instance_id, user_phone, text, connector, line_id, True)
 
 
 @shared_task(queue='bitrix')

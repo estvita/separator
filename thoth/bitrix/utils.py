@@ -87,45 +87,6 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
     return b24_user
 
 
-# Регистрация SMS-провайдера
-def messageservice_add(request, app_instance, entity, service):
-    if hasattr(entity, 'sms_service'):
-        owner = app_instance.app.owner
-        if not hasattr(owner, "auth_token"):
-            entity.sms_service = False
-            entity.save()
-            messages.error(request, f"API key not found for user {owner}. Операция прервана.")
-            return
-        api_key = owner.auth_token.key
-        phone = re.sub(r'\D', '', entity.phone)
-        code = f"gulin.kz_{phone}"
-        if entity.sms_service:
-            try:
-                all_providers = call_method(app_instance, "messageservice.sender.list", {})
-                if "result" in all_providers:
-                    if code in all_providers.get("result"):
-                        return
-            except Exception as e:
-                return {"error": str(e)}
-            url = app_instance.app.site
-            payload = {
-                "CODE": code,
-                "NAME": code,
-                "TYPE": "SMS",
-                "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
-            }
-            try:
-                return call_method(app_instance, "messageservice.sender.add", payload)
-            except Exception as e:
-                messages.error(request, f"Ошибка подключения SMS канала: {e}")
-                return {"error": str(e)}
-        else:
-            try:
-                call_method(app_instance, "messageservice.sender.delete", {"CODE": code})
-            except Exception as e:
-                messages.warning(request, f"Ошибка при удалении SMS канала: {e}")    
-
-
 def connect_line(request, line_id, entity, connector_service):
     if not line_id:
         messages.warning(request, "Необходимо выбрать линию из списка или создать новую.")
@@ -145,7 +106,15 @@ def connect_line(request, line_id, entity, connector_service):
             line_name = entity.olx_id
         else:
             line_name = entity.phone
-        create_payload = {"PARAMS": {"LINE_NAME": line_name}}
+        create_payload = {
+            "PARAMS": {
+                "LINE_NAME": line_name,
+                "ACTIVE": "Y",
+                "WELCOME_MESSAGE": "N",
+                "CLOSE_RULE": "none",
+                "VOTE_MESSAGE": "N"
+            }
+        }
         result = call_method(app_instance, "imopenlines.config.add", create_payload)
         if result and result.get("result"):
             new_line_id = result["result"]
@@ -166,20 +135,19 @@ def connect_line(request, line_id, entity, connector_service):
                 "ACTIVE": 1,
             }
             call_method(app_instance, "imconnector.activate", activate_payload)
-            messageservice_add(request, app_instance, entity, connector.service)
+            bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)
             messages.success(request, f"Создана и подключена линия {new_line_id}")
         else:
             messages.error(request, f"Ошибка при создании линии: {result}")
             return
     else:
-        if entity.line and str(entity.line.id) == str(line_id):
-            messages.warning(request, "Эта линия уже используется.")
-            return
         line = get_object_or_404(Line, id=line_id)                
         app_instance = line.app_instance
         connector = app_instance.app.connectors.filter(service=connector_service).first()
-        messageservice_add(request, app_instance, entity, connector.service)       
-
+        bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)       
+        if entity.line and str(entity.line.id) == str(line_id):
+            messages.warning(request, "Эта линия уже используется.")
+            return
         if entity.line:
             call_method(app_instance, "imconnector.activate", {
                 "CONNECTOR": connector.code,
