@@ -155,9 +155,9 @@ def create_deal(app_instance_id, vendor_inst_id, app_name):
         user_data = user_current.get("result", {})
         user_email = user_data.get("EMAIL")
     except Exception as e:
-        return
+        raise
     if not user_email:
-        return
+        raise Exception("user email not found")
     user_id = None
     venrot_instance = AppInstance.objects.get(id=vendor_inst_id)
     # Поиск контакта в битрикс 
@@ -173,7 +173,7 @@ def create_deal(app_instance_id, vendor_inst_id, app_name):
         if client_data:
             from_market = client_data[0].get(FROM_MARKET_FIELD)
             if from_market == "1":
-                return
+                raise Exception("user from market")
             user_id = client_data[0].get("ID")
     if not user_id:        
         contact_data = {

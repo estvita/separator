@@ -82,7 +82,8 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
         if not created:
             cred.access_token = auth_id
             cred.refresh_token = refresh_id
-            cred.save(update_fields=["access_token", "refresh_token"])
+            cred.refresh_date = timezone.now()
+            cred.save(update_fields=["access_token", "refresh_token", "refresh_date"])
     return b24_user
 
 

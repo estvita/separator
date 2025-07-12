@@ -2,6 +2,7 @@ import uuid
 import requests
 from datetime import timedelta
 
+from django.db.models import Q
 from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import render, redirect
@@ -15,6 +16,7 @@ from .utils import process_placement, get_b24_user
 from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
 from .models import AppInstance, Bitrix, VerificationCode, Line, App
+from .models import User as B24_user
 
 from thoth.decorators import login_message_required
 from thoth.users.tasks import create_user_task
@@ -48,9 +50,12 @@ def link_portal(request, code):
 
 @login_message_required(code="bitrix")
 def portals(request):
-    user_portals = Bitrix.objects.filter(users__owner=request.user).distinct()
+    user_portals = Bitrix.objects.filter(
+        Q(users__owner=request.user) | Q(owner=request.user)
+    ).distinct()
     portal_form = BitrixPortalForm()
     verification_form = VerificationCodeForm()
+    b24_admin = B24_user.objects.filter(owner=request.user, admin=True).first()
 
     if request.method == "POST":
         if "send_code" in request.POST:
@@ -80,7 +85,7 @@ def portals(request):
 
                     payload = {
                         "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
-                        "USER_ID": appinstance.portal.user_id,
+                        "USER_ID": b24_admin.user_id,
                     }
 
                     call_method(appinstance, "im.notify.system.add", payload)
@@ -107,6 +112,7 @@ def portals(request):
         "bitrix24.html",
         {
             "user_portals": user_portals,
+            "b24_admin": b24_admin,
             "portal_form": portal_form,
             "verification_form": verification_form,
         },

@@ -8,7 +8,7 @@
         <thead>
           <tr>
             <th>Портал</th>
-            <th>Владелец</th>
+            <th>Администратор</th>
             <th>Приложение (статус)</th>
           </tr>
         </thead>
@@ -19,7 +19,11 @@
                 <a href="{{ portal.protocol }}://{{ portal.domain }}" target="_blank">{{ portal.domain }}</a>
               </td>
               <td>
-                <a href="{{ portal.protocol }}://{{ portal.domain }}/company/personal/user/{{ portal.user_id }}/" target="_blank">{{ portal.user_id }}</a>
+                {% if b24_admin %}
+                <a href="{{ portal.protocol }}://{{ portal.domain }}/company/personal/user/{{ b24_admin.user_id }}/" target="_blank">{{ b24_admin.user_id }}</a>
+                {% else %}
+                Not Found
+                {% endif %}
               </td>
               <td>
                 {% for instance in portal.installations.all %}

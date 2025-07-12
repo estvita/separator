@@ -181,11 +181,6 @@ def message_processing(request):
         appinstance = phone.app_instance
 
         if phone.date_end and timezone.now() > phone.date_end:
-            payload = {
-                'message': f'Пришло сообщение в WhatsApp на номер {phone.phone}, но у вас не оплачена интеграция. Проверьте срок тарифа и внесите оплату на https://gulin.kz',
-                'USER_ID': appinstance.portal.user_id
-            }
-            call_method(appinstance, "im.notify.system.add", payload)
             return Response({"error": "phone tariff ended"})
 
         access_token = waba.access_token
