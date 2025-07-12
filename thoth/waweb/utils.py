@@ -1,12 +1,9 @@
 import requests
 import base64
 import mimetypes
-import re
 import redis
 import time
 import magic
-from .models import Session
-
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -43,35 +40,3 @@ def store_msg(resp):
     message_id = msg_data.get('id')
     if message_id:
         redis_client.setex(f'waweb:{message_id}', 600, message_id)
-
-
-def send_message(session_id, recipient, content, cont_type="string"):
-    session = Session.objects.get(session=session_id)
-    server = session.server
-    headers = {"apikey": session.apikey}
-    
-    cleaned = re.sub(r'\D', '', recipient)
-    
-    if cont_type == "string":
-        payload = {
-            "number": cleaned,
-            "text": content,
-            "linkPreview": True,
-        }
-        url = f"{server.url}message/sendText/{session_id}"
-        return requests.post(url, json=payload, headers=headers)
-    
-    elif cont_type == "media":
-        url = f"{server.url}message/sendMedia/{session_id}"
-        mimetype = content.get("mimetype", "")
-        base_type = mimetype.split('/')[0]
-        mediatype = base_type if base_type in ["image"] else "document"
-        payload = {
-            "number": cleaned,
-            "mediatype": mediatype,
-            "mimetype": content.get("mimetype"),
-            "media": content.get("data"),
-            "fileName": content.get("filename")
-        }
-
-        return requests.post(url, json=payload, headers=headers)

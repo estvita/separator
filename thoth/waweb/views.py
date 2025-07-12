@@ -240,7 +240,7 @@ def send_message_view(request, session_id):
             message = form.cleaned_data['message']
             recipients = [line.strip() for line in recipients_raw.splitlines() if line.strip()]
             
-            send_message_task.delay(str(session.session), recipients, message, "string", True)
+            send_message_task.delay(str(session.session), recipients, message)
             
             messages.success(request, "Задача на отправку сообщений создана.")
             return redirect('waweb')

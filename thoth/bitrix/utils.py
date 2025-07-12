@@ -1,4 +1,5 @@
 import base64
+import time
 import json
 import logging
 import re
@@ -10,7 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.contrib import messages
 from django.conf import settings
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import get_object_or_404
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -20,7 +21,6 @@ import thoth.olx.tasks as olx_tasks
 import thoth.waba.utils as waba
 
 from thoth.waweb.models import Session
-import thoth.waweb.utils as waweb
 import thoth.waweb.tasks as waweb_tasks
 
 from .crest import call_method
@@ -365,9 +365,7 @@ def sms_processor(request):
         try:
             wa = Session.objects.get(phone=sender)
             line = wa.line
-            resp = waweb.send_message(wa.session, message_to, message_body)
-            if resp.status_code == 201:
-                waweb.store_msg(resp)
+            waweb_tasks.send_message.delay(wa.session, message_to, message_body)
         except wa.DoesNotExist:
             raise ValueError(f"No Session found for phone number: {code}")
         except Exception as e:
@@ -516,8 +514,10 @@ def event_processor(request):
             bitrix_tasks.call_api.delay(appinstance.id, "imconnector.send.status.delivery", status_data)
 
             # Проверяем наличие сообщения в редис (отправлено из других сервисов )
-            if redis_client.exists(f'bitrix:{domain}:{message_id}'):
-                return Response({'message': 'loop message'})
+            for _ in range(5):
+                if redis_client.exists(f'bitrix:{member_id}:{message_id}'):
+                    return Response({'message': 'loop message'})
+                time.sleep(1)
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
             text = data.get("data[MESSAGES][0][message][text]", None)
@@ -588,9 +588,8 @@ def event_processor(request):
                     if files:
                         for file in files:
                             waweb_tasks.send_message_task.delay(str(wa.session), [chat], file, 'media')
-                    resp = waweb.send_message(wa.session, chat, text)
-                    if resp.status_code == 201:
-                        waweb.store_msg(resp)
+                    else:
+                        waweb_tasks.send_message.delay(wa.session, chat, text)
                 except Exception as e:
                     print(f'Failed to send waweb message: {str(e)}')
                     return Response({'error': f'Failed to send message: {str(e)}'})

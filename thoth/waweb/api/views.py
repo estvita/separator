@@ -16,7 +16,6 @@ import thoth.chatwoot.utils as chatwoot
 from thoth.chatwoot.tasks import new_inbox
 import thoth.waweb.tasks as tasks
 
-import thoth.waweb.utils as utils
 import thoth.bitrix.utils as bitrix_utils
 import thoth.bitrix.tasks as bitrix_tasks
 
@@ -75,13 +74,11 @@ class EventsHandler(GenericViewSet):
                     response = requests.delete(f"{server.url}instance/delete/{sessionid}", headers=headers)
                     session.delete()
                     return Response({'error': 'Phone number already in use, session deleted'})
-
                 
                 # создание Inbox в чатвут
                 if settings.CHATWOOT_ENABLED and not session.inbox:
                     new_inbox.delay(sessionid, number)
-                    return Response({'event processed.'})
-                
+                    return Response({'event processed.'})                
 
         elif event in ["messages.upsert", "send.message"]:
             if session.date_end and timezone.now() > session.date_end:
@@ -183,10 +180,10 @@ class EventsHandler(GenericViewSet):
                 if session.line:
                     file_url = None
                     attach = None
-                    text = payload.get("content") or fileName
+                    text = payload.get("content", None)
                     if file_data:
-                        domain = session.line.portal.domain
-                        chat_key = f'bitrix_chat:{domain}:{session.line.line_id}:{remoteJid}'
+                        member_id = session.line.portal.member_id
+                        chat_key = f'bitrix_chat:{member_id}:{session.line.line_id}:{remoteJid}'
                         if redis_client.exists(chat_key):
                             chat_id = redis_client.get(chat_key).decode('utf-8')
                             chat_folder = None
@@ -205,15 +202,15 @@ class EventsHandler(GenericViewSet):
                                 if upload_file:
                                     file_url = upload_file.get("DOWNLOAD_URL")
                     if fromme:
-                        bitrix_tasks.message_add.delay(session.app_instance.id, session.line.line_id, 
-                                                       remoteJid, text, session.line.connector.code)
-                        if file_url:
+                        if text and not file_url:
+                            bitrix_tasks.message_add.delay(session.app_instance.id, session.line.line_id, 
+                                                        remoteJid, text, session.line.connector.code)
+                        elif file_url:
                             file_upd = {
                                 "CHAT_ID": chat_id,
                                 "UPLOAD_ID": upload_file.get("FILE_ID"),
                                 "DISK_ID": upload_file.get("ID"),
-                                "SILENT_MODE": "Y",
-                                "MESSAGE": fileName
+                                "MESSAGE": text
                             }
                             bitrix_tasks.call_api.delay(session.app_instance.id, "im.disk.file.commit", file_upd)
                     else:
@@ -271,9 +268,7 @@ class EventsHandler(GenericViewSet):
             phone_number = sender.get('phone_number')
 
             if content:
-                wa_resp = utils.send_message(session_id, phone_number, content)
-                if wa_resp.status_code == 201:
-                    utils.store_msg(wa_resp)
+                tasks.send_message.delay(session_id, phone_number, content)
 
                 # Если подключен битрикс
                 if session.line:

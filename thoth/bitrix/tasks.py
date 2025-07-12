@@ -19,11 +19,16 @@ FROM_MARKET_FIELD = settings.FROM_MARKET_FIELD
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def call_api(self, id, method, payload):
     try:
-        appinstance = AppInstance.objects.get(id=id)
-        return call_method(appinstance, method, payload)
+        app_instance = AppInstance.objects.get(id=id)
+        resp = call_method(app_instance, method, payload)
+        if "result" in resp and method in ["im.disk.file.commit"]:
+            member_id = app_instance.portal.member_id
+            result = resp.get("result")
+            message_id = result.get("MESSAGE_ID")
+            redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
+        return resp
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
-
 
 @shared_task(queue='bitrix')
 def upd_refresh_token(period):
@@ -86,10 +91,10 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
         for result_item in results:
             chat_session = result_item.get("session", {})
             if chat_session:
-                domain = app_instance.portal.domain
+                member_id = app_instance.portal.member_id
                 chat_id = chat_session.get("CHAT_ID")
                 identity = user_id or user_phone
-                redis_client.set(f"bitrix_chat:{domain}:{line}:{identity}", chat_id)
+                redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id)
                 if sms:
                     message_add.delay(app_instance_id, line, user_phone, text, connector)
         return resp
@@ -107,8 +112,8 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector):
         logger.error(f"AppInstance {app_instance_id} does not exist")
         raise
 
-    domain = app_instance.portal.domain
-    chat_key = f'bitrix_chat:{domain}:{line_id}:{user_phone}'
+    member_id = app_instance.portal.member_id
+    chat_key = f'bitrix_chat:{member_id}:{line_id}:{user_phone}'
 
     if redis_client.exists(chat_key):
         chat_id = redis_client.get(chat_key).decode('utf-8')
@@ -124,7 +129,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector):
             try:
                 resp = call_method(app_instance, "im.message.add", payload)
                 message_id = resp.get("result")
-                redis_client.setex(f'bitrix:{domain}:{message_id}', 600, message_id)
+                redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
                 payload_status = {
                     "CONNECTOR": connector,
                     "LINE": line_id,
