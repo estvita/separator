@@ -24,6 +24,16 @@ from thoth.users.tasks import create_user_task
 from django.contrib.auth import get_user_model, login, logout
 User = get_user_model()
 
+
+def link_ojects(portal: Bitrix, user):
+    if not portal.owner:
+        portal.owner = user
+        portal.save()
+    AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=user)
+    Line.objects.filter(portal=portal, owner__isnull=True).update(owner=user)
+    B24_user.objects.filter(bitrix=portal, owner__isnull=True).update(owner=user)
+
+
 def link_portal(request, code):
     try:
         uuid_code = uuid.UUID(code)
@@ -36,11 +46,8 @@ def link_portal(request, code):
             return
 
         if verification.is_valid():
-            portal.owner = user
-            portal.save()
-            AppInstance.objects.filter(portal=portal).update(owner=user)
-            Line.objects.filter(portal=portal).update(owner=user)
             verification.delete()
+            link_ojects(portal, user)
             messages.success(request, "Портал и связанные приложения успешно закреплены за вами.")
         else:
             messages.error(request, "Код подтверждения истек.")
@@ -50,6 +57,16 @@ def link_portal(request, code):
 
 @login_message_required(code="bitrix")
 def portals(request):
+    b24_data = request.session.pop('b24_data', None)
+    page_url = request.session.pop('page_url', None)
+    if b24_data and page_url:
+        try:
+            member_id = b24_data.get("member_id")
+            portal = Bitrix.objects.get(member_id=member_id)
+            link_ojects(portal, request.user)
+        except Bitrix.DoesNotExist:
+            pass
+        return redirect(page_url)
     user_portals = Bitrix.objects.filter(
         Q(users__owner=request.user) | Q(owner=request.user)
     ).distinct()
@@ -146,6 +163,8 @@ def get_owner(request):
     proto = "https" if protocol == "1" else "http"
     try:
         app = get_app(auth_id)
+        if not app.autologin:
+            return None
     except Exception as e:
         return None
     
@@ -161,7 +180,7 @@ def get_owner(request):
         b24_user = get_b24_user(app, portal, auth_id, refresh_id)
     except Exception as e:
         return None
-
+    
     if b24_user.owner:
         owner_user = b24_user.owner
     else:
@@ -250,16 +269,16 @@ def app_install(request):
 @csrf_exempt
 def app_settings(request):
     if request.method == "POST":
+        data = request.POST
+        domain = request.GET.get("DOMAIN")
+        member_id = data.get("member_id")
         try:
-            data = request.POST
-            domain = request.GET.get("DOMAIN")
-            member_id = data.get("member_id")
             portal = Bitrix.objects.get(member_id=member_id)
             if portal.domain != domain:
                 portal.domain = domain
                 portal.save()
         except Exception as e:
-            return redirect("portals")
+            pass
         
         auth_id = data.get("AUTH_ID")
         try:
@@ -276,8 +295,9 @@ def app_settings(request):
             bitrix_user = get_owner(request)
             
             if bitrix_user is None:
-                logout(request)
-                return redirect(app_url)
+                request.session['b24_data'] = request.POST.dict()
+                request.session['page_url'] = app.page_url
+                return portals(request)
             
             should_login = not request.user.is_authenticated or request.user != bitrix_user
             if should_login and app.autologin:
@@ -287,13 +307,11 @@ def app_settings(request):
                     login(request, bitrix_user, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception:
                     return redirect(app_url)
-
-            AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=bitrix_user)
-            Line.objects.filter(portal=portal, owner__isnull=True).update(owner=bitrix_user)
+            link_ojects(portal, bitrix_user)
             return redirect(app_url)
         else:
-            return redirect("portals")
+            return portals(request)
     elif request.method == "HEAD":
         return HttpResponse("ok")
     elif request.method == "GET":
-        return redirect("portals")
+        return portals(request)

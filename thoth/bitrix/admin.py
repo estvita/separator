@@ -79,7 +79,7 @@ class AdminMessageAdmin(admin.ModelAdmin):
 
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
-    list_display = ("name", "id", "client_id", "site")
+    list_display = ("name", "id", "autologin", "client_id", "site")
     search_fields = ("name", "id", "client_id")
     list_per_page = 30
 
