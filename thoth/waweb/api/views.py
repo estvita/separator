@@ -170,11 +170,14 @@ class EventsHandler(GenericViewSet):
             
             try:
                 # chatwoot не поддерживает группы, поэтому фильтруем
-                if not group_message and settings.CHATWOOT_ENABLED:
-                    resp_chatwoot = chatwoot.send_api_message(session.inbox, payload)
-                    if resp_chatwoot.status_code == 200:
-                        cw_msg_id = resp_chatwoot.json().get("id")
-                        redis_client.setex(f'chatwoot:{cw_msg_id}', 600, cw_msg_id)
+                if settings.CHATWOOT_ENABLED and session.inbox and not group_message:
+                    try:
+                        resp_chatwoot = chatwoot.send_api_message(session.inbox, payload)
+                        if resp_chatwoot.status_code == 200:
+                            cw_msg_id = resp_chatwoot.json().get("id")
+                            redis_client.setex(f'chatwoot:{cw_msg_id}', 600, cw_msg_id)
+                    except Exception:
+                        pass
                 
                 # отправка сообщения в битрикс
                 if session.line:
