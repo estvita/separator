@@ -181,12 +181,13 @@ class EventsHandler(GenericViewSet):
                 
                 # отправка сообщения в битрикс
                 if session.line:
+                    line = session.line
                     file_url = None
                     attach = None
                     text = payload.get("content", None)
                     if file_data:
-                        member_id = session.line.portal.member_id
-                        chat_key = f'bitrix_chat:{member_id}:{session.line.line_id}:{remoteJid}'
+                        member_id = line.portal.member_id
+                        chat_key = f'bitrix_chat:{member_id}:{line.line_id}:{remoteJid}'
                         if redis_client.exists(chat_key):
                             chat_id = redis_client.get(chat_key).decode('utf-8')
                             chat_folder = None
@@ -206,16 +207,17 @@ class EventsHandler(GenericViewSet):
                                     file_url = upload_file.get("DOWNLOAD_URL")
                     if fromme:
                         if text and not file_url:
-                            bitrix_tasks.message_add.delay(session.app_instance.id, session.line.line_id, 
-                                                        remoteJid, text, session.line.connector.code)
+                            bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
+                                                        remoteJid, text, line.connector.code)
                         elif file_url:
-                            file_upd = {
+                            file_data = {
                                 "CHAT_ID": chat_id,
                                 "UPLOAD_ID": upload_file.get("FILE_ID"),
                                 "DISK_ID": upload_file.get("ID"),
-                                "MESSAGE": text
+                                "MESSAGE": text,
+                                "SILENT_MODE": line.connector.silent,
                             }
-                            bitrix_tasks.call_api.delay(session.app_instance.id, "im.disk.file.commit", file_upd)
+                            bitrix_tasks.call_api.delay(session.app_instance.id, "im.disk.file.commit", file_data)
                     else:
                         attach = None
                         if file_url:
@@ -225,7 +227,7 @@ class EventsHandler(GenericViewSet):
                                     "name": fileName
                                 }
                             ]
-                        bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, session.line.connector.code, session.line.line_id,
+                        bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, line.connector.code, line.line_id,
                                                             False, pushName, message_id, attach, profilepic_url)
                         
 
