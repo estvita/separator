@@ -14,7 +14,7 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 + Python 3.12
 + PostgreSQL 16
-+ Redis
++ Redis Stack
 
 ```
 cd /opt 
