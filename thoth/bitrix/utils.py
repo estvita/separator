@@ -532,7 +532,7 @@ def event_processor(request):
                                 "filename": file["name"],
                             }
 
-                resp = waba.send_message(appinstance, message, line_id, chat, user_id)
+                resp = waba.send_message(appinstance, message, line_id, chat)
 
                 if resp.status_code != 200:
                     error = resp.json()
