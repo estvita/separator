@@ -225,27 +225,6 @@ def message_processing(request):
     # статусы пока на заглушке, ими нечего делать
     for item in statuses:
         status_name = item.get("status")
-        callback_data = item.get("biz_opaque_callback_data", None)
-        if callback_data:
-            line, chat_id, message_id = callback_data.split("_")
-
-            message_data = {
-                "chat_id": chat_id,
-                "message_id": message_id,
-            }
-
-            if status_name == "delivered":
-                call_method(
-                    appinstance, "imconnector.send.status.delivery", message_data
-                )
-            elif status_name == "read":
-                call_method(
-                    appinstance, "imconnector.send.status.delivery", message_data
-                )
-                call_method(
-                    appinstance, "imconnector.send.status.reading", message_data
-                )
-
         if status_name == "failed":
             message_id = item.get("id")
             errors = item.get("errors", [])
