@@ -36,16 +36,6 @@ VENDOR_BITRIX_INSTANCE = settings.VENDOR_BITRIX_INSTANCE
 
 logger = logging.getLogger("django")
 
-GENERAL_EVENTS = [
-    "ONAPPUNINSTALL",
-]
-
-CONNECTOR_EVENTS = [
-    "ONIMCONNECTORMESSAGEADD",
-    "ONIMCONNECTORLINEDELETE",
-    "ONIMCONNECTORSTATUSDELETE",
-]
-
 
 def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
     try:
@@ -167,9 +157,9 @@ def connect_line(request, line_id, entity, connector_service):
 
 
 # Подписка на события
-def events_bind(events: dict, appinstance: AppInstance, api_key: str):
+def events_bind(appinstance: AppInstance, api_key: str):
     url = appinstance.app.site
-    for event in events:
+    for event in appinstance.app.events.strip().splitlines():
         payload = {
             "event": event,
             "HANDLER": f"https://{url}/api/bitrix/?api-key={api_key}",
@@ -200,7 +190,6 @@ def register_connector(appinstance: AppInstance, api_key: str, connector):
         }
 
         bitrix_tasks.call_api.delay(appinstance.id, "imconnector.register", payload)
-        events_bind(CONNECTOR_EVENTS, appinstance, api_key)
 
     except FileNotFoundError:
         return None
@@ -414,12 +403,16 @@ def event_processor(request):
 
                 # Регистрация коннектора/ подписка на события
                 def register_events_and_connectors():
-                    events_bind(GENERAL_EVENTS, appinstance, api_key)
+                    events_bind(appinstance, api_key)
                     if app.connectors.exists():
                         for connector in app.connectors.all():
                             register_connector(appinstance, api_key, connector)
 
                 transaction.on_commit(register_events_and_connectors)
+
+                if settings.ASTERX_SERVER and app.asterx:
+                    from thoth.asterx.views import get_portal_settings
+                    get_portal_settings(member_id)
 
                 if VENDOR_BITRIX_INSTANCE:
                     bitrix_tasks.create_deal.delay(appinstance.id, VENDOR_BITRIX_INSTANCE, app.name)
@@ -606,7 +599,6 @@ def event_processor(request):
                     status=status.HTTP_200_OK,
                 )
 
-
         elif event == "ONIMCONNECTORLINEDELETE":
             line_id = data.get("data")
             try:
@@ -618,6 +610,26 @@ def event_processor(request):
                 return Response(
                     {"status": "Line not found"}, status=status.HTTP_200_OK
                 )
+            
+        # AsterX
+        elif event == "ONEXTERNALCALLSTART" and settings.ASTERX_SERVER:
+            from thoth.asterx.models import Server
+            from thoth.asterx.utils import send_call_info
+            try:
+                pbx = Server.objects.filter(settings__app_instance=appinstance).first()
+                b24_user_id = data.get('data[USER_ID]')
+                phone_number = data.get('data[PHONE_NUMBER_INTERNATIONAL]')
+                call_id = data.get('data[CALL_ID]')
+                payload = {
+                    'event': event,
+                    'b24_user_id': b24_user_id,
+                    'phone_number': phone_number,
+                    'call_id': call_id,
+                }
+                send_call_info(pbx.id, payload)
+            except Exception as e:
+                print(f'Failed to send message: {str(e)}')
+            return Response('event processed')
 
         elif event == "ONAPPUNINSTALL":
             portal = appinstance.portal
@@ -629,7 +641,7 @@ def event_processor(request):
                 return Response(f"{appinstance} deleted")
 
         else:
-            return Response({"message": "Unsupported event"})
+            return Response('Unsupported event')
 
     except Exception as e:
         logger.error(f"Error occurred: {e!s}")

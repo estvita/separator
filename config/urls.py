@@ -25,11 +25,15 @@ urlpatterns = [
     path('bots/', include('thoth.bot.urls_bot', namespace='bot')),
     # path('voices/', include('thoth.bot.urls_voice', namespace='voice')),
     path('dify/', include('thoth.dify.urls')),
-    # Your stuff: custom urls includes go here
     # ...
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]
+
+if settings.ASTERX_SERVER:
+    urlpatterns += [
+        path('asterx/', include('thoth.asterx.urls')),
+    ]
 
 # API URLS
 urlpatterns += [

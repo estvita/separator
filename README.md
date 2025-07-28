@@ -67,7 +67,7 @@ sudo systemctl restart thoth
 
 ## Proxy Server
 + You can view the process of setting up Nginx and Gunicorn [here](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
-+ Example configuration files are available in the [documentation](docs/example)
++ Example configuration files are available in the [documentation](/docs/example)
 
 ## Logging
 If needed, you can enable detailed logs in the console. To do this, specify the logging level LOG_LEVEL=DEBUG in the .env file, restart thoth, and run the command
@@ -79,21 +79,26 @@ journalctl -u thoth -f
 
 ## Integrations
 
-+ [Bitrix24 CRM](docs/bitrix.md)
-+ [WhatsApp - WABA](docs/waba.md)
-+ [WhatsApp - WEB](docs/waweb.md)
-+ [OLX](docs/olx.md)
-+ [Chatwoot](docs/chatwoot.md)
++ [Bitrix24 CRM](/docs/bitrix.md)
++ [PBX based on Astrisk](/docs/asterx.md)
++ [WhatsApp - WABA](/docs/waba.md)
++ [WhatsApp - WEB](/docs/waweb.md)
++ [OLX](/docs/olx.md)
 
-+ [Openai chat-bot](docs/openai_bot.md)
-+ [Openai voice-bot](docs/openai_voice.md)
+
++ [Chatwoot](/docs/chatwoot.md)
++ [Openai chat-bot](/docs/openai_bot.md)
++ [Openai voice-bot](/docs/openai_voice.md)
 
 
 ## User Service Pages
 + /portals/ - Bitrix24
++ /asterx/ - IP PBX Asterisk
 + /olx/accounts/ - OLX
 + /waba/ - waba
 + /waweb/ - whatsapp web
+
+
 + /bots/ - openai assistants
 + /voices/ - openai voice
 + /dify/ - dify bots

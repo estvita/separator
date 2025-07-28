@@ -7,6 +7,7 @@ Video tutorial (based on previous version) - https://youtu.be/ti99AeGAr4k
 + In the Sites section, rename example.com to the domain through which thoth will be accessed
 + In Bitrix > Connectors section, add a connector with an SVG icon
 + Bitrix > Apps - add an app. Enter the name (waba, waweb, olx) and select a domain, choose the necessary connectors
++ For applications with connectors, add events to the events field one by one in the line ONAPPUNINSTALL, ONIMCONNECTORMESSAGEADD, ONIMCONNECTORLINEDELETE, ONIMCONNECTORSTATUSDELETE
 + Fill in the "Page url" field with a link to the application settings page. For example (/waweb/, /waba/), this page will open in Bitrix24 when using web interface installation.
 
 **#### Preparing the application in Bitrix24**

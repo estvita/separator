@@ -64,7 +64,7 @@ sudo systemctl restart thoth
 **## Прокси-сервер**
 
 + Процесс настройки Nginx и Gunicorn можно посмотреть [здесь](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
-+ Примеры файлов конфигураций есть в [документации](docs/example)
++ Примеры файлов конфигураций есть в [документации](/docs/example)
 
 **## Логирование**
 
@@ -76,20 +76,26 @@ journalctl -u thoth -f
 
 **## Подключение**
 
-+ [Битрикс](docs/bitrix.ru.md)
-+ [(WhatsApp) WABA](docs/waba.md)
-+ [WhatsApp - WEB](docs/waweb.md)
-+ [OLX](docs/olx.md)
-+ [Chatwoot](docs/chatwoot.md)
-+ [OpenAI chat-bot](docs/openai_bot.md)
-+ [OpenAI voice-bot](docs/openai_voice.md)
++ [CRM Битрикс24](/docs/bitrix.ru.md)
++ [АТС на базе Asterisk](/docs/asterx.ru.md)
++ [(WhatsApp) WABA](/docs/waba.md)
++ [WhatsApp - WEB](/docs/waweb.ru.md)
++ [OLX](/docs/olx.md)
+
+
++ [Chatwoot](/docs/chatwoot.md)
++ [OpenAI chat-bot](/docs/openai_bot.md)
++ [OpenAI voice-bot](/docs/openai_voice.md)
 
 **## Адреса пользовательских интерфейсов**
 
 + /portals/ — Bitrix24
++ /asterx/ - IP АТС Asterisk
 + /olx/accounts/ — OLX
 + /waba/ — WABA
 + /waweb/ — WhatsApp Web
+
+
 + /bots/ — OpenAI Assistants
 + /voices/ — OpenAI Voice
 + /dify/ — Dify Bots

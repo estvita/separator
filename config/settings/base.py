@@ -117,6 +117,24 @@ LOCAL_APPS = [
     "thoth.bot",
     "thoth.dify",
 ]
+
+# Asterisk Connector AsterX
+ASTERX_SERVER = env.bool("ASTERX_SERVER", default=False)
+
+if ASTERX_SERVER:
+    DJANGO_APPS = ["daphne"] + DJANGO_APPS
+    LOCAL_APPS = LOCAL_APPS + ["thoth.asterx"]
+    ASGI_APPLICATION = 'thoth.asterx.asgi.application'
+
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [("localhost", 6379)],
+            },
+        },
+    }
+
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

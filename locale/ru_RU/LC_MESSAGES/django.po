@@ -1,4 +1,4 @@
-# Translations for the exten.bot project
+# Translations for the gulin.kz project
 # Copyright (C) 2025 Anton Gulin
 # Anton Gulin <toogulin@gmail.com>, 2025.
 #
@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-28 11:02+0500\n"
+"POT-Creation-Date: 2025-07-28 11:07+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,6 +21,41 @@ msgstr ""
 
 msgid "Russian"
 msgstr ""
+
+msgid "0 - not show, 1 - on call, 2 - on answer"
+msgstr ""
+
+msgid "1 - yes, 0 - no"
+msgstr ""
+
+#, fuzzy
+#| msgid "Add PBX"
+msgid "My PBX"
+msgstr "Подключить АТС"
+
+msgid "Exclude"
+msgstr "Исключить"
+
+msgid "External"
+msgstr "Внешний"
+
+msgid "Internal"
+msgstr "Внутренний"
+
+msgid "Not show"
+msgstr "Не показывать"
+
+msgid "On call"
+msgstr "При звонке"
+
+msgid "On answer"
+msgstr "При ответе"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
 
 msgid "Sign In"
 msgstr ""
@@ -50,6 +85,86 @@ msgstr ""
 msgid "Sign up using a passkey"
 msgstr ""
 
+#, fuzzy
+#| msgid "AsterX Servers"
+msgid "Edit AsterX Server"
+msgstr "Серверы AsterX"
+
+msgid "Edit server"
+msgstr "Редактировать"
+
+msgid "ID"
+msgstr ""
+
+msgid "Version"
+msgstr "Версия"
+
+msgid "System"
+msgstr "Система"
+
+msgid "Expiry Date"
+msgstr "Срок действия"
+
+msgid "Not Set"
+msgstr "Не задано"
+
+msgid "Contexts"
+msgstr "Контексты"
+
+msgid "Delete"
+msgstr "Удалить"
+
+msgid "Context"
+msgstr "Контекст"
+
+msgid "Endpoint (example)"
+msgstr "Учётка (прмиер)"
+
+msgid "Type"
+msgstr "Тип"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgid "Back to list"
+msgstr "Вернуться"
+
+msgid "AsterX Servers"
+msgstr "Серверы AsterX"
+
+msgid "Your PBX Servers"
+msgstr "Ваши АТС"
+
+msgid "App Settings:"
+msgstr "Настройки приложения:"
+
+msgid "Show Card"
+msgstr "Показывать карточку"
+
+msgid "CRM Create"
+msgstr "Создавать сделку (лид)"
+
+msgid "Name"
+msgstr "Название"
+
+msgid "Installed"
+msgstr "Установлено"
+
+msgid "Bitrix Instance"
+msgstr "Портал Битрикс24"
+
+msgid "Users"
+msgstr "Пользователи"
+
+msgid "Update"
+msgstr "Обновить"
+
+msgid "You have no PBX."
+msgstr "Вы не подключили АТС"
+
+msgid "Add PBX"
+msgstr "Подключить АТС"
+
 msgid "My Profile"
 msgstr "Профиль"
 
@@ -65,14 +180,11 @@ msgstr ""
 msgid "Important dates"
 msgstr ""
 
-msgid "Users"
-msgstr ""
-
 msgid "This email has already been taken."
 msgstr ""
 
 msgid "Phone number"
-msgstr ""
+msgstr "Номер телефона"
 
 msgid "Пользователь с таким номером уже существует."
 msgstr ""

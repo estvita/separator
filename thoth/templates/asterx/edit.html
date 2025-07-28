@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Edit AsterX Server" %}{% endblock %}
+{% block content %}
+<div class="container">
+<h2>{% trans "Edit server" %} "{{ server.name }}"</h2>
+<!-- Readonly info -->
+<table class="table table-bordered mb-4">
+    <tr><th>{% trans "ID" %}</th><td>{{ readonly_fields.id }}</td></tr>
+    <tr><th>{% trans "Version" %}</th><td>{{ readonly_fields.version }}</td></tr>
+    <tr><th>{% trans "System" %}</th><td>{{ readonly_fields.system }}</td></tr>
+    <tr><th>{% trans "Expiry Date" %}</th><td>
+        {% if readonly_fields.date_end %}
+            {{ readonly_fields.date_end|date:"Y-m-d H:i:s" }}
+        {% else %}
+            {% trans "Not Set" %}
+        {% endif %}
+    </td></tr>
+</table>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <h5>{% trans "Contexts" %}</h5>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>{% trans "Delete" %}</th>
+                <th>{% trans "Context" %}</th>
+                <th>{% trans "Endpoint (example)" %}</th>
+                <th>{% trans "Type" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{ formset.management_form }}
+        {% for context_form in formset %}
+            <tr>
+                <td>{{ context_form.DELETE }}</td>
+                <td>{{ context_form.instance.context }}</td>
+                <td>{{ context_form.instance.endpoint }}</td>
+                <td>
+                    {{ context_form.type }}
+                    {{ context_form.id }}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+</form>
+<br>
+<a href="{% url 'asterx' %}">&larr; {% trans "Back to list" %}</a>
+</div>
+{% endblock %}

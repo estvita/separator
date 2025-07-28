@@ -1,0 +1,80 @@
+# Integration CRM Bitrix24 with Asterisk-based IP PBX
+
+The [AsterX](https://github.com/estvita/AsterX) connector operates by interacting with the PBX through the AMI (Asterisk Manager Interface). Thus, Bitrix24 integration is possible with any PBX running on Asterisk:
+
+Software PBXs:
++ FreePBX (the most common with GUI)
++ Issabel (Elastix-Style)
++ VitalPBX
++ "Pure" Asterisk (manual configuration)
++ and others
+
+Hardware solutions on Asterisk with AMI support (depends on the model)
++ Yeastar
++ Grandstream
++ OpenVox 
++ and others
+
+The AsterX connector can operate independently or be managed by the thoth server.
+
+Operation algorithm:
++ Connect to PBX AMI
++ Subscribe to call events
++ Register a call in Bitrix24 (telephony.externalcall.register)
++ Display client card (telephony.externalcall.show). Possible parameters: Do not show; during call; on call answer
++ Finish call (telephony.externalcall.finish)
++ Attach recording (telephony.externalCall.attachRecord)
++ ClickToCall support (OnExternalCallStart)
+
+## Installation
+
+On Bitrix and thoth side:
++ In .env thoth set ASTERX_SERVER=True
++ Install additional packages from ![asterx.txt](/requirements/asterx.txt)
++ Create a local Bitrix24 application, specify addresses: https://example.com/app-install/ and https://example.com/app-settings/, set permissions crm, user, disk, telephony, im. Click "Save" and save client_id, client_secret
+![asterx_b24](/docs/img/asterx_b24.png)
++ Create an application in the thoth interface with ONAPPUNINSTALL, ONEXTERNALCALLSTART events. Check the "AsterX" box. Page url: /asterx/. Fill in client_id, client_secret with values from the previous step.
++ Click "Go to application" in Bitrix24
++ In the opened interface, click "Add PBX"
+![add_pbx](/docs/img/add_pbx.png)
++ Copy the received PBX-ID: XXXXXX
++ Click on the PBX name and go to settings, from the dropdown select the AsterX application on ... your Bitrix portal, Save
+
+On PBX side:
+For software PBXs, it’s recommended to install the connector on the server itself; for hardware solutions, use an external server.
+
++ Create an AMI user
+
+AsterX setup:
++ git clone https://github.com/estvita/AsterX.git
++ cd asterx
++ python3 -m venv .venv
++ source .venv/bin/activate
++ pip install -r requirements.txt
++ cp examples/cloud.ini config.ini
++ nano config.ini
+
+```
+[asterisk]
+pbx_id = XXXXXX
+host = localhost
+port = 5038
+username = AMI-username
+secret = AMI-secret
+```
+
+Run in test mode: python main.py
+
+After connector authorization on the thoth server, keys and basic settings will be sent to the connector database.
+
+In turn, the connector will send the server a list of contexts, from which you need to select external, internal, and ignored in the Bitrix24 PBX settings interface.
+
+Important: both incoming and outgoing calls involve two contexts; thus, there must be at least one external and one internal line set in the settings.
+
+![asterx_settings](/docs/img/asterx_settings.png)
+
+To exclude calls from statistics, select "Exclude"
+
+To match calls between Bitrix24 users and PBX, assign each user's extension in the PBX to their Bitrix24 telephony user profile, and set the AsterX app as the default number.
+
+After any change to PBX user settings in the application interface, click "Update" in the PBX list — the local connector user database will be recreated.

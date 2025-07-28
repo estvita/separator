@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "AsterX Servers" %}{% endblock %}
+{% block content %}
+<div class="container">
+  <h3>{% trans "Your PBX Servers" %}</h3>
+
+  {% if settings_form %}
+  <h4 class="mt-4">
+    {% trans "App Settings:" %}    
+    {% if portal_settings and portal_settings.app_instance %}
+      {{ portal_settings.app_instance }}
+    {% endif %}
+  </h4>
+    <form method="post" class="mb-4">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <b>{% trans "Show Card" %}</b>: 
+        {% for radio in settings_form.show_card %}
+          <label style="display:inline-block; margin-right:16px;">
+            {{ radio.tag }} {{ radio.choice_label }}
+          </label>
+        {% endfor %}
+      </div>
+      <div class="mb-3">
+        <b>{% trans "CRM Create" %}</b>: 
+        {% for radio in settings_form.crm_create %}
+          <label style="display:inline-block; margin-right:16px;">
+            {{ radio.tag }} {{ radio.choice_label }}
+          </label>
+        {% endfor %}
+      </div>
+
+      <button type="submit" name="save_settings" class="btn btn-success">{% trans "Save" %}</button>
+    </form>
+  {% endif %}
+  
+  {% if servers %}
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+      <th>{% trans "Name" %}</th>
+      <th>{% trans "Installed" %}</th>
+      <th>{% trans "ID" %}</th>
+      <th>{% trans "Expiry Date" %}</th>
+      <th>{% trans "Bitrix Instance" %}</th>
+      <th>{% trans "Users" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for server in servers %}
+      <tr>
+        <td>
+          <a href="{% url 'edit_asterx' server_id=server.id %}">
+            {{ server.name }}
+          </a>
+          </td>
+        <td>{{server.setup_complete}}</td>
+        <td>{{ server.id }}</td>
+        <td>
+          {% if server.date_end %}
+          {{ server.date_end|date:"Y-m-d H:i:s" }}
+          {% else %}
+          Not Set
+          {% endif %}
+        </td>
+        <td>
+          {% if server.settings.app_instance %}
+          {{ server.settings.app_instance }}
+          {% else %}
+          (not set)
+          {% endif %}
+        </td>
+      <td>
+      <form method="POST" style="margin-bottom: 0;">
+        {% csrf_token %}
+        <input type="hidden" name="server_id" value="{{ server.id }}" />
+        <button type="submit" name="refresh_users" class="btn btn-info btn-sm">{% trans "Update" %}</button>
+      </form>
+    </td>        
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>{% trans "You have no PBX." %}</p>
+  {% endif %}
+  <form method="POST">
+    {% csrf_token %}
+    <button type="submit" name="add_server" class="btn btn-primary mb-3">{% trans "Add PBX" %}</button>
+  </form>
+</div>
+{% endblock %}

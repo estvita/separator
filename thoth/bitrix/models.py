@@ -40,7 +40,9 @@ class App(models.Model):
     name = models.CharField(max_length=255, blank=True, unique=False)
     page_url = models.CharField(max_length=255, blank=True, default="/")
     autologin = models.BooleanField(default=True)
+    events = models.TextField(blank=True, default="ONAPPUNINSTALL")
     connectors = models.ManyToManyField(Connector, blank=True, related_name='apps')
+    asterx = models.BooleanField(default=False, help_text="Chek for AsterX connector")
     client_id = models.CharField(max_length=255, blank=True, unique=False)
     client_secret = models.CharField(max_length=255, blank=True)
 

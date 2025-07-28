@@ -294,9 +294,9 @@ def app_settings(request):
             app_url = app.page_url
             bitrix_user = get_owner(request)
             
+            request.session['b24_data'] = request.POST.dict()
+            request.session['page_url'] = app.page_url
             if bitrix_user is None:
-                request.session['b24_data'] = request.POST.dict()
-                request.session['page_url'] = app.page_url
                 return portals(request)
             
             should_login = not request.user.is_authenticated or request.user != bitrix_user
