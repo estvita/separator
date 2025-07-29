@@ -108,7 +108,6 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "thoth.users",
-    # Your stuff: custom apps go here
     "thoth.bitrix",
     "thoth.waba",
     "thoth.olx",
@@ -116,6 +115,7 @@ LOCAL_APPS = [
     "thoth.waweb",
     "thoth.bot",
     "thoth.dify",
+    "thoth.asterx",
 ]
 
 # Asterisk Connector AsterX
@@ -123,7 +123,6 @@ ASTERX_SERVER = env.bool("ASTERX_SERVER", default=False)
 
 if ASTERX_SERVER:
     DJANGO_APPS = ["daphne"] + DJANGO_APPS
-    LOCAL_APPS = LOCAL_APPS + ["thoth.asterx"]
     ASGI_APPLICATION = 'config.asgi.application'
 
     CHANNEL_LAYERS = {

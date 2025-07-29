@@ -21,14 +21,6 @@ cd /opt
 git clone https://github.com/estvita/thoth
 cd thoth
 
-sudo cp docs/example/celery_worker.service /etc/systemd/system/celery_worker.service
-sudo cp docs/example/celery_beat.service /etc/systemd/system/celery_beat.service
-
-sudo systemctl daemon-reload
-sudo systemctl enable celery_worker.service
-sudo systemctl enable celery_beat.service
-sudo systemctl start celery_worker.service
-sudo systemctl start celery_beat.service
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -45,6 +37,16 @@ python manage.py collectstatic
 python manage.py createsuperuser
 
 python manage.py runserver 0.0.0.0:8000 (for testing and debugging)
+
+
+sudo cp docs/example/celery_worker.service /etc/systemd/system/celery_worker.service
+sudo cp docs/example/celery_beat.service /etc/systemd/system/celery_beat.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable celery_worker.service
+sudo systemctl enable celery_beat.service
+sudo systemctl start celery_worker.service
+sudo systemctl start celery_beat.service
 
 ```
 

@@ -85,3 +85,5 @@ To exclude calls from statistics, select "Exclude"
 To match calls between Bitrix24 users and PBX, assign each user's extension in the PBX to their Bitrix24 telephony user profile, and set the AsterX app as the default number.
 
 After any change to PBX user settings in the application interface, click "Update" in the PBX list — the local connector user database will be recreated.
+
+For prodaction use: daphne -b 0.0.0.0 -p 8000 config.asgi:application
