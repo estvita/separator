@@ -1,2 +1,3 @@
 channels[daphne]
 channels_redis
+Twisted[tls,http2]

@@ -118,7 +118,7 @@ msgid "Context"
 msgstr "Контекст"
 
 msgid "Endpoint (example)"
-msgstr "Учётка (прмиер)"
+msgstr "Учётка (пример)"
 
 msgid "Type"
 msgstr "Тип"

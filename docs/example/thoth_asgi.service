@@ -1,0 +1,15 @@
+[Unit]
+Description=thoth Daphne ASGI daemon
+After=network.target postgresql.service redis.service
+Requires=postgresql.service redis.service
+
+[Service]
+User=thoth
+WorkingDirectory=/opt/thoth/app
+EnvironmentFile=/opt/thoth/app/.env
+Environment=DJANGO_SETTINGS_MODULE=config.settings.vendor
+ExecStart=/opt/thoth/app/.venv/bin/daphne -b 0.0.0.0 -p 8000 config.asgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
