@@ -7,7 +7,7 @@ Requires=postgresql.service redis.service
 User=thoth
 WorkingDirectory=/opt/thoth/app
 EnvironmentFile=/opt/thoth/app/.env
-Environment=DJANGO_SETTINGS_MODULE=config.settings.vendor
+Environment=DJANGO_SETTINGS_MODULE=config.settings.production
 ExecStart=/opt/thoth/app/.venv/bin/daphne -b 0.0.0.0 -p 8000 config.asgi:application
 Restart=always
 
