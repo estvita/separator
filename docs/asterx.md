@@ -46,15 +46,22 @@ For software PBXs, it’s recommended to install the connector on the server its
 + Create an AMI user
 
 AsterX setup:
-+ git clone https://github.com/estvita/AsterX.git
-+ cd asterx
-+ python3 -m venv .venv
-+ source .venv/bin/activate
-+ pip install -r requirements.txt
-+ cp examples/cloud.ini config.ini
-+ nano config.ini
+```
+git clone https://github.com/estvita/asterx.git
+cd asterx
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements/local_sql.txt
+cp examples/cloud.ini config.ini
+nano config.ini
+```
 
 ```
+[app]
+control_server_http = https://example.com
+control_server_ws = wss://example.com
+
+
 [asterisk]
 pbx_id = XXXXXX
 host = localhost

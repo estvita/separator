@@ -124,7 +124,7 @@ ASTERX_SERVER = env.bool("ASTERX_SERVER", default=False)
 if ASTERX_SERVER:
     DJANGO_APPS = ["daphne"] + DJANGO_APPS
     LOCAL_APPS = LOCAL_APPS + ["thoth.asterx"]
-    ASGI_APPLICATION = 'thoth.asterx.asgi.application'
+    ASGI_APPLICATION = 'config.asgi.application'
 
     CHANNEL_LAYERS = {
         "default": {

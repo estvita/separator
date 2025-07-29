@@ -57,7 +57,7 @@ def link_portal(request, code):
 
 @login_message_required(code="bitrix")
 def portals(request):
-    b24_data = request.session.pop('b24_data', None)
+    b24_data = request.session.get('b24_data', None)
     page_url = request.session.pop('page_url', None)
     if b24_data and page_url:
         try:

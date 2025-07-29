@@ -48,23 +48,29 @@
 + Создать AMI пользователя
 
 Установка AsterX
-+ git clone https://github.com/estvita/AsterX.git
-+ cd asterx
-+ python3 -m venv .venv
-+ source .venv/bin/activate
-+ pip install -r requirements.txt
-+ cp examples/cloud.ini config.ini
-+ nano config.ini
+```
+git clone https://github.com/estvita/asterx.git
+cd asterx
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements/local_sql.txt
+cp examples/cloud.ini config.ini
+nano config.ini
+```
 
 ```
+[app]
+control_server_http = https://example.com
+control_server_ws = wss://example.com
+
+
 [asterisk]
 pbx_id = XXXXXX
-
 host = localhost
 port = 5038
 username = AMI-username
 secret = AMI-secret
-``` 
+```
 
 Запустить в тестовом режиме 
 ```
