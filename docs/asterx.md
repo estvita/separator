@@ -86,4 +86,4 @@ To match calls between Bitrix24 users and PBX, assign each user's extension in t
 
 After any change to PBX user settings in the application interface, click "Update" in the PBX list — the local connector user database will be recreated.
 
-For prodaction use: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+For production use: daphne -b 0.0.0.0 -p 8000 config.asgi:application
