@@ -1,18 +1,16 @@
 {% extends 'base.html' %}
-
+{% load i18n %}
 {% block content %}
-<h1>Send Message via {{ session.phone }}</h1>
-
+<h1>{% blocktrans %}Send Message via {{ session.phone }}{% endblocktrans %}</h1>
 {% if session.status == "disconnected" %}
-    <p style="color: red;">Сессия отключена. Пожалуйста, повторно подключите номер.</p>
+    <p style="color: red;">{% trans "Session disconnected. Please reconnect the number." %}</p>
 {% else %}
     <form method="post">
         {% csrf_token %}
         {{ form.recipients }}
         {{ form.message }}
-        <button type="submit" class="btn btn-primary">Отправить</button>
+        <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
     </form>
 {% endif %}
-
-<a href="{% url 'waweb' %}">Вернуться назад</a>
+<a href="{% url 'waweb' %}">{% trans "Back" %}</a>
 {% endblock %}

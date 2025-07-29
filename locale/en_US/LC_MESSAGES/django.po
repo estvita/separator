@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-28 11:07+0500\n"
+"POT-Creation-Date: 2025-07-29 17:10+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -158,10 +158,117 @@ msgstr ""
 msgid "Add PBX"
 msgstr ""
 
+msgid "Your Bitrix24"
+msgstr ""
+
+msgid "Portal"
+msgstr ""
+
+msgid "Administrator"
+msgstr ""
+
+msgid "Application (status)"
+msgstr ""
+
+msgid "Not Found"
+msgstr ""
+
+msgid "No App Instances"
+msgstr ""
+
+msgid "No Bitrix24 portals found."
+msgstr ""
+
+msgid "Portal linking"
+msgstr ""
+
+msgid "Confirm"
+msgstr ""
+
+msgid "Get code"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
 msgid "My Profile"
 msgstr ""
 
 msgid "Sign Out"
+msgstr ""
+
+msgid "Send WhatsApp Message"
+msgstr ""
+
+#, python-format
+msgid "Send Message via %(phone.phone)s"
+msgstr ""
+
+msgid "Recipient Phones (one per line)"
+msgstr ""
+
+msgid "Enter recipient phone numbers, one per line"
+msgstr ""
+
+msgid "Template"
+msgstr ""
+
+msgid "Add New"
+msgstr ""
+
+msgid "Scan the QR code"
+msgstr ""
+
+msgid "QR Code"
+msgstr ""
+
+msgid "Public link:"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+#, python-format
+msgid "Send Message via %(session.phone)s"
+msgstr ""
+
+msgid "Session disconnected. Please reconnect the number."
+msgstr ""
+
+msgid "WAWeb Sessions"
+msgstr ""
+
+msgid "Your WhatsApp Web Numbers"
+msgstr ""
+
+msgid "Number"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Line ID"
+msgstr ""
+
+msgid "Bitrix24 Line"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "No line"
+msgstr ""
+
+msgid "Select a line"
+msgstr ""
+
+msgid "line"
+msgstr ""
+
+msgid "You don't have any connected sessions."
+msgstr ""
+
+msgid "Add number"
 msgstr ""
 
 msgid "Personal info"

@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-
+{% load i18n %}
 {% block content %}
   <div class="container">
-    <h3>Ваши Bitrix24</h3>
+    <h3>{% trans "Your Bitrix24" %}</h3>
     {% if user_portals %}
       <table class="table table-bordered">
         <thead>
           <tr>
-            <th>Портал</th>
-            <th>Администратор</th>
-            <th>Приложение (статус)</th>
+            <th>{% trans "Portal" %}</th>
+            <th>{% trans "Administrator" %}</th>
+            <th>{% trans "Application (status)" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -20,9 +20,9 @@
               </td>
               <td>
                 {% if b24_admin %}
-                <a href="{{ portal.protocol }}://{{ portal.domain }}/company/personal/user/{{ b24_admin.user_id }}/" target="_blank">{{ b24_admin.user_id }}</a>
+                  <a href="{{ portal.protocol }}://{{ portal.domain }}/company/personal/user/{{ b24_admin.user_id }}/" target="_blank">{{ b24_admin.user_id }}</a>
                 {% else %}
-                Not Found
+                  {% trans "Not Found" %}
                 {% endif %}
               </td>
               <td>
@@ -30,7 +30,7 @@
                   <a href="{{ instance.app.page_url }}">{{ instance.app.name }}</a> ({{ instance.status }})
                   {% if not forloop.last %},{% endif %}
                 {% empty %}
-                  No App Instances
+                  {% trans "No App Instances" %}
                 {% endfor %}
               </td>
             </tr>
@@ -38,22 +38,22 @@
         </tbody>
       </table>
     {% else %}
-      <p>No Bitrix24 portals found.</p>
+      <p>{% trans "No Bitrix24 portals found." %}</p>
     {% endif %}
-    <h4>Привязка портала</h4>
+    <h4>{% trans "Portal linking" %}</h4>
     <form method="POST" action="{% url 'portals' %}">
       {% csrf_token %}
       <div style="width: 40%;" class="form-group d-flex align-items-center">
         {{ verification_form.confirmation_code }}
-       <button type="submit" name="confirm" class="btn btn-primary connect-btn">Подтвердить</button>
-        </div>
+        <button type="submit" name="confirm" class="btn btn-primary connect-btn">{% trans "Confirm" %}</button>
+      </div>
     </form>
-    <h4>Получение кода</h4>
+    <h4>{% trans "Get code" %}</h4>
     <form method="POST" action="{% url 'portals' %}">
       {% csrf_token %}
       <div style="width: 40%;" class="form-group d-flex align-items-center">
        {{ portal_form.portal_address }}
-      <button type="submit" name="send_code" class="btn btn-secondary connect-btn">Отправить</button>
+       <button type="submit" name="send_code" class="btn btn-secondary connect-btn">{% trans "Send" %}</button>
       </div>
     </form>
   </div>

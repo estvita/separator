@@ -82,7 +82,7 @@ journalctl -u thoth -f
 ## Integrations
 
 + [Bitrix24 CRM](/docs/bitrix.md)
-+ [PBX based on Astrisk](/docs/asterx.md)
++ [PBX based on Asterisk](/docs/asterx.md)
 + [WhatsApp - WABA](/docs/waba.md)
 + [WhatsApp - WEB](/docs/waweb.md)
 + [OLX](/docs/olx.md)

@@ -1,13 +1,12 @@
 {% extends 'base.html' %}
-
+{% load i18n %}
 {% block content %}
-<h1>Сканируйте QR-код</h1>
-<img src="data:image/png;base64,{{ qr_image }}" alt="QR Code">
-
+<h1>{% trans "Scan the QR code" %}</h1>
+<img src="data:image/png;base64,{{ qr_image }}" alt="{% trans 'QR Code' %}">
 {% if public_id %}
-<p>Публичная ссылка:
+<p>{% trans "Public link:" %}
 <input type="text" value="{{ request.scheme }}://{{ request.get_host }}/waweb/shareqr/{{ public_id }}/" readonly style="width:300px" onclick="this.select();">
 </p>
 {% endif %}
-<a href="{% url 'waweb' %}">Вернуться</a>
+<a href="{% url 'waweb' %}">{% trans "Back" %}</a>
 {% endblock %}
