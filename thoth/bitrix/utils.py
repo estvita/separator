@@ -29,6 +29,9 @@ from .models import User as B24_user
 
 import thoth.bitrix.tasks as bitrix_tasks
 
+if settings.ASTERX_SERVER:
+    from thoth.asterx.models import Server
+    from thoth.asterx.utils import send_call_info
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -612,9 +615,7 @@ def event_processor(request):
                 )
             
         # AsterX
-        elif event == "ONEXTERNALCALLSTART" and settings.ASTERX_SERVER:
-            from thoth.asterx.models import Server
-            from thoth.asterx.utils import send_call_info
+        elif event == "ONEXTERNALCALLSTART":
             try:
                 pbx = Server.objects.filter(settings__app_instance=appinstance).first()
                 b24_user_id = data.get('data[USER_ID]')
@@ -628,7 +629,20 @@ def event_processor(request):
                 }
                 send_call_info(pbx.id, payload)
             except Exception as e:
-                print(f'Failed to send message: {str(e)}')
+                print(f'Failed to send event: {str(e)}')
+            return Response('event processed')
+        
+        elif event == "ONEXTERNALCALLBACKSTART":
+            try:
+                pbx = Server.objects.filter(settings__app_instance=appinstance).first()
+                phone_number = data.get('data[PHONE_NUMBER]')
+                payload = {
+                    'event': event,
+                    'phone_number': phone_number,
+                }
+                send_call_info(pbx.id, payload)
+            except Exception as e:
+                print(f'Failed to send event: {str(e)}')
             return Response('event processed')
 
         elif event == "ONAPPUNINSTALL":
