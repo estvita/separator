@@ -63,19 +63,5 @@
             "console": "integratedTerminal",
             "args": ["-A", "config.celery_app", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"],
         }
-    ],
-    "compounds": [
-        {
-            "name": "Django, Worker Win",
-            "configurations": ["Django", "Worker Win",]
-        },
-        {
-            "name": "Django, Worker Lin",
-            "configurations": ["Django", "Worker Lin",]
-        },
-        {
-            "name": "Django, Beat, Worker",
-            "configurations": ["Django", "Worker Lin", "Beat"]
-        },
     ]
 }

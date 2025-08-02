@@ -17,6 +17,10 @@ class Settings(models.Model):
         default=1,
         help_text=_("1 - yes, 0 - no")
     )
+    vm_send = models.IntegerField(
+        default=1,
+        help_text=_("Send VoiceMail to B24: 1 - yes, 0 - no")
+    )
     def __str__(self):
         return str(self.app_instance)
 

@@ -152,6 +152,7 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             "user_token": user_token,
             "show_card": settings.show_card,
             "crm_create": settings.crm_create,
+            "vm_send": settings.vm_send,
         }
     
     

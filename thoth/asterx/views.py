@@ -39,6 +39,11 @@ CRM_CREATE_CHOICES = [
     (0, _('No'))
 ]
 
+VM_SEND_CHOICES = [
+    (1, _('Yes')),
+    (0, _('No'))
+]
+
 class SettingsForm(forms.ModelForm):
     show_card = forms.TypedChoiceField(
         choices=SHOW_CARD_CHOICES,
@@ -52,10 +57,16 @@ class SettingsForm(forms.ModelForm):
         coerce=int,
         label='Create CRM'
     )
+    vm_send = forms.TypedChoiceField(
+        choices=VM_SEND_CHOICES,
+        widget=forms.RadioSelect,
+        coerce=int,
+        label='Send VoiceMail'
+    )
 
     class Meta:
         model = Settings
-        fields = ['show_card', 'crm_create']
+        fields = ['show_card', 'crm_create', 'vm_send']
 
 @login_required
 def server_list(request):
@@ -109,16 +120,19 @@ def server_list(request):
             settings_form = SettingsForm(request.POST, instance=portal_settings)
             if settings_form.is_valid():
                 settings_form.save()
+                servers = Server.objects.filter(settings=portal_settings).all()
                 # --- Websocket эвент ---
-                channel_layer = get_channel_layer()
-                async_to_sync(channel_layer.group_send)(
-                    f"server_{portal_settings.servers.first().id}",
-                    {"type": "send_event", "message": {
-                        "event": "settings_update",
-                        "show_card": portal_settings.show_card,
-                        "crm_create": portal_settings.crm_create,
-                    }}
-                )
+                for server in servers:
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        f"server_{server.id}",
+                        {"type": "send_event", "message": {
+                            "event": "settings_update",
+                            "show_card": portal_settings.show_card,
+                            "crm_create": portal_settings.crm_create,
+                            "vm_send": portal_settings.vm_send,
+                        }}
+                    )
                 messages.success(request, 'Settings saved and sent to client!')
                 return redirect('asterx')
         else:
@@ -206,6 +220,7 @@ def edit_asterx(request, server_id):
                         "user_token": user_token,
                         "show_card": settings.show_card,
                         "crm_create": settings.crm_create,
+                        "vm_send": settings.vm_send,
                     }
                 else:
                     payload = {

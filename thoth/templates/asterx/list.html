@@ -31,6 +31,14 @@
           </label>
         {% endfor %}
       </div>
+      <div class="mb-3">
+        <b>{% trans "Send VoiceMail" %}</b>: 
+        {% for radio in settings_form.vm_send %}
+          <label style="display:inline-block; margin-right:16px;">
+            {{ radio.tag }} {{ radio.choice_label }}
+          </label>
+        {% endfor %}
+      </div>
 
       <button type="submit" name="save_settings" class="btn btn-success">{% trans "Save" %}</button>
     </form>
