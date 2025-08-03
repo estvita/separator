@@ -34,16 +34,6 @@ SHOW_CARD_CHOICES = [
     (2, _('On answer'))
 ]
 
-CRM_CREATE_CHOICES = [
-    (1, _('Yes')),
-    (0, _('No'))
-]
-
-VM_SEND_CHOICES = [
-    (1, _('Yes')),
-    (0, _('No'))
-]
-
 class SettingsForm(forms.ModelForm):
     show_card = forms.TypedChoiceField(
         choices=SHOW_CARD_CHOICES,
@@ -51,22 +41,22 @@ class SettingsForm(forms.ModelForm):
         coerce=int,
         label='Show Card'
     )
-    crm_create = forms.TypedChoiceField(
-        choices=CRM_CREATE_CHOICES,
-        widget=forms.RadioSelect,
-        coerce=int,
+    crm_create = forms.BooleanField(
+        required=False,
         label='Create CRM'
     )
-    vm_send = forms.TypedChoiceField(
-        choices=VM_SEND_CHOICES,
-        widget=forms.RadioSelect,
-        coerce=int,
+    vm_send = forms.BooleanField(
+        required=False,
         label='Send VoiceMail'
+    )
+    smart_route = forms.BooleanField(
+        required=False,
+        label="Forwarding to manager"
     )
 
     class Meta:
         model = Settings
-        fields = ['show_card', 'crm_create', 'vm_send']
+        fields = ['show_card', 'crm_create', 'vm_send', 'smart_route']
 
 @login_required
 def server_list(request):
@@ -131,6 +121,7 @@ def server_list(request):
                             "show_card": portal_settings.show_card,
                             "crm_create": portal_settings.crm_create,
                             "vm_send": portal_settings.vm_send,
+                            "smart_route": portal_settings.smart_route,
                         }}
                     )
                 messages.success(request, 'Settings saved and sent to client!')

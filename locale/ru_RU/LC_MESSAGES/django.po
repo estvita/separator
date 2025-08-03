@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-02 17:46+0500\n"
+"POT-Creation-Date: 2025-08-03 11:32+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,11 +25,16 @@ msgstr "Русский"
 msgid "0 - not show, 1 - on call, 2 - on answer"
 msgstr "0 - не показывать, 1 - при звонке, 2 - при ответе"
 
-msgid "1 - yes, 0 - no"
-msgstr "1 - да, 0 - нет"
+msgid "Create Deal on B24"
+msgstr "Создавать сделку в Б24"
 
-msgid "Send VoiceMail to B24: 1 - yes, 0 - no"
-msgstr "Отправлять голосовую почту в Б24: 1 - да, 0 - не"
+#, fuzzy
+#| msgid "Send VoiceMail"
+msgid "Send VoiceMail to B24"
+msgstr "Отправлять голосовую почту"
+
+msgid "Find a manager in Bitrix and connect with him"
+msgstr "Искать отвественного менеджера и соединять с ним"
 
 #, fuzzy
 #| msgid "Add PBX"
@@ -53,12 +58,6 @@ msgstr "При звонке"
 
 msgid "On answer"
 msgstr "При ответе"
-
-msgid "Yes"
-msgstr "Да"
-
-msgid "No"
-msgstr "Нет"
 
 msgid "Sign In"
 msgstr "Войти"
@@ -148,6 +147,9 @@ msgstr "Показывать карточку"
 
 msgid "CRM Create"
 msgstr "Создавать сделку (лид)"
+
+msgid "Forwarding to manager"
+msgstr "Соединять с менеджером"
 
 msgid "Send VoiceMail"
 msgstr "Отправлять голосовую почту"
@@ -322,3 +324,15 @@ msgstr "адрес электронной почты"
 
 msgid "Information successfully updated"
 msgstr "Информация успешно обновлена"
+
+#~ msgid "1 - yes, 0 - no"
+#~ msgstr "1 - да, 0 - нет"
+
+#~ msgid "Send VoiceMail to B24: 1 - yes, 0 - no"
+#~ msgstr "Отправлять голосовую почту в Б24: 1 - да, 0 - не"
+
+#~ msgid "Yes"
+#~ msgstr "Да"
+
+#~ msgid "No"
+#~ msgstr "Нет"

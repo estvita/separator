@@ -153,6 +153,7 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             "show_card": settings.show_card,
             "crm_create": settings.crm_create,
             "vm_send": settings.vm_send,
+            "smart_route": settings.smart_route,
         }
     
     

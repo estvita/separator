@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-02 17:46+0500\n"
+"POT-Creation-Date: 2025-08-03 11:32+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -22,10 +22,13 @@ msgstr ""
 msgid "0 - not show, 1 - on call, 2 - on answer"
 msgstr ""
 
-msgid "1 - yes, 0 - no"
+msgid "Create Deal on B24"
 msgstr ""
 
-msgid "Send VoiceMail to B24: 1 - yes, 0 - no"
+msgid "Send VoiceMail to B24"
+msgstr ""
+
+msgid "Find a manager in Bitrix and connect with him"
 msgstr ""
 
 msgid "My PBX"
@@ -47,12 +50,6 @@ msgid "On call"
 msgstr ""
 
 msgid "On answer"
-msgstr ""
-
-msgid "Yes"
-msgstr ""
-
-msgid "No"
 msgstr ""
 
 msgid "Sign In"
@@ -138,6 +135,9 @@ msgid "Show Card"
 msgstr ""
 
 msgid "CRM Create"
+msgstr ""
+
+msgid "Forwarding to manager"
 msgstr ""
 
 msgid "Send VoiceMail"

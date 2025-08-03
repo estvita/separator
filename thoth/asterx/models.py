@@ -13,14 +13,19 @@ class Settings(models.Model):
         default=2,
         help_text=_("0 - not show, 1 - on call, 2 - on answer")
     )
-    crm_create = models.IntegerField(
-        default=1,
-        help_text=_("1 - yes, 0 - no")
+    crm_create = models.BooleanField(
+        default=True,
+        help_text=_("Create Deal on B24")
+        )
+    vm_send = models.BooleanField(
+        default=True,
+        help_text=_("Send VoiceMail to B24")
     )
-    vm_send = models.IntegerField(
-        default=1,
-        help_text=_("Send VoiceMail to B24: 1 - yes, 0 - no")
+    smart_route = models.BooleanField(
+        default=False,
+        help_text=_("Find a manager in Bitrix and connect with him")
     )
+
     def __str__(self):
         return str(self.app_instance)
 
