@@ -71,7 +71,7 @@ def server_list(request):
     # POST "Обновить пользователей"
     if request.method == "POST" and "refresh_users" in request.POST:
         server_id = request.POST.get("server_id")
-        server = Server.objects.filter(id=server_id).first()
+        server = Server.objects.filter(id=server_id, owner=request.user).first()
         if not server or not server.setup_complete:
             messages.error(request, "Сервер не найден или еще не подключен")
             return redirect('asterx')
@@ -110,7 +110,7 @@ def server_list(request):
             settings_form = SettingsForm(request.POST, instance=portal_settings)
             if settings_form.is_valid():
                 settings_form.save()
-                servers = Server.objects.filter(settings=portal_settings).all()
+                servers = Server.objects.filter(settings=portal_settings, owner=request.user).all()
                 # --- Websocket эвент ---
                 for server in servers:
                     channel_layer = get_channel_layer()
@@ -167,7 +167,10 @@ class ContextTypeForm(ModelForm):
 
 @login_required
 def edit_asterx(request, server_id):
-    server = Server.objects.get(id=server_id, owner=request.user)
+    try:
+        server = Server.objects.get(id=server_id, owner=request.user)
+    except Exception:
+        return redirect("asterx")
     contexts_qs = Context.objects.filter(server=server)
     ContextFormSet = modelformset_factory(Context, form=ContextTypeForm, extra=0, can_delete=True)
     if request.method == "POST":
@@ -250,7 +253,10 @@ def edit_asterx(request, server_id):
 
 @login_required
 def app_settings(request, id):
-    settings_instance = get_object_or_404(Settings, id=id)
+    try:
+        settings_instance = Settings.objects.get(id=id, app_instance__owner=request.user)
+    except Exception:
+        return redirect("asterx")
     
     if request.method == 'POST':
         form = SettingsForm(request.POST, instance=settings_instance)
