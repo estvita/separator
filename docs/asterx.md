@@ -17,14 +17,19 @@ Hardware solutions on Asterisk with AMI support (depends on the model)
 
 The AsterX connector can operate independently or be managed by the thoth server.
 
-Operation algorithm:
-+ Connect to PBX AMI
-+ Subscribe to call events
-+ Register a call in Bitrix24 (telephony.externalcall.register)
-+ Display client card (telephony.externalcall.show). Possible parameters: Do not show; during call; on call answer
-+ Finish call (telephony.externalcall.finish)
-+ Attach recording (telephony.externalCall.attachRecord)
-+ ClickToCall support (OnExternalCallStart)
+Main features:
+
++ Call filtering based on context assignment  
++ Call registration in Bitrix24 (telephony.externalcall.register)  
++ Displaying the client card (telephony.externalcall.show)  
++ Call completion (telephony.externalcall.finish)  
++ Attaching call recording (telephony.externalCall.attachRecord)  
++ ClickToCall support (OnExternalCallStart)  
++ Callback form support (OnExternalCallBackStart)  
++ Automatic connection to manager (no need to edit the dialplan)  
++ Uploading voicemail messages to Bitrix24  
++ Ability to connect an unlimited number of PBXs to a single Bitrix24 portal  
+
 
 ## Installation
 
