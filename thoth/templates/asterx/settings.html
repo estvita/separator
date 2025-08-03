@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Edit Settings" %}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h4>
+    {% trans "App Settings:" %}
+    {{ settings_instance.app_instance }}
+  </h4>
+
+  <form method="post" class="mb-4">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      <b>{% trans "Show Card" %}</b>: 
+      {% for radio in form.show_card %}
+        <label style="display:inline-block; margin-right:16px;">
+          {{ radio.tag }} {{ radio.choice_label }}
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      <b>{% trans "CRM Create" %}</b>: 
+      {{ form.crm_create }}
+    </div>
+
+    <div class="mb-3">
+      <b>{% trans "Forwarding to manager" %}</b>: 
+      {{ form.smart_route }}
+    </div>
+
+    <div class="mb-3">
+      <b>{% trans "Send VoiceMail" %}</b>: 
+      {{ form.vm_send }}
+    </div>
+
+    <button type="submit" class="btn btn-success">{% trans "Save" %}</button>
+    <a href="{% url 'asterx' %}" class="btn btn-secondary">{% trans "Back" %}</a>
+  </form>
+</div>
+{% endblock %}

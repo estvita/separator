@@ -1,7 +1,9 @@
 from django.urls import path
-from .views import server_list, edit_asterx
+from . import views
 
 urlpatterns = [
-    path('', server_list, name='asterx'),
-    path('server/<uuid:server_id>/edit/', edit_asterx, name='edit_asterx'),
+    path('', views.server_list, name='asterx'),
+    path('server/<uuid:server_id>/edit/', views.edit_asterx, name='edit_asterx'),
+    path('settings/<int:id>/', views.app_settings, name='app_settings'),
+
 ]

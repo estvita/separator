@@ -5,7 +5,7 @@ from django.utils.translation import gettext as _
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.decorators import login_required
 from django.forms import ModelForm, modelformset_factory
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from thoth.users.models import Message
@@ -245,4 +245,41 @@ def edit_asterx(request, server_id):
         "formset": formset,
         "server": server,
         "readonly_fields": readonly_fields,
+    })
+
+
+@login_required
+def app_settings(request, id):
+    settings_instance = get_object_or_404(Settings, id=id)
+    
+    if request.method == 'POST':
+        form = SettingsForm(request.POST, instance=settings_instance)
+        if form.is_valid():
+            form.save()
+
+            servers = Server.objects.filter(settings=settings_instance)
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+
+            for server in servers:
+                async_to_sync(channel_layer.group_send)(
+                    f"server_{server.id}",
+                    {"type": "send_event", "message": {
+                        "event": "settings_update",
+                        "show_card": settings_instance.show_card,
+                        "crm_create": settings_instance.crm_create,
+                        "vm_send": settings_instance.vm_send,
+                        "smart_route": settings_instance.smart_route,
+                    }}
+                )
+
+            messages.success(request, "Settings updated successfully.")
+            return redirect('asterx')
+    else:
+        form = SettingsForm(instance=settings_instance)
+
+    return render(request, "asterx/settings.html", {
+        "form": form,
+        "settings_instance": settings_instance
     })

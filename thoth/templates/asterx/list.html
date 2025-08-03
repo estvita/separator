@@ -7,7 +7,7 @@
 
   {% if settings_form %}
   <h4 class="mt-4">
-    {% trans "App Settings:" %}    
+    {% trans "App Settings:" %}
     {% if portal_settings and portal_settings.app_instance %}
       {{ portal_settings.app_instance }}
     {% endif %}
@@ -73,7 +73,9 @@
         </td>
         <td>
           {% if server.settings.app_instance %}
-          {{ server.settings.app_instance }}
+            <a href="{% url 'app_settings' id=server.settings.id %}">
+              {{ server.settings.app_instance.portal.domain }}
+            </a>
           {% else %}
           (not set)
           {% endif %}
