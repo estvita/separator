@@ -38,7 +38,7 @@ On Bitrix and thoth side:
 + Install additional packages from ![asterx.txt](/requirements/asterx.txt)
 + Create a local Bitrix24 application, specify addresses: https://example.com/app-install/ and https://example.com/app-settings/, set permissions crm, user, disk, telephony, im. Click "Save" and save client_id, client_secret
 ![asterx_b24](/docs/img/asterx_b24.png)
-+ Create an application in the thoth interface with ONAPPUNINSTALL, ONEXTERNALCALLSTART events. Check the "AsterX" box. Page url: /asterx/. Fill in client_id, client_secret with values from the previous step.
++ Create an application in the thoth interface with ONAPPUNINSTALL, ONEXTERNALCALLSTART, ONEXTERNALCALLBACKSTART events. Check the "AsterX" box. Page url: /asterx/. Fill in client_id, client_secret with values from the previous step.
 + Click "Go to application" in Bitrix24
 + In the opened interface, click "Add PBX"
 ![add_pbx](/docs/img/add_pbx.png)

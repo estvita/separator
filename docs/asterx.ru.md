@@ -39,7 +39,7 @@
 + Создать локальное приложение Битрикс24, указать адреса https://example.com/app-install/ и https://example.com/app-settings/, задать права crm, user, disk. telephony, im. Нажать "Сохранить", сохранить client_id, client_secret
 
 ![asterx_b24](/docs/img/asterx_b24.png)
-+ Создать приложение в интерфейсе thoth с событиями ONAPPUNINSTALL, ONEXTERNALCALLSTART. Отместить чекбокс "AsterX", Page url: /asterx/. Заполнить поля client_id, client_secret значениями из предыдущего пункта.
++ Создать приложение в интерфейсе thoth с событиями ONAPPUNINSTALL, ONEXTERNALCALLSTART, ONEXTERNALCALLBACKSTART. Отместить чекбокс "AsterX", Page url: /asterx/. Заполнить поля client_id, client_secret значениями из предыдущего пункта.
 + Нажать "Перейти к приложению" в Битрикс24
 + В открывшемся интерфейсе нажать кнопку "Добавить АТС"
 ![add_pbx](/docs/img/add_pbx.png)
