@@ -649,7 +649,7 @@ def event_processor(request):
             portal = appinstance.portal
             appinstance.delete()
             if not AppInstance.objects.filter(portal=portal).exists():
-                portal.delete()
+                # portal.delete()
                 return Response(f"{appinstance} and associated portal deleted")
             else:
                 return Response(f"{appinstance} deleted")
