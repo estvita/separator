@@ -11,23 +11,21 @@ from thoth.chatwoot.models import Inbox
 
 from thoth.users.models import User
 
-from django.http import HttpResponseServerError
-
 from django.conf import settings
 WABA_APP_ID = settings.WABA_APP_ID
+API_URL = settings.FACEBOOK_API_URL
 apps = settings.INSTALLED_APPS
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
+def get_app():
+    return get_object_or_404(App, id=WABA_APP_ID)    
 
-API_URL = 'https://graph.facebook.com/'
-
-@shared_task
+@shared_task(queue='waba')
 def add_waba_phone(current_data, code, request_id):
-
-    app = App.objects.get(id=WABA_APP_ID)
+    app = get_app()
     if not app:
-        return HttpResponseServerError("App not found")
+        raise
     
     base_url = f"{API_URL}/v{app.api_version}.0/"
 
@@ -47,8 +45,7 @@ def add_waba_phone(current_data, code, request_id):
     url = f"{base_url}oauth/access_token"
     response = requests.post(url, json=payload)
     if response.status_code != 200:
-        print('access_token', response.json())
-        return
+        raise Exception('access_token', response.json())
 
     access_token = response.json().get('access_token')
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -58,8 +55,7 @@ def add_waba_phone(current_data, code, request_id):
     app_headers = {"Authorization": f"Bearer {app.access_token}"}
     debug_token = requests.get(f"{base_url}debug_token?input_token={access_token}", headers=app_headers)
     if debug_token.status_code != 200:
-        print('debug_token', debug_token.json())
-        return
+        raise Exception('debug_token', debug_token.json())
     
     token_data = debug_token.json().get('data', {})
     granular_scopes = token_data.get('granular_scopes', {})
@@ -77,8 +73,7 @@ def add_waba_phone(current_data, code, request_id):
             url = f"{base_url}{waba_id}/message_templates"
             template_resp = requests.get(url, headers=headers)
             if template_resp.status_code != 200:
-                print('template_resp', template_resp.json())
-                return
+                raise Exception('template_resp', template_resp.json())
             templates_data = template_resp.json()
             utils.save_approved_templates(waba, user, templates_data)
             
@@ -92,8 +87,7 @@ def add_waba_phone(current_data, code, request_id):
             # get phones 
             resp = requests.get(f"{base_url}{waba_id}/phone_numbers?access_token={access_token}", headers=app_headers)
             if resp.status_code != 200:
-                print('phone_numbers', resp.json())
-                return
+                raise Exception('phone_numbers', resp.json())
             
             phone_numbers = resp.json().get('data', {})
             for phone in phone_numbers:
@@ -116,8 +110,7 @@ def add_waba_phone(current_data, code, request_id):
                 url = f"{base_url}{phone_id}/register"
                 resp = requests.post(url, json=payload, headers=headers)
                 if resp.status_code != 200:
-                    print('register', resp.json())
-                    # return
+                    raise Exception('register', resp.json())
 
                 # add phone to chatwoot
                 cleaned_number = re.sub(r'[^\d+]', '', phone_number)
@@ -135,24 +128,23 @@ def add_waba_phone(current_data, code, request_id):
                         }
                     }
                 }
-                if not settings.CHATWOOT_ENABLED:
-                    return
-                resp = chatwoot.add_inbox(user, inbox_data)
-                if "result" in resp:
-                    result = resp.get('result', {})
-                    try:
-                        inbox, created = Inbox.objects.update_or_create(
-                            owner=user,
-                            id=result['inbox_id'],  # Уникальный идентификатор inbox
-                            defaults={'account': result['account']}
-                        )
-                        phone.inbox = inbox
-                        phone.save()
-                    except Inbox.MultipleObjectsReturned:
-                        print(f"Multiple Inboxes found for owner {user} and id {result['inbox_id']}")
+                if settings.CHATWOOT_ENABLED and not phone.inbox:
+                    resp = chatwoot.add_inbox(user, inbox_data)
+                    if "result" in resp:
+                        result = resp.get('result', {})
+                        try:
+                            inbox, created = Inbox.objects.update_or_create(
+                                owner=user,
+                                id=result['inbox_id'],  # Уникальный идентификатор inbox
+                                defaults={'account': result['account']}
+                            )
+                            phone.inbox = inbox
+                            phone.save()
+                        except Inbox.MultipleObjectsReturned:
+                            raise Exception(f"Multiple Inboxes found for owner {user} and id {result['inbox_id']}")
 
 
-@shared_task
+@shared_task(queue='waba')
 def send_message(template, recipients, phone_id):
     phone = get_object_or_404(Phone, id=phone_id)
     tmp = Template.objects.get(id=template)
@@ -166,3 +158,56 @@ def send_message(template, recipients, phone_id):
     }
     for recipient in recipients:
         utils.send_whatsapp_message(access_token, phone.phone_id, recipient, message)
+
+
+@shared_task(queue='waba')
+def call_management(id):
+    app = get_app()
+    if not app:
+        raise
+    base_url = f"{API_URL}/v{app.api_version}.0"
+    phone = get_object_or_404(Phone, id=id)
+    payload = {
+        "calling": {
+            "status": phone.calling,
+            "srtp_key_exchange_protocol": phone.srtp_key_exchange_protocol,
+            "sip": {
+                "status": phone.sip_status,
+                "servers": [
+                    {
+                        "hostname": phone.sip_hostname,
+                        "port": phone.sip_port
+                    }
+                ]
+            }
+        }
+    }
+    headers = {"Authorization": f"Bearer {phone.waba.access_token}"}
+    try:
+        resp = requests.post(
+            f"{base_url}/{phone.phone_id}/settings",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        resp.raise_for_status()
+        try:
+            if phone.error:
+                phone.error = None
+                phone.save()
+            return resp.json()
+        except ValueError:
+            raise
+
+    except requests.exceptions.HTTPError:
+        resp = resp.json()
+        if "error" in resp:
+            error = resp.get("error", {})
+            message = error.get("message")
+            code = error.get("code")
+            phone.error = f"{code}: {message}"
+            phone.save()
+        raise Exception(phone.phone_id, resp)
+
+    except requests.exceptions.RequestException as e:
+        raise Exception(e)

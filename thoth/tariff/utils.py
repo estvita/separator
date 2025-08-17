@@ -10,11 +10,11 @@ def get_trial(user, code: str):
             return now()
         duration_value = Tariff.objects.filter(service__code=code, is_trial=True).values_list("duration", flat=True).first()
         if not duration_value:
-            return now()
+            return None
 
         service = Service.objects.filter(code=code).first()
         if not service:
-            return now()
+            return None
 
         expiration_date = now() + timedelta(days=duration_value)
         Trial.objects.create(owner=user, service=service)

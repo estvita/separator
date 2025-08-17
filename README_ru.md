@@ -79,7 +79,7 @@ journalctl -u thoth -f
 
 + [CRM Битрикс24](/docs/bitrix.ru.md)
 + [АТС на базе Asterisk](/docs/asterx.ru.md)
-+ [(WhatsApp) WABA](/docs/waba.md)
++ [(WhatsApp) WABA](/docs/waba.ru.md)
 + [WhatsApp - WEB](/docs/waweb.ru.md)
 + [OLX](/docs/olx.md)
 

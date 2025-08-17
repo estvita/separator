@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-03 11:32+0500\n"
+"POT-Creation-Date: 2025-08-17 12:21+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -175,6 +175,14 @@ msgstr "Вы не подключили АТС"
 msgid "Add PBX"
 msgstr "Подключить АТС"
 
+#, fuzzy
+#| msgid "App Settings:"
+msgid "Edit Settings"
+msgstr "Настройки приложения:"
+
+msgid "Back"
+msgstr "Назад"
+
 msgid "Your Bitrix24"
 msgstr "Ваши Битрикс24"
 
@@ -214,11 +222,12 @@ msgstr "Профиль"
 msgid "Sign Out"
 msgstr "Выйти"
 
-msgid "Send WhatsApp Message"
-msgstr "Отправить сообщение WhatsApp"
+msgid "WhatsApp Cloud number settings"
+msgstr ""
 
-#, python-format
-msgid "Send Message via %(phone.phone)s"
+#, fuzzy
+#| msgid "Send Message via %(phone.phone)s"
+msgid "Send Message via"
 msgstr "Отправить сообщение через %(phone.phone)s"
 
 msgid "Recipient Phones (one per line)"
@@ -233,6 +242,31 @@ msgstr "Шаблон"
 msgid "Add New"
 msgstr "Добавить новый"
 
+#, fuzzy
+#| msgid "App Settings:"
+msgid "Calling Settings"
+msgstr "Настройки приложения:"
+
+msgid "Calling"
+msgstr "Звонки"
+
+msgid "SRTP Protocol"
+msgstr "Протокол SRTP"
+
+#, fuzzy
+#| msgid "Status"
+msgid "SIP Status"
+msgstr "Статус SIP"
+
+msgid "SIP Hostname"
+msgstr "SIP домен"
+
+msgid "SIP Port"
+msgstr "SIP порт"
+
+msgid "Last Error:"
+msgstr ""
+
 msgid "Scan the QR code"
 msgstr "Сканируйте QR-код"
 
@@ -241,9 +275,6 @@ msgstr "QR-код"
 
 msgid "Public link:"
 msgstr "Публичная ссылка:"
-
-msgid "Back"
-msgstr "Назад"
 
 #, python-format
 msgid "Send Message via %(session.phone)s"
@@ -324,6 +355,9 @@ msgstr "адрес электронной почты"
 
 msgid "Information successfully updated"
 msgstr "Информация успешно обновлена"
+
+#~ msgid "Send WhatsApp Message"
+#~ msgstr "Отправить сообщение WhatsApp"
 
 #~ msgid "1 - yes, 0 - no"
 #~ msgstr "1 - да, 0 - нет"

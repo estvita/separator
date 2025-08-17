@@ -29,13 +29,11 @@ import thoth.waba.utils as utils
 
 import thoth.waba.tasks as wa_tasks
 
-API_URL = 'https://graph.facebook.com/'
+API_URL = settings.FACEBOOK_API_URL
+WABA_APP_ID = settings.WABA_APP_ID
 
 logger = logging.getLogger(__name__)
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
-
-WABA_APP_ID = settings.WABA_APP_ID
-
 
 def check_template_exists(access_token, waba_id, template_name):
     app = App.objects.get(id=WABA_APP_ID)
@@ -63,17 +61,33 @@ def phone_details(request, phone_id):
     templates = Template.objects.filter(waba=phone.waba, status='APPROVED')
 
     if request.method == 'POST':
-        template = request.POST.get('template')
-        recipient_phones_raw = request.POST.get('recipient_phone')
-        recipients = [phone.strip() for phone in recipient_phones_raw.strip().splitlines() if phone.strip()]
-        wa_tasks.send_message.delay(template, recipients, phone_id)
+        action = request.POST.get('action')
 
-        messages.success(request, f'Рассылка добавлена в очередь. Продолжить общение с клинетами можете в чате.')
+        if action == 'send_message':
+            template = request.POST.get('template')
+            recipient_phones_raw = request.POST.get('recipient_phone')
+            recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
+            wa_tasks.send_message.delay(template, recipients, phone_id)
 
-        return redirect('waba')
+            messages.success(request, 'Рассылка добавлена в очередь.')
+            return redirect('waba')
+
+        elif action == 'update_calling':
+            phone.calling = request.POST.get('calling')
+            phone.srtp_key_exchange_protocol = request.POST.get('srtp_key_exchange_protocol')
+            phone.sip_status = request.POST.get('sip_status')
+            phone.sip_hostname = request.POST.get('sip_hostname')
+            phone.sip_port = request.POST.get('sip_port')
+            phone.save()
+
+            wa_tasks.call_management.delay(phone.id)
+
+            messages.success(request, 'Настройки звонков сохранены и отправлены.')
+            return redirect('waba')
 
     if phone.date_end and timezone.now() > phone.date_end:
-        messages.error(request, f'Срок дествия вашего тарифа истек {phone.date_end}')
+        messages.error(request, f'Срок действия тарифа истёк {phone.date_end}')
+
     return render(request, 'phone_details.html', {'phone': phone, 'templates': templates})
 
 

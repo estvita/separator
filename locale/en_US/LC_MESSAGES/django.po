@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-03 11:32+0500\n"
+"POT-Creation-Date: 2025-08-17 12:21+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -164,6 +164,12 @@ msgstr ""
 msgid "Add PBX"
 msgstr ""
 
+msgid "Edit Settings"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
 msgid "Your Bitrix24"
 msgstr ""
 
@@ -203,11 +209,10 @@ msgstr ""
 msgid "Sign Out"
 msgstr ""
 
-msgid "Send WhatsApp Message"
+msgid "WhatsApp Cloud number settings"
 msgstr ""
 
-#, python-format
-msgid "Send Message via %(phone.phone)s"
+msgid "Send Message via"
 msgstr ""
 
 msgid "Recipient Phones (one per line)"
@@ -222,6 +227,27 @@ msgstr ""
 msgid "Add New"
 msgstr ""
 
+msgid "Calling Settings"
+msgstr ""
+
+msgid "Calling"
+msgstr ""
+
+msgid "SRTP Protocol"
+msgstr ""
+
+msgid "SIP Status"
+msgstr ""
+
+msgid "SIP Hostname"
+msgstr ""
+
+msgid "SIP Port"
+msgstr ""
+
+msgid "Last Error:"
+msgstr ""
+
 msgid "Scan the QR code"
 msgstr ""
 
@@ -229,9 +255,6 @@ msgid "QR Code"
 msgstr ""
 
 msgid "Public link:"
-msgstr ""
-
-msgid "Back"
 msgstr ""
 
 #, python-format
