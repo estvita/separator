@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-17 12:21+0500\n"
+"POT-Creation-Date: 2025-08-18 15:44+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -149,7 +149,7 @@ msgstr ""
 msgid "Installed"
 msgstr ""
 
-msgid "Bitrix Instance"
+msgid "Bitrix24 Line"
 msgstr ""
 
 msgid "Users"
@@ -248,6 +248,30 @@ msgstr ""
 msgid "Last Error:"
 msgstr ""
 
+msgid "Your WhatsApp Cloud numbers"
+msgstr ""
+
+msgid "Expires in (days)"
+msgstr ""
+
+msgid "Apply"
+msgstr ""
+
+msgid "Number"
+msgstr ""
+
+msgid "Line ID"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "You don't have any connected sessions."
+msgstr ""
+
+msgid "Add number"
+msgstr ""
+
 msgid "Scan the QR code"
 msgstr ""
 
@@ -270,19 +294,7 @@ msgstr ""
 msgid "Your WhatsApp Web Numbers"
 msgstr ""
 
-msgid "Number"
-msgstr ""
-
 msgid "Status"
-msgstr ""
-
-msgid "Line ID"
-msgstr ""
-
-msgid "Bitrix24 Line"
-msgstr ""
-
-msgid "Connect"
 msgstr ""
 
 msgid "No line"
@@ -292,12 +304,6 @@ msgid "Select a line"
 msgstr ""
 
 msgid "line"
-msgstr ""
-
-msgid "You don't have any connected sessions."
-msgstr ""
-
-msgid "Add number"
 msgstr ""
 
 msgid "Personal info"

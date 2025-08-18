@@ -33,28 +33,46 @@ def wa_sessions(request):
     wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
     if not instances:
         user_message(request, "install_waweb")
+
     if request.method == "POST":
-        session_id = request.POST.get("session_id")
-        line_id = request.POST.get("line_id")
+        # days поле
+        days = request.POST.get('days')
+        if days:
+            request.session['waweb_days'] = days
+        else:
+            session_id = request.POST.get("session_id")
+            line_id = request.POST.get("line_id")
+            phone = get_object_or_404(Session, id=session_id, owner=request.user)
+            if not phone.phone:
+                messages.error(request, "Сначала необходимо подключить WhatsApp.")
+                return redirect('waweb')
+            try:
+                bitrix_utils.connect_line(request, line_id, phone, connector_service)
+            except Exception as e:
+                messages.error(request, str(e))
+    else:
+        days = request.session.get('waweb_days', 7)
+    
+    try:
+        days = int(request.session.get('waweb_days', 7))
+    except Exception:
+        days = 7
 
-        phone = get_object_or_404(Session, id=session_id, owner=request.user)
-        if not phone.phone:
-            messages.error(request, "Сначала необходимо подключить WhatsApp.")
-            return redirect('waweb')
-        try:
-            bitrix_utils.connect_line(request, line_id, phone, connector_service)
-        except Exception as e:
-            messages.error(request, str(e))
-
+    expire_notif_dt = timezone.now() + timezone.timedelta(days=days)
 
     for session in sessions:
         session.show_link = session.status == "open"
+        if session.date_end and session.date_end <= expire_notif_dt:
+            session.expiring_soon = True
+        else:
+            session.expiring_soon = False
 
     return render(
         request, 'waweb/wa_sessions.html', {
             "sessions": sessions,
             "instances": instances,
             "wa_lines": wa_lines,
+            "days": days,
         }
     )
 

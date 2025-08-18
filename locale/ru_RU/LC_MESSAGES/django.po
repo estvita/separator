@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-17 12:21+0500\n"
+"POT-Creation-Date: 2025-08-18 15:47+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,18 +28,14 @@ msgstr "0 - не показывать, 1 - при звонке, 2 - при от�
 msgid "Create Deal on B24"
 msgstr "Создавать сделку в Б24"
 
-#, fuzzy
-#| msgid "Send VoiceMail"
 msgid "Send VoiceMail to B24"
 msgstr "Отправлять голосовую почту"
 
 msgid "Find a manager in Bitrix and connect with him"
 msgstr "Искать отвественного менеджера и соединять с ним"
 
-#, fuzzy
-#| msgid "Add PBX"
 msgid "My PBX"
-msgstr "Подключить АТС"
+msgstr "Мои АТС"
 
 msgid "Exclude"
 msgstr "Исключить"
@@ -89,8 +85,6 @@ msgstr "Уже есть аккаунт? Тогда %(link)sвойдите%(end_l
 msgid "Sign up using a passkey"
 msgstr "Зарегистрироваться с помощью ключа"
 
-#, fuzzy
-#| msgid "AsterX Servers"
 msgid "Edit AsterX Server"
 msgstr "Редактировать сервер AsterX"
 
@@ -160,8 +154,8 @@ msgstr "Название"
 msgid "Installed"
 msgstr "Установлено"
 
-msgid "Bitrix Instance"
-msgstr "Портал Битрикс24"
+msgid "Bitrix24 Line"
+msgstr "Линия Bitrix24"
 
 msgid "Users"
 msgstr "Пользователи"
@@ -175,10 +169,8 @@ msgstr "Вы не подключили АТС"
 msgid "Add PBX"
 msgstr "Подключить АТС"
 
-#, fuzzy
-#| msgid "App Settings:"
 msgid "Edit Settings"
-msgstr "Настройки приложения:"
+msgstr "Редактировать настройки:"
 
 msgid "Back"
 msgstr "Назад"
@@ -223,12 +215,10 @@ msgid "Sign Out"
 msgstr "Выйти"
 
 msgid "WhatsApp Cloud number settings"
-msgstr ""
+msgstr "Настройки номера WhatsApp Cloud"
 
-#, fuzzy
-#| msgid "Send Message via %(phone.phone)s"
 msgid "Send Message via"
-msgstr "Отправить сообщение через %(phone.phone)s"
+msgstr "Отправить сообщение через"
 
 msgid "Recipient Phones (one per line)"
 msgstr "Телефоны получателей (по одному в строке)"
@@ -242,10 +232,8 @@ msgstr "Шаблон"
 msgid "Add New"
 msgstr "Добавить новый"
 
-#, fuzzy
-#| msgid "App Settings:"
 msgid "Calling Settings"
-msgstr "Настройки приложения:"
+msgstr "Настройки звонков:"
 
 msgid "Calling"
 msgstr "Звонки"
@@ -253,8 +241,6 @@ msgstr "Звонки"
 msgid "SRTP Protocol"
 msgstr "Протокол SRTP"
 
-#, fuzzy
-#| msgid "Status"
 msgid "SIP Status"
 msgstr "Статус SIP"
 
@@ -265,7 +251,31 @@ msgid "SIP Port"
 msgstr "SIP порт"
 
 msgid "Last Error:"
-msgstr ""
+msgstr "Ошибка"
+
+msgid "Your WhatsApp Cloud numbers"
+msgstr "Ваши номера WhatsApp Cloud"
+
+msgid "Expires in (days)"
+msgstr "Истекает в течение (дни)"
+
+msgid "Apply"
+msgstr "Применить"
+
+msgid "Number"
+msgstr "Номер"
+
+msgid "Line ID"
+msgstr "ID линии"
+
+msgid "Connect"
+msgstr "Подключить"
+
+msgid "You don't have any connected sessions."
+msgstr "У вас нет подключенных сессий."
+
+msgid "Add number"
+msgstr "Добавить номер"
 
 msgid "Scan the QR code"
 msgstr "Сканируйте QR-код"
@@ -289,22 +299,8 @@ msgstr "Сессии WAWeb"
 msgid "Your WhatsApp Web Numbers"
 msgstr "Ваши номера WhatsApp Web"
 
-msgid "Number"
-msgstr "Номер"
-
 msgid "Status"
 msgstr "Статус"
-
-msgid "Line ID"
-msgstr "ID линии"
-
-#, fuzzy
-#| msgid "Bitrix Instance"
-msgid "Bitrix24 Line"
-msgstr "Линия Bitrix24"
-
-msgid "Connect"
-msgstr "Подключить"
 
 msgid "No line"
 msgstr "Нет линии"
@@ -314,14 +310,6 @@ msgstr "Выберите линию"
 
 msgid "line"
 msgstr "линия"
-
-msgid "You don't have any connected sessions."
-msgstr "У вас нет подключенных сессий."
-
-#, fuzzy
-#| msgid "Phone number"
-msgid "Add number"
-msgstr "Добавить номер"
 
 msgid "Personal info"
 msgstr "Личные данные"
@@ -355,6 +343,9 @@ msgstr "адрес электронной почты"
 
 msgid "Information successfully updated"
 msgstr "Информация успешно обновлена"
+
+#~ msgid "Bitrix Instance"
+#~ msgstr "Портал Битрикс24"
 
 #~ msgid "Send WhatsApp Message"
 #~ msgstr "Отправить сообщение WhatsApp"

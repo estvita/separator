@@ -163,6 +163,8 @@ def save_request(request):
         return HttpResponseServerError({'error'})
 
 
+from django.utils import timezone
+
 @login_message_required(code="waba")
 def waba_view(request):
     connector_service = "waba"
@@ -172,21 +174,38 @@ def waba_view(request):
     request_id = str(uuid.uuid4())
     if not instances:
         user_message(request, "install_waba")
-
     if request.method == "POST":
-        phone_id = request.POST.get("phone_id")
-        line_id = request.POST.get("line_id")
-        phone = get_object_or_404(Phone, id=phone_id, owner=request.user)
-        try:
-            bitrix_utils.connect_line(request, line_id, phone, connector_service)
-        except Exception as e:
-            messages.error(request, str(e))
+        days = request.POST.get('days')
+        if days:
+            request.session['waba_days'] = days
+        else:
+            phone_id = request.POST.get("phone_id")
+            line_id = request.POST.get("line_id")
+            phone = get_object_or_404(Phone, id=phone_id, owner=request.user)
+            try:
+                bitrix_utils.connect_line(request, line_id, phone, connector_service)
+            except Exception as e:
+                messages.error(request, str(e))
+    else:
+        days = request.session.get('waba_days', 7)
 
+    try:
+        days = int(request.session.get('waba_days', 7))
+    except Exception:
+        days = 7
+
+    expire_notif_dt = timezone.now() + timezone.timedelta(days=days)
+    for phone in phones:
+        if getattr(phone, "date_end", None) and phone.date_end <= expire_notif_dt:
+            phone.expiring_soon = True
+        else:
+            phone.expiring_soon = False
     return render(request, "waba.html", {
         "phones": phones,
         "waba_lines": waba_lines,
         "instances": instances,
         "request_id": request_id,
+        "days": days,
     })
 
 
