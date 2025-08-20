@@ -7,7 +7,7 @@ from .tasks import call_management
 
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
-    list_display = ("client_id", "verify_token")
+    list_display = ("client_id", "verify_token", "api_version", "sip_server")
 
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):

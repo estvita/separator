@@ -6,6 +6,7 @@ from django.contrib.sites.models import Site
 
 from thoth.bitrix.models import AppInstance, Line
 from thoth.chatwoot.models import Inbox
+from thoth.freepbx.models import Server, Extension
 
 class App(models.Model):
     site = models.ForeignKey(
@@ -23,6 +24,7 @@ class App(models.Model):
         editable=False,
         unique=True,
     )
+    sip_server = models.ForeignKey(Server, on_delete=models.SET_NULL, blank=True, null=True)
     def __str__(self):
         return f"{self.client_id}"
 
@@ -61,13 +63,21 @@ class Phone(models.Model):
         ('DTLS', 'DTLS'),
         ('SDES', 'SDES'),
     ]
+    CALL_DEST = [
+        ('disabled', 'Disabled'),
+        ('b24', 'Bitrix24'),
+        ('ext', 'SIP Extension'),
+        ('pbx', 'SIP Server'),
+    ]
+    call_dest = models.CharField(max_length=10, choices=CALL_DEST, default="disabled", blank=True)
     calling = models.CharField(max_length=10, choices=STATUS_CHOICES, default="disabled", blank=True)
     srtp_key_exchange_protocol = models.CharField(max_length=10, choices=STRP_PROTOCOL, default="SDES", blank=True)
     sip_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="enabled", blank=True)
-    sip_hostname = models.CharField(max_length=200, default="pbx.gulin.kz", blank=True)
+    sip_hostname = models.CharField(max_length=200, default="voip.gulin.kz", blank=True)
     sip_port = models.PositiveIntegerField(default=5061, blank=True)
     error = models.CharField(max_length=500, blank=True, null=True)
-
+    sip_extensions = models.ForeignKey(Extension, on_delete=models.SET_NULL, null=True, blank=True)
+    voximplant_id = models.PositiveIntegerField(blank=True, null=True)
     def __str__(self):
         return f"{self.phone} ({self.phone_id})"
     

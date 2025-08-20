@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-18 15:44+0500\n"
+"POT-Creation-Date: 2025-08-20 19:34+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -209,45 +209,6 @@ msgstr ""
 msgid "Sign Out"
 msgstr ""
 
-msgid "WhatsApp Cloud number settings"
-msgstr ""
-
-msgid "Send Message via"
-msgstr ""
-
-msgid "Recipient Phones (one per line)"
-msgstr ""
-
-msgid "Enter recipient phone numbers, one per line"
-msgstr ""
-
-msgid "Template"
-msgstr ""
-
-msgid "Add New"
-msgstr ""
-
-msgid "Calling Settings"
-msgstr ""
-
-msgid "Calling"
-msgstr ""
-
-msgid "SRTP Protocol"
-msgstr ""
-
-msgid "SIP Status"
-msgstr ""
-
-msgid "SIP Hostname"
-msgstr ""
-
-msgid "SIP Port"
-msgstr ""
-
-msgid "Last Error:"
-msgstr ""
-
 msgid "Your WhatsApp Cloud numbers"
 msgstr ""
 
@@ -270,6 +231,66 @@ msgid "You don't have any connected sessions."
 msgstr ""
 
 msgid "Add number"
+msgstr ""
+
+msgid "WhatsApp Cloud number settings"
+msgstr ""
+
+msgid "Send Message via"
+msgstr ""
+
+msgid "Recipient Phones (one per line)"
+msgstr ""
+
+msgid "Enter recipient phone numbers, one per line"
+msgstr ""
+
+msgid "Template"
+msgstr ""
+
+msgid "Add New"
+msgstr ""
+
+msgid "Calling Settings"
+msgstr ""
+
+msgid "Call destination"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
+msgid "To Bitrix24"
+msgstr ""
+
+msgid "To SIP extension"
+msgstr ""
+
+msgid "To SIP server"
+msgstr ""
+
+msgid "SIP Hostname"
+msgstr ""
+
+msgid "SIP Port"
+msgstr ""
+
+msgid "SIP Extension Info"
+msgstr ""
+
+msgid "Server"
+msgstr ""
+
+msgid "Login"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "No extension assigned"
+msgstr ""
+
+msgid "Last Error:"
 msgstr ""
 
 msgid "Scan the QR code"
@@ -337,4 +358,31 @@ msgid "email address"
 msgstr ""
 
 msgid "Information successfully updated"
+msgstr ""
+
+msgid "The mailing has been added to the queue."
+msgstr ""
+
+msgid "Sip connection activated"
+msgstr ""
+
+msgid "FreePBX Server not connected"
+msgstr ""
+
+msgid "Bitrix App not installed."
+msgstr ""
+
+msgid "SIP extension is being created. Please try again in a minute."
+msgstr ""
+
+msgid "This number is already connected."
+msgstr ""
+
+msgid "WhatsApp Cloud Phone connected"
+msgstr ""
+
+msgid "Refresh the page to get authorization data"
+msgstr ""
+
+msgid "The tariff has expired "
 msgstr ""

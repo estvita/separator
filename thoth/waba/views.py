@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from urllib.parse import parse_qs, urlparse
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 
 import logging
@@ -15,19 +16,22 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseBadRequest, HttpResponseServerError, HttpResponse
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from urllib.parse import urlencode
 from thoth.decorators import login_message_required, user_message
 
 import thoth.bitrix.utils as bitrix_utils
+import thoth.bitrix.tasks as bitrix_tasks
 
-from thoth.users.models import User
+from thoth.users.models import User, Message
 from thoth.bitrix.models import AppInstance, Line
 
 from .models import App, Waba, Phone, Template
-import thoth.waba.utils as utils
+import thoth.waba.utils as waba_utils
+import thoth.waba.tasks as waba_tasks
 
-import thoth.waba.tasks as wa_tasks
+from thoth.freepbx.tasks import create_extension_task
 
 API_URL = settings.FACEBOOK_API_URL
 WABA_APP_ID = settings.WABA_APP_ID
@@ -54,6 +58,10 @@ def check_template_exists(access_token, waba_id, template_name):
         print(f"Error fetching templates: {response.status_code}, {response.json()}")
         return False
 
+def delete_voximplant(phone):
+    if phone.voximplant_id:
+        bitrix_tasks.call_api.delay(phone.app_instance.id, "voximplant.sip.delete", {"CONFIG_ID": phone.voximplant_id})
+        phone.voximplant_id = None
 
 @login_required
 def phone_details(request, phone_id):
@@ -67,28 +75,90 @@ def phone_details(request, phone_id):
             template = request.POST.get('template')
             recipient_phones_raw = request.POST.get('recipient_phone')
             recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
-            wa_tasks.send_message.delay(template, recipients, phone_id)
+            waba_tasks.send_message.delay(template, recipients, phone_id)
 
-            messages.success(request, 'Рассылка добавлена в очередь.')
+            messages.success(request, _('The mailing has been added to the queue.'))
             return redirect('waba')
 
         elif action == 'update_calling':
-            phone.calling = request.POST.get('calling')
-            phone.srtp_key_exchange_protocol = request.POST.get('srtp_key_exchange_protocol')
-            phone.sip_status = request.POST.get('sip_status')
-            phone.sip_hostname = request.POST.get('sip_hostname')
-            phone.sip_port = request.POST.get('sip_port')
-            phone.save()
+            call_dest = request.POST.get('call_dest')
+            save_required = False
 
-            wa_tasks.call_management.delay(phone.id)
+            if call_dest == "disabled":
+                phone.calling = "disabled"
+                delete_voximplant(phone)
+                save_required = True
+            else:
+                phone.calling = "enabled"
+            
+            if call_dest == "pbx":
+                phone.sip_hostname = request.POST.get('sip_hostname')
+                phone.sip_port = request.POST.get('sip_port')
+                delete_voximplant(phone)
+                messages.info(request, _("Sip connection activated"))
+                save_required = True
+            else:  # для всех, кроме pbx
+                app = App.objects.get(id=WABA_APP_ID)
+                if not app.sip_server:
+                    messages.error(request, _("FreePBX Server not connected"))
+                    return redirect('phone-details', phone_id=phone.id)
+                phone.sip_hostname = app.sip_server.domain
+                phone.sip_port = app.sip_server.sip_port
+                if not phone.sip_extensions:
+                    create_extension_task.delay(phone.id)
+                if call_dest == "b24":
+                    if not phone.app_instance:
+                        text = _("Bitrix App not installed.")
+                        msg = Message.objects.filter(code="wa_calling_b24_error").first()
+                        if msg:
+                            text = msg.message
+                        messages.error(request, text)
+                        return redirect('phone-details', phone_id=phone.id)
+                    if not phone.sip_extensions:
+                        messages.info(request, _("SIP extension is being created. Please try again in a minute."))
+                        return redirect('waba')
+                    if phone.voximplant_id:
+                        messages.info(request, _("This number is already connected."))
+                        return redirect('phone-details', phone_id=phone.id)
+                    ext = phone.sip_extensions
+                    payload = {
+                        "TITLE": f"{phone.phone} WhatsApp Cloud",
+                        "SERVER": ext.server.domain,
+                        "LOGIN": ext.number,
+                        "PASSWORD": ext.password
+                    }
+                    try:
+                        resp = bitrix_tasks.call_api(phone.app_instance.id, "voximplant.sip.add", payload)
+                        result = resp.get("result", {})
+                        voximplant_id = result.get("ID")
+                        phone.voximplant_id = int(voximplant_id)
+                        messages.success(request, _("WhatsApp Cloud Phone connected"))
+                        save_required = True
+                    except Exception as e:
+                        messages.error(request, e)
+                elif call_dest == "ext":
+                    if not phone.sip_extensions:
+                        messages.info(request, _("Refresh the page to get authorization data"))
+                        # можно добавить return redirect, если нужно
+                    delete_voximplant(phone)
+                    save_required = True
 
-            messages.success(request, 'Настройки звонков сохранены и отправлены.')
-            return redirect('waba')
+            # Обновляем call_dest если изменился
+            if phone.call_dest != call_dest:
+                phone.call_dest = call_dest
+                save_required = True
+
+            # Save только если нужны изменения
+            if save_required:
+                with transaction.atomic():
+                    phone.save()
+                    transaction.on_commit(lambda: waba_tasks.call_management.delay(phone.id))
 
     if phone.date_end and timezone.now() > phone.date_end:
-        messages.error(request, f'Срок действия тарифа истёк {phone.date_end}')
+        messages.error(request, _('The tariff has expired ') + str(phone.date_end))
+        return redirect("waba")
 
-    return render(request, 'phone_details.html', {'phone': phone, 'templates': templates})
+    return render(request, 'waba/phone.html', {'phone': phone, 'templates': templates})
 
 
 @login_required
@@ -115,7 +185,7 @@ def manual_add(request):
                 defaults={'access_token': access_token, 'owner': request.user}
             )
 
-            utils.sample_template(access_token, waba_id)
+            waba_utils.sample_template(access_token, waba_id)
 
             if created:
                 waba.access_token = access_token
@@ -163,8 +233,6 @@ def save_request(request):
         return HttpResponseServerError({'error'})
 
 
-from django.utils import timezone
-
 @login_message_required(code="waba")
 def waba_view(request):
     connector_service = "waba"
@@ -200,7 +268,7 @@ def waba_view(request):
             phone.expiring_soon = True
         else:
             phone.expiring_soon = False
-    return render(request, "waba.html", {
+    return render(request, "waba/list.html", {
         "phones": phones,
         "waba_lines": waba_lines,
         "instances": instances,
@@ -302,7 +370,7 @@ def facebook_callback(request):
             url = f"{API_URL}/v{app.api_version}.0/{waba_id}/subscribed_apps"
             requests.post(url, json=payload, headers=headers)
 
-            utils.sample_template(access_token, waba_id)
+            waba_utils.sample_template(access_token, waba_id)
             
             return HttpResponse('Request Accepted', status=202)
             
@@ -332,7 +400,7 @@ def facebook_callback(request):
             messages.error(request, "Request data is missing")
             return redirect('waba')
         
-        wa_tasks.add_waba_phone.delay(current_data, code, request_id)
+        waba_tasks.add_waba_phone.delay(current_data, code, request_id)
 
         messages.success(request, 'Номер успешно добавлен. Через пару минут он отобразиться здесь.')
 

@@ -118,6 +118,7 @@ LOCAL_APPS = [
     "thoth.bot",
     "thoth.dify",
     "thoth.asterx",
+    "thoth.freepbx",
 ]
 
 # Asterisk Connector AsterX

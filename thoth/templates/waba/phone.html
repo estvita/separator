@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}
+  {% trans "WhatsApp Cloud number settings" %}
+{% endblock title %}
+{% block content %}
+<div class="container">
+  <h3>{% trans "Send Message via" %} {{ phone.phone }}</h3>
+
+  <!-- Форма рассылки -->
+  <form style="width: 40%;" method="POST">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="send_message">
+    <div class="form-group">
+      <label for="recipient_phone">{% trans "Recipient Phones (one per line)" %}</label>
+      <textarea class="form-control" id="recipient_phone" name="recipient_phone"
+                placeholder="{% trans 'Enter recipient phone numbers, one per line' %}" rows="4" required></textarea>
+    </div>
+    <!-- Template selection field -->
+    <div class="form-group">
+      <label for="template">{% trans "Template" %} (<a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">{% trans "Add New" %}</a>)</label>
+      <select class="form-control" id="template" name="template">
+        {% for template in templates %}
+          <option value="{{ template.id }}">{{ template }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">{% trans "Send" %}</button>
+  </form>
+
+  <hr>
+
+  <!-- Форма настроек звонков -->
+  <h3>{% trans "Calling Settings" %}</h3>
+  <form style="width: 40%;" method="POST">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_calling">
+      <div class="form-group">
+    <label for="call_dest">{% trans "Call destination" %}</label>
+    <select class="form-control" id="call_dest" name="call_dest" required>
+      <option value="disabled" {% if phone.call_dest == "disabled" %}selected{% endif %}>{% trans "Disabled" %}</option>
+      <option value="b24" {% if phone.call_dest == "b24" %}selected{% endif %}>{% trans "To Bitrix24" %}</option>
+      <option value="ext" {% if phone.call_dest == "ext" %}selected{% endif %}>{% trans "To SIP extension" %}</option>
+      <option value="pbx" {% if phone.call_dest == "pbx" %}selected{% endif %}>{% trans "To SIP server" %}</option>
+    </select>
+  </div>
+  <!-- Серверный блок -->
+  <div id="server_block">
+    <div class="form-group">
+      <label for="sip_hostname">{% trans "SIP Hostname" %}</label>
+      <input type="text" class="form-control" id="sip_hostname" name="sip_hostname"
+             value="{{ phone.sip_hostname }}">
+    </div>
+    <div class="form-group">
+      <label for="sip_port">{% trans "SIP Port" %}</label>
+      <input type="number" class="form-control" id="sip_port" name="sip_port"
+             value="{{ phone.sip_port }}">
+    </div>
+  </div>
+
+  <!-- SIP номер блок -->
+  <div id="extension_block">
+    {% if phone.sip_extensions %}
+      <div class="card mb-3" style="max-width: 300px;">
+        <div class="card-header">
+          {% trans "SIP Extension Info" %}
+        </div>
+        <div class="card-body p-2">
+          <div class="mb-2">
+            <strong>{% trans "Server" %}:</strong><br>
+            <span class="text-monospace small">{{ phone.sip_extensions.server.domain }}</span>
+          </div>
+          <div class="mb-2">
+            <strong>{% trans "Login" %}:</strong><br>
+            <span class="text-monospace small">{{ phone.sip_extensions.number }}</span>
+          </div>
+          <div class="mb-2">
+            <strong>{% trans "Password" %}:</strong><br>
+            <span class="text-monospace small">{{ phone.sip_extensions.password }}</span>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-warning mb-0 py-2 px-3">{% trans "No extension assigned" %}</div>
+    {% endif %}
+  </div>
+
+    <button type="submit" class="btn btn-success mt-3">{% trans "Send" %}</button>
+  </form>
+
+  {% if phone.error %}
+    <div class="alert alert-danger mt-3">
+      <strong>{% trans "Last Error:" %}</strong> {{ phone.error }}
+    </div>
+  {% endif %}
+</div>
+<a href="{% url 'waba' %}">{% trans "Back" %}</a>
+<script>
+  function toggleCallingBlocks() {
+    var callDest = document.getElementById("call_dest").value;
+    var serverBlock = document.getElementById("server_block");
+    var extBlock = document.getElementById("extension_block");
+    if (["b24", "disabled"].includes(callDest)) {
+      serverBlock.style.display = "none";
+      extBlock.style.display = "none";
+    } else if (callDest === "ext") {
+      serverBlock.style.display = "none";
+      extBlock.style.display = "";
+    } else {
+      serverBlock.style.display = "";
+      extBlock.style.display = "none";
+    }
+  }
+  document.getElementById("call_dest").addEventListener("change", toggleCallingBlocks);
+  window.addEventListener("DOMContentLoaded", toggleCallingBlocks);
+</script>
+{% endblock content %}

@@ -13,7 +13,6 @@ from .models import AppInstance, Credential
 from thoth.waba.models import Phone
 from thoth.waweb.models import Session
 
-
 logger = logging.getLogger("django")
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -151,7 +150,6 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
 
     except Exception as e:
         raise self.retry(exc=e)
-
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
