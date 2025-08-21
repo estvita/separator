@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-20 19:34+0500\n"
+"POT-Creation-Date: 2025-08-21 18:51+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -368,50 +368,24 @@ msgstr "Информация успешно обновлена"
 msgid "The mailing has been added to the queue."
 msgstr "Рассылка добавлена в очередь"
 
-msgid "Sip connection activated"
-msgstr "SIP подключение активировано"
-
 msgid "FreePBX Server not connected"
 msgstr "Сервер FreePBX не подключен"
 
 msgid "Bitrix App not installed."
 msgstr "Приложение для Битрикс24 не установлено"
 
-msgid "SIP extension is being created. Please try again in a minute."
-msgstr "Учетные данные SIP создаются, пожалуйста зайдите на страницу через минуту"
+msgid "SIP extension creation failed."
+msgstr "Ошибка создания SIP аккаунта"
 
 msgid "This number is already connected."
 msgstr "Этот номер уже подключен."
 
-msgid "WhatsApp Cloud Phone connected"
-msgstr "Номер WhatsApp Cloud подключён"
+msgid "Voice calls feature is disabled"
+msgstr "Голосовые вызовы отключены"
 
-msgid "Refresh the page to get authorization data"
-msgstr "Перезагрузите страницу для отображения данных авторизации"
+#, python-format
+msgid "Call destination %(dest)s enabled"
+msgstr "Направление звонка активировано: %(dest)s"
 
 msgid "The tariff has expired "
 msgstr "Срок действия тарифа истёк "
-
-#~ msgid "Calling"
-#~ msgstr "Звонки"
-
-#~ msgid "SRTP Protocol"
-#~ msgstr "Протокол SRTP"
-
-#~ msgid "SIP Status"
-#~ msgstr "Статус SIP"
-
-#~ msgid "Send WhatsApp Message"
-#~ msgstr "Отправить сообщение WhatsApp"
-
-#~ msgid "1 - yes, 0 - no"
-#~ msgstr "1 - да, 0 - нет"
-
-#~ msgid "Send VoiceMail to B24: 1 - yes, 0 - no"
-#~ msgstr "Отправлять голосовую почту в Б24: 1 - да, 0 - не"
-
-#~ msgid "Yes"
-#~ msgstr "Да"
-
-#~ msgid "No"
-#~ msgstr "Нет"

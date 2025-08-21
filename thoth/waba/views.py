@@ -70,16 +70,13 @@ def phone_details(request, phone_id):
 
     if request.method == 'POST':
         action = request.POST.get('action')
-
         if action == 'send_message':
             template = request.POST.get('template')
             recipient_phones_raw = request.POST.get('recipient_phone')
             recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
             waba_tasks.send_message.delay(template, recipients, phone_id)
-
             messages.success(request, _('The mailing has been added to the queue.'))
             return redirect('waba')
-
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
             save_required = False
@@ -90,12 +87,10 @@ def phone_details(request, phone_id):
                 save_required = True
             else:
                 phone.calling = "enabled"
-            
             if call_dest == "pbx":
                 phone.sip_hostname = request.POST.get('sip_hostname')
                 phone.sip_port = request.POST.get('sip_port')
                 delete_voximplant(phone)
-                messages.info(request, _("Sip connection activated"))
                 save_required = True
             else:  # для всех, кроме pbx
                 app = App.objects.get(id=WABA_APP_ID)
@@ -104,60 +99,76 @@ def phone_details(request, phone_id):
                     return redirect('phone-details', phone_id=phone.id)
                 phone.sip_hostname = app.sip_server.domain
                 phone.sip_port = app.sip_server.sip_port
-                if not phone.sip_extensions:
-                    create_extension_task.delay(phone.id)
-                if call_dest == "b24":
-                    if not phone.app_instance:
-                        text = _("Bitrix App not installed.")
-                        msg = Message.objects.filter(code="wa_calling_b24_error").first()
-                        if msg:
-                            text = msg.message
-                        messages.error(request, text)
-                        return redirect('phone-details', phone_id=phone.id)
-                    if not phone.sip_extensions:
-                        messages.info(request, _("SIP extension is being created. Please try again in a minute."))
-                        return redirect('waba')
-                    if phone.voximplant_id:
-                        messages.info(request, _("This number is already connected."))
-                        return redirect('phone-details', phone_id=phone.id)
-                    ext = phone.sip_extensions
-                    payload = {
-                        "TITLE": f"{phone.phone} WhatsApp Cloud",
-                        "SERVER": ext.server.domain,
-                        "LOGIN": ext.number,
-                        "PASSWORD": ext.password
-                    }
-                    try:
-                        resp = bitrix_tasks.call_api(phone.app_instance.id, "voximplant.sip.add", payload)
-                        result = resp.get("result", {})
-                        voximplant_id = result.get("ID")
-                        phone.voximplant_id = int(voximplant_id)
-                        messages.success(request, _("WhatsApp Cloud Phone connected"))
-                        save_required = True
-                    except Exception as e:
-                        messages.error(request, e)
-                elif call_dest == "ext":
-                    if not phone.sip_extensions:
-                        messages.info(request, _("Refresh the page to get authorization data"))
-                        # можно добавить return redirect, если нужно
-                    delete_voximplant(phone)
-                    save_required = True
+                save_required = True
 
-            # Обновляем call_dest если изменился
             if phone.call_dest != call_dest:
                 phone.call_dest = call_dest
                 save_required = True
 
-            # Save только если нужны изменения
             if save_required:
                 with transaction.atomic():
                     phone.save()
-                    transaction.on_commit(lambda: waba_tasks.call_management.delay(phone.id))
+                    def after_commit():
+                        if call_dest == "b24":
+                            phone.refresh_from_db()
+                            if not phone.app_instance:
+                                text = _("Bitrix App not installed.")
+                                msg = Message.objects.filter(code="wa_calling_b24_error").first()
+                                if msg:
+                                    text = msg.message
+                                messages.error(request, text)
+                                return
+                            if not phone.sip_extensions:
+                                messages.error(request, _("SIP extension creation failed."))
+                                return
+                            if phone.voximplant_id:
+                                messages.info(request, _("This number is already connected."))
+                                return
+                            if not phone.sip_extensions:
+                                ext_obj = create_extension_task(phone.id)
+                                phone.refresh_from_db()
+                            ext = phone.sip_extensions
+                            payload = {
+                                "TITLE": f"{phone.phone} WhatsApp Cloud",
+                                "SERVER": ext.server.domain,
+                                "LOGIN": ext.number,
+                                "PASSWORD": ext.password
+                            }
+                            try:
+                                resp = bitrix_tasks.call_api(phone.app_instance.id, "voximplant.sip.add", payload)
+                                result = resp.get("result", {})
+                                voximplant_id = result.get("ID")
+                                phone.voximplant_id = int(voximplant_id)
+                                phone.save()
+                            except Exception as e:
+                                messages.error(request, e)
+                                return
 
+                        elif call_dest == "ext":
+                            phone.refresh_from_db()
+                            if not phone.sip_extensions:
+                                ext_obj = create_extension_task(phone.id)
+                                phone.refresh_from_db()
+                            if not phone.sip_extensions:
+                                messages.error(request, _("SIP extension creation failed."))                    
+                        try:
+                            waba_tasks.call_management(phone.id)
+                            if call_dest == "disabled":
+                                messages.info(request, _("Voice calls feature is disabled"))
+                            else:
+                                messages.success(request, _("Call destination %(dest)s enabled") % {'dest': call_dest})
+                        except Exception as e:
+                            phone.calling = "disabled"
+                            phone.call_dest = "disabled"
+                            phone.save()
+                            messages.error(request, str(e))
+                            return 
+                    transaction.on_commit(after_commit)
+            return redirect('phone-details', phone_id=phone.id)
+    
     if phone.date_end and timezone.now() > phone.date_end:
         messages.error(request, _('The tariff has expired ') + str(phone.date_end))
         return redirect("waba")
-
     return render(request, 'waba/phone.html', {'phone': phone, 'templates': templates})
 
 

@@ -173,22 +173,14 @@ def message_processing(request):
         return message_template_status_update(entry)
     elif field != 'messages':
         return Response({"this event is not handled"})
+    if phone.date_end and timezone.now() > phone.date_end:
+        return Response({"error": "phone tariff ended"})
 
-    try:
-        if phone.line is None:
-            return Response({"error": "phone not connected to b24"})
-        waba = phone.waba
-        appinstance = phone.app_instance
-
-        if phone.date_end and timezone.now() > phone.date_end:
-            return Response({"error": "phone tariff ended"})
-
-        access_token = waba.access_token
-        storage_id = phone.app_instance.storage_id
-    except Phone.DoesNotExist:
-        return Response(
-            {"error": "Phone with given phone_number_id not found"}
-        )
+    if not phone.line or not phone.waba or not phone.app_instance:
+        return Response({"error": "phone not connected to b24"})
+    appinstance = phone.app_instance
+    access_token = phone.waba.access_token
+    storage_id = appinstance.storage_id
 
     messages = value.get("messages", [])
     filename = None

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-20 19:34+0500\n"
+"POT-Creation-Date: 2025-08-21 18:49+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -363,25 +363,23 @@ msgstr ""
 msgid "The mailing has been added to the queue."
 msgstr ""
 
-msgid "Sip connection activated"
-msgstr ""
-
 msgid "FreePBX Server not connected"
 msgstr ""
 
 msgid "Bitrix App not installed."
 msgstr ""
 
-msgid "SIP extension is being created. Please try again in a minute."
+msgid "SIP extension creation failed."
 msgstr ""
 
 msgid "This number is already connected."
 msgstr ""
 
-msgid "WhatsApp Cloud Phone connected"
+msgid "Voice calls feature is disabled"
 msgstr ""
 
-msgid "Refresh the page to get authorization data"
+#, python-format
+msgid "Call destination %(dest)s enabled"
 msgstr ""
 
 msgid "The tariff has expired "
