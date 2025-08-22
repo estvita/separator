@@ -127,49 +127,52 @@ class PbxClient:
         )
         waba_phone.sip_extensions = extension
         waba_phone.save()
-
-        gqlRoute = """
-        mutation {
-            addInboundRoute(
-                input: {
-                    extension: "%s"
-                    destination:"from-did-direct,%s,1"
-                }
-            ) {
-                inboundRoute {
-                    id
-                }
-                status
-                message
-            }
-        }
-        """ % (phone, ext)
-
-        route_data = {"query": gqlRoute}
-        try:
-            resp_route = requests.post(url, json=route_data, headers=headers)
-            resp_route.raise_for_status()
-            resp_route = resp_route.json()
-        except requests.exceptions.RequestException:
-            raise Exception(phone, resp_route.json())
-        
-        doreload = """
-        mutation {
-            doreload(input: {}) {
-                message
-                status
-                transaction_id
-            }
-        }
-        """
-        try:
-            reload = requests.post(url, json={"query": doreload}, headers=headers)
-        except requests.exceptions.RequestException:
-            raise Exception(phone, reload.json())
-        
+        finish_create.delay(url, headers, phone, ext)
         return(f"Data added to FreePBX {phone, ext}")
 
 @shared_task
 def create_extension_task(phone_id):
     pbx = PbxClient()
     return pbx.create_extension(phone_id)
+
+@shared_task
+def finish_create(url, headers, phone, ext):
+    gqlRoute = """
+    mutation {
+        addInboundRoute(
+            input: {
+                extension: "%s"
+                destination:"from-did-direct,%s,1"
+            }
+        ) {
+            inboundRoute {
+                id
+            }
+            status
+            message
+        }
+    }
+    """ % (phone, ext)
+
+    route_data = {"query": gqlRoute}
+    try:
+        resp_route = requests.post(url, json=route_data, headers=headers)
+        resp_route.raise_for_status()
+    except requests.exceptions.RequestException:
+        raise Exception(phone, resp_route.json())
+    
+    doreload = """
+    mutation {
+        doreload(input: {}) {
+            message
+            status
+            transaction_id
+        }
+    }
+    """
+    try:
+        reload = requests.post(url, json={"query": doreload}, headers=headers)
+        reload.raise_for_status()
+        return reload.json()
+    except requests.exceptions.RequestException:
+        raise Exception(phone, reload.json())
