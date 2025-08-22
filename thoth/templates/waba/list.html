@@ -21,6 +21,7 @@
         <tr>
           <th>{% trans "Number" %}</th>
           <th>{% trans "Expiry Date" %} </th>
+          <th>{% trans "Calls" %} </th>
           <th>{% trans "Line ID" %}</th>
           <th>{% trans "Bitrix24 Line" %}</th>
         </tr>
@@ -30,6 +31,7 @@
           <tr {% if phone.expiring_soon %}style="background: #ffdddd;"{% endif %}>
             <td><a href="{% url 'phone-details' phone.id %}">{{ phone.phone }}</a></td>
             <td>{{ phone.date_end }}</td>
+            <td><a href="{% url 'phone-details' phone.id %}">{{ phone.call_dest }}</a></td>
             <td>
               {% if phone.line %}
                 <span style="color: green;">{{ phone.line.line_id }} - 
@@ -44,14 +46,14 @@
                 {% csrf_token %}
                 <div class="form-group d-flex align-items-center">
                   <select id="line_id" name="line_id" class="form-control mr-2">
-                    <option value="" disabled {% if not phone.line %}selected{% endif %}>Выберите линию</option>
+                    <option value="" disabled {% if not phone.line %}selected{% endif %}>{% trans "Select a line" %}</option>
                   
                     {% for line in waba_lines %}
                       <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
                     {% endfor %}
 
                     {% for instance in instances %}
-                    <option value="create__{{ instance.id }}">➕ линия {{ instance.portal.domain }}</option>
+                    <option value="create__{{ instance.id }}">➕ {% trans "add line" %} {{ instance.portal.domain }}</option>
                     {% endfor %}
                   </select>
                   <input type="hidden" name="phone_id" value="{{ phone.id }}" />

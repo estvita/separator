@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-21 18:49+0500\n"
+"POT-Creation-Date: 2025-08-22 08:28+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -221,7 +221,16 @@ msgstr ""
 msgid "Number"
 msgstr ""
 
+msgid "Calls"
+msgstr ""
+
 msgid "Line ID"
+msgstr ""
+
+msgid "Select a line"
+msgstr ""
+
+msgid "add line"
 msgstr ""
 
 msgid "Connect"
@@ -319,12 +328,6 @@ msgid "Status"
 msgstr ""
 
 msgid "No line"
-msgstr ""
-
-msgid "Select a line"
-msgstr ""
-
-msgid "line"
 msgstr ""
 
 msgid "Personal info"

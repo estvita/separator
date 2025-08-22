@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-21 18:51+0500\n"
+"POT-Creation-Date: 2025-08-22 08:28+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -226,8 +226,17 @@ msgstr "Применить"
 msgid "Number"
 msgstr "Номер"
 
+msgid "Calls"
+msgstr "Звонки"
+
 msgid "Line ID"
 msgstr "ID линии"
+
+msgid "Select a line"
+msgstr "Выберите линию"
+
+msgid "add line"
+msgstr "новая линия"
 
 msgid "Connect"
 msgstr "Подключить"
@@ -263,7 +272,7 @@ msgid "Call destination"
 msgstr "Направление звонка:"
 
 msgid "Disabled"
-msgstr ""
+msgstr "Отключено"
 
 msgid "To Bitrix24"
 msgstr "В Битрикс24"
@@ -325,12 +334,6 @@ msgstr "Статус"
 
 msgid "No line"
 msgstr "Нет линии"
-
-msgid "Select a line"
-msgstr "Выберите линию"
-
-msgid "line"
-msgstr "линия"
 
 msgid "Personal info"
 msgstr "Личные данные"

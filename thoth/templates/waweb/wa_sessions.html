@@ -76,7 +76,7 @@
                       <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
                     {% endfor %}
                     {% for instance in instances %}
-                      <option value="create__{{ instance.id }}">➕ {% trans "line" %} {{ instance.portal.domain }}</option>
+                      <option value="create__{{ instance.id }}">➕ {% trans "add line" %} {{ instance.portal.domain }}</option>
                     {% endfor %}
                   </select>
                   <input type="hidden" name="session_id" value="{{ session.id }}" />
