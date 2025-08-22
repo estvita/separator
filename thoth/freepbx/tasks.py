@@ -10,6 +10,7 @@ class PbxClient:
         self.app_id = settings.WABA_APP_ID
         self.app = None
         self.server = None
+        self.apps = settings.INSTALLED_APPS
 
     def load_app_and_server(self):
         from thoth.waba.models import App
@@ -118,12 +119,18 @@ class PbxClient:
             password = ext_user.get("extPassword")
         except requests.exceptions.RequestException:
             raise Exception(phone, resp_fetch.json())
+        
+        date_end = None
+        if "thoth.tariff" in self.apps:
+            from thoth.tariff.utils import get_trial
+            date_end = get_trial(waba_phone.owner, "sip_ext")
 
         extension = Extension.objects.create(
             owner=waba_phone.owner,
             server=self.server,
             number=int(ext),
-            password=password
+            password=password,
+            date_end=date_end
         )
         waba_phone.sip_extensions = extension
         waba_phone.save()

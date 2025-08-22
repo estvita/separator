@@ -78,6 +78,11 @@ class Phone(models.Model):
     error = models.CharField(max_length=500, blank=True, null=True)
     sip_extensions = models.ForeignKey(Extension, on_delete=models.SET_NULL, null=True, blank=True)
     voximplant_id = models.PositiveIntegerField(blank=True, null=True)
+    
+    def save(self, *args, **kwargs):
+        if self.phone:
+            self.phone = '+' + ''.join(filter(str.isdigit, self.phone))
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.phone} ({self.phone_id})"
     

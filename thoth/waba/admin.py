@@ -22,7 +22,7 @@ class TemplateAdmin(admin.ModelAdmin):
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
-    list_display = ("phone_id", "phone", "owner", "waba", "sip_extensions", "sms_service")
+    list_display = ("phone_id", "phone", "owner", "date_end", "sip_extensions", "sms_service")
     search_fields = ("phone", "phone_id")
     list_filter = ("calling", )
     readonly_fields = ("error", )

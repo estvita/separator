@@ -1,4 +1,3 @@
-import requests
 from django.db import models
 from django.conf import settings
 
@@ -19,6 +18,7 @@ class Extension(models.Model):
     server = models.ForeignKey(Server, on_delete=models.SET_NULL, related_name="extensions", null=True)
     number = models.PositiveIntegerField(unique=True)
     password = models.CharField(max_length=255)
+    date_end = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return str(self.number)

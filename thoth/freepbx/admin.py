@@ -10,5 +10,5 @@ class ServerAdmin(admin.ModelAdmin):
 
 @admin.register(Extension)
 class ExtensionAdmin(admin.ModelAdmin):
-    list_display = ('number', 'owner')
+    list_display = ('number', 'date_end', 'owner')
     list_per_page = 30

@@ -65,18 +65,22 @@
         <div class="card-header">
           {% trans "SIP Extension Info" %}
         </div>
-        <div class="card-body p-2">
+        <div class="card-body">
           <div class="mb-2">
-            <strong>{% trans "Server" %}:</strong><br>
+            <strong>{% trans "Server" %}:</strong>
             <span class="text-monospace small">{{ phone.sip_extensions.server.domain }}</span>
           </div>
           <div class="mb-2">
-            <strong>{% trans "Login" %}:</strong><br>
+            <strong>{% trans "Login" %}:</strong>
             <span class="text-monospace small">{{ phone.sip_extensions.number }}</span>
           </div>
           <div class="mb-2">
-            <strong>{% trans "Password" %}:</strong><br>
+            <strong>{% trans "Password" %}:</strong>
             <span class="text-monospace small">{{ phone.sip_extensions.password }}</span>
+          </div>
+          <div class="mb-2">
+            <strong>{% trans "Expiry Date" %}:</strong>
+            <span class="text-monospace small">{{ phone.sip_extensions.date_end }}</span>
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ from thoth.waweb.api.views import EventsHandler
 from thoth.bot.api.views import BotHandler, VoiceDetails
 from thoth.dify.api.views import DifyReceiver
 from thoth.asterx.api.views import AsterxHandler
+from thoth.freepbx.api.views import ExtViewSet
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 
@@ -20,6 +21,7 @@ router.register("bot", BotHandler, basename="bot")
 # router.register("voice", VoiceDetails, basename="voice")
 router.register("waweb", EventsHandler, basename="waevents")
 router.register("asterx", AsterxHandler, basename="asterx")
+router.register("ext", ExtViewSet, basename="ext")
 
 app_name = "api"
 urlpatterns = router.urls
