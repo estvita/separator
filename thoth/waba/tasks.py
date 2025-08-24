@@ -160,6 +160,7 @@ def send_message(template, recipients, phone_id):
         utils.send_whatsapp_message(access_token, phone.phone_id, recipient, message)
 
 
+@shared_task(queue='waba')
 def call_management(id):
     app = get_app()
     if not app:
@@ -167,7 +168,7 @@ def call_management(id):
     base_url = f"{API_URL}/v{app.api_version}.0"
     phone = get_object_or_404(Phone, id=id)
     servers = []
-    if phone.calling:
+    if phone.calling == "enabled":
         servers.append({
             "hostname": phone.sip_hostname,
             "port": phone.sip_port

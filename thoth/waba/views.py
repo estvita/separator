@@ -88,6 +88,7 @@ def phone_details(request, phone_id):
                 save_required = True
             else:
                 phone.calling = "enabled"
+                phone.sip_status = "enabled"
             if call_dest == "pbx":
                 phone.sip_hostname = request.POST.get('sip_hostname')
                 phone.sip_port = request.POST.get('sip_port')
