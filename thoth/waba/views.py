@@ -83,6 +83,7 @@ def phone_details(request, phone_id):
 
             if call_dest == "disabled":
                 phone.calling = "disabled"
+                phone.sip_status = "disabled"
                 delete_voximplant(phone)
                 save_required = True
             else:
