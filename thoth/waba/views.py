@@ -112,7 +112,6 @@ def phone_details(request, phone_id):
                     phone.save()
                     def after_commit():
                         if call_dest == "b24":
-                            phone.refresh_from_db()
                             if not phone.app_instance:
                                 text = _("Bitrix App not installed.")
                                 msg = Message.objects.filter(code="wa_calling_b24_error").first()
@@ -120,16 +119,15 @@ def phone_details(request, phone_id):
                                     text = msg.message
                                 messages.error(request, text)
                                 return
-                            if not phone.sip_extensions:
-                                messages.error(request, _("SIP extension creation failed."))
-                                return
                             if phone.voximplant_id:
                                 messages.info(request, _("This number is already connected."))
                                 return
                             if not phone.sip_extensions:
-                                ext_obj = create_extension_task(phone.id)
-                                phone.refresh_from_db()
-                            ext = phone.sip_extensions
+                                ext = create_extension_task(phone.id)
+                                phone.sip_extensions = ext
+                                phone.save()
+                            else:
+                                ext = phone.sip_extensions
                             payload = {
                                 "TITLE": f"{phone.phone} WhatsApp Cloud",
                                 "SERVER": ext.server.domain,

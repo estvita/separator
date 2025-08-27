@@ -135,7 +135,7 @@ class PbxClient:
         waba_phone.sip_extensions = extension
         waba_phone.save()
         finish_create.delay(url, headers, phone, ext)
-        return(f"Data added to FreePBX {phone, ext}")
+        return extension
 
 @shared_task
 def create_extension_task(phone_id):
