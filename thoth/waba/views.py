@@ -84,15 +84,16 @@ def phone_details(request, phone_id):
             if call_dest == "disabled":
                 phone.calling = "disabled"
                 phone.sip_status = "disabled"
-                delete_voximplant(phone)
                 save_required = True
             else:
                 phone.calling = "enabled"
                 phone.sip_status = "enabled"
+            if call_dest != "b24":
+                delete_voximplant(phone)
+                save_required = True
             if call_dest == "pbx":
                 phone.sip_hostname = request.POST.get('sip_hostname')
                 phone.sip_port = request.POST.get('sip_port')
-                delete_voximplant(phone)
                 save_required = True
             else:  # для всех, кроме pbx
                 app = App.objects.get(id=WABA_APP_ID)
@@ -147,8 +148,9 @@ def phone_details(request, phone_id):
                         elif call_dest == "ext":
                             phone.refresh_from_db()
                             if not phone.sip_extensions:
-                                ext_obj = create_extension_task(phone.id)
-                                phone.refresh_from_db()
+                                ext = create_extension_task(phone.id)
+                                phone.sip_extensions = ext
+                                phone.save()
                             if not phone.sip_extensions:
                                 messages.error(request, _("SIP extension creation failed."))                    
                         try:
