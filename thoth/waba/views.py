@@ -59,7 +59,7 @@ def check_template_exists(access_token, waba_id, template_name):
         return False
 
 def delete_voximplant(phone):
-    if phone.voximplant_id:
+    if phone.voximplant_id and phone.app_instance:
         bitrix_tasks.call_api.delay(phone.app_instance.id, "voximplant.sip.delete", {"CONFIG_ID": phone.voximplant_id})
         phone.voximplant_id = None
 
