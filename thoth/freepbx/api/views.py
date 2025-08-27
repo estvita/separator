@@ -15,8 +15,8 @@ class ExtViewSet(GenericViewSet):
             return Response({"error": "phone is required."}, status=400)
         phone_obj = get_object_or_404(Phone, phone=phone)
         disabled = False
-        if phone_obj.date_end and timezone.now() > phone_obj.date_end:
-            disabled = True
+        # if phone_obj.date_end and timezone.now() > phone_obj.date_end:
+        #     disabled = True
         if not phone_obj.sip_extensions or phone_obj.calling == "disabled":
             return Response({"error": "disabled"}, status=404)
         ext = phone_obj.sip_extensions

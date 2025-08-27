@@ -339,7 +339,7 @@ def sms_processor(request):
 def event_processor(request):
     try:
         data = request.data
-        event = data.get("event")
+        event = data.get("event").upper()
         domain = data.get("auth[domain]")
         user_id = data.get("auth[user_id]")
         auth_status = data.get("auth[status]")

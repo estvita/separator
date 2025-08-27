@@ -30,7 +30,14 @@
         {% for phone in phones %}
           <tr {% if phone.expiring_soon %}style="background: #ffdddd;"{% endif %}>
             <td><a href="{% url 'phone-details' phone.id %}">{{ phone.phone }}</a></td>
-            <td>{{ phone.date_end }}</td>
+            <td>
+              {% if phone.date_end %}
+                {% trans "Messages" %}: {{ phone.date_end }}<br>
+              {% endif %}
+              {% if phone.sip_extensions %}
+                {% trans "Calls" %}: {{ phone.sip_extensions.date_end }}
+              {% endif %}
+            </td>
             <td><a href="{% url 'phone-details' phone.id %}">{{ phone.call_dest }}</a></td>
             <td>
               {% if phone.line %}
