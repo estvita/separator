@@ -16,6 +16,11 @@
       {% csrf_token %}
 
       <div class="mb-3">
+        <b>{% trans "Default Usuer ID" %}</b>: 
+        {{ settings_form.default_user_id }}
+      </div>
+
+      <div class="mb-3">
         <b>{% trans "Show Card" %}</b>: 
         {% for radio in settings_form.show_card %}
           <label style="display:inline-block; margin-right:16px;">

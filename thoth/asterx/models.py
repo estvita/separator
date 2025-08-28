@@ -9,6 +9,10 @@ class Settings(models.Model):
     app_instance = models.ForeignKey(
         AppInstance, on_delete=models.CASCADE, related_name="asterx_settings", null=True, blank=True
     )
+    default_user_id = models.IntegerField(
+        default=1,
+        help_text=_("Default b24 user id for call binding")
+    )
     show_card = models.IntegerField(
         default=2,
         help_text=_("0 - not show, 1 - on call, 2 - on answer")

@@ -35,6 +35,10 @@ SHOW_CARD_CHOICES = [
 ]
 
 class SettingsForm(forms.ModelForm):
+    default_user_id = forms.IntegerField(
+        required=False,
+        label='Default Usuer ID'
+    )
     show_card = forms.TypedChoiceField(
         choices=SHOW_CARD_CHOICES,
         widget=forms.RadioSelect,
@@ -56,7 +60,7 @@ class SettingsForm(forms.ModelForm):
 
     class Meta:
         model = Settings
-        fields = ['show_card', 'crm_create', 'vm_send', 'smart_route']
+        fields = ['default_user_id', 'show_card', 'crm_create', 'vm_send', 'smart_route']
 
 @login_required
 def server_list(request):
@@ -215,6 +219,7 @@ def edit_asterx(request, server_id):
                         "show_card": settings.show_card,
                         "crm_create": settings.crm_create,
                         "vm_send": settings.vm_send,
+                        "default_user_id": settings.default_user_id,
                     }
                 else:
                     payload = {
@@ -277,6 +282,7 @@ def app_settings(request, id):
                         "crm_create": settings_instance.crm_create,
                         "vm_send": settings_instance.vm_send,
                         "smart_route": settings_instance.smart_route,
+                        "default_user_id": settings_instance.default_user_id,
                     }}
                 )
 

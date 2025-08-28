@@ -149,7 +149,6 @@ def message_template_status_update(entry):
 
 def message_processing(request):
     data = request.data
-
     entry = data["entry"][0]
     changes = entry["changes"][0]
     field = changes.get('field')
@@ -185,6 +184,7 @@ def message_processing(request):
     messages = value.get("messages", [])
     filename = None
     file_url = None
+    text = None
     for message in messages:
         message_type = message.get("type")
         user_phone = message["from"]
@@ -229,11 +229,10 @@ def message_processing(request):
             phone = item.get("recipient_id")
             text = combined_error_message
         return
-
-
-    bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                        phone.line.line_id, False, name,
-                                        message_id, file_url, filename)
+    if text:
+        bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
+                                            phone.line.line_id, False, name,
+                                            message_id, file_url, filename)
 
 
 def save_approved_templates(waba, owner, templates_data):

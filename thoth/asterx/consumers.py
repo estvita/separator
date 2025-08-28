@@ -154,6 +154,7 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             "crm_create": settings.crm_create,
             "vm_send": settings.vm_send,
             "smart_route": settings.smart_route,
+            "default_user_id": settings.default_user_id,
         }
     
     
