@@ -56,10 +56,11 @@
               {% endif %}
             </td>
             <!-- Line ID -->
+             /contact_center/connector/?ID=thoth_waba&LINE=406
             <td>
               {% if session.line %}
-                <span style="color: green;">{{ session.line.line_id }} - 
-                  <a href="https://{{ session.line.portal.domain }}" target="_blank">{{ session.line.portal.domain }}</a>                  
+                <span style="color: green;">{{ session.line.portal.domain }} - 
+                  <a href="https://{{ session.line.portal.domain }}/contact_center/connector/?ID={{ session.line.connector.code }}&LINE={{ session.line.line_id }}" target="_blank">{{ session.line.line_id }}</a>                  
                 </span>
               {% else %}
                 {% trans "No line" %}
