@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-27 07:24+0500\n"
+"POT-Creation-Date: 2025-08-28 10:36+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,6 +21,9 @@ msgstr "Английский"
 
 msgid "Russian"
 msgstr "Русский"
+
+msgid "Default b24 user id for call binding"
+msgstr "ID пользователя б24 по умолчанию для привязки звонков"
 
 msgid "0 - not show, 1 - on call, 2 - on answer"
 msgstr "0 - не показывать, 1 - при звонке, 2 - при ответе"
@@ -135,6 +138,9 @@ msgstr "Ваши АТС"
 
 msgid "App Settings:"
 msgstr "Настройки приложения:"
+
+msgid "Default Usuer ID"
+msgstr "ID пользователя по умолчанию"
 
 msgid "Show Card"
 msgstr "Показывать карточку"
@@ -380,11 +386,11 @@ msgstr "Сервер FreePBX не подключен"
 msgid "Bitrix App not installed."
 msgstr "Приложение для Битрикс24 не установлено"
 
-msgid "SIP extension creation failed."
-msgstr "Ошибка создания SIP аккаунта"
-
 msgid "This number is already connected."
 msgstr "Этот номер уже подключен."
+
+msgid "SIP extension creation failed."
+msgstr "Ошибка создания SIP аккаунта"
 
 msgid "Voice calls feature is disabled"
 msgstr "Голосовые вызовы отключены"

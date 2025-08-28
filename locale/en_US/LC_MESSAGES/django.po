@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-27 07:24+0500\n"
+"POT-Creation-Date: 2025-08-28 10:36+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -17,6 +17,9 @@ msgid "English"
 msgstr ""
 
 msgid "Russian"
+msgstr ""
+
+msgid "Default b24 user id for call binding"
 msgstr ""
 
 msgid "0 - not show, 1 - on call, 2 - on answer"
@@ -129,6 +132,9 @@ msgid "Your PBX Servers"
 msgstr ""
 
 msgid "App Settings:"
+msgstr ""
+
+msgid "Default Usuer ID"
 msgstr ""
 
 msgid "Show Card"
@@ -375,10 +381,10 @@ msgstr ""
 msgid "Bitrix App not installed."
 msgstr ""
 
-msgid "SIP extension creation failed."
+msgid "This number is already connected."
 msgstr ""
 
-msgid "This number is already connected."
+msgid "SIP extension creation failed."
 msgstr ""
 
 msgid "Voice calls feature is disabled"
