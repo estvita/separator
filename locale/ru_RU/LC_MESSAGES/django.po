@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-29 05:23+0500\n"
+"POT-Creation-Date: 2025-08-29 10:58+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -181,6 +181,9 @@ msgstr "Редактировать настройки:"
 msgid "Back"
 msgstr "Назад"
 
+msgid "Portal Details"
+msgstr "Параметры портала"
+
 msgid "Portal"
 msgstr "Портал"
 
@@ -195,6 +198,9 @@ msgstr "Не привязан"
 
 msgid "Auto close openlines chats if deal (lead) is completed"
 msgstr "Автоматически закрывать диалоги при закрытии сделки"
+
+msgid "Finish Delay (minutes)"
+msgstr "Время до закрытия диалога (минуты)"
 
 msgid "Back to Portals"
 msgstr "Вернуться к списку"
