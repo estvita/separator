@@ -568,13 +568,14 @@ def event_processor(request):
             )
 
         elif event == "ONCRMDEALUPDATE":
-            deal_id = data.get("data[FIELDS][ID]")
-            deal_data = call_method(appinstance, "crm.deal.get", {"ID": deal_id})
-            if "result" in deal_data:
-                deal_data = deal_data["result"]
-                if deal_data.get("CLOSED") == "Y" and appinstance.portal.imopenlines_auto_finish:
-                    bitrix_tasks.auto_finish_chat.delay(appinstance.id, deal_id)
-                return Response('event processed')
+            if appinstance.portal.imopenlines_auto_finish:
+                deal_id = data.get("data[FIELDS][ID]")
+                deal_data = call_method(appinstance, "crm.deal.get", {"ID": deal_id})
+                if "result" in deal_data:
+                    deal_data = deal_data["result"]
+                    if deal_data.get("CLOSED") == "Y":
+                        bitrix_tasks.auto_finish_chat.delay(appinstance.id, deal_id)
+            return Response('event processed')
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")
             connector_code = data.get("data[connector]")
