@@ -325,6 +325,7 @@ def portal_detail(request, portal_id):
     
     if request.method == 'POST':
         portal.imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
+        portal.finish_delay = int(request.POST.get('finish_delay'))
         portal.save()
         messages.success(request, 'Настройки сохранены')
         return redirect('portal_detail', portal_id=portal_id)
