@@ -574,7 +574,12 @@ def event_processor(request):
                 if "result" in deal_data:
                     deal_data = deal_data["result"]
                     if deal_data.get("CLOSED") == "Y":
-                        bitrix_tasks.auto_finish_chat.delay(appinstance.id, deal_id)
+                        # Добавляем задержку в секундах (finish_delay в минутах * 60)
+                        delay_seconds = appinstance.portal.finish_delay * 60
+                        bitrix_tasks.auto_finish_chat.apply_async(
+                            args=[appinstance.id, deal_id], 
+                            countdown=delay_seconds
+                        )
             return Response('event processed')
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")

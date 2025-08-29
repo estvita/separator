@@ -63,6 +63,7 @@ class Bitrix(models.Model):
     member_id = models.CharField(max_length=255, unique=True, blank=True, null=True)
     license_expired = models.BooleanField(default=False)
     imopenlines_auto_finish = models.BooleanField(default=False)
+    finish_delay = models.IntegerField(default=0, help_text="in minutes")
 
     def __str__(self):
         return self.domain
