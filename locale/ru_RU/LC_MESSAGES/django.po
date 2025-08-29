@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-28 10:36+0500\n"
+"POT-Creation-Date: 2025-08-29 05:23+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -181,11 +181,26 @@ msgstr "Редактировать настройки:"
 msgid "Back"
 msgstr "Назад"
 
-msgid "Your Bitrix24"
-msgstr "Ваши Битрикс24"
-
 msgid "Portal"
 msgstr "Портал"
+
+msgid "Portal Address"
+msgstr "Адрес портала"
+
+msgid "Portal Owner"
+msgstr "Владелец портала"
+
+msgid "Not assigned"
+msgstr "Не привязан"
+
+msgid "Auto close openlines chats if deal (lead) is completed"
+msgstr "Автоматически закрывать диалоги при закрытии сделки"
+
+msgid "Back to Portals"
+msgstr "Вернуться к списку"
+
+msgid "Your Bitrix24"
+msgstr "Ваши Битрикс24"
 
 msgid "Administrator"
 msgstr "Администратор"

@@ -16,7 +16,7 @@
           {% for portal in user_portals %}
             <tr>
               <td>
-                <a href="{{ portal.protocol }}://{{ portal.domain }}" target="_blank">{{ portal.domain }}</a>
+                <a href="{% url 'portal_detail' portal.id %}">{{ portal.domain }}</a>
               </td>
               <td>
                 {% if b24_admin %}

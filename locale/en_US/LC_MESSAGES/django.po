@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-28 10:36+0500\n"
+"POT-Creation-Date: 2025-08-29 05:23+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -176,10 +176,28 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-msgid "Your Bitrix24"
+msgid "Portal Details"
 msgstr ""
 
 msgid "Portal"
+msgstr ""
+
+msgid "Portal Address"
+msgstr ""
+
+msgid "Portal Owner"
+msgstr ""
+
+msgid "Not assigned"
+msgstr ""
+
+msgid "Auto close openlines chats if deal (lead) is completed"
+msgstr ""
+
+msgid "Back to Portals"
+msgstr ""
+
+msgid "Your Bitrix24"
 msgstr ""
 
 msgid "Administrator"

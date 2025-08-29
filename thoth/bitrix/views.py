@@ -5,7 +5,8 @@ from datetime import timedelta
 from django.db.models import Q
 from django.conf import settings
 from django.contrib import messages
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -315,3 +316,17 @@ def app_settings(request):
         return HttpResponse("ok")
     elif request.method == "GET":
         return portals(request)
+
+
+@login_required
+def portal_detail(request, portal_id):
+    """Отображение и редактирование данных портала"""
+    portal = get_object_or_404(Bitrix, id=portal_id, owner=request.user)
+    
+    if request.method == 'POST':
+        portal.imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
+        portal.save()
+        messages.success(request, 'Настройки сохранены')
+        return redirect('portal_detail', portal_id=portal_id)
+    
+    return render(request, 'bitrix/portal_detail.html', {'portal': portal})
