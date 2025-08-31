@@ -47,6 +47,11 @@
   <!-- Серверный блок -->
   <div id="server_block">
     <div class="form-group">
+      <label for="sip_user_password">{% trans "SIP User Password" %}</label>
+      <input type="text" class="form-control" id="sip_user_password" name="sip_user_password"
+             value="{{ phone.sip_user_password }}" readonly>
+    </div>
+    <div class="form-group">
       <label for="sip_hostname">{% trans "SIP Hostname" %}</label>
       <input type="text" class="form-control" id="sip_hostname" name="sip_hostname"
              value="{{ phone.sip_hostname }}">

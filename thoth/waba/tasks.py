@@ -63,7 +63,9 @@ def add_waba_phone(current_data, code, request_id):
     if wabas:
         for waba_id in wabas:
             waba, created = Waba.objects.get_or_create(
-                waba_id=waba_id)
+                waba_id=waba_id,
+                app=app
+            )
 
             waba.access_token = access_token
             waba.owner = user
@@ -177,6 +179,7 @@ def call_management(id):
         "calling": {
             "status": phone.calling,
             "srtp_key_exchange_protocol": phone.srtp_key_exchange_protocol,
+            "callback_permission_status": phone.callback_permission_status,
             "sip": {
                 "status": phone.sip_status,
                 "servers": servers
@@ -192,16 +195,45 @@ def call_management(id):
             timeout=10
         )
         resp.raise_for_status()
+        resp = resp.json()
         try:
             if phone.error:
                 phone.error = None
                 phone.save()
-            return resp.json()
+         
+            if phone.calling == "enabled":
+                sip_cred = requests.get(
+                    f"{base_url}/{phone.phone_id}/settings?include_sip_credentials=true",
+                    headers=headers,
+                    timeout=10
+                )
+                sip_cred.raise_for_status()
+                sip_cred = sip_cred.json()
+                
+                # Получаем и сохраняем SIP пароль
+                calling_data = sip_cred.get("calling", {})
+                sip_servers = calling_data.get("sip", {}).get("servers", [])
+                
+                # Ищем сервер с нужным app_id
+                if not phone.waba.app:
+                    raise Exception("App not found")
+                app_id = phone.waba.app.client_id
+                for server in sip_servers:
+                    if server.get("app_id") == int(app_id):
+                        sip_password = server.get("sip_user_password")
+                        if sip_password:
+                            phone.sip_user_password = sip_password
+                            phone.save()
+                        break
+                else:
+                    print(f"No matching server found for app_id {app_id}")
+                
+            return resp
+
         except ValueError:
             raise
 
     except requests.exceptions.HTTPError:
-        resp = resp.json()
         if "error" in resp:
             error = resp.get("error", {})
             message = error.get("message")

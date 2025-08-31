@@ -29,6 +29,7 @@ class App(models.Model):
         return f"{self.client_id}"
 
 class Waba(models.Model):
+    app = models.ForeignKey(App, on_delete=models.SET_NULL, null=True, blank=True)
     waba_id = models.CharField(max_length=255, editable=True, unique=True)
     access_token = models.CharField(max_length=1000)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -72,7 +73,9 @@ class Phone(models.Model):
     call_dest = models.CharField(max_length=10, choices=CALL_DEST, default="disabled", blank=True)
     calling = models.CharField(max_length=10, choices=STATUS_CHOICES, default="disabled", blank=True)
     srtp_key_exchange_protocol = models.CharField(max_length=10, choices=STRP_PROTOCOL, default="SDES", blank=True)
+    callback_permission_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="enabled", blank=True)
     sip_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="enabled", blank=True)
+    sip_user_password = models.CharField(max_length=250, null=True, blank=True, help_text="Whatsapp Cloud SIP Password")
     sip_hostname = models.CharField(max_length=200, default="voip.gulin.kz", blank=True)
     sip_port = models.PositiveIntegerField(default=5061, blank=True)
     error = models.CharField(max_length=500, blank=True, null=True)

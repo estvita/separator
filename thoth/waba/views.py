@@ -162,6 +162,7 @@ def phone_details(request, phone_id):
                         except Exception as e:
                             phone.calling = "disabled"
                             phone.call_dest = "disabled"
+                            phone.sip_user_password = ""
                             phone.save()
                             messages.error(request, str(e))
                             return 
@@ -195,13 +196,14 @@ def manual_add(request):
             # Проверка на существование WABA
             waba, created = Waba.objects.get_or_create(
                 waba_id=waba_id,
-                defaults={'access_token': access_token, 'owner': request.user}
+                defaults={'access_token': access_token, 'owner': request.user, 'app': app}
             )
 
             waba_utils.sample_template(access_token, waba_id)
 
             if created:
                 waba.access_token = access_token
+                waba.app = app
                 waba.save()
 
             # Проверка на существование Phone
@@ -354,7 +356,9 @@ def facebook_callback(request):
                 return HttpResponse("WABA not found")
             
             waba, created = Waba.objects.get_or_create(
-                waba_id=waba_id)
+                waba_id=waba_id,
+                app=app
+            )
 
             waba.access_token = access_token
             waba.owner = user

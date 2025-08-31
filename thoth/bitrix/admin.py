@@ -81,6 +81,7 @@ class AdminMessageAdmin(admin.ModelAdmin):
 class AppAdmin(admin.ModelAdmin):
     list_display = ("name", "id", "autologin", "client_id", "site")
     search_fields = ("name", "id", "client_id")
+    list_filter = ('autologin', 'asterx', 'imopenlines_auto_finish')
     list_per_page = 30
 
 
@@ -121,7 +122,7 @@ class BitrixAdmin(admin.ModelAdmin):
     list_display = ("domain", "owner", "license_expired")
     search_fields = ("domain", "member_id")
     fields = ("protocol", "domain", "owner", "member_id", "license_expired")
-    list_filter = ('license_expired',)
+    list_filter = ('license_expired', 'imopenlines_auto_finish')
     list_per_page = 30
 
 class CredentialUserInline(admin.TabularInline):
