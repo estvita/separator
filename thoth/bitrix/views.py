@@ -13,6 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authtoken.models import Token
 
 from .crest import call_method
+from .tasks import call_api
 from .utils import process_placement, get_b24_user
 from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
@@ -324,10 +325,36 @@ def portal_detail(request, portal_id):
     portal = get_object_or_404(Bitrix, id=portal_id, owner=request.user)
     
     if request.method == 'POST':
-        portal.imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
+        imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
         portal.finish_delay = int(request.POST.get('finish_delay'))
+        portal.imopenlines_auto_finish = imopenlines_auto_finish
         portal.save()
-        messages.success(request, 'Настройки сохранены')
+        
+        if imopenlines_auto_finish:
+            # Если включили автозакрытие - получаем первый подходящий инстанс и отправляем event.bind
+            instance = AppInstance.objects.filter(owner=request.user, portal=portal, app__imopenlines_auto_finish=True).first()
+            if instance:
+                api_key, _ = Token.objects.get_or_create(user=instance.app.owner)
+                payload = {
+                    "event": "ONCRMDEALUPDATE",
+                    "HANDLER": f"https://{instance.app.site}/api/bitrix/?api-key={api_key.key}",
+                }
+                call_api.delay(instance.id, "event.bind", payload)
+                messages.success(request, 'Автозакрытие чатов включено и событие привязано')
+            else:
+                messages.error(request, 'У вас нет приложения с автозакрытием чатов')
+        else:
+            # Если отключили автозакрытие - получаем все инстансы и отправляем event.unbind
+            instances = AppInstance.objects.filter(owner=request.user, portal=portal, app__imopenlines_auto_finish=True)
+            for instance in instances:
+                api_key, _ = Token.objects.get_or_create(user=instance.app.owner)
+                payload = {
+                    "event": "ONCRMDEALUPDATE",
+                    "HANDLER": f"https://{instance.app.site}/api/bitrix/?api-key={api_key.key}",
+                }
+                call_api.delay(instance.id, "event.unbind", payload)
+            messages.success(request, 'Автозакрытие чатов отключено и события отвязаны')
+        
         return redirect('portal_detail', portal_id=portal_id)
     
     return render(request, 'bitrix/portal_detail.html', {'portal': portal})
