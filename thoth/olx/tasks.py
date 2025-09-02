@@ -74,7 +74,6 @@ def send_message(chat_id, text, files=None):
         })
 
     response = requests.post(api_url, headers=headers, json=payload)
-    response.raise_for_status()
 
     if response.status_code == 401 and refresh_token(olx_user_id):
         headers["Authorization"] = f"Bearer {user.access_token}"
@@ -113,7 +112,6 @@ def get_threads(olx_user_id):
         }
 
         response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
         if user.status != response.status_code:
             user.status = response.status_code
             user.save()
@@ -189,7 +187,7 @@ def get_threads(olx_user_id):
                     )
 
         else:
-            logger.error(f"Failed to retrieve threads {user.olx_id}. Response: {response.json()}")
+            raise Exception(f"Failed to retrieve threads {user.olx_id}. Response status: {response.status_code}")
 
     except OlxUser.DoesNotExist:
         logger.debug(f"User with ID {olx_user_id} does not exist.")
