@@ -82,13 +82,13 @@ class OlxUser(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=255, blank=True, null=True)
     access_token = models.CharField(
-        max_length=255,
+        max_length=4096,  # Увеличено до 4KB для JWT токенов (OLX requirement)
         blank=True,
         null=True,
         # editable=False,
     )
     refresh_token = models.CharField(
-        max_length=255,
+        max_length=4096,  # Увеличено до 4KB для JWT токенов (OLX requirement)
         blank=True,
         null=True,
         # editable=False,

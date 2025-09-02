@@ -53,6 +53,7 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
         }
 
         response = requests.post(token_url, json=payload)
+        response.raise_for_status()
         if response.status_code == 200:
             tokens = response.json()
             access_token = tokens.get("access_token")

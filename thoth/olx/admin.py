@@ -36,8 +36,6 @@ class OlxUserAdmin(admin.ModelAdmin):
     search_fields = ("olx_id", )
     list_filter = ("status", )
     readonly_fields = (
-        "access_token",
-        "refresh_token",
         "olx_id",
         "email",
         "name",

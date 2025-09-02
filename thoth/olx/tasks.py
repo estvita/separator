@@ -29,6 +29,7 @@ def refresh_token(olx_user_id):
     }
 
     get_token = requests.post(api_url, json=payload)
+    get_token.raise_for_status()
     if user.status != get_token.status_code:
         user.status = get_token.status_code
 
@@ -73,6 +74,7 @@ def send_message(chat_id, text, files=None):
         })
 
     response = requests.post(api_url, headers=headers, json=payload)
+    response.raise_for_status()
 
     if response.status_code == 401 and refresh_token(olx_user_id):
         headers["Authorization"] = f"Bearer {user.access_token}"
@@ -111,6 +113,7 @@ def get_threads(olx_user_id):
         }
 
         response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
         if user.status != response.status_code:
             user.status = response.status_code
             user.save()
