@@ -10,7 +10,7 @@ from thoth.chatwoot.utils import add_inbox, whatsapp_webhook
 SITE_ID = settings.SITE_ID
 
 @shared_task(bind=True)
-def send_to_chatwoot(data, phone_number):
+def send_to_chatwoot(self, data, phone_number):
     try:
         whatsapp_webhook(data, phone_number)
     except Exception as e:

@@ -92,7 +92,11 @@ class EventsHandler(GenericViewSet):
                 return Response({'message': 'loop message'})
 
             fromme = key_data.get('fromMe')
-            sender = event_data.get('sender').split('@')[0]
+            sender = event_data.get('sender')
+            if sender:
+                sender = sender.split('@')[0]
+            else:
+                return Response({'sender not found'})
             remoteJid = key_data.get('remoteJid')
             # participant - этот тот, кто отправил сообщение в группе ватсапа
             participant = key_data.get('participant')
