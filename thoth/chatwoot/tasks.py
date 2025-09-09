@@ -4,11 +4,17 @@ from django.contrib.sites.models import Site
 from thoth.waweb.models import Session
 from thoth.chatwoot.models import Inbox
 
-from thoth.chatwoot.utils import add_inbox
+from thoth.chatwoot.utils import add_inbox, whatsapp_webhook
 
 
 SITE_ID = settings.SITE_ID
 
+@shared_task(bind=True)
+def send_to_chatwoot(data, phone_number):
+    try:
+        whatsapp_webhook(data, phone_number)
+    except Exception as e:
+        raise Exception(f'Failed: {e}')    
 
 @shared_task(bind=True)
 def new_inbox(self, sessionid, number):

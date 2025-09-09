@@ -17,7 +17,7 @@ class Connector(models.Model):
     TYPE_CHOICES = [
         ('olx', 'OLX'),
         ('waweb', 'WhatsApp Web'),
-        ('waba', 'WhatsApp API'),
+        ('waba', 'WhatsApp Cloud'),
     ]
     code = models.CharField(max_length=255, default=generate_uuid, unique=True)
     service = models.CharField(max_length=255, choices=TYPE_CHOICES, blank=True, null=True)

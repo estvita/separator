@@ -11,7 +11,7 @@ from thoth.bitrix.crest import call_method
 from thoth.bitrix.models import Line
 import thoth.bitrix.tasks as bitrix_tasks
 
-import thoth.chatwoot.utils as chatwoot
+from thoth.chatwoot.tasks import send_to_chatwoot
 
 from .models import Phone, Waba, Template
 
@@ -166,7 +166,7 @@ def message_processing(request):
 
         if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
             # send message to chatwoot 
-            chatwoot.whatsapp_webhook(data, phone_number)
+            send_to_chatwoot.delay(data, phone_number)
 
     if field == 'message_template_status_update':
         return message_template_status_update(entry)
@@ -202,7 +202,7 @@ def message_processing(request):
             media_id = media_data["id"]
             extension = media_data["mime_type"].split("/")[1].split(";")[0]
             filename = media_data.get("filename", f"{media_id}.{extension}")
-            text = media_data.get("caption", filename)
+            caption = media_data.get("caption", None)
 
             file_url = get_file(
                 access_token, media_id, filename, appinstance, storage_id
@@ -212,27 +212,34 @@ def message_processing(request):
             contacts = value["messages"][0]["contacts"]
             text = format_contacts(contacts)
 
+        if text:
+            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
+                                             phone.line.line_id, False, name, message_id)
+        if file_url:
+            attach = [
+                {
+                    "url": file_url,
+                    "name": filename
+                }
+            ]
+            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
+                                             phone.line.line_id, False, name, message_id, attach)
 
-    statuses = value.get("statuses", [])
-    # статусы пока на заглушке, ими нечего делать
-    for item in statuses:
-        status_name = item.get("status")
-        if status_name == "failed":
-            message_id = item.get("id")
-            errors = item.get("errors", [])
-            logger.error(f"FaceBook Error: {errors}")
-            error_messages = []
-            for error in errors:
-                error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
-                error_messages.append(error_message)
-            combined_error_message = " | ".join(error_messages)
-            phone = item.get("recipient_id")
-            text = combined_error_message
-        return
-    if text:
-        bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                            phone.line.line_id, False, name,
-                                            message_id, file_url, filename)
+    # statuses = value.get("statuses", [])
+    # # статусы пока на заглушке, ими нечего делать
+    # for item in statuses:
+    #     status_name = item.get("status")
+    #     if status_name == "failed":
+    #         message_id = item.get("id")
+    #         errors = item.get("errors", [])
+    #         logger.error(f"FaceBook Error: {errors}")
+    #         error_messages = []
+    #         for error in errors:
+    #             error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
+    #             error_messages.append(error_message)
+    #         combined_error_message = " | ".join(error_messages)
+    #         phone = item.get("recipient_id")
+    #         text = combined_error_message
 
 
 def save_approved_templates(waba, owner, templates_data):
