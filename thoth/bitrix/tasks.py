@@ -24,11 +24,6 @@ def call_api(self, id, method, payload):
     try:
         app_instance = AppInstance.objects.get(id=id)
         resp = call_method(app_instance, method, payload)
-        if "result" in resp and method in ["im.disk.file.commit"]:
-            member_id = app_instance.portal.member_id
-            result = resp.get("result")
-            message_id = result.get("MESSAGE_ID")
-            redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
         return resp
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
@@ -153,7 +148,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
-def message_add(self, app_instance_id, line_id, user_phone, text, connector):
+def message_add(self, app_instance_id, line_id, user_phone, text, connector, attach=None):
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
     except AppInstance.DoesNotExist:
@@ -168,9 +163,9 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector):
         payload = {
             "DIALOG_ID": f"chat{chat_id}",
             "MESSAGE": text,
-            "SYSTEM": "Y"
+            "SYSTEM": "Y",
+            "ATTACH": attach
         }
-
         max_send_attempts = 3
 
         for attempt in range(max_send_attempts):

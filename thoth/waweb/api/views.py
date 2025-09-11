@@ -105,6 +105,8 @@ class EventsHandler(GenericViewSet):
             # если есть participant значит группа
             if participant:
                 group_message = True
+                participant = participant.split('@')[0]
+                participant = f"{pushName} ({participant})"
                 params = {"groupJid": remoteJid}
                 group_name = requests.get(f"{server.url}group/findGroupInfos/{sessionid}", params=params, headers=headers)
                 if group_name.status_code == 200:
@@ -186,59 +188,59 @@ class EventsHandler(GenericViewSet):
                 # отправка сообщения в битрикс
                 if session.line:
                     line = session.line
-                    file_url = None
-                    attach = None
+                    download_url = None
                     text = payload.get("content", None)
                     if file_data:
                         member_id = line.portal.member_id
                         chat_key = f'bitrix_chat:{member_id}:{line.line_id}:{remoteJid}'
                         if redis_client.exists(chat_key):
-                            chat_id = redis_client.get(chat_key).decode('utf-8')
-                            chat_folder = None
-                            try:
-                                chat_folder = bitrix_utils.call_method(session.app_instance, "im.disk.folder.get", {"CHAT_ID": chat_id})
-                                if isinstance(chat_folder, dict) and chat_folder.get("error"):
-                                    logger.error(chat_folder["detail"])
-                            except Exception as e:
-                                logger.error(f"Bitrix error: {e}")
-                            if chat_folder and "result" in chat_folder:
-                                bitrix_utils.call_method(session.app_instance, "imopenlines.session.join", {"CHAT_ID": chat_id})
-                                folder_id =  chat_folder.get("result").get("ID")
-                                upload_file = bitrix_utils.upload_file(
-                                    session.app_instance, folder_id,
-                                    file_body, fileName)
-                                if upload_file:
-                                    file_url = upload_file.get("DOWNLOAD_URL")
+                            upload_file = bitrix_utils.upload_file(
+                                session.app_instance, session.app_instance.storage_id,
+                                file_body, fileName)
+                            if upload_file:
+                                download_url = upload_file.get("DOWNLOAD_URL")
+
+                    if group_message and text:
+                        text = f"{participant}: {text}"
+                    attach = None
                     if fromme:
-                        if text and not file_url:
-                            bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
-                                                        remoteJid, text, line.connector.code)
-                        elif file_url:
-                            file_data = {
-                                "CHAT_ID": chat_id,
-                                "UPLOAD_ID": upload_file.get("FILE_ID"),
-                                "DISK_ID": upload_file.get("ID"),
-                                "MESSAGE": text,
-                                "SILENT_MODE": line.connector.silent,
-                            }
-                            bitrix_tasks.call_api.delay(session.app_instance.id, "im.disk.file.commit", file_data)
-                    else:
-                        attach = None
+                        file_url = None
+                        file_id = upload_file.get("ID", None) if download_url else None
+                        if file_id:
+                            file_link = bitrix_utils.call_method(session.app_instance, "disk.file.getExternalLink", {"id": file_id})
+                            if "result" in file_link:
+                                file_url = file_link.get("result")
+                        from_app = "[B]Отправлено из WhatsApp[/B][BR]"
                         if file_url:
+                            file_name = fileName[-fileName[::-1].find('.')-5:]
+                            text = f"{from_app} [BR] {text}" if text else from_app
                             attach = [
                                 {
-                                    "url": file_url,
+                                    "FILE": {
+                                        "NAME": file_name,
+                                        "LINK": file_url
+                                    }
+                                }
+                            ]
+                        else:
+                            text = f"{from_app} {text}"
+                        bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
+                                                    remoteJid, text, line.connector.code, attach)
+
+                    else:
+                        if download_url:
+                            attach = [
+                                {
+                                    "url": download_url,
                                     "name": fileName
                                 }
                             ]
                         bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, line.connector.code, line.line_id,
                                                             False, pushName, message_id, attach, profilepic_url)
                         
-
-                return Response({"message": "message processed"})
-
             except Exception as e:
-                print(f'Failed to send API message: {str(e)}')
+                import traceback
+                print(traceback.format_exc())
                 return Response({'error': f'Failed to send API message: {str(e)}'}, status=500)
             
         return Response({'message': 'ok'})

@@ -233,7 +233,7 @@ def upload_file(appinstance, storage_id, fileContent, filename):
          "data": {"NAME": filename},
          "generateUniqueName": True,
     }
-    upload_to_bitrix = call_method(appinstance, "disk.folder.uploadfile", payload)
+    upload_to_bitrix = call_method(appinstance, "disk.storage.uploadfile", payload)
     if "result" in upload_to_bitrix:
         return upload_to_bitrix["result"]
     else:

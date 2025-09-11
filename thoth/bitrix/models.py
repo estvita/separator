@@ -23,7 +23,6 @@ class Connector(models.Model):
     service = models.CharField(max_length=255, choices=TYPE_CHOICES, blank=True, null=True)
     name = models.CharField(max_length=255, default="gulin.kz", unique=False)
     icon = models.FileField(upload_to='connector_icons/', blank=True, null=True, validators=[validate_svg])
-    silent = models.CharField(max_length=1, default="Y", help_text="im.disk.file.commit SILENT_MODE (Y/N)")
 
     def __str__(self):
         return self.name
