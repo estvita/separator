@@ -9,7 +9,7 @@ from django.db.models import Count, Q, F
 from django.utils import timezone
 from django.conf import settings
 
-from thoth.bitrix.models import AppInstance, Line
+from thoth.bitrix.models import Line
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import Message
@@ -29,8 +29,8 @@ LINK_TTL = 60 * 60 * 24
 def wa_sessions(request):
     connector_service = "waweb"
     sessions = Session.objects.filter(owner=request.user)
-    instances = AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
     wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
+    instances = bitrix_utils.get_instances(request, connector_service)
     if not instances:
         user_message(request, "install_waweb")
 

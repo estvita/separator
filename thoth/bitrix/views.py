@@ -289,6 +289,8 @@ def app_settings(request):
             return redirect("portals")
 
         placement = data.get("PLACEMENT")
+        request.session['b24_data'] = request.POST.dict()
+        request.session['page_url'] = app.page_url
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
         
@@ -296,8 +298,6 @@ def app_settings(request):
             app_url = app.page_url
             bitrix_user = get_owner(request)
             
-            request.session['b24_data'] = request.POST.dict()
-            request.session['page_url'] = app.page_url
             if bitrix_user is None:
                 return portals(request)
             
@@ -332,6 +332,10 @@ def portal_detail(request, portal_id):
         portal.save()
 
         for line in open_lines:
+            if request.POST.get(f"delete_line_{line.id}") == 'on':
+                call_api.delay(line.app_instance.id, "imopenlines.config.delete", {"CONFIG_ID": line.line_id})
+                line.delete()
+                continue
             new_name = request.POST.get(f"line_name_{line.id}")
             if new_name is not None and new_name != line.name:
                 line.name = new_name

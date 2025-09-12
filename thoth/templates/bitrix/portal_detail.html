@@ -11,17 +11,11 @@
     <div class="col-md-8 offset-md-2">
       <div class="card">
         <div class="card-header">
-          <h4>{% trans "Portal" %}</h4>
+          <h4>{% trans "Portal" %}: {{ portal.domain }}</h4>
         </div>
         <div class="card-body">
           <form method="post">
             {% csrf_token %}
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">{% trans "Portal Address" %}:</label>
-              <p class="form-control-plaintext">{{ portal.domain }}</p>
-            </div>
-            
             <div class="mb-3">
               <label class="form-label fw-bold">{% trans "Portal Owner" %}:</label>
               <p class="form-control-plaintext">
@@ -44,23 +38,38 @@
               </div>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label fw-bold">{% trans "Finish Delay (minutes)" %}:</label>
-              <input type="number" class="form-control" name="finish_delay" value="{{ portal.finish_delay }}">
-            </div>
-
+          <div class="mb-3 d-flex align-items-center">
+            <input type="number" class="form-control me-2" style="width: 90px; max-width: 120px;" 
+                  name="finish_delay" value="{{ portal.finish_delay }}" maxlength="3" min="0">
+            <span>{% trans "Finish Delay (minutes)" %}</span>
+          </div>
             {% if open_lines %}
             <div class="mb-3">
               <label class="form-label fw-bold">{% trans "Open Lines" %}:</label>
-              <div>
-                {% for line in open_lines %}
-                  <div class="input-group my-2">
-                    <span class="input-group-text">{{ line.line_id }}</span>
-                    <span class="input-group-text">{{ line.connector }}</span>
-                    <input type="text" class="form-control" name="line_name_{{ line.id }}" value="{{ line.name }}">
-                  </div>
-                {% endfor %}
-              </div>
+              <table class="table table-bordered align-middle">
+                <thead>
+                  <tr>
+                    <th>{% trans "Line ID" %}</th>
+                    <th>{% trans "Connector" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Delete" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for line in open_lines %}
+                  <tr>
+                    <td>{{ line.line_id }}</td>
+                    <td>{{ line.connector }}</td>
+                    <td>
+                      <input type="text" class="form-control" name="line_name_{{ line.id }}" value="{{ line.name }}">
+                    </td>
+                    <td class="text-center">
+                      <input type="checkbox" name="delete_line_{{ line.id }}">
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
             {% endif %}
 

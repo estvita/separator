@@ -103,7 +103,7 @@ class AppInstanceAdmin(admin.ModelAdmin):
     inlines = [CredentialInline]
     list_display = ("app", "owner", "portal_link", "status", "attempts")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
-    readonly_fields = ("app", "portal",  "auth_status", "storage_id", "application_token", 
+    readonly_fields = ("auth_status", "storage_id", "application_token", 
                        "status", "attempts")
     list_filter = ("app", "status", "auth_status")
     list_per_page = 30

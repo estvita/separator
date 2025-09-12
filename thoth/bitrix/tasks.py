@@ -268,10 +268,10 @@ def auto_finish_chat(instance_id, deal_id):
             "CRM_ENTITY_TYPE": "DEAL",
             "CRM_ENTITY": deal_id
         }
-        chat_data = call_method(app_instance, "imopenlines.crm.chat.getLastId", payload)
+        chat_data = call_method(app_instance, "imopenlines.crm.chat.getLastId", payload, admin=True)
         if "result" in chat_data:
             chat_id = chat_data.get("result")
-            return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id})
+            return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id}, admin=True)
         else:
             raise Exception(f"chat not found: {chat_data}")
     except Exception as e:

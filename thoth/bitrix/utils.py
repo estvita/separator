@@ -39,6 +39,20 @@ VENDOR_BITRIX_INSTANCE = settings.VENDOR_BITRIX_INSTANCE
 
 logger = logging.getLogger("django")
 
+def get_instances(request, connector_service):
+    """
+    Возвращает queryset AppInstance по порталу из сессии или пользователю и сервису коннектора.
+    """
+    b24_data = request.session.get('b24_data')
+    portal = None
+    if b24_data:
+        member_id = b24_data.get("member_id")
+        if member_id:
+            portal = Bitrix.objects.filter(member_id=member_id, owner=request.user).first()
+    if portal:
+        return AppInstance.objects.filter(portal=portal, app__connectors__service=connector_service).distinct()
+    return AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+
 
 def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
     try:

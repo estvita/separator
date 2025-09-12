@@ -25,7 +25,7 @@ import thoth.bitrix.utils as bitrix_utils
 import thoth.bitrix.tasks as bitrix_tasks
 
 from thoth.users.models import User, Message
-from thoth.bitrix.models import AppInstance, Line
+from thoth.bitrix.models import Line
 
 from .models import App, Waba, Phone, Template
 import thoth.waba.utils as waba_utils
@@ -252,7 +252,7 @@ def save_request(request):
 def waba_view(request):
     connector_service = "waba"
     phones = Phone.objects.filter(owner=request.user)
-    instances = AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+    instances = bitrix_utils.get_instances(request, connector_service)
     waba_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
     request_id = str(uuid.uuid4())
     if not instances:

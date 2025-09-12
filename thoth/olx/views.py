@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib import messages
 
-from thoth.bitrix.models import AppInstance, Line
+from thoth.bitrix.models import Line
 import thoth.bitrix.utils as bitrix_utils
 
 from .models import OlxApp, OlxUser
@@ -12,7 +12,7 @@ def olx_accounts(request):
     connector_service = "olx"
     olx_accounts = OlxUser.objects.filter(owner=request.user)
     olx_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
-    instances = AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+    instances = bitrix_utils.get_instances(request, connector_service)
     if not instances:
         user_message(request, "install_olx")
 
