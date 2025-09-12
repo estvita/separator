@@ -128,7 +128,7 @@ def portals(request):
 
     return render(
         request,
-        "bitrix24.html",
+        "bitrix/portals.html",
         {
             "user_portals": user_portals,
             "b24_admin": b24_admin,
@@ -323,12 +323,27 @@ def app_settings(request):
 def portal_detail(request, portal_id):
     """Отображение и редактирование данных портала"""
     portal = get_object_or_404(Bitrix, id=portal_id, owner=request.user)
+    open_lines = Line.objects.filter(owner=request.user, portal=portal)
     
     if request.method == 'POST':
         imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
         portal.finish_delay = int(request.POST.get('finish_delay'))
         portal.imopenlines_auto_finish = imopenlines_auto_finish
         portal.save()
+
+        for line in open_lines:
+            new_name = request.POST.get(f"line_name_{line.id}")
+            if new_name is not None and new_name != line.name:
+                line.name = new_name
+                line.save()
+                if line.app_instance:
+                    payload = {
+                        "CONFIG_ID": line.line_id,
+                        "PARAMS": {
+                            "LINE_NAME": new_name
+                        }
+                    }
+                    call_api.delay(line.app_instance.id, "imopenlines.config.update", payload)
         
         if imopenlines_auto_finish:
             # Если включили автозакрытие - получаем первый подходящий инстанс и отправляем event.bind
@@ -357,4 +372,9 @@ def portal_detail(request, portal_id):
         
         return redirect('portal_detail', portal_id=portal_id)
     
-    return render(request, 'bitrix/portal_detail.html', {'portal': portal})
+    return render(request, 
+                  'bitrix/portal_detail.html', 
+                  {
+                      'portal': portal,
+                      'open_lines': open_lines
+                      })

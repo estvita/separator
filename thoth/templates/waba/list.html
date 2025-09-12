@@ -42,7 +42,8 @@
             <td>
               {% if phone.line %}
                 <span style="color: green;"> <a href="{% url 'portal_detail' phone.line.portal.id %}">{{ phone.line.portal.domain }}</a> - 
-                  <a href="https://{{ phone.line.portal.domain }}/contact_center/connector/?ID={{ phone.line.connector.code }}&LINE={{ phone.line.line_id }}" target="_blank">{{ phone.line.line_id }}</a>
+                  <a href="https://{{ phone.line.portal.domain }}/contact_center/connector/?ID={{ phone.line.connector.code }}&LINE={{ phone.line.line_id }}" target="_blank">
+                    {{ phone.line.name }} ({{ phone.line.line_id }})</a>
                 </span>
               {% else %}
               No line
@@ -56,7 +57,7 @@
                     <option value="" disabled {% if not phone.line %}selected{% endif %}>{% trans "Select a line" %}</option>
                   
                     {% for line in waba_lines %}
-                      <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
+                      <option value="{{ line.id }}">{{ line.line_id }} ({{ line.name }}) - {{ line.portal.domain }}</option>
                     {% endfor %}
 
                     {% for instance in instances %}

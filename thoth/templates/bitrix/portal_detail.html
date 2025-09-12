@@ -49,6 +49,20 @@
               <input type="number" class="form-control" name="finish_delay" value="{{ portal.finish_delay }}">
             </div>
 
+            {% if open_lines %}
+            <div class="mb-3">
+              <label class="form-label fw-bold">{% trans "Open Lines" %}:</label>
+              <div>
+                {% for line in open_lines %}
+                  <div class="input-group my-2">
+                    <span class="input-group-text">{{ line.line_id }}</span>
+                    <input type="text" class="form-control" name="line_name_{{ line.id }}" value="{{ line.name }}">
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
             <div class="d-flex justify-content-between">
               <a href="{% url 'portals' %}" class="btn btn-secondary">
                 {% trans "Back to Portals" %}

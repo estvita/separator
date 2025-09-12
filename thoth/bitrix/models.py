@@ -128,6 +128,7 @@ class Line(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
+    name = models.CharField(max_length=255, default="openline")
     app_instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE, related_name="lines", null=True)
     connector = models.ForeignKey(Connector, on_delete=models.SET_NULL, related_name="lines", null=True)
     portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="lines", blank=True, null=True)

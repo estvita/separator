@@ -59,7 +59,8 @@
             <td>
               {% if session.line %}
                 <span style="color: green;"> <a href="{% url 'portal_detail' session.line.portal.id %}">{{ session.line.portal.domain }}</a> - 
-                  <a href="https://{{ session.line.portal.domain }}/contact_center/connector/?ID={{ session.line.connector.code }}&LINE={{ session.line.line_id }}" target="_blank">{{ session.line.line_id }}</a>                  
+                  <a href="https://{{ session.line.portal.domain }}/contact_center/connector/?ID={{ session.line.connector.code }}&LINE={{ session.line.line_id }}" target="_blank">
+                    {{ session.line.name }} ({{ session.line.line_id }})</a>                  
                 </span>
               {% else %}
                 {% trans "No line" %}
@@ -73,7 +74,7 @@
                   <select id="line_id" name="line_id" class="form-control mr-2">
                     <option value="" disabled {% if not wa.line %}selected{% endif %}>{% trans "Select a line" %}</option>
                     {% for line in wa_lines %}
-                      <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
+                      <option value="{{ line.id }}">{{ line.line_id }} ({{ line.name }}) - {{ line.portal.domain }}</option>
                     {% endfor %}
                     {% for instance in instances %}
                       <option value="create__{{ instance.id }}">➕ {% trans "add line" %} {{ instance.portal.domain }}</option>

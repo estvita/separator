@@ -24,7 +24,8 @@
               <td>
                 {% if account.line %}
                 <span style="color: green;"> <a href="{% url 'portal_detail' account.line.portal.id %}">{{ account.line.portal.domain }}</a> - 
-                  <a href="https://{{ account.line.portal.domain }}/contact_center/connector/?ID={{ account.line.connector.code }}&LINE={{ account.line.line_id }}" target="_blank">{{ account.line.line_id }}</a>
+                  <a href="https://{{ account.line.portal.domain }}/contact_center/connector/?ID={{ account.line.connector.code }}&LINE={{ account.line.line_id }}" target="_blank">
+                    {{ account.line.name }} ({{ account.line.line_id }})</a>
                 </span>
                 {% else %}
                   No Line
@@ -37,7 +38,7 @@
                     <select id="line_id" name="line_id" class="form-control mr-2">
                       <option value="" disabled {% if not wa.line %}selected{% endif %}>Выберите линию</option>
                       {% for line in olx_lines %}
-                      <option value="{{ line.id }}">{{ line.line_id }} - {{ line.portal.domain }}</option>
+                      <option value="{{ line.id }}">{{ line.line_id }} ({{ line.name }}) - {{ line.portal.domain }}</option>
                       {% endfor %}
                       {% for instance in instances %}
                       <option value="create__{{ instance.id }}">➕ линия {{ instance.portal.domain }}</option>
