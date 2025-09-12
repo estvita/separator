@@ -56,6 +56,7 @@
                 {% for line in open_lines %}
                   <div class="input-group my-2">
                     <span class="input-group-text">{{ line.line_id }}</span>
+                    <span class="input-group-text">{{ line.connector }}</span>
                     <input type="text" class="form-control" name="line_name_{{ line.id }}" value="{{ line.name }}">
                   </div>
                 {% endfor %}
