@@ -64,10 +64,14 @@ def wa_sessions(request):
                 messages.error(request, str(e))
     if selected_portal:
         sessions = Session.objects.filter(owner=request.user, line__portal=selected_portal)
-        wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service, portal=selected_portal)
+        wa_lines = Line.objects.filter(
+            owner=request.user, connector__service=connector_service, portal=selected_portal
+            ).exclude(id__in=Session.objects.filter(line__isnull=False).values_list('line_id', flat=True))
     else:
         sessions = Session.objects.filter(owner=request.user)
-        wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
+        wa_lines = Line.objects.filter(
+            owner=request.user, connector__service=connector_service
+            ).exclude(id__in=Session.objects.filter(line__isnull=False).values_list('line_id', flat=True))
 
     instances = bitrix_utils.get_instances(request, connector_service)
     if not instances:
