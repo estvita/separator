@@ -17,9 +17,9 @@
             <select name="filter_portal_id" id="filter_portal_id" class="form-control me-3" style="width:auto;">
                 <option value="all" {% if selected_portal_id == "all" %}selected{% endif %}>{% trans "All" %}</option>
                 {% for portal in portals %}
-                    <option value="{{ portal.id }}" {% if portal.member_id|stringformat:"s" == selected_portal_id|stringformat:"s" %}selected{% endif %}>{{ portal.domain }}</option>
+                    <option value="{{ portal.id }}" {% if portal.id == selected_portal_id %}selected{% endif %}>{{ portal.domain }}</option>
                 {% endfor %}
-            </select>
+            </select>            
             
             <button type="submit" class="btn btn-primary btn-sm me-2" name="action" value="apply">{% trans "Apply" %}</button>
         </div>

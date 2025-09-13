@@ -28,25 +28,24 @@ LINK_TTL = 60 * 60 * 24
 @login_message_required(code="waweb")
 def wa_sessions(request):
     connector_service = "waweb"
-    sessions = Session.objects.filter(owner=request.user)
-    wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
-    instances = bitrix_utils.get_instances(request, connector_service)
-    if not instances:
-        user_message(request, "install_waweb")
     portals = Bitrix.objects.filter(owner=request.user)
+    b24_data = request.session.get('b24_data')
     selected_portal = None
+    if b24_data:
+        member_id = b24_data.get("member_id")
+        if member_id:
+            selected_portal = portals.filter(member_id=member_id).first()
 
     if request.method == "POST":
         if "filter_portal_id" in request.POST:
             filter_portal_id = request.POST.get("filter_portal_id")
-            if filter_portal_id:
-                if filter_portal_id == 'all':
-                    request.session.pop('b24_data', None)
-                else:
-                    selected_portal = portals.filter(id=filter_portal_id).first()
-                    if selected_portal:
-                        request.session['b24_data'] = {"member_id": selected_portal.member_id}
-            return redirect('waweb')        
+            if filter_portal_id == "all":
+                request.session.pop('b24_data', None)
+            else:
+                portal = portals.filter(id=filter_portal_id).first()
+                if portal:
+                    request.session['b24_data'] = {"member_id": portal.member_id}
+            return redirect('waweb')
 
         # days поле
         days = request.POST.get('days')
@@ -63,22 +62,27 @@ def wa_sessions(request):
                 bitrix_utils.connect_line(request, line_id, phone, connector_service)
             except Exception as e:
                 messages.error(request, str(e))
+    if selected_portal:
+        sessions = Session.objects.filter(owner=request.user, line__portal=selected_portal)
+        wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service, portal=selected_portal)
     else:
-        days = request.session.get('waweb_days', 7)
-    
+        sessions = Session.objects.filter(owner=request.user)
+        wa_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
+
+    instances = bitrix_utils.get_instances(request, connector_service)
+    if not instances:
+        user_message(request, "install_waweb")
+
+    days = request.session.get('waweb_days', 7)
     try:
-        days = int(request.session.get('waweb_days', 7))
+        days = int(days)
     except Exception:
         days = 7
-
     expire_notif_dt = timezone.now() + timezone.timedelta(days=days)
 
     for session in sessions:
         session.show_link = session.status == "open"
-        if session.date_end and session.date_end <= expire_notif_dt:
-            session.expiring_soon = True
-        else:
-            session.expiring_soon = False
+        session.expiring_soon = session.date_end and session.date_end <= expire_notif_dt
 
     return render(
         request, 'waweb/wa_sessions.html', {
@@ -87,7 +91,7 @@ def wa_sessions(request):
             "wa_lines": wa_lines,
             "days": days,
             "portals": portals,
-            "selected_portal_id": request.session.get('b24_data', {}).get('member_id') if request.session.get('b24_data') else "all",
+            "selected_portal_id": selected_portal.id if selected_portal else "all",
         }
     )
 
