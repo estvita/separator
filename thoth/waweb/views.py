@@ -9,7 +9,7 @@ from django.db.models import Count, Q, F
 from django.utils import timezone
 from django.conf import settings
 
-from thoth.bitrix.models import Line
+from thoth.bitrix.models import Line, Bitrix
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import Message
@@ -33,8 +33,21 @@ def wa_sessions(request):
     instances = bitrix_utils.get_instances(request, connector_service)
     if not instances:
         user_message(request, "install_waweb")
+    portals = Bitrix.objects.filter(owner=request.user)
+    selected_portal = None
 
     if request.method == "POST":
+        if "filter_portal_id" in request.POST:
+            filter_portal_id = request.POST.get("filter_portal_id")
+            if filter_portal_id:
+                if filter_portal_id == 'all':
+                    request.session.pop('b24_data', None)
+                else:
+                    selected_portal = portals.filter(id=filter_portal_id).first()
+                    if selected_portal:
+                        request.session['b24_data'] = {"member_id": selected_portal.member_id}
+            return redirect('waweb')        
+
         # days поле
         days = request.POST.get('days')
         if days:
@@ -73,6 +86,8 @@ def wa_sessions(request):
             "instances": instances,
             "wa_lines": wa_lines,
             "days": days,
+            "portals": portals,
+            "selected_portal_id": request.session.get('b24_data', {}).get('member_id') if request.session.get('b24_data') else "all",
         }
     )
 

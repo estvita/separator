@@ -25,7 +25,7 @@ import thoth.bitrix.utils as bitrix_utils
 import thoth.bitrix.tasks as bitrix_tasks
 
 from thoth.users.models import User, Message
-from thoth.bitrix.models import Line
+from thoth.bitrix.models import Line, Bitrix
 
 from .models import App, Waba, Phone, Template
 import thoth.waba.utils as waba_utils
@@ -257,7 +257,20 @@ def waba_view(request):
     request_id = str(uuid.uuid4())
     if not instances:
         user_message(request, "install_waba")
+    portals = Bitrix.objects.filter(owner=request.user)
+    selected_portal = None
+
     if request.method == "POST":
+        if "filter_portal_id" in request.POST:
+            filter_portal_id = request.POST.get("filter_portal_id")
+            if filter_portal_id:
+                if filter_portal_id == 'all':
+                    request.session.pop('b24_data', None)
+                else:
+                    selected_portal = portals.filter(id=filter_portal_id).first()
+                    if selected_portal:
+                        request.session['b24_data'] = {"member_id": selected_portal.member_id}
+            return redirect('waba')  
         days = request.POST.get('days')
         if days:
             request.session['waba_days'] = days
@@ -289,6 +302,8 @@ def waba_view(request):
         "instances": instances,
         "request_id": request_id,
         "days": days,
+        "portals": portals,
+        "selected_portal_id": request.session.get('b24_data', {}).get('member_id') if request.session.get('b24_data') else "all",
     })
 
 
