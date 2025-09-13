@@ -37,6 +37,10 @@ def wa_sessions(request):
             selected_portal = portals.filter(member_id=member_id).first()
 
     if request.method == "POST":
+        # days поле
+        days = request.POST.get('days')
+        if days:
+            request.session['waweb_days'] = days
         if "filter_portal_id" in request.POST:
             filter_portal_id = request.POST.get("filter_portal_id")
             if filter_portal_id == "all":
@@ -46,22 +50,16 @@ def wa_sessions(request):
                 if portal:
                     request.session['b24_data'] = {"member_id": portal.member_id}
             return redirect('waweb')
-
-        # days поле
-        days = request.POST.get('days')
-        if days:
-            request.session['waweb_days'] = days
-        else:
-            session_id = request.POST.get("session_id")
-            line_id = request.POST.get("line_id")
-            phone = get_object_or_404(Session, id=session_id, owner=request.user)
-            if not phone.phone:
-                messages.error(request, "Сначала необходимо подключить WhatsApp.")
-                return redirect('waweb')
-            try:
-                bitrix_utils.connect_line(request, line_id, phone, connector_service)
-            except Exception as e:
-                messages.error(request, str(e))
+        session_id = request.POST.get("session_id")
+        line_id = request.POST.get("line_id")
+        phone = get_object_or_404(Session, id=session_id, owner=request.user)
+        if not phone.phone:
+            messages.error(request, "Сначала необходимо подключить WhatsApp.")
+            return redirect('waweb')
+        try:
+            bitrix_utils.connect_line(request, line_id, phone, connector_service)
+        except Exception as e:
+            messages.error(request, str(e))
     if selected_portal:
         sessions = Session.objects.filter(owner=request.user, line__portal=selected_portal)
         wa_lines = Line.objects.filter(
