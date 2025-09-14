@@ -8,7 +8,7 @@ from django.conf import settings
 from thoth.waweb.tasks import send_message_task
 from thoth.users.models import Message
 
-from .models import AppInstance, Credential
+from .models import AppInstance, Credential, User
 
 logger = logging.getLogger("django")
 
@@ -18,16 +18,21 @@ def call_method(appinstance: AppInstance,
                 data: dict, 
                 attempted_refresh=False, 
                 verify=True,
-                admin=None):
+                admin=None,
+                b24_user_id=None):
     
     portal = appinstance.portal
-    if admin is None:
-        active_users = portal.users.filter(active=True)
+    if b24_user_id:
+        b24_user = User.objects.get(user_id=b24_user_id)
+        b24_users = [b24_user]
     else:
-        active_users = portal.users.filter(admin=admin, active=True)
+        if admin is None:
+            b24_users = portal.users.filter(active=True)
+        else:
+            b24_users = portal.users.filter(admin=admin, active=True)
 
     last_exc = None
-    for b24_user in active_users:
+    for b24_user in b24_users:
         credential = b24_user.credentials.filter(app_instance=appinstance).first()
         if not credential:
             continue

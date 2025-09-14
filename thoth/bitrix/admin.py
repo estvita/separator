@@ -70,11 +70,12 @@ class AdminMessageAdmin(admin.ModelAdmin):
         message = form.cleaned_data.get('message')
 
         for app_user in app_users:
+            user_id = app_user.user_id
             payload = {
-                'USER_ID': app_user.user_id,
+                'USER_ID': user_id,
                 'MESSAGE': message,
             }
-            bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
+            bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload, b24_user=user_id)
 
 
 @admin.register(App)

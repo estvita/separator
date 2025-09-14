@@ -20,10 +20,10 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 FROM_MARKET_FIELD = settings.FROM_MARKET_FIELD
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
-def call_api(self, id, method, payload):
+def call_api(self, id, method, payload, b24_user=None):
     try:
         app_instance = AppInstance.objects.get(id=id)
-        resp = call_method(app_instance, method, payload)
+        resp = call_method(app_instance, method, payload, b24_user_id=b24_user)
         return resp
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)

@@ -584,7 +584,7 @@ def event_processor(request):
         elif event == "ONCRMDEALUPDATE":
             if appinstance.portal.imopenlines_auto_finish:
                 deal_id = data.get("data[FIELDS][ID]")
-                deal_data = call_method(appinstance, "crm.deal.get", {"ID": deal_id})
+                deal_data = call_method(appinstance, "crm.deal.get", {"ID": deal_id}, admin=True)
                 if "result" in deal_data:
                     deal_data = deal_data["result"]
                     if deal_data.get("CLOSED") == "Y":
