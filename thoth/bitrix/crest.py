@@ -87,9 +87,9 @@ def call_method(appinstance: AppInstance,
                 if error == "authorization_error":
                     b24_user.active = False
                     b24_user.save()
-                    last_exc = Exception(f"Unauthorized error: {response.json()}")
+                    last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
                     continue
-                last_exc = Exception(f"Unauthorized error: {response.json()}")
+                last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
                 continue
 
             last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
