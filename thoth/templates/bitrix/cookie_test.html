@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<script>
+    document.cookie = "testcookiesupport=1; SameSite=None; Secure";
+    if (document.cookie.indexOf("testcookiesupport=1") !== -1) {
+        window.location.href = "{{ app_url|safe }}";
+    } else {
+        document.getElementById("cookie-warning").style.display = "block";
+    }
+</script>
+<div id="cookie-warning">
+    <p><strong>1. {% trans "Enable third-party cookies for this app to work." %}</strong></p>
+    <ul>
+        <li>{% trans "Chrome:" %} {% trans "Settings → Privacy & Security → Third-party cookies → Allow third-party cookies." %}</li>
+        <li>{% trans "Safari:" %} {% trans "Safari → Preferences → Privacy → Uncheck 'Block all cookies'." %}</li>
+        <li>{% trans "Firefox:" %} {% trans "Settings → Privacy & Security → Enhanced Tracking Protection → Standard." %}</li>
+        <li>{% trans "Other browsers: see official help." %}</li>
+    </ul>
+    <p>{% trans "After that, open the application again from the menu." %}</p>
+    <p><strong>2. {% trans "Or open the site in a new tab and connect there." %}</strong></p>
+    <button type="button" class="btn btn-primary connect-btn" onclick="location.reload()">{% trans "Check" %}</button>
+</div>
+<noscript>
+    <p>{% trans "Enable JavaScript for this app to work." %}</p>
+</noscript>
+{% endblock %}

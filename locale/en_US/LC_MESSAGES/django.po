@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-12 11:50+0500\n"
+"POT-Creation-Date: 2025-09-15 21:05+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -176,13 +176,49 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+msgid "Enable third-party cookies for this app to work."
+msgstr ""
+
+msgid "Chrome:"
+msgstr ""
+
+msgid ""
+"Settings → Privacy & Security → Third-party cookies → Allow third-party "
+"cookies."
+msgstr ""
+
+msgid "Safari:"
+msgstr ""
+
+msgid "Safari → Preferences → Privacy → Uncheck 'Block all cookies'."
+msgstr ""
+
+msgid "Firefox:"
+msgstr ""
+
+msgid ""
+"Settings → Privacy & Security → Enhanced Tracking Protection → Standard."
+msgstr ""
+
+msgid "Other browsers: see official help."
+msgstr ""
+
+msgid "After that, open the application again from the menu."
+msgstr ""
+
+msgid "Or open the site in a new tab and connect there."
+msgstr ""
+
+msgid "Check"
+msgstr ""
+
+msgid "Enable JavaScript for this app to work."
+msgstr ""
+
 msgid "Portal Details"
 msgstr ""
 
 msgid "Portal"
-msgstr ""
-
-msgid "Portal Address"
 msgstr ""
 
 msgid "Portal Owner"
@@ -198,6 +234,12 @@ msgid "Finish Delay (minutes)"
 msgstr ""
 
 msgid "Open Lines"
+msgstr ""
+
+msgid "Line ID"
+msgstr ""
+
+msgid "Connector"
 msgstr ""
 
 msgid "Back to Portals"
@@ -245,6 +287,9 @@ msgstr ""
 msgid "Expires in (days)"
 msgstr ""
 
+msgid "All"
+msgstr ""
+
 msgid "Apply"
 msgstr ""
 
@@ -252,9 +297,6 @@ msgid "Number"
 msgstr ""
 
 msgid "Calls"
-msgstr ""
-
-msgid "Line ID"
 msgstr ""
 
 msgid "Messages"

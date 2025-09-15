@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-12 11:50+0500\n"
+"POT-Creation-Date: 2025-09-15 21:07+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -181,14 +181,51 @@ msgstr "Редактировать настройки:"
 msgid "Back"
 msgstr "Назад"
 
+msgid "Enable third-party cookies for this app to work."
+msgstr "Включите сторонние cookie-файлы для работы приложения."
+
+msgid "Chrome:"
+msgstr ""
+
+msgid ""
+"Settings → Privacy & Security → Third-party cookies → Allow third-party "
+"cookies."
+msgstr "Настройки → Конфиденциальность и безопасность → Сторонние файлы cookie → Разрешить сторонние файлы cookie."
+
+
+msgid "Safari:"
+msgstr ""
+
+msgid "Safari → Preferences → Privacy → Uncheck 'Block all cookies'."
+msgstr "Safari → Настройки → Конфиденциальность → Снимите флажок «Блокировать все файлы cookie»"
+
+msgid "Firefox:"
+msgstr ""
+
+msgid ""
+"Settings → Privacy & Security → Enhanced Tracking Protection → Standard."
+msgstr "Настройки → Конфиденциальность и безопасность → Улучшенная защита от отслеживания → Стандартные"
+
+msgid "Other browsers: see official help."
+msgstr "Другие браузеры: см. официальную справку."
+
+msgid "After that, open the application again from the menu."
+msgstr "После этого снова откройте приложение из меню."
+
+msgid "Or open the site in a new tab and connect there."
+msgstr "Или откройте сайт в новой вкладке и подключитесь там."
+
+msgid "Check"
+msgstr "Перепроверить"
+
+msgid "Enable JavaScript for this app to work."
+msgstr "Включите JavaScript для работы приложения."
+
 msgid "Portal Details"
 msgstr "Параметры портала"
 
 msgid "Portal"
 msgstr "Портал"
-
-msgid "Portal Address"
-msgstr "Адрес портала"
 
 msgid "Portal Owner"
 msgstr "Владелец портала"
@@ -204,6 +241,12 @@ msgstr "Время до закрытия диалога (минуты)"
 
 msgid "Open Lines"
 msgstr "Открытые линии"
+
+msgid "Line ID"
+msgstr "ID линии"
+
+msgid "Connector"
+msgstr "Коннектор"
 
 msgid "Back to Portals"
 msgstr "Вернуться к списку"
@@ -250,6 +293,9 @@ msgstr "Ваши номера WhatsApp Cloud"
 msgid "Expires in (days)"
 msgstr "Истекает в течение (дни)"
 
+msgid "All"
+msgstr ""
+
 msgid "Apply"
 msgstr "Применить"
 
@@ -258,9 +304,6 @@ msgstr "Номер"
 
 msgid "Calls"
 msgstr "Звонки"
-
-msgid "Line ID"
-msgstr "ID линии"
 
 msgid "Messages"
 msgstr "Сообщения"
@@ -428,3 +471,6 @@ msgstr "Направление звонка активировано: %(dest)s"
 
 msgid "The tariff has expired "
 msgstr "Срок действия тарифа истёк "
+
+#~ msgid "Portal Address"
+#~ msgstr "Адрес портала"

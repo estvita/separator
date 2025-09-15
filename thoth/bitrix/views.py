@@ -310,7 +310,7 @@ def app_settings(request):
                 except Exception:
                     return redirect(app_url)
             link_ojects(portal, bitrix_user)
-            return redirect(app_url)
+            return render(request, "bitrix/cookie_test.html", {"app_url": app_url})
         else:
             return portals(request)
     elif request.method == "HEAD":
