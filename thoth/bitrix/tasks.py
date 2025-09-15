@@ -264,14 +264,20 @@ def create_deal(app_instance_id, vendor_inst_id, app_name):
 def auto_finish_chat(instance_id, deal_id):
     try:
         app_instance = AppInstance.objects.get(id=instance_id)
-        payload = {
-            "CRM_ENTITY_TYPE": "DEAL",
-            "CRM_ENTITY": deal_id
-        }
-        chat_data = call_method(app_instance, "imopenlines.crm.chat.getLastId", payload, admin=True)
-        if "result" in chat_data:
-            chat_id = chat_data.get("result")
-            return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id}, admin=True)
+        deal_data = call_method(app_instance, "crm.deal.get", {"ID": deal_id}, admin=True)
+        if "result" in deal_data:
+            deal_data = deal_data["result"]
+            if deal_data.get("CLOSED") == "Y":
+                payload = {
+                    "CRM_ENTITY_TYPE": "DEAL",
+                    "CRM_ENTITY": deal_id
+                }
+                chat_data = call_method(app_instance, "imopenlines.crm.chat.getLastId", payload, admin=True)
+                if "result" in chat_data:
+                    chat_id = chat_data.get("result")
+                    return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id}, admin=True)
+            else:
+                raise Exception(f"{app_instance}, deal {deal_id} not closed")
         else:
             raise Exception(f"chat not found: {chat_data}")
     except Exception as e:
