@@ -98,13 +98,26 @@ class EventsHandler(GenericViewSet):
             else:
                 return Response({'sender not found'})
             remoteJid = key_data.get('remoteJid')
-            # participant - этот тот, кто отправил сообщение в группе ватсапа
-            participant = key_data.get('participant')
             pushName = data.get("pushName")
             group_message = False
-            # если есть participant значит группа
-            if participant:
+            # если g.us значит группа
+            if "g.us" in remoteJid:
+                participantPn = key_data.get('participantPn')
+                participant = key_data.get('participant')
                 group_message = True
+                if participantPn and "@lid" not in participantPn:
+                    participant = participantPn
+                if "@lid" in participant:
+                    try:
+                        participants_data = requests.get(f"{server.url}group/participants/{sessionid}", 
+                                                    params={"groupJid": remoteJid}, headers=headers)
+                        participants_data.raise_for_status()
+                        participants_dict = participants_data.json()
+                        participants_list = participants_dict.get('participants', [])
+                        participant = next((p['jid'] for p in participants_list if p['lid'] == participant), None)
+                    except Exception:
+                        print(participants_data.json())
+                        pass
                 participant = participant.split('@')[0]
                 participant = f"{pushName} ({participant})"
                 params = {"groupJid": remoteJid}
@@ -224,7 +237,7 @@ class EventsHandler(GenericViewSet):
                             ]
                         else:
                             text = f"{from_app} {text}"
-                        bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
+                        bitrix_tasks.message_add(session.app_instance.id, line.line_id, 
                                                     remoteJid, text, line.connector.code, attach)
 
                     else:
@@ -235,7 +248,7 @@ class EventsHandler(GenericViewSet):
                                     "name": fileName
                                 }
                             ]
-                        bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, line.connector.code, line.line_id,
+                        bitrix_tasks.send_messages(session.app_instance.id, remoteJid, text, line.connector.code, line.line_id,
                                                             False, pushName, message_id, attach, profilepic_url)
                         
             except Exception as e:
