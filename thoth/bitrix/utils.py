@@ -308,7 +308,7 @@ def sms_processor(request):
         "STATUS": "delivered"
     }
 
-    bitrix_tasks.call_api.delay(app_instance.id, "messageservice.message.status.update", status_data)
+    bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
 
     # начать диалог в открытых линиях
     service = request.query_params.get('service')
@@ -339,7 +339,7 @@ def sms_processor(request):
         try:
             wa = Session.objects.get(phone=sender)
             line = wa.line
-            waweb_tasks.send_message.delay(wa.session, message_to, message_body)
+            waweb_tasks.send_message(wa.session, message_to, message_body)
         except wa.DoesNotExist:
             raise ValueError(f"No Session found for phone number: {code}")
         except Exception as e:
@@ -489,7 +489,7 @@ def event_processor(request):
                 ],
             }
 
-            bitrix_tasks.call_api.delay(appinstance.id, "imconnector.send.status.delivery", status_data)
+            bitrix_tasks.call_api(appinstance.id, "imconnector.send.status.delivery", status_data)
 
             # Проверяем наличие сообщения в редис (отправлено из других сервисов )
             for _ in range(5):
@@ -565,16 +565,16 @@ def event_processor(request):
                     wa = Session.objects.get(line=line)
                     if files:
                         for file in files:
-                            waweb_tasks.send_message_task.delay(str(wa.session), [chat], file, 'media')
+                            waweb_tasks.send_message_task(str(wa.session), [chat], file, 'media')
                     else:
-                        waweb_tasks.send_message.delay(wa.session, chat, text)
+                        waweb_tasks.send_message(wa.session, chat, text)
                 except Exception as e:
                     print(f'Failed to send waweb message: {str(e)}')
                     return Response({'error': f'Failed to send message: {str(e)}'})
 
             # If OLX connector
             elif connector.service == "olx":
-                olx_tasks.send_message.delay(chat, text, files)
+                olx_tasks.send_message(chat, text, files)
 
             return Response(
                 {"status": "ONIMCONNECTORMESSAGEADD event processed"},
