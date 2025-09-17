@@ -19,7 +19,7 @@ if READ_DOT_ENV_FILE:
 CHATWOOT_ENABLED = env.bool("CHATWOOT_ENABLED", default=False)
 CHATWOOT_ID = env("CHATWOOT_ID", default=1)
 
-FACEBOOK_API_URL = env("FACEBOOK_API_URL", default="https://graph.facebook.com/")
+FACEBOOK_API_URL = env("FACEBOOK_API_URL", default="https://graph.facebook.com")
 WABA_APP_ID = env("WABA_APP_ID", default=1)
 
 # ID APP INSTANCE ON VENDOR CRM

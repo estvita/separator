@@ -194,6 +194,7 @@ def call_management(id):
             headers=headers,
             timeout=10
         )
+
         resp.raise_for_status()
         resp = resp.json()
         try:
@@ -234,6 +235,7 @@ def call_management(id):
             raise
 
     except requests.exceptions.HTTPError:
+        resp = resp.json()
         if "error" in resp:
             error = resp.get("error", {})
             message = error.get("message")

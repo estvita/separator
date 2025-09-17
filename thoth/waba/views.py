@@ -154,7 +154,7 @@ def phone_details(request, phone_id):
                             if not phone.sip_extensions:
                                 messages.error(request, _("SIP extension creation failed."))                    
                         try:
-                            waba_tasks.call_management(phone.id)
+                            waba_tasks.call_management.delay(phone.id)
                             if call_dest == "disabled":
                                 messages.info(request, _("Voice calls feature is disabled"))
                             else:
