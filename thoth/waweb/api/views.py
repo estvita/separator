@@ -223,7 +223,8 @@ class EventsHandler(GenericViewSet):
                             file_link = bitrix_utils.call_method(session.app_instance, "disk.file.getExternalLink", {"id": file_id})
                             if "result" in file_link:
                                 file_url = file_link.get("result")
-                        from_app = "[B]Отправлено из WhatsApp[/B][BR]"
+                        source = data.get("source", "")
+                        from_app = f"[B]Отправлено из WhatsApp {source}[/B][BR]"
                         if file_url:
                             file_name = fileName[-fileName[::-1].find('.')-5:]
                             text = f"{from_app} [BR] {text}" if text else from_app
