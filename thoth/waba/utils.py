@@ -212,6 +212,14 @@ def message_processing(request):
             contacts = value["messages"][0]["contacts"]
             text = format_contacts(contacts)
 
+        elif message_type == "interactive":
+            interactive = message.get("interactive", {})
+            interactive_type = interactive.get("type")
+            if interactive_type == "call_permission_reply":
+                reply = interactive.get("call_permission_reply")
+                responce = reply.get("response")
+                text = f"WhatsApp Call permission changed: {responce}"
+
         if text:
             bitrix_tasks.send_messages(appinstance.id, user_phone, text, phone.line.connector.code,
                                              phone.line.line_id, False, name, message_id)
