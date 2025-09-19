@@ -218,7 +218,7 @@ def message_processing(request):
             if interactive_type == "call_permission_reply":
                 reply = interactive.get("call_permission_reply")
                 responce = reply.get("response")
-                text = f"WhatsApp Call permission changed: {responce}"
+                text = f"WhatsApp Call for {user_phone} permission changed: {responce}"
 
         if text:
             bitrix_tasks.send_messages(appinstance.id, user_phone, text, phone.line.connector.code,
