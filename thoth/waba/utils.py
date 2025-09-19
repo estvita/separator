@@ -13,21 +13,12 @@ import thoth.bitrix.tasks as bitrix_tasks
 
 from thoth.chatwoot.tasks import send_to_chatwoot
 
+from .tasks import send_whatsapp_message
 from .models import Phone, Waba, Template
 
 API_URL = 'https://graph.facebook.com/v20.0/'
 
 logger = logging.getLogger("django")
-
-def send_whatsapp_message(access_token, phone_number_id, to, message):
-    url = f"{API_URL}{phone_number_id}/messages"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        **message,
-    }
-    return requests.post(url, json=payload, headers=headers)
 
 
 def send_message(appinstance, message, line_id, phone_number):
@@ -53,7 +44,7 @@ def send_message(appinstance, message, line_id, phone_number):
     if not phone_id:
         return None
 
-    response = send_whatsapp_message(access_token, phone_id, phone_number, message)
+    response = send_whatsapp_message.delay(access_token, phone_id, phone_number, message)
     if response.status_code != 200:
         error = response.json()
         logger.error(f"Failed to send message to {phone}: {error}")

@@ -161,11 +161,18 @@ class EventsHandler(GenericViewSet):
                 payload.update({'content': message.get(msg_type, {}).get("vcard")})
 
             elif msg_type == 'templateMessage':
-                hydratedTemplate = message.get(msg_type, {}).get("hydratedTemplate", {})
-                hydratedTitleText = hydratedTemplate.get("hydratedTitleText")
-                hydratedContentText = hydratedTemplate.get("hydratedContentText")
-                hydratedFooterText = hydratedTemplate.get("hydratedFooterText")
-                payload.update({'content': f"{hydratedTitleText} \n {hydratedContentText} \n {hydratedFooterText}"})
+                template = message.get('templateMessage', {})
+                content = title = footer = None
+                hydrated = template.get('hydratedTemplate')
+                if hydrated:
+                    title = hydrated.get("hydratedTitleText", "")
+                    content = hydrated.get("hydratedContentText", "")
+                    footer = hydrated.get("hydratedFooterText", "")
+                interactive = template.get('interactiveMessageTemplate')
+                if interactive:
+                    title = (interactive.get('header') or {}).get('title', title or '')
+                    content = (interactive.get('body') or {}).get('text', content or '')
+                payload['content'] = f"{(title or '').strip()} \n {(content or '').strip()} \n {(footer or '').strip()}"
 
             elif msg_type in ["imageMessage", "documentMessage", "videoMessage", "audioMessage"]:
                 payload.update({'content': message.get(msg_type, {}).get("caption")})

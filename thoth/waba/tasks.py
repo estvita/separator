@@ -147,6 +147,26 @@ def add_waba_phone(current_data, code, request_id):
 
 
 @shared_task(queue='waba')
+def send_whatsapp_message(access_token, phone_number_id, to, message):
+    app = get_app()
+    url = f"{API_URL}/v{app.api_version}.0/{phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        **message,
+    }
+    try:
+        resp = requests.post(url, json=payload, headers=headers)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.HTTPError as e:
+        raise Exception(resp.json())
+    except Exception as e:
+        raise
+
+
+@shared_task(queue='waba')
 def send_message(template, recipients, phone_id):
     phone = get_object_or_404(Phone, id=phone_id)
     tmp = Template.objects.get(id=template)
@@ -159,7 +179,7 @@ def send_message(template, recipients, phone_id):
         }
     }
     for recipient in recipients:
-        utils.send_whatsapp_message(access_token, phone.phone_id, recipient, message)
+        send_whatsapp_message.delay(access_token, phone.phone_id, recipient, message)
 
 
 @shared_task(queue='waba')
