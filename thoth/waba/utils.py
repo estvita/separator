@@ -1,5 +1,6 @@
 import base64
 import logging
+from datetime import datetime
 
 import requests
 from rest_framework import status
@@ -207,9 +208,14 @@ def message_processing(request):
             interactive = message.get("interactive", {})
             interactive_type = interactive.get("type")
             if interactive_type == "call_permission_reply":
-                reply = interactive.get("call_permission_reply")
-                responce = reply.get("response")
-                text = f"WhatsApp Call for {user_phone} permission changed: {responce}"
+                reply = interactive.get("call_permission_reply", {})
+                responce = reply.get("response", "expiration_timestamp")
+                expiration = ""
+                expiration = reply.get("expiration_timestamp", "")
+                if expiration:
+                    dt = datetime.fromtimestamp(expiration)
+                    expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
+                text = f"WhatsApp Call for {user_phone} permission changed: {responce} {expiration}"
 
         if text:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,

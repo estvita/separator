@@ -247,7 +247,7 @@ def call_management(id):
                             phone.save()
                         break
                 else:
-                    print(f"No matching server found for app_id {app_id}")
+                    raise Exception(f"No matching server found for app_id {app_id}")
                 
             return resp
 
