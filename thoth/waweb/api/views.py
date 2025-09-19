@@ -237,7 +237,7 @@ class EventsHandler(GenericViewSet):
                             ]
                         else:
                             text = f"{from_app} {text}"
-                        bitrix_tasks.message_add(session.app_instance.id, line.line_id, 
+                        bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
                                                     remoteJid, text, line.connector.code, attach)
 
                     else:
@@ -248,7 +248,7 @@ class EventsHandler(GenericViewSet):
                                     "name": fileName
                                 }
                             ]
-                        bitrix_tasks.send_messages(session.app_instance.id, remoteJid, text, line.connector.code, line.line_id,
+                        bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, line.connector.code, line.line_id,
                                                             False, pushName, message_id, attach, profilepic_url)
                         
             except Exception as e:

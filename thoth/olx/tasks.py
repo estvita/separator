@@ -150,11 +150,11 @@ def get_threads(olx_user_id):
                             if int(message_id) > int(last_message):
                                 redis_client.set(f'olx:{thread_id}', message_id)
                                 if message_type == "received":
-                                    bitrix_tasks.send_messages(line.app_instance.id, None, text, connector_code,
+                                    bitrix_tasks.send_messages.delay(line.app_instance.id, None, text, connector_code,
                                                                         line.line_id, False, user_name, message_id,
                                                                         attachments, None, chat_id, advert_url, interlocutor_id)
                                 elif message_type == "sent":
-                                    bitrix_tasks.message_add(line.app_instance.id, line.line_id, 
+                                    bitrix_tasks.message_add.delay(line.app_instance.id, line.line_id, 
                                                                     interlocutor_id, text, connector_code)
                     
                     # если треда нет в базе, то берем послденее полученное сообщение
@@ -166,7 +166,7 @@ def get_threads(olx_user_id):
                             text = message.get("text")
                             attachments = message.get("attachments", [])
                             redis_client.set(f'olx:{thread_id}', message_id)
-                            bitrix_tasks.send_messages(line.app_instance.id, None, text, connector_code,
+                            bitrix_tasks.send_messages.delay(line.app_instance.id, None, text, connector_code,
                                                                 line.line_id, False, user_name, message_id,
                                                                 attachments, None, chat_id, advert_url, interlocutor_id)
                                 

@@ -221,7 +221,7 @@ def message_processing(request):
                 text = f"WhatsApp Call for {user_phone} permission changed: {responce}"
 
         if text:
-            bitrix_tasks.send_messages(appinstance.id, user_phone, text, phone.line.connector.code,
+            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
                                              phone.line.line_id, False, name, message_id)
         if file_url:
             attach = [
@@ -230,7 +230,7 @@ def message_processing(request):
                     "name": filename
                 }
             ]
-            bitrix_tasks.send_messages(appinstance.id, user_phone, caption, phone.line.connector.code,
+            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
                                              phone.line.line_id, False, name, message_id, attach)
 
     # statuses = value.get("statuses", [])

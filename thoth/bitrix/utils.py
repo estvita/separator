@@ -346,7 +346,7 @@ def sms_processor(request):
             print(f"Failed to send message to {message_to}: {e}")
 
     if line:
-        bitrix_tasks.message_add(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
+        bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
     return Response({"status": "message processed"}, status=status.HTTP_200_OK)
 
 
