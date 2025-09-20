@@ -260,14 +260,26 @@ def create_deal(app_instance_id, vendor_inst_id, app_name):
         }
         call_method(venrot_instance, "crm.deal.add", deal_data)
 
-@shared_task(queue='bitrix')
-def auto_finish_chat(instance_id, deal_id):
+
+@shared_task(queue='chat_finish')
+def auto_finish_chat(instance_id, deal_id, init=False):
     try:
         app_instance = AppInstance.objects.get(id=instance_id)
-        deal_data = call_method(app_instance, "crm.deal.get", {"ID": deal_id}, admin=True)
-        if "result" in deal_data:
-            deal_data = deal_data["result"]
-            if deal_data.get("CLOSED") == "Y":
+        payload = {
+            "filter": {
+                "ID": deal_id
+            },
+            "select": ["CLOSED"]
+        }
+        deal_data = call_method(app_instance, "crm.deal.list", payload, admin=True)
+        deal_list = deal_data.get("result", [])
+        deal = next((d for d in deal_list if str(d.get("ID")) == str(deal_id)), None)
+
+        if not deal:
+            raise Exception(f"Deal {deal_id} not found")
+
+        if not init:
+            if deal.get("CLOSED") == "Y":
                 payload = {
                     "CRM_ENTITY_TYPE": "DEAL",
                     "CRM_ENTITY": deal_id
@@ -276,9 +288,16 @@ def auto_finish_chat(instance_id, deal_id):
                 if "result" in chat_data:
                     chat_id = chat_data.get("result")
                     return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id}, admin=True)
+                else:
+                    raise Exception(f"chat not found: {chat_data}")
             else:
-                raise Exception(f"{app_instance}, deal {deal_id} not closed")
+                raise Exception(f"Deal {deal_id} is not closed yet")
         else:
-            raise Exception(f"chat not found: {chat_data}")
+            if deal.get("CLOSED") == "Y":
+                delay_seconds = app_instance.portal.finish_delay * 60
+                auto_finish_chat.apply_async(
+                    args=[app_instance.id, deal_id],
+                    countdown=delay_seconds
+                )
     except Exception as e:
         raise

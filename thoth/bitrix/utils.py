@@ -584,17 +584,9 @@ def event_processor(request):
         elif event == "ONCRMDEALUPDATE":
             if appinstance.portal.imopenlines_auto_finish:
                 deal_id = data.get("data[FIELDS][ID]")
-                deal_data = call_method(appinstance, "crm.deal.get", {"ID": deal_id}, admin=True)
-                if "result" in deal_data:
-                    deal_data = deal_data["result"]
-                    if deal_data.get("CLOSED") == "Y":
-                        # Добавляем задержку в секундах (finish_delay в минутах * 60)
-                        delay_seconds = appinstance.portal.finish_delay * 60
-                        bitrix_tasks.auto_finish_chat.apply_async(
-                            args=[appinstance.id, deal_id], 
-                            countdown=delay_seconds
-                        )
+                bitrix_tasks.auto_finish_chat.delay(appinstance.id, deal_id, True)
             return Response('event processed')
+        
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")
             connector_code = data.get("data[connector]")
