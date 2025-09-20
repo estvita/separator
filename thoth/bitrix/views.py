@@ -131,7 +131,6 @@ def portals(request):
         "bitrix/portals.html",
         {
             "user_portals": user_portals,
-            "b24_admin": b24_admin,
             "portal_form": portal_form,
             "verification_form": verification_form,
         },

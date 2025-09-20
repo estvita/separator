@@ -13,9 +13,12 @@ from django.contrib import messages
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 
+from celery import shared_task
+
 from rest_framework import status
 from rest_framework.response import Response
 from django.http import HttpResponse
+from rest_framework.authtoken.models import Token
 
 import thoth.olx.tasks as olx_tasks
 import thoth.waba.utils as waba
@@ -174,8 +177,9 @@ def connect_line(request, line_id, entity, connector_service):
 
 
 # Подписка на события
-def events_bind(appinstance: AppInstance, api_key: str):
+def events_bind(appinstance: AppInstance):
     url = appinstance.app.site
+    api_key, created = Token.objects.get_or_create(user=appinstance.app.owner)
     for event in appinstance.app.events.strip().splitlines():
         payload = {
             "event": event,
@@ -185,7 +189,7 @@ def events_bind(appinstance: AppInstance, api_key: str):
         bitrix_tasks.call_api.delay(appinstance.id, "event.bind", payload)
 
 
-def register_connector(appinstance: AppInstance, api_key: str, connector):
+def register_connector(appinstance: AppInstance, connector):
     url = appinstance.app.site
 
     if not connector.icon:
@@ -288,13 +292,12 @@ def process_placement(request):
         logger.error(f"Unexpected error: {e}")
         return HttpResponse({"An unexpected error occurred"})
     
-
-def sms_processor(request):
-    data = request.data
+@shared_task(queue='bitrix')
+def sms_processor(data, service):
     application_token = data.get("auth[application_token]")
     app_instance = AppInstance.objects.filter(application_token=application_token).first()
     if not app_instance:
-        return HttpResponse("app not found")
+        raise Exception("app not found")
     message_body = data.get("message_body")
     code = data.get("code", {})
     sender = code.split('_')[-1]
@@ -311,7 +314,6 @@ def sms_processor(request):
     bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
 
     # начать диалог в открытых линиях
-    service = request.query_params.get('service')
     line = None
 
     # Messages from SMS gate
@@ -350,9 +352,9 @@ def sms_processor(request):
     return Response({"status": "message processed"}, status=status.HTTP_200_OK)
 
 
-def event_processor(request):
+@shared_task(queue='bitrix')
+def event_processor(data, app_id=None):
     try:
-        data = request.data
         event = data.get("event").upper()
         domain = data.get("auth[domain]")
         user_id = data.get("auth[user_id]")
@@ -361,7 +363,6 @@ def event_processor(request):
         refresh_token = data.get("auth[refresh_token]")
         application_token = data.get("auth[application_token]")
         member_id = data.get("auth[member_id]")
-        api_key = request.query_params.get("api-key")
 
         # Проверка наличия установки
         try:
@@ -370,7 +371,6 @@ def event_processor(request):
         except AppInstance.DoesNotExist:
             if event == "ONAPPINSTALL":                
                 
-                app_id = request.query_params.get("app-id")
                 # Получение приложения по app_id
                 try:
                     app = App.objects.get(id=app_id)
@@ -420,10 +420,10 @@ def event_processor(request):
 
                 # Регистрация коннектора/ подписка на события
                 def register_events_and_connectors():
-                    events_bind(appinstance, api_key)
+                    events_bind(appinstance)
                     if app.connectors.exists():
                         for connector in app.connectors.all():
-                            register_connector(appinstance, api_key, connector)
+                            register_connector(appinstance, connector)
 
                 transaction.on_commit(register_events_and_connectors)
 
@@ -436,7 +436,7 @@ def event_processor(request):
 
                 # Если портал уже прявязан
                 if portal.owner:
-                    return Response('App successfully created and linked')
+                    return "App successfully created and linked"
                 
                 verify_code = VerificationCode.objects.filter(
                     portal=portal,
@@ -459,19 +459,12 @@ def event_processor(request):
 
                 bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
 
-                return Response(
-                    {"message": "App and portal successfully created and linked."},
-                    status=status.HTTP_201_CREATED,
-                )
-            else:
-                return Response({"message": "App not found and not an install event."})
-
         # Обработка события ONIMCONNECTORMESSAGEADD
         if event == "ONIMCONNECTORMESSAGEADD":
             connector_code = data.get("data[CONNECTOR]")
             connector = get_object_or_404(Connector, code=connector_code)
             if not connector:
-                return Response({'Connector not found'})
+                raise Exception({'Connector not found'})
             line_id = data.get("data[LINE]")
             message_id = data.get("data[MESSAGES][0][im][message_id]")
             chat_id = data.get("data[MESSAGES][0][im][chat_id]")
@@ -494,7 +487,7 @@ def event_processor(request):
             # Проверяем наличие сообщения в редис (отправлено из других сервисов )
             for _ in range(5):
                 if redis_client.exists(f'bitrix:{member_id}:{message_id}'):
-                    return Response({'message': 'loop message'})
+                    raise Exception({'loop message'})
                 time.sleep(1)
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
@@ -509,7 +502,6 @@ def event_processor(request):
 
             # If WABA connector
             if connector.service == "waba":
-
                 message = {
                     "biz_opaque_callback_data": f"{line_id}_{chat_id}_{message_id}",
                 }
@@ -565,34 +557,24 @@ def event_processor(request):
                     wa = Session.objects.get(line=line)
                     if files:
                         for file in files:
-                            waweb_tasks.send_message_task(str(wa.session), [chat], file, 'media')
+                            waweb_tasks.send_message_task.delay(str(wa.session), [chat], file, 'media')
                     else:
-                        waweb_tasks.send_message(wa.session, chat, text)
+                        waweb_tasks.send_message.delay(wa.session, chat, text)
                 except Exception as e:
-                    print(f'Failed to send waweb message: {str(e)}')
-                    return Response({'error': f'Failed to send message: {str(e)}'})
+                    raise
 
             # If OLX connector
             elif connector.service == "olx":
                 olx_tasks.send_message(chat, text, files)
 
-            return Response(
-                {"status": "ONIMCONNECTORMESSAGEADD event processed"},
-                status=status.HTTP_200_OK,
-            )
-
         elif event == "ONCRMDEALUPDATE":
             if appinstance.portal.imopenlines_auto_finish:
                 deal_id = data.get("data[FIELDS][ID]")
                 bitrix_tasks.auto_finish_chat.delay(appinstance.id, deal_id, True)
-            return Response('event processed')
         
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")
             connector_code = data.get("data[connector]")
-            connector = get_object_or_404(Connector, code=connector_code)
-            if not connector:
-                return Response({'Connector not found'})
             try:
                 line = Line.objects.get(line_id=line_id, app_instance=appinstance)
 
@@ -614,13 +596,8 @@ def event_processor(request):
                         phone.line = None
                         phone.save()
 
-                return Response("Line disconnected")
-
             except Line.DoesNotExist:
-                return Response(
-                    {"status": "Line not found"},
-                    status=status.HTTP_200_OK,
-                )
+                raise
 
         elif event == "ONIMCONNECTORLINEDELETE":
             line_id = data.get("data")
@@ -628,11 +605,9 @@ def event_processor(request):
                 line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
                 if line:
                     line.delete()
-                return Response({"status": "Line deleted"}, status=status.HTTP_200_OK)
+                    return
             except Line.DoesNotExist:
-                return Response(
-                    {"status": "Line not found"}, status=status.HTTP_200_OK
-                )
+                raise
             
         # AsterX
         elif event == "ONEXTERNALCALLSTART":
@@ -649,8 +624,7 @@ def event_processor(request):
                 }
                 send_call_info(pbx.id, payload)
             except Exception as e:
-                print(f'Failed to send event: {str(e)}')
-            return Response('event processed')
+                raise
         
         elif event == "ONEXTERNALCALLBACKSTART":
             try:
@@ -662,24 +636,13 @@ def event_processor(request):
                 }
                 send_call_info(pbx.id, payload)
             except Exception as e:
-                print(f'Failed to send event: {str(e)}')
-            return Response('event processed')
+                raise
 
         elif event == "ONAPPUNINSTALL":
             portal = appinstance.portal
             appinstance.delete()
             if not AppInstance.objects.filter(portal=portal).exists():
                 portal.delete()
-                return Response(f"{appinstance} and associated portal deleted")
-            else:
-                return Response(f"{appinstance} deleted")
-
-        else:
-            return Response('Unsupported event')
 
     except Exception as e:
-        logger.error(f"Error occurred: {e!s}")
-        return Response(
-            {"error": "Internal server error"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        raise

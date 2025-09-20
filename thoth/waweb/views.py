@@ -61,7 +61,9 @@ def wa_sessions(request):
         except Exception as e:
             messages.error(request, str(e))
     if selected_portal:
-        sessions = Session.objects.filter(owner=request.user, line__portal=selected_portal)
+        sessions = Session.objects.filter(owner=request.user).filter(
+            Q(line__portal=selected_portal) | Q(line__isnull=True)
+        )
         wa_lines = Line.objects.filter(
             owner=request.user, connector__service=connector_service, portal=selected_portal
             ).exclude(id__in=Session.objects.filter(line__isnull=False).values_list('line_id', flat=True))

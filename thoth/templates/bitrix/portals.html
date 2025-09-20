@@ -8,7 +8,6 @@
         <thead>
           <tr>
             <th>{% trans "Portal" %}</th>
-            <th>{% trans "Administrator" %}</th>
             <th>{% trans "Application (status)" %}</th>
           </tr>
         </thead>
@@ -17,13 +16,6 @@
             <tr>
               <td>
                 <a href="{% url 'portal_detail' portal.id %}">{{ portal.domain }}</a>
-              </td>
-              <td>
-                {% if b24_admin %}
-                  <a href="{{ portal.protocol }}://{{ portal.domain }}/company/personal/user/{{ b24_admin.user_id }}/" target="_blank">{{ b24_admin.user_id }}</a>
-                {% else %}
-                  {% trans "Not Found" %}
-                {% endif %}
               </td>
               <td>
                 {% for instance in portal.installations.all %}

@@ -4,9 +4,8 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.response import Response
 
 from thoth.bitrix.models import Bitrix
+import thoth.bitrix.utils as utils
 
-from ..utils import event_processor
-from ..utils import sms_processor
 from .serializers import PortalSerializer
 
 
@@ -15,7 +14,10 @@ class PortalViewSet(CreateModelMixin, GenericViewSet):
     serializer_class = PortalSerializer
 
     def create(self, request, *args, **kwargs):
-        return event_processor(request)
+        data = request.data
+        app_id = request.query_params.get("app-id")
+        utils.event_processor.delay(data, app_id)
+        return Response("ok")
 
     def head(self, request, *args, **kwargs):
         return Response(headers={'Allow': 'POST, HEAD'})
@@ -28,4 +30,8 @@ class SmsViewSet(GenericViewSet, CreateModelMixin):
         return Bitrix.objects.none()
 
     def create(self, request, *args, **kwargs):
-        return sms_processor(request)
+        service = request.query_params.get('service')
+        data = request.data
+        utils.sms_processor.delay(data, service)
+        return Response("ok")
+
