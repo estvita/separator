@@ -18,7 +18,8 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
     serializer_class = PhoneSerializer
 
     def create(self, request, *args, **kwargs):
-        message_processing(request)
+        data = request.data
+        message_processing.delay(data)
         return HttpResponse("Message processed", status=200, content_type="text/plain")
 
     def list(self, request, *args, **kwargs):

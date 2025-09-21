@@ -534,22 +534,7 @@ def event_processor(data, app_id=None):
                                 "filename": file["name"],
                             }
 
-                resp = waba.send_message(appinstance, message, line_id, chat)
-
-                if resp.status_code != 200:
-                    error = resp.json()
-                    if "error" in error:
-                        error = error.get("error")
-                        message = error.get("message")
-                        details = None
-                        error_data = error.get("error_data", {})
-                        if error_data:
-                            details = error_data.get("details")
-                        payload = {
-                            "message": f"{message} {details}",
-                            "USER_ID": user_id
-                        }
-                        resp = call_method(appinstance, "im.notify.system.add", payload)
+                waba.send_message(appinstance, message, line_id, chat)
 
             elif connector.service == "waweb":
                 try:

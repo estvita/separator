@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from django.utils import timezone
 from django.conf import settings
+from celery import shared_task
 
 from thoth.bitrix.crest import call_method
 from thoth.bitrix.models import Line
@@ -45,13 +46,7 @@ def send_message(appinstance, message, line_id, phone_number):
     if not phone_id:
         return None
 
-    response = send_whatsapp_message.delay(access_token, phone_id, phone_number, message)
-    if response.status_code != 200:
-        error = response.json()
-        logger.error(f"Failed to send message to {phone}: {error}")
-        return response
-    else:
-        return Response({f"Message sent to {phone}"}, status=status.HTTP_200_OK)
+    send_whatsapp_message.delay(access_token, phone_id, phone_number, message)
 
 
 def get_file(access_token, media_id, filename, appinstance, storage_id):
@@ -138,9 +133,8 @@ def message_template_status_update(entry):
 
     return Response({"this event is handled"})
 
-
-def message_processing(request):
-    data = request.data
+@shared_task(queue='waba')
+def message_processing(data):
     entry = data["entry"][0]
     changes = entry["changes"][0]
     field = changes.get('field')
@@ -154,7 +148,7 @@ def message_processing(request):
             phone = Phone.objects.get(phone_id=phone_number_id)
         except Phone.DoesNotExist:
             logger.error(f"Phone {phone_number} - {phone_number_id} not found")
-            return Response({"phone_number not found"})
+            raise Exception({"phone_number not found"})
 
         if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
             # send message to chatwoot 
@@ -163,12 +157,12 @@ def message_processing(request):
     if field == 'message_template_status_update':
         return message_template_status_update(entry)
     elif field != 'messages':
-        return Response({"this event is not handled"})
+        raise Exception({"this event is not handled"})
     if phone.date_end and timezone.now() > phone.date_end:
-        return Response({"error": "phone tariff ended"})
+        raise Exception({"error": "phone tariff ended"})
 
     if not phone.line or not phone.waba or not phone.app_instance:
-        return Response({"error": "phone not connected to b24"})
+        raise Exception({"error": "phone not connected to b24"})
     appinstance = phone.app_instance
     access_token = phone.waba.access_token
     storage_id = appinstance.storage_id
