@@ -159,6 +159,14 @@ class EventsHandler(GenericViewSet):
 
             elif msg_type == 'contactMessage':
                 payload.update({'content': message.get(msg_type, {}).get("vcard")})
+            
+            elif msg_type == 'interactiveResponseMessage':
+                interactive = message.get(msg_type, {})
+                body = interactive.get("body", {})
+                text = body.get("text")
+                response = interactive.get("nativeFlowResponseMessage", {})
+                name = response.get("name", "")
+                payload['content'] = f"{name} {text}"
 
             elif msg_type == 'templateMessage':
                 template = message.get('templateMessage', {})
