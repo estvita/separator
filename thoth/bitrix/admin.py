@@ -8,8 +8,8 @@ import thoth.bitrix.tasks as bitrix_tasks
 
 class AppInstanceInline(admin.TabularInline):
     model = AppInstance
-    fields = ('instance_link', 'app', 'auth_status', 'status', 'attempts')
-    readonly_fields = ('instance_link', 'app', 'auth_status', 'status', 'attempts')
+    fields = ('instance_link', 'app', 'owner', 'auth_status', 'status', 'attempts')
+    readonly_fields = ('instance_link', 'app', 'owner', 'auth_status', 'status', 'attempts')
     extra = 0
     can_delete = False
 

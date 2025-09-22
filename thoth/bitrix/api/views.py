@@ -16,7 +16,7 @@ class PortalViewSet(CreateModelMixin, GenericViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data
         app_id = request.query_params.get("app-id")
-        utils.event_processor.delay(data, app_id)
+        utils.event_processor.delay(data, app_id, request.user.id)
         return Response("ok")
 
     def head(self, request, *args, **kwargs):

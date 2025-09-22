@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.translation import gettext as _
 from rest_framework.authtoken.models import Token
 
 from .crest import call_method
@@ -300,6 +301,7 @@ def app_settings(request):
             if bitrix_user is None:
                 return portals(request)
             
+            link_ojects(portal, bitrix_user)
             should_login = not request.user.is_authenticated or request.user != bitrix_user
             if should_login and app.autologin:
                 if request.user.is_authenticated:
@@ -308,7 +310,6 @@ def app_settings(request):
                     login(request, bitrix_user, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception:
                     return redirect(app_url)
-            link_ojects(portal, bitrix_user)
             return render(request, "bitrix/cookie_test.html", {"app_url": app_url})
         else:
             return portals(request)
@@ -321,57 +322,61 @@ def app_settings(request):
 @login_required
 def portal_detail(request, portal_id):
     """Отображение и редактирование данных портала"""
-    portal = get_object_or_404(Bitrix, id=portal_id, owner=request.user)
+    b24_user = B24_user.objects.filter(owner=request.user, bitrix__id=portal_id).first()
+    portal = b24_user.bitrix
     open_lines = Line.objects.filter(owner=request.user, portal=portal)
     
     if request.method == 'POST':
-        imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
-        portal.finish_delay = int(request.POST.get('finish_delay'))
-        portal.imopenlines_auto_finish = imopenlines_auto_finish
-        portal.save()
+        if b24_user and b24_user.admin:
+            imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
+            portal.finish_delay = int(request.POST.get('finish_delay'))
+            portal.imopenlines_auto_finish = imopenlines_auto_finish
+            portal.save()
 
-        for line in open_lines:
-            if request.POST.get(f"delete_line_{line.id}") == 'on':
-                call_api.delay(line.app_instance.id, "imopenlines.config.delete", {"CONFIG_ID": line.line_id})
-                line.delete()
-                continue
-            new_name = request.POST.get(f"line_name_{line.id}")
-            if new_name is not None and new_name != line.name:
-                line.name = new_name
-                line.save()
-                if line.app_instance:
-                    payload = {
-                        "CONFIG_ID": line.line_id,
-                        "PARAMS": {
-                            "LINE_NAME": new_name
+            for line in open_lines:
+                if request.POST.get(f"delete_line_{line.id}") == 'on':
+                    call_api.delay(line.app_instance.id, "imopenlines.config.delete", {"CONFIG_ID": line.line_id})
+                    line.delete()
+                    continue
+                new_name = request.POST.get(f"line_name_{line.id}")
+                if new_name is not None and new_name != line.name:
+                    line.name = new_name
+                    line.save()
+                    if line.app_instance:
+                        payload = {
+                            "CONFIG_ID": line.line_id,
+                            "PARAMS": {
+                                "LINE_NAME": new_name
+                            }
                         }
+                        call_api.delay(line.app_instance.id, "imopenlines.config.update", payload)
+            
+            if imopenlines_auto_finish:
+                # Если включили автозакрытие - получаем первый подходящий инстанс и отправляем event.bind
+                instance = AppInstance.objects.filter(portal=portal, app__imopenlines_auto_finish=True).first()
+                if instance:
+                    api_key, created = Token.objects.get_or_create(user=instance.app.owner)
+                    payload = {
+                        "event": "ONCRMDEALUPDATE",
+                        "HANDLER": f"https://{instance.app.site}/api/bitrix/?api-key={api_key.key}",
                     }
-                    call_api.delay(line.app_instance.id, "imopenlines.config.update", payload)
-        
-        if imopenlines_auto_finish:
-            # Если включили автозакрытие - получаем первый подходящий инстанс и отправляем event.bind
-            instance = AppInstance.objects.filter(owner=request.user, portal=portal, app__imopenlines_auto_finish=True).first()
-            if instance:
-                api_key, _ = Token.objects.get_or_create(user=instance.app.owner)
-                payload = {
-                    "event": "ONCRMDEALUPDATE",
-                    "HANDLER": f"https://{instance.app.site}/api/bitrix/?api-key={api_key.key}",
-                }
-                call_api.delay(instance.id, "event.bind", payload)
-                messages.success(request, 'Автозакрытие чатов включено и событие привязано')
+                    call_api.delay(instance.id, "event.bind", payload)
+                    messages.success(request, _('Auto-close chats is enabled and the event is binded'))
+                else:
+                    messages.error(request, _("You don't have an app with auto-close chats."))
             else:
-                messages.error(request, 'У вас нет приложения с автозакрытием чатов')
+                # Если отключили автозакрытие - получаем все инстансы и отправляем event.unbind
+                instances = AppInstance.objects.filter(portal=portal, app__imopenlines_auto_finish=True)
+                for instance in instances:
+                    api_key, created = Token.objects.get_or_create(user=instance.app.owner)
+                    payload = {
+                        "event": "ONCRMDEALUPDATE",
+                        "HANDLER": f"https://{instance.app.site}/api/bitrix/?api-key={api_key.key}",
+                    }
+                    call_api.delay(instance.id, "event.unbind", payload)
+                messages.success(request, _('Auto-closing of chats is disabled and events are unbind'))
         else:
-            # Если отключили автозакрытие - получаем все инстансы и отправляем event.unbind
-            instances = AppInstance.objects.filter(owner=request.user, portal=portal, app__imopenlines_auto_finish=True)
-            for instance in instances:
-                api_key, _ = Token.objects.get_or_create(user=instance.app.owner)
-                payload = {
-                    "event": "ONCRMDEALUPDATE",
-                    "HANDLER": f"https://{instance.app.site}/api/bitrix/?api-key={api_key.key}",
-                }
-                call_api.delay(instance.id, "event.unbind", payload)
-            messages.success(request, 'Автозакрытие чатов отключено и события отвязаны')
+            messages.error(request, _('Administrator rights are required to edit the portal.'))
         
         return redirect('portal_detail', portal_id=portal_id)
     

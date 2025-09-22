@@ -19,9 +19,8 @@ def get_portal_settings(member_id):
     portal = Bitrix.objects.filter(member_id=member_id).first()
     if not portal:
         return None
-    user = portal.owner
     app_instance = AppInstance.objects.filter(
-        portal=portal, owner=user, app__asterx=True
+        portal=portal, app__asterx=True
     ).first()
     if not app_instance:
         return None

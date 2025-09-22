@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-15 21:07+0500\n"
+"POT-Creation-Date: 2025-09-22 22:05+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -57,6 +57,18 @@ msgstr "При звонке"
 
 msgid "On answer"
 msgstr "При ответе"
+
+msgid "Auto-close chats is enabled and the event is binded"
+msgstr "Автозакрытие чатов активирвоано"
+
+msgid "You don't have an app with auto-close chats."
+msgstr "У вас нет приложение поддерживающий автозакрытие чатов."
+
+msgid "Auto-closing of chats is disabled and events are unbind"
+msgstr "Автозакрытие чатов отключено"
+
+msgid "Administrator rights are required to edit the portal."
+msgstr "Для редактирования настроек нужны права администратора"
 
 msgid "Sign In"
 msgstr "Войти"
@@ -190,21 +202,26 @@ msgstr ""
 msgid ""
 "Settings → Privacy & Security → Third-party cookies → Allow third-party "
 "cookies."
-msgstr "Настройки → Конфиденциальность и безопасность → Сторонние файлы cookie → Разрешить сторонние файлы cookie."
-
+msgstr ""
+"Настройки → Конфиденциальность и безопасность → Сторонние файлы cookie → "
+"Разрешить сторонние файлы cookie."
 
 msgid "Safari:"
 msgstr ""
 
 msgid "Safari → Preferences → Privacy → Uncheck 'Block all cookies'."
-msgstr "Safari → Настройки → Конфиденциальность → Снимите флажок «Блокировать все файлы cookie»"
+msgstr ""
+"Safari → Настройки → Конфиденциальность → Снимите флажок «Блокировать все "
+"файлы cookie»"
 
 msgid "Firefox:"
 msgstr ""
 
 msgid ""
 "Settings → Privacy & Security → Enhanced Tracking Protection → Standard."
-msgstr "Настройки → Конфиденциальность и безопасность → Улучшенная защита от отслеживания → Стандартные"
+msgstr ""
+"Настройки → Конфиденциальность и безопасность → Улучшенная защита от "
+"отслеживания → Стандартные"
 
 msgid "Other browsers: see official help."
 msgstr "Другие браузеры: см. официальную справку."
@@ -254,14 +271,8 @@ msgstr "Вернуться к списку"
 msgid "Your Bitrix24"
 msgstr "Ваши Битрикс24"
 
-msgid "Administrator"
-msgstr "Администратор"
-
 msgid "Application (status)"
 msgstr "Приложение (статус)"
-
-msgid "Not Found"
-msgstr "Не найдено"
 
 msgid "No App Instances"
 msgstr "Нет приложений"
@@ -471,6 +482,12 @@ msgstr "Направление звонка активировано: %(dest)s"
 
 msgid "The tariff has expired "
 msgstr "Срок действия тарифа истёк "
+
+#~ msgid "Administrator"
+#~ msgstr "Администратор"
+
+#~ msgid "Not Found"
+#~ msgstr "Не найдено"
 
 #~ msgid "Portal Address"
 #~ msgstr "Адрес портала"

@@ -353,7 +353,7 @@ def sms_processor(data, service):
 
 
 @shared_task(queue='bitrix')
-def event_processor(data, app_id=None):
+def event_processor(data, app_id=None, user_id=None):
     try:
         event = data.get("event").upper()
         domain = data.get("auth[domain]")
@@ -372,10 +372,8 @@ def event_processor(data, app_id=None):
             if event == "ONAPPINSTALL":                
                 
                 # Получение приложения по app_id
-                app = get_object_or_404(App, id=app_id)
-                
+                app = get_object_or_404(App, id=app_id)                
                 owner_user = request.user if auth_status == "L" else None
-               
                 portal, created = Bitrix.objects.get_or_create(
                     member_id=member_id,
                     defaults={
@@ -383,19 +381,13 @@ def event_processor(data, app_id=None):
                         "owner": owner_user,
                     }
                 )
-                # Определяем владельца для AppInstance
-                appinstance_owner = (
-                    portal.owner
-                    if portal.owner
-                    else owner_user
-                )
 
                 appinstance_data = {
                     "app": app,
                     "portal": portal,
                     "auth_status": auth_status,
                     "application_token": application_token,
-                    "owner": appinstance_owner,
+                    "owner": owner_user,
                 }
 
                 appinstance = AppInstance.objects.create(**appinstance_data)
