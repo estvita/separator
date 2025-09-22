@@ -372,10 +372,7 @@ def event_processor(data, app_id=None):
             if event == "ONAPPINSTALL":                
                 
                 # Получение приложения по app_id
-                try:
-                    app = App.objects.get(id=app_id)
-                except App.DoesNotExist:
-                    return Response({"message": "App not found."})
+                app = get_object_or_404(App, id=app_id)
                 
                 owner_user = request.user if auth_status == "L" else None
                
@@ -463,8 +460,6 @@ def event_processor(data, app_id=None):
         if event == "ONIMCONNECTORMESSAGEADD":
             connector_code = data.get("data[CONNECTOR]")
             connector = get_object_or_404(Connector, code=connector_code)
-            if not connector:
-                raise Exception({'Connector not found'})
             line_id = data.get("data[LINE]")
             message_id = data.get("data[MESSAGES][0][im][message_id]")
             chat_id = data.get("data[MESSAGES][0][im][chat_id]")
@@ -550,7 +545,7 @@ def event_processor(data, app_id=None):
 
             # If OLX connector
             elif connector.service == "olx":
-                olx_tasks.send_message(chat, text, files)
+                olx_tasks.send_message.delay(chat, text, files)
 
         elif event == "ONCRMDEALUPDATE":
             if appinstance.portal.imopenlines_auto_finish:
@@ -560,39 +555,31 @@ def event_processor(data, app_id=None):
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")
             connector_code = data.get("data[connector]")
-            try:
-                line = Line.objects.get(line_id=line_id, app_instance=appinstance)
+            connector = get_object_or_404(Connector, code=connector_code)
+            line = get_object_or_404(Line, line_id=line_id, app_instance=appinstance)
 
-                if connector.service == "olx":
-                    olxuser = line.olx_users.first()
-                    if olxuser:
-                        olxuser.line = None
-                        olxuser.save()
+            if connector.service == "olx":
+                olxuser = line.olx_users.first()
+                if olxuser:
+                    olxuser.line = None
+                    olxuser.save()
 
-                elif connector.service == "waba":
-                    phone = line.phones.first()
-                    if phone:
-                        phone.line = None
-                        phone.save()
-                
-                elif connector.service == "waweb":
-                    phone = line.wawebs.first()
-                    if phone:
-                        phone.line = None
-                        phone.save()
-
-            except Line.DoesNotExist:
-                raise
+            elif connector.service == "waba":
+                phone = line.phones.first()
+                if phone:
+                    phone.line = None
+                    phone.save()
+            
+            elif connector.service == "waweb":
+                phone = line.wawebs.first()
+                if phone:
+                    phone.line = None
+                    phone.save()
 
         elif event == "ONIMCONNECTORLINEDELETE":
             line_id = data.get("data")
-            try:
-                line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
-                if line:
-                    line.delete()
-                    return
-            except Line.DoesNotExist:
-                raise
+            line = get_object_or_404(Line, line_id=line_id, app_instance=appinstance)
+            line.delete()
             
         # AsterX
         elif event == "ONEXTERNALCALLSTART":
