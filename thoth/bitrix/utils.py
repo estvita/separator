@@ -50,7 +50,8 @@ def get_instances(request, connector_service):
     if b24_data:
         member_id = b24_data.get("member_id")
         if member_id:
-            portal = Bitrix.objects.filter(member_id=member_id, owner=request.user).first()
+            b24_user = B24_user.objects.filter(owner=request.user, bitrix__member_id=member_id).first()
+            portal = b24_user.bitrix
     if portal:
         return AppInstance.objects.filter(portal=portal, app__connectors__service=connector_service).distinct()
     return AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
