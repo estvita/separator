@@ -9,7 +9,6 @@ from django.utils import timezone
 from django.conf import settings
 from celery import shared_task
 
-from thoth.bitrix.crest import call_method
 from thoth.bitrix.models import Line
 import thoth.bitrix.tasks as bitrix_tasks
 
@@ -67,7 +66,7 @@ def get_file(access_token, media_id, filename, appinstance, storage_id):
         "data": {"NAME": f"{media_id}_{filename}"},
     }
 
-    upload_to_bitrix = call_method(appinstance, "disk.storage.uploadfile", payload)
+    upload_to_bitrix = bitrix_tasks.call_api(appinstance.id, "disk.storage.uploadfile", payload)
     if "result" in upload_to_bitrix:
         return upload_to_bitrix["result"]["DOWNLOAD_URL"]
     else:

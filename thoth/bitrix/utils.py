@@ -26,7 +26,6 @@ import thoth.waba.utils as waba
 from thoth.waweb.models import Session
 import thoth.waweb.tasks as waweb_tasks
 
-from .crest import call_method
 from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector, Credential
 from .models import User as B24_user
 
@@ -107,7 +106,7 @@ def connect_line(request, line_id, entity, connector_service):
         app_instance = get_object_or_404(AppInstance, id=instance_id)
         connector = app_instance.app.connectors.filter(service=connector_service).first()
         if entity.line:
-            call_method(app_instance, "imconnector.activate", {
+            bitrix_tasks.call_api(app_instance.id, "imconnector.activate", {
                 "CONNECTOR": connector.code,
                 "LINE": entity.line.line_id,
                 "ACTIVE": 0,
@@ -125,7 +124,7 @@ def connect_line(request, line_id, entity, connector_service):
                 "VOTE_MESSAGE": "N"
             }
         }
-        result = call_method(app_instance, "imopenlines.config.add", create_payload)
+        result = bitrix_tasks.call_api(app_instance.id, "imopenlines.config.add", create_payload)
         if result and result.get("result"):
             new_line_id = result["result"]
             line = Line.objects.create(
@@ -144,7 +143,7 @@ def connect_line(request, line_id, entity, connector_service):
                 "LINE": new_line_id,
                 "ACTIVE": 1,
             }
-            call_method(app_instance, "imconnector.activate", activate_payload)
+            bitrix_tasks.call_api(app_instance.id, "imconnector.activate", activate_payload)
             bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)
             messages.success(request, f"Создана и подключена линия {new_line_id}")
         else:
@@ -159,12 +158,12 @@ def connect_line(request, line_id, entity, connector_service):
             messages.warning(request, "Эта линия уже используется.")
             return
         if entity.line:
-            call_method(app_instance, "imconnector.activate", {
+            bitrix_tasks.call_api.id(app_instance.id, "imconnector.activate", {
                 "CONNECTOR": connector.code,
                 "LINE": entity.line.line_id,
                 "ACTIVE": 0,
             })
-        response = call_method(app_instance, "imconnector.activate", {
+        response = bitrix_tasks.call_api.id(app_instance.id, "imconnector.activate", {
             "CONNECTOR": connector.code,
             "LINE": line.line_id,
             "ACTIVE": 1,
@@ -251,7 +250,7 @@ def upload_file(appinstance, storage_id, fileContent, filename):
          "data": {"NAME": filename},
          "generateUniqueName": True,
     }
-    upload_to_bitrix = call_method(appinstance, "disk.storage.uploadfile", payload)
+    upload_to_bitrix = bitrix_tasks.call_api(appinstance.id, "disk.storage.uploadfile", payload)
     if "result" in upload_to_bitrix:
         return upload_to_bitrix["result"]
     else:
@@ -401,7 +400,7 @@ def event_processor(data, app_id=None, user_id=None):
                     pass
 
                 # Получаем storage_id и сохраняем его
-                storage_data = call_method(appinstance, "disk.storage.getforapp", {})
+                storage_data = bitrix_tasks.call_api(appinstance.id, "disk.storage.getforapp", {})
                 if "result" in storage_data:
                     storage_id = storage_data["result"]["ID"]
                     appinstance.storage_id = storage_id
