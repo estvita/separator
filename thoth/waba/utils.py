@@ -147,7 +147,7 @@ def message_processing(data):
             phone = Phone.objects.get(phone_id=phone_number_id)
         except Phone.DoesNotExist:
             logger.error(f"Phone {phone_number} - {phone_number_id} not found")
-            raise Exception({"phone_number not found"})
+            raise Exception(f"phone_number not found: {data}")
 
         if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
             # send message to chatwoot 
@@ -156,12 +156,12 @@ def message_processing(data):
     if field == 'message_template_status_update':
         return message_template_status_update(entry)
     elif field != 'messages':
-        raise Exception({"this event is not handled"})
+        raise Exception(f"this event is not handled: {data}")
     if phone.date_end and timezone.now() > phone.date_end:
-        raise Exception({"error": "phone tariff ended"})
+        raise Exception(f"phone tariff ended: {data}")
 
     if not phone.line or not phone.waba or not phone.app_instance:
-        raise Exception({"error": "phone not connected to b24"})
+        raise Exception(f"phone not connected to b24: {data}")
     appinstance = phone.app_instance
     access_token = phone.waba.access_token
     storage_id = appinstance.storage_id

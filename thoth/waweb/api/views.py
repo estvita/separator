@@ -21,7 +21,7 @@ class EventsHandler(GenericViewSet):
     def create(self, request, *args, **kwargs):
         event_data = request.data
         event_processor.delay(event_data)            
-        return Response({'ok'})
+        return Response("ok")
     
     
     @action(detail=False, methods=['post'], url_path=r'(?P<session>[^/.]+)/send', permission_classes=[permissions.AllowAny])
