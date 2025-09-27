@@ -92,6 +92,7 @@ class AppInstance(models.Model):
     portal = models.ForeignKey(
         Bitrix, on_delete=models.CASCADE, related_name="installations", blank=True, null=True
     )
+    exclude = models.CharField(blank=True)
     auth_status = models.CharField(max_length=1)
     application_token = models.CharField(max_length=255, blank=True)
     storage_id = models.CharField(max_length=255, blank=True)
