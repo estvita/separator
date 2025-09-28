@@ -17,11 +17,12 @@ def installed_apps(request):
 
 def site_name(request):
     name = os.environ.get('SITE_NAME', 'gulin.kz')
-    try:
-        from wagtail.models import Site
-        site = Site.find_for_request(request)
-        if site and getattr(site, 'site_name', None):
-            name = site.site_name
-    except ImportError:
-        pass
+    if 'wagtail' in settings.INSTALLED_APPS or 'wagtail.core' in settings.INSTALLED_APPS:
+        try:
+            from wagtail.models import Site
+            site = Site.find_for_request(request)
+            if site and getattr(site, 'site_name', None):
+                name = site.site_name
+        except Exception:
+            pass
     return {'SITE_NAME': name}
