@@ -8,8 +8,9 @@ register = template.Library()
 
 @register.inclusion_tag("includes/footer_text.html", takes_context=True)
 def get_footer_text(context):
-    instance = FooterText.objects.first()
-
+    request = context["request"]
+    site = Site.find_for_request(request)
+    instance = FooterText.objects.filter(site=site).first()
     return {
         "footer_blocks": instance.body if instance else []
     }

@@ -1,3 +1,4 @@
+import os
 from django.conf import settings
 
 def footer_links_visibility(request):
@@ -13,3 +14,14 @@ def footer_links_visibility(request):
 
 def installed_apps(request):
     return {"INSTALLED_APPS": settings.INSTALLED_APPS}
+
+def site_name(request):
+    name = os.environ.get('SITE_NAME', 'gulin.kz')
+    try:
+        from wagtail.models import Site
+        site = Site.find_for_request(request)
+        if site and getattr(site, 'site_name', None):
+            name = site.site_name
+    except ImportError:
+        pass
+    return {'SITE_NAME': name}

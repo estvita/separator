@@ -240,6 +240,7 @@ TEMPLATES = [
                 "thoth.users.context_processors.allauth_settings",
                 "thoth.context_processors.footer_links_visibility",
                 "thoth.context_processors.installed_apps",
+                "thoth.context_processors.site_name",
             ],
         },
     },

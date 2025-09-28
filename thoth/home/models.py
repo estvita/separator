@@ -4,7 +4,7 @@ from wagtail.models import (
     PreviewableMixin,
     RevisionMixin,
     TranslatableMixin,
-    Page,
+    Page, Site
 )
 from wagtail.fields import (
     RichTextField,
@@ -16,10 +16,8 @@ from wagtail.admin.panels import (
 )
 
 from wagtail.snippets.models import register_snippet
-
 from wagtail.blocks import RichTextBlock
 from wagtailcodeblock.blocks import CodeBlock
-
 
 from thoth.tariff.models import Tariff, Service
 
@@ -89,17 +87,16 @@ class FooterText(
     TranslatableMixin,
     models.Model,
 ):
+    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name="footer_text")
     body = StreamField([
         ("text", RichTextBlock()),
     ], blank=True, use_json_field=True)
-
     panels = [
+        FieldPanel("site"),
         FieldPanel("body"),
         PublishingPanel(),
     ]
-
     def __str__(self):
-        return f"Footer Text {self.id}"
-
+        return f"Footer Text for {self.site.hostname}" if self.site else f"Footer Text {self.id}"
     class Meta(TranslatableMixin.Meta):
         verbose_name_plural = "Footer Text"
