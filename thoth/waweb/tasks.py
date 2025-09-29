@@ -222,8 +222,12 @@ def event_processor(event_data):
             name = response.get("name", "")
             payload['content'] = f"{name} {text}"
 
+        elif msg_type == 'reactionMessage':
+            reaction = message.get(msg_type, {})
+            payload['content'] = reaction.get("text")
+
         elif msg_type == 'templateMessage':
-            template = message.get('templateMessage', {})
+            template = message.get(msg_type, {})
             content = title = footer = None
             hydrated = template.get('hydratedTemplate')
             if hydrated:
