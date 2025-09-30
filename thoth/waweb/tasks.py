@@ -21,6 +21,8 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 def send_message(session_id, recipient, content, cont_type="string"):
     try:
         session = Session.objects.get(session=session_id)
+        if session.date_end and timezone.now() > session.date_end:
+            raise Exception({'tariff has expired'})
         server = session.server
         headers = {"apikey": session.apikey}
         cleaned = re.sub(r'\D', '', recipient)
