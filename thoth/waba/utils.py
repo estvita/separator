@@ -22,30 +22,27 @@ API_URL = 'https://graph.facebook.com/v20.0/'
 logger = logging.getLogger("django")
 
 
-def send_message(appinstance, message, line_id, phone_number):
-    # Найти объект Line по line_id и домену
-    line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
-
-    if not line:
-        logger.error(f"Line ID {line_id} not found")
-        return Response({f"Line ID {line_id} not found"})
-
-    # Найти объект Waba, связанный с этим Line
-    waba = Waba.objects.filter(phones__line=line).first()
-    if not waba:
+def send_message(appinstance, message, client_phone, line_id=None, phone_num=None):
+    phone = None
+    if phone_num:
+        phone = Phone.objects.filter(phone=f"+{phone_num}").first()
+        waba = phone.waba
+    elif line_id:
+        line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
+        waba = Waba.objects.filter(phones__line=line).first() if line else None
+        phone = waba.phones.filter(line=line).first() if waba and line else None
+    else:
         return None
 
-    access_token = waba.access_token
-    # Найти номер телефона, связанный с Line
-    phone = waba.phones.filter(line=line).first()
+    if not phone or not waba:
+        return None
+
     if phone.date_end and timezone.now() > phone.date_end:
         return Response({"error": "phone tariff ended"})
-    phone_id = phone.phone_id if phone else None
-
+    phone_id = phone.phone_id
     if not phone_id:
         return None
-
-    send_whatsapp_message.delay(access_token, phone_id, phone_number, message)
+    send_whatsapp_message.delay(waba.access_token, phone_id, client_phone, message)
 
 
 def get_file(access_token, media_id, filename, appinstance, storage_id):
@@ -170,12 +167,12 @@ def message_processing(data):
     filename = None
     file_url = None
     text = None
+    name = None
     for message in messages:
         message_type = message.get("type")
         user_phone = message["from"]
         message_id = message["id"]
         contacts = value.get("contacts", [])
-        name = None
         if contacts:
             name = contacts[0].get("profile", {}).get("name")
 
@@ -209,11 +206,7 @@ def message_processing(data):
                     dt = datetime.fromtimestamp(expiration)
                     expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
                 text = f"WhatsApp Call for {user_phone} permission changed: {responce} {expiration}"
-
-        if text:
-            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                             phone.line.line_id, False, name, message_id)
-        if file_url:
+        if file_url and user_phone:
             attach = [
                 {
                     "url": file_url,
@@ -223,21 +216,25 @@ def message_processing(data):
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
                                              phone.line.line_id, False, name, message_id, attach)
 
-    # statuses = value.get("statuses", [])
-    # # статусы пока на заглушке, ими нечего делать
-    # for item in statuses:
-    #     status_name = item.get("status")
-    #     if status_name == "failed":
-    #         message_id = item.get("id")
-    #         errors = item.get("errors", [])
-    #         logger.error(f"FaceBook Error: {errors}")
-    #         error_messages = []
-    #         for error in errors:
-    #             error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
-    #             error_messages.append(error_message)
-    #         combined_error_message = " | ".join(error_messages)
-    #         phone = item.get("recipient_id")
-    #         text = combined_error_message
+    statuses = value.get("statuses", [])
+    if statuses:
+        for item in statuses:
+            status_name = item.get("status")
+            if status_name == "failed":
+                message_id = item.get("id")
+                errors = item.get("errors", [])
+                logger.error(f"FaceBook Error: {errors}")
+                error_messages = []
+                for error in errors:
+                    error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
+                    error_messages.append(error_message)
+                combined_error_message = " | ".join(error_messages)
+                user_phone = item.get("recipient_id")
+                text = combined_error_message
+
+    if text and user_phone:
+        bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
+                                            phone.line.line_id, False, name, message_id)
 
 
 def save_approved_templates(waba, owner, templates_data):

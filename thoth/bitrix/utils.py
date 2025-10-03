@@ -291,7 +291,8 @@ def process_placement(request):
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         return HttpResponse({"An unexpected error occurred"})
-    
+
+
 @shared_task(queue='bitrix')
 def sms_processor(data, service):
     application_token = data.get("auth[application_token]")
@@ -301,9 +302,7 @@ def sms_processor(data, service):
     message_body = data.get("message_body")
     code = data.get("code", {})
     sender = code.split('_')[-1]
-    phones = []
     message_to = re.sub(r'\D', '', data.get("message_to"))
-    phones.append(message_to)
 
     status_data = {
         "CODE": code,
@@ -316,26 +315,19 @@ def sms_processor(data, service):
     # начать диалог в открытых линиях
     line = None
 
-    # Messages from SMS gate
     if service == "waba":
         # Проверяем наличие "template+" в начале message_body
         if not message_body.startswith("template+"):
-            return Response(
-                {"error": "Message body must start with 'template+'"})
-
+            raise ValueError("Message body must start with 'template+'")
         try:
-            # Убираем "template+" и разбиваем на три части
             _, template_name, language = message_body.split("+", 2)
         except ValueError as e:
-            logger.error(f"Error splitting message_body: {message_body} - {e!s}")
-            return Response(
-                {"error": "Invalid message body format, expected 'template+name+lang'"})
+            raise ValueError("Invalid message body format")
         message = {
             "type": "template",
             "template": {"name": template_name, "language": {"code": language}},
         }
-
-        # waba.send_message(appinstance, message, line, phones)
+        waba.send_message(app_instance, message, message_to, phone_num=sender)
     
     elif service == "waweb":
         try:
@@ -525,7 +517,7 @@ def event_processor(data, app_id=None, user_id=None):
                                 "filename": file["name"],
                             }
 
-                waba.send_message(appinstance, message, line_id, chat)
+                waba.send_message(appinstance, message, chat, line_id=line_id)
 
             elif connector.service == "waweb":
                 try:

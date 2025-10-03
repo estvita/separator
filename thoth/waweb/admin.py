@@ -41,7 +41,7 @@ class SessionForm(forms.ModelForm):
 class SessionAdmin(admin.ModelAdmin):
     form = SessionForm
     list_display = ('session', 'server', 'phone', 'date_end', 'status', 'owner')
-    search_fields = ("session", 'phone')
+    search_fields = ("session", 'phone', "owner__email")
     list_filter = ("status", "server")
     readonly_fields = ('session',)
     list_per_page = 30

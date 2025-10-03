@@ -19,6 +19,8 @@ class WabaAdmin(admin.ModelAdmin):
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "lang", "owner", "waba", "status")
+    list_filter = ["status", "lang"]
+    search_fields = ["waba__waba_id", "id", "name", "owner__email"]
     list_per_page = 30
 
 

@@ -8,19 +8,16 @@ from rest_framework.viewsets import GenericViewSet
 from thoth.waba.models import App, Waba, Phone
 from thoth.waba.utils import message_processing
 
-from .serializers import PhoneSerializer
-
 logger = logging.getLogger("waba")
 
 
 class WabaWebhook(GenericViewSet, CreateModelMixin):
     queryset = Phone.objects.all()
-    serializer_class = PhoneSerializer
 
     def create(self, request, *args, **kwargs):
         data = request.data
         message_processing.delay(data)
-        return HttpResponse("Message processed", status=200, content_type="text/plain")
+        return HttpResponse("ok")
 
     def list(self, request, *args, **kwargs):
         hub_mode = request.query_params.get("hub.mode")
