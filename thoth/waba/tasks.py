@@ -147,13 +147,12 @@ def add_waba_phone(current_data, code, request_id):
 
 
 @shared_task(queue='waba')
-def send_whatsapp_message(access_token, phone_number_id, to, message):
+def send_whatsapp_message(access_token, phone_number_id, message):
     app = get_app()
     url = f"{API_URL}/v{app.api_version}.0/{phone_number_id}/messages"
     headers = {"Authorization": f"Bearer {access_token}"}
     payload = {
         "messaging_product": "whatsapp",
-        "to": to,
         **message,
     }
     try:

@@ -292,6 +292,16 @@ def process_placement(request):
         logger.error(f"Unexpected error: {e}")
         return HttpResponse({"An unexpected error occurred"})
 
+CALL_REQUEST = {
+    "type": "interactive",
+    "recipient_type": "individual",
+    "interactive": {
+        "type": "call_permission_request",
+        "action": {
+            "name": "call_permission_request"
+        }
+    }    
+}
 
 @shared_task(queue='bitrix')
 def sms_processor(data, service):
@@ -312,22 +322,24 @@ def sms_processor(data, service):
 
     bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
 
-    # начать диалог в открытых линиях
     line = None
 
     if service == "waba":
-        # Проверяем наличие "template+" в начале message_body
-        if not message_body.startswith("template+"):
-            raise ValueError("Message body must start with 'template+'")
-        try:
-            _, template_name, language = message_body.split("+", 2)
-        except ValueError as e:
-            raise ValueError("Invalid message body format")
-        message = {
-            "type": "template",
-            "template": {"name": template_name, "language": {"code": language}},
-        }
-        waba.send_message(app_instance, message, message_to, phone_num=sender)
+        message = None
+        if message_body.startswith("template+"):
+            try:
+                _, template_name, language = message_body.split("+", 2)
+            except ValueError as e:
+                raise ValueError("Invalid message body format")
+            message = {
+                "type": "template",
+                "template": {"name": template_name, "language": {"code": language}},
+            }
+        elif message_body == "#call_permission_request":
+            message = CALL_REQUEST
+        if message:
+            message['to'] = message_to
+            waba.send_message(app_instance, message, phone_num=sender)
     
     elif service == "waweb":
         try:
@@ -337,7 +349,7 @@ def sms_processor(data, service):
         except wa.DoesNotExist:
             raise ValueError(f"No Session found for phone number: {code}")
         except Exception as e:
-            print(f"Failed to send message to {message_to}: {e}")
+            raise ValueError(e)
 
     if line:
         bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
@@ -487,12 +499,8 @@ def event_processor(data, app_id=None, user_id=None):
             if connector.service == "waba":
                 message = {
                     "biz_opaque_callback_data": f"{line_id}_{chat_id}_{message_id}",
+                    "to": chat,
                 }
-
-                if not files and text:
-                    message["type"] = "text"
-                    message["text"] = {"body": text}
-
                 # Обработка шаблонных сообщений
                 if "template-" in text:
                     _, template_body = text.split("-")
@@ -502,6 +510,11 @@ def event_processor(data, app_id=None, user_id=None):
                         "name": template,
                         "language": {"code": language},
                     }
+                elif "#call_permission_request" in text:
+                    message.update(CALL_REQUEST)
+                elif not files and text:
+                    message["type"] = "text"
+                    message["text"] = {"body": text}
 
                 # Если есть файлы, отправляем сообщение с каждым файлом отдельно
                 if files:
@@ -517,7 +530,7 @@ def event_processor(data, app_id=None, user_id=None):
                                 "filename": file["name"],
                             }
 
-                waba.send_message(appinstance, message, chat, line_id=line_id)
+                waba.send_message(appinstance, message, line_id=line_id)
 
             elif connector.service == "waweb":
                 try:

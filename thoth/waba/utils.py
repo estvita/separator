@@ -22,7 +22,7 @@ API_URL = 'https://graph.facebook.com/v20.0/'
 logger = logging.getLogger("django")
 
 
-def send_message(appinstance, message, client_phone, line_id=None, phone_num=None):
+def send_message(appinstance, message, line_id=None, phone_num=None):
     phone = None
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()
@@ -42,7 +42,7 @@ def send_message(appinstance, message, client_phone, line_id=None, phone_num=Non
     phone_id = phone.phone_id
     if not phone_id:
         return None
-    send_whatsapp_message.delay(waba.access_token, phone_id, client_phone, message)
+    send_whatsapp_message.delay(waba.access_token, phone_id, message)
 
 
 def get_file(access_token, media_id, filename, appinstance, storage_id):
