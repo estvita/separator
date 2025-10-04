@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-22 22:05+0500\n"
+"POT-Creation-Date: 2025-10-04 18:49+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -339,6 +339,18 @@ msgid "Template"
 msgstr ""
 
 msgid "Add New"
+msgstr ""
+
+msgid "Template list"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Bitrix Code"
+msgstr ""
+
+msgid "No templates found."
 msgstr ""
 
 msgid "Calling Settings"

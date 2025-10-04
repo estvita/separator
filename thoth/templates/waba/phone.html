@@ -18,7 +18,7 @@
     </div>
     <!-- Template selection field -->
     <div class="form-group">
-      <label for="template">{% trans "Template" %} (<a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">{% trans "Add New" %}</a>)</label>
+      <label for="template">{% trans "Template" %} </label>
       <select class="form-control" id="template" name="template">
         {% for template in templates %}
           <option value="{{ template.id }}">{{ template }}</option>
@@ -28,6 +28,32 @@
     <button type="submit" class="btn btn-primary mt-3">{% trans "Send" %}</button>
   </form>
 
+  <hr>
+  <!-- Template list -->
+  <h3>{% trans "Template list" %} </h3> 
+  <a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">{% trans "Add New" %}</a>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Language" %}</th>
+        <th>{% trans "Bitrix Code" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for template in templates %}
+      <tr>
+        <td>{{ template.name }}</td>
+        <td>{{ template.lang }}</td>
+        <td>template+{{ template.name }}+{{ template.lang }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="3">{% trans "No templates found." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   <hr>
 
   <!-- Форма настроек звонков -->

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-22 22:05+0500\n"
+"POT-Creation-Date: 2025-10-04 18:49+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -351,6 +351,18 @@ msgstr "Шаблон"
 
 msgid "Add New"
 msgstr "Добавить новый"
+
+msgid "Template list"
+msgstr "Список шаблонов"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Bitrix Code"
+msgstr "Код для Bitrix24"
+
+msgid "No templates found."
+msgstr "Нет доступных шаблонов"
 
 msgid "Calling Settings"
 msgstr "Настройки звонков:"
