@@ -313,47 +313,50 @@ def sms_processor(data, service):
     code = data.get("code", {})
     sender = code.split('_')[-1]
     message_to = re.sub(r'\D', '', data.get("message_to"))
-
-    status_data = {
-        "CODE": code,
-        "MESSAGE_ID": data.get("message_id"),
-        "STATUS": "delivered"
-    }
-
-    bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
-
     line = None
+    status = None
+    try:
+        if service == "waba":
+            message = None
+            if message_body.startswith("template+"):
+                try:
+                    _, template_name, language = message_body.split("+", 2)
+                except ValueError as e:
+                    raise ValueError("Invalid message body format")
+                message = {
+                    "type": "template",
+                    "template": {"name": template_name, "language": {"code": language}},
+                }
+            elif message_body == "#call_permission_request":
+                message = CALL_REQUEST
+            if message:
+                message['to'] = message_to
+                try:
+                    waba.send_message(app_instance, message, phone_num=sender)
+                    status = "delivered"
+                except Exception:
+                    raise
 
-    if service == "waba":
-        message = None
-        if message_body.startswith("template+"):
+        elif service == "waweb":
             try:
-                _, template_name, language = message_body.split("+", 2)
-            except ValueError as e:
-                raise ValueError("Invalid message body format")
-            message = {
-                "type": "template",
-                "template": {"name": template_name, "language": {"code": language}},
-            }
-        elif message_body == "#call_permission_request":
-            message = CALL_REQUEST
-        if message:
-            message['to'] = message_to
-            waba.send_message(app_instance, message, phone_num=sender)
+                wa = Session.objects.get(phone=sender)
+                line = wa.line
+                waweb_tasks.send_message(wa.session, message_to, message_body)
+                status = "delivered"
+            except wa.DoesNotExist:
+                raise ValueError(f"No Session found for phone number: {code}")
+            except Exception as e:
+                raise ValueError(e)
+    finally:
+        status_data = {
+            "CODE": code,
+            "MESSAGE_ID": data.get("message_id"),
+            "STATUS": status if status else "failed",
+        }
+        bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
     
-    elif service == "waweb":
-        try:
-            wa = Session.objects.get(phone=sender)
-            line = wa.line
-            waweb_tasks.send_message(wa.session, message_to, message_body)
-        except wa.DoesNotExist:
-            raise ValueError(f"No Session found for phone number: {code}")
-        except Exception as e:
-            raise ValueError(e)
-
-    if line:
-        bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
-    return Response({"status": "message processed"}, status=status.HTTP_200_OK)
+        if line and status:
+            bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
 
 
 @shared_task(queue='bitrix')
