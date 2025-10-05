@@ -6,7 +6,7 @@ from rest_framework.mixins import CreateModelMixin
 from rest_framework.viewsets import GenericViewSet
 
 from thoth.waba.models import App, Waba, Phone
-from thoth.waba.utils import message_processing
+from thoth.waba.utils import event_processing
 
 logger = logging.getLogger("waba")
 
@@ -16,7 +16,7 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        message_processing.delay(data)
+        event_processing.delay(data)
         return HttpResponse("ok")
 
     def list(self, request, *args, **kwargs):

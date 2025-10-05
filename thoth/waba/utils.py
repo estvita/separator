@@ -130,11 +130,13 @@ def message_template_status_update(entry):
     return Response({"this event is handled"})
 
 @shared_task(queue='waba')
-def message_processing(data):
+def event_processing(data):
     entry = data["entry"][0]
+    waba_id = entry.get('id')
     changes = entry["changes"][0]
     field = changes.get('field')
     value = changes.get('value', {})
+    event = value.get('event')
 
     metadata = value.get("metadata", {})
     if metadata:    
@@ -152,89 +154,92 @@ def message_processing(data):
 
     if field == 'message_template_status_update':
         return message_template_status_update(entry)
-    elif field != 'messages':
+    # elif field == 'account_update':
+    #     if event == "PHONE_NUMBER_ADDED"
+    elif field == 'messages':
+        if phone.date_end and timezone.now() > phone.date_end:
+            raise Exception(f"phone tariff ended: {data}")
+
+        if not phone.line or not phone.waba or not phone.app_instance:
+            raise Exception(f"phone not connected to b24: {data}")
+        appinstance = phone.app_instance
+        access_token = phone.waba.access_token
+        storage_id = appinstance.storage_id
+
+        messages = value.get("messages", [])
+        filename = None
+        file_url = None
+        text = None
+        name = None
+        for message in messages:
+            message_type = message.get("type")
+            user_phone = message["from"]
+            message_id = message["id"]
+            contacts = value.get("contacts", [])
+            if contacts:
+                name = contacts[0].get("profile", {}).get("name")
+
+            if message_type == "text":
+                text = message["text"]["body"]
+
+            elif message_type in ["image", "video", "audio", "document"]:
+                media_data = value["messages"][0][message_type]
+                media_id = media_data["id"]
+                extension = media_data["mime_type"].split("/")[1].split(";")[0]
+                filename = media_data.get("filename", f"{media_id}.{extension}")
+                caption = media_data.get("caption", None)
+
+                file_url = get_file(
+                    access_token, media_id, filename, appinstance, storage_id
+                )
+
+            elif message_type == "contacts":
+                contacts = value["messages"][0]["contacts"]
+                text = format_contacts(contacts)
+
+            elif message_type == "interactive":
+                interactive = message.get("interactive", {})
+                interactive_type = interactive.get("type")
+                if interactive_type == "call_permission_reply":
+                    reply = interactive.get("call_permission_reply", {})
+                    responce = reply.get("response", "expiration_timestamp")
+                    expiration = ""
+                    expiration = reply.get("expiration_timestamp", "")
+                    if expiration:
+                        dt = datetime.fromtimestamp(expiration)
+                        expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    text = f"WhatsApp Call for {user_phone} permission changed: {responce} {expiration}"
+            if file_url and user_phone:
+                attach = [
+                    {
+                        "url": file_url,
+                        "name": filename
+                    }
+                ]
+                bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
+                                                phone.line.line_id, False, name, message_id, attach)
+
+        statuses = value.get("statuses", [])
+        if statuses:
+            for item in statuses:
+                status_name = item.get("status")
+                if status_name == "failed":
+                    message_id = item.get("id")
+                    errors = item.get("errors", [])
+                    logger.error(f"FaceBook Error: {errors}")
+                    error_messages = []
+                    for error in errors:
+                        error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
+                        error_messages.append(error_message)
+                    combined_error_message = " | ".join(error_messages)
+                    user_phone = item.get("recipient_id")
+                    text = combined_error_message
+
+        if text and user_phone:
+            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
+                                                phone.line.line_id, False, name, message_id)
+    else:
         raise Exception(f"this event is not handled: {data}")
-    if phone.date_end and timezone.now() > phone.date_end:
-        raise Exception(f"phone tariff ended: {data}")
-
-    if not phone.line or not phone.waba or not phone.app_instance:
-        raise Exception(f"phone not connected to b24: {data}")
-    appinstance = phone.app_instance
-    access_token = phone.waba.access_token
-    storage_id = appinstance.storage_id
-
-    messages = value.get("messages", [])
-    filename = None
-    file_url = None
-    text = None
-    name = None
-    for message in messages:
-        message_type = message.get("type")
-        user_phone = message["from"]
-        message_id = message["id"]
-        contacts = value.get("contacts", [])
-        if contacts:
-            name = contacts[0].get("profile", {}).get("name")
-
-        if message_type == "text":
-            text = message["text"]["body"]
-
-        elif message_type in ["image", "video", "audio", "document"]:
-            media_data = value["messages"][0][message_type]
-            media_id = media_data["id"]
-            extension = media_data["mime_type"].split("/")[1].split(";")[0]
-            filename = media_data.get("filename", f"{media_id}.{extension}")
-            caption = media_data.get("caption", None)
-
-            file_url = get_file(
-                access_token, media_id, filename, appinstance, storage_id
-            )
-
-        elif message_type == "contacts":
-            contacts = value["messages"][0]["contacts"]
-            text = format_contacts(contacts)
-
-        elif message_type == "interactive":
-            interactive = message.get("interactive", {})
-            interactive_type = interactive.get("type")
-            if interactive_type == "call_permission_reply":
-                reply = interactive.get("call_permission_reply", {})
-                responce = reply.get("response", "expiration_timestamp")
-                expiration = ""
-                expiration = reply.get("expiration_timestamp", "")
-                if expiration:
-                    dt = datetime.fromtimestamp(expiration)
-                    expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
-                text = f"WhatsApp Call for {user_phone} permission changed: {responce} {expiration}"
-        if file_url and user_phone:
-            attach = [
-                {
-                    "url": file_url,
-                    "name": filename
-                }
-            ]
-            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
-                                             phone.line.line_id, False, name, message_id, attach)
-
-    statuses = value.get("statuses", [])
-    if statuses:
-        for item in statuses:
-            status_name = item.get("status")
-            if status_name == "failed":
-                message_id = item.get("id")
-                errors = item.get("errors", [])
-                logger.error(f"FaceBook Error: {errors}")
-                error_messages = []
-                for error in errors:
-                    error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
-                    error_messages.append(error_message)
-                combined_error_message = " | ".join(error_messages)
-                user_phone = item.get("recipient_id")
-                text = combined_error_message
-
-    if text and user_phone:
-        bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                            phone.line.line_id, False, name, message_id)
 
 
 def save_approved_templates(waba, owner, templates_data):

@@ -32,6 +32,7 @@ MIDDLEWARE = MIDDLEWARE + [
 
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "wagtail.contrib.settings.context_processors.settings",
+    "thoth.home.context.internal_domains",
 ]
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
