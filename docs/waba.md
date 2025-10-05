@@ -1,6 +1,7 @@
 ## Connecting WhatsApp (WABA)
 
-Video tutorial: https://youtu.be/cSirpfq5rPQ  
+Login Flow https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
+
 + It is recommended to obtain a [Permanent Token](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), otherwise you will need to regenerate the token every day.  
 + Create an app in the [Developer Portal](https://developers.facebook.com/apps/)  
 + In the app dashboard, enable the products: **Webhooks, WhatsApp**  

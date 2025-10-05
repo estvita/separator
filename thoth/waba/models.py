@@ -40,6 +40,7 @@ class Waba(models.Model):
 
 class Phone(models.Model):
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    pin = models.CharField(max_length=6, default="000000")
     phone_id = models.CharField(max_length=50, unique=True)
     inbox = models.ForeignKey(Inbox, on_delete=models.SET_NULL, null=True, blank=True)
     sms_service = models.BooleanField(default=True)

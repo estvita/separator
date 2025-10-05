@@ -3,9 +3,9 @@ import logging
 from datetime import datetime
 
 import requests
-from rest_framework import status
 from rest_framework.response import Response
 from django.utils import timezone
+from django.shortcuts import  get_object_or_404
 from django.conf import settings
 from celery import shared_task
 
@@ -14,12 +14,46 @@ import thoth.bitrix.tasks as bitrix_tasks
 
 from thoth.chatwoot.tasks import send_to_chatwoot
 
-from .tasks import send_whatsapp_message
-from .models import Phone, Waba, Template
+from .models import App, Phone, Waba, Template
 
-API_URL = 'https://graph.facebook.com/v20.0/'
+API_URL = settings.FACEBOOK_API_URL
+WABA_APP_ID = settings.WABA_APP_ID
 
 logger = logging.getLogger("django")
+
+
+def get_app():
+    return get_object_or_404(App, id=WABA_APP_ID)
+
+def call_api(waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None):
+    try:
+        if waba:
+            access_token = waba.access_token
+            app = waba.app
+        else:
+            app = get_app()
+            access_token = app.access_token
+    except Exception:
+        raise
+    headers = {"Authorization": f"Bearer {access_token}"}
+    base_url = f"{API_URL}/v{app.api_version}.0"
+
+    resp = None
+    try:
+        if file_url:
+            return requests.get(file_url, headers=headers)
+        if method == "get":
+            resp = requests.get(f"{base_url}/{endpoint}", params=payload, headers=headers)
+        elif method == "post":
+            resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers)
+
+        resp_data = resp.json()
+        if "error" in resp_data:
+            raise Exception(f"Payload: {payload}, Endpoint: {endpoint}, API Error: {resp_data}")
+
+        return resp
+    except Exception:
+        raise
 
 
 def send_message(appinstance, message, line_id=None, phone_num=None):
@@ -39,21 +73,17 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
 
     if phone.date_end and timezone.now() > phone.date_end:
         return Response({"error": "phone tariff ended"})
-    phone_id = phone.phone_id
-    if not phone_id:
+    if not phone.phone_id:
         return None
-    send_whatsapp_message.delay(waba.access_token, phone_id, message)
+    call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
 
 
-def get_file(access_token, media_id, filename, appinstance, storage_id):
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    file_data = requests.get(f"{API_URL}{media_id}", headers=headers)
-    if file_data.status_code != 200:
-        return None
-    file_url = file_data.json().get("url", None)
-    download_file = requests.get(file_url, headers=headers)
-    if download_file.status_code != 200:
+def get_file(media_id, filename, appinstance, storage_id, waba):
+    try:
+        file_data = call_api(waba=waba, endpoint=media_id)
+        file_url = file_data.json().get("url", None)
+        download_file = call_api(file_url=file_url, waba=waba)
+    except Exception:
         return None
     fileContent = base64.b64encode(download_file.content).decode("utf-8")
 
@@ -99,13 +129,13 @@ def message_template_status_update(entry):
     if event == "APPROVED":
         waba = Waba.objects.get(waba_id=waba_id)
         if waba:
-            url = f"{API_URL}{template_id}"
-            headers = {"Authorization": f"Bearer {waba.access_token}"}
-            resp = requests.get(url, headers=headers)
-            if resp.status_code != 200:
-                return Response({"this event is handled"})
-            temp_data = resp.json()
-            components = temp_data.get('components')[0]
+            components = None
+            try:
+                resp = call_api(waba_id, template_id)
+                temp_data = resp.json()
+                components = temp_data.get('components')[0]
+            except Exception:
+                pass
 
             template, created = Template.objects.update_or_create(
                 owner=waba.owner,
@@ -163,7 +193,6 @@ def event_processing(data):
         if not phone.line or not phone.waba or not phone.app_instance:
             raise Exception(f"phone not connected to b24: {data}")
         appinstance = phone.app_instance
-        access_token = phone.waba.access_token
         storage_id = appinstance.storage_id
 
         messages = value.get("messages", [])
@@ -190,7 +219,7 @@ def event_processing(data):
                 caption = media_data.get("caption", None)
 
                 file_url = get_file(
-                    access_token, media_id, filename, appinstance, storage_id
+                    media_id, filename, appinstance, storage_id, phone.waba
                 )
 
             elif message_type == "contacts":
@@ -242,36 +271,7 @@ def event_processing(data):
         raise Exception(f"this event is not handled: {data}")
 
 
-def save_approved_templates(waba, owner, templates_data):
-
-    approved_templates = [
-        template for template in templates_data.get("data", [])
-        if template.get("status") == "APPROVED"
-    ]
-    
-    for template in approved_templates:
-        template_id = template.get("id")
-        name = template.get("name")
-        lang = template.get("language")
-        content = template.get("components")
-        status = template.get("status")
-
-        # Создание или обновление шаблона в базе данных
-        Template.objects.update_or_create(
-            id=template_id,
-            defaults={
-                "waba": waba,
-                "owner": owner,
-                "name": name,
-                "lang": lang,
-                "content": content,
-                "status": status,
-            }
-        )
-
-def sample_template(access_token, waba_id):
-    headers = {"Authorization": f"Bearer {access_token}"}
-    url = f"{API_URL}{waba_id}/message_templates"
+def sample_template(waba: Waba):
     payload = {
         "name": "hello_thoth",
         "category": "MARKETING",
@@ -284,5 +284,40 @@ def sample_template(access_token, waba_id):
             }
         ]
     }
+    return call_api(waba=waba, endpoint=f"{waba.waba_id}/message_templates", method="post", payload=payload)
 
-    return requests.post(url, json=payload, headers=headers)
+@shared_task(queue='waba')
+def save_approved_templates(id):
+    try:
+        waba = Waba.objects.get(id=id)
+        template_resp = call_api(waba=waba, endpoint=f"{waba.waba_id}/message_templates")
+        templates_data = template_resp.json()
+
+        approved_templates = [
+            template for template in templates_data.get("data", [])
+            if template.get("status") == "APPROVED"
+        ]
+        if not any(t.get("name") == "hello_thoth" for t in approved_templates):
+            sample_template(waba)
+        
+        for template in approved_templates:
+            template_id = template.get("id")
+            name = template.get("name")
+            lang = template.get("language")
+            content = template.get("components")
+            status = template.get("status")
+
+            # Создание или обновление шаблона в базе данных
+            Template.objects.update_or_create(
+                id=template_id,
+                defaults={
+                    "waba": waba,
+                    "owner": waba.owner,
+                    "name": name,
+                    "lang": lang,
+                    "content": content,
+                    "status": status,
+                }
+            )
+    except Exception:
+        raise

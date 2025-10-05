@@ -324,6 +324,7 @@ def sms_processor(data, service):
                 except ValueError as e:
                     raise ValueError("Invalid message body format")
                 message = {
+                    "messaging_product": "whatsapp",
                     "type": "template",
                     "template": {"name": template_name, "language": {"code": language}},
                 }
@@ -501,6 +502,7 @@ def event_processor(data, app_id=None, user_id=None):
             # If WABA connector
             if connector.service == "waba":
                 message = {
+                    "messaging_product": "whatsapp",
                     "biz_opaque_callback_data": f"{line_id}_{chat_id}_{message_id}",
                     "to": chat,
                 }
