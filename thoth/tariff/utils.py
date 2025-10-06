@@ -1,6 +1,7 @@
-from .models import Tariff, Trial, Service
 from datetime import timedelta
 from django.utils.timezone import now
+from .models import Tariff, Trial, Service
+from thoth.bitrix.models import User
 
 def get_trial(user, code: str):
 
@@ -15,6 +16,17 @@ def get_trial(user, code: str):
         service = Service.objects.filter(code=code).first()
         if not service:
             return None
+        
+        b24_users = User.objects.filter(owner=user).all()
+        if b24_users:
+            for b24_user in b24_users:
+                portal = b24_user.bitrix
+                portal_users = User.objects.filter(bitrix=portal).all()
+                if portal_users:
+                    for portal_user in portal_users:
+                        existing_trial = Trial.objects.filter(owner=portal_user.owner, service__code=code).first()
+                        if existing_trial:
+                            return now()
 
         expiration_date = now() + timedelta(days=duration_value)
         Trial.objects.create(owner=user, service=service)
