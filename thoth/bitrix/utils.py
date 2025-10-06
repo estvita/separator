@@ -12,12 +12,10 @@ from django.utils import timezone
 from django.contrib import messages
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 
 from celery import shared_task
 
-from rest_framework import status
-from rest_framework.response import Response
-from django.http import HttpResponse
 from rest_framework.authtoken.models import Token
 
 import thoth.olx.tasks as olx_tasks
@@ -55,6 +53,10 @@ def get_instances(request, connector_service):
     if portal:
         return AppInstance.objects.filter(portal=portal, app__connectors__service=connector_service).distinct()
     return AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+
+
+def chech_is_admin(user, portal):
+    return B24_user.objects.filter(owner=user, bitrix=portal, admin=True).exists()
 
 
 def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):

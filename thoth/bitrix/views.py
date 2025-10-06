@@ -244,11 +244,11 @@ def app_install(request):
     except Exception as e:
         return redirect("portals")
 
-    proto = "https" if protocol == "1" else "http"
     try:
         get_owner(request)
     except Exception as e:
-        return HttpResponse(str(e))
+        messages.error(request, e)
+        return redirect("/")
     api_key, _ = Token.objects.get_or_create(user=app.owner)
 
     payload = {
@@ -258,6 +258,7 @@ def app_install(request):
     }
 
     try:
+        proto = "https" if protocol == "1" else "http"
         response = requests.post(f"{proto}://{domain}/rest/event.bind", json=payload)
         response.raise_for_status()
     except requests.RequestException as e:
@@ -266,7 +267,8 @@ def app_install(request):
         if "Handler already binded" in error_description:
             return render(request, "install_finish.html")
         else:
-            return HttpResponse(f"Bitrix event.bind failed {response.status_code, resp}")
+            messages.error(request, f"event.bind failed {response.status_code, resp}")
+            return redirect("/")
 
     return render(request, "install_finish.html")
 
@@ -302,7 +304,8 @@ def app_settings(request):
             try:
                 bitrix_user = get_owner(request)
             except Exception as e:
-                return HttpResponse(str(e))
+                messages.error(request, e)
+                return redirect("/")
             
             if bitrix_user is None:
                 return portals(request)
