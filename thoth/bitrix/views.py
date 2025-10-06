@@ -245,7 +245,10 @@ def app_install(request):
         return redirect("portals")
 
     proto = "https" if protocol == "1" else "http"
-    get_owner(request)
+    try:
+        get_owner(request)
+    except Exception as e:
+        return HttpResponse(str(e))
     api_key, _ = Token.objects.get_or_create(user=app.owner)
 
     payload = {
