@@ -59,12 +59,12 @@ def get_instances(request, connector_service):
 
 def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
     try:
-        profile = requests.post(f"{portal.protocol}://{portal.domain}/rest/profile", json={"auth": auth_id})
+        profile = requests.post(f"{portal.protocol}://{portal.domain}/rest/profile", json={"auth": auth_id}, timeout=10)
         profile_data = profile.json().get("result")
         admin = profile_data.get("ADMIN")
         user_id = profile_data.get("ID")
     except Exception as e:
-        raise
+        raise Exception(f"Ошибка: {e}")
     
     b24_user, user_created = B24_user.objects.get_or_create(
         bitrix=portal,

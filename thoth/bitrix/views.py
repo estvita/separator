@@ -181,7 +181,7 @@ def get_owner(request):
     try:
         b24_user = get_b24_user(app, portal, auth_id, refresh_id)
     except Exception as e:
-        return None
+        raise
     
     if b24_user.owner:
         owner_user = b24_user.owner
@@ -296,7 +296,10 @@ def app_settings(request):
         
         elif placement == "DEFAULT":
             app_url = app.page_url
-            bitrix_user = get_owner(request)
+            try:
+                bitrix_user = get_owner(request)
+            except Exception as e:
+                return HttpResponse(str(e))
             
             if bitrix_user is None:
                 return portals(request)
