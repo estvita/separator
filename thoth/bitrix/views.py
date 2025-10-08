@@ -337,6 +337,7 @@ def portal_detail(request, portal_id):
     portals, lines = get_instances(request)
     b24_user = B24_user.objects.filter(owner=request.user, bitrix__id=portal_id).first()
     portal = portals.filter(id=portal_id).first()
+    lines = lines.filter(portal=portal)
     
     if request.method == 'POST':
         if b24_user and b24_user.admin:
@@ -344,7 +345,6 @@ def portal_detail(request, portal_id):
             portal.finish_delay = int(request.POST.get('finish_delay'))
             portal.imopenlines_auto_finish = imopenlines_auto_finish
             portal.save()
-
             for line in lines:
                 if request.POST.get(f"delete_line_{line.id}") == 'on':
                     call_api.delay(line.app_instance.id, "imopenlines.config.delete", {"CONFIG_ID": line.line_id})
