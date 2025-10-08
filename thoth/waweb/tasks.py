@@ -228,6 +228,14 @@ def event_processor(event_data):
             reaction = message.get(msg_type, {})
             payload['content'] = reaction.get("text")
 
+        elif msg_type == 'ephemeralMessage':
+            ephemeralMessage = message.get(msg_type, {})
+            extendedTextMessage = (
+                ephemeralMessage.get('message', {})
+                .get('extendedTextMessage', {})
+            )
+            payload['content'] = extendedTextMessage.get('text')
+
         elif msg_type == 'templateMessage':
             template = message.get(msg_type, {})
             content = title = footer = None
