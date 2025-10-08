@@ -69,7 +69,7 @@ def messageservice_add(app_instance_id, entity_id, service):
             code = f"gulin.kz_{phone}"
             if entity.sms_service:
                 try:
-                    all_providers = call_method(app_instance, "messageservice.sender.list", {})
+                    all_providers = call_method(app_instance, "messageservice.sender.list", admin=True)
                 except Exception as e:
                     raise Exception(f"list providers fail: {e}")
 
@@ -83,9 +83,9 @@ def messageservice_add(app_instance_id, entity_id, service):
                     "TYPE": "SMS",
                     "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",
                 }
-                return call_method(app_instance, "messageservice.sender.add", payload)
+                return call_method(app_instance, "messageservice.sender.add", payload, admin=True)
             else:
-                return call_method(app_instance, "messageservice.sender.delete", {"CODE": code})
+                return call_method(app_instance, "messageservice.sender.delete", {"CODE": code}, admin=True)
 
         else:
             raise Exception("Entity has no sms_service attribute!")
@@ -198,7 +198,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
 def create_deal(app_instance_id, vendor_inst_id, app_name):
     app_instance = AppInstance.objects.get(id=app_instance_id)
     try:
-        user_current = call_method(app_instance, "user.current", {})
+        user_current = call_method(app_instance, "user.current")
         user_data = user_current.get("result", {})
         user_email = user_data.get("EMAIL")
     except Exception as e:

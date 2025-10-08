@@ -15,7 +15,7 @@ logger = logging.getLogger("django")
 
 def call_method(appinstance: AppInstance, 
                 b24_method: str, 
-                data: dict, 
+                data: dict=None, 
                 attempted_refresh=False, 
                 verify=True,
                 admin=None,

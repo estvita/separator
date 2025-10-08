@@ -255,7 +255,6 @@ def event_processing(data):
                 if status_name == "failed":
                     message_id = item.get("id")
                     errors = item.get("errors", [])
-                    logger.error(f"FaceBook Error: {errors}")
                     error_messages = []
                     for error in errors:
                         error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"

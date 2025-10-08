@@ -310,7 +310,10 @@ def event_processor(event_data):
                             }
                         ]
                     else:
-                        text = f"{from_app} {text}"
+                        if text:
+                            text = f"{from_app} {text}"
+                        else:
+                            raise Exception(event_data)
                     bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
                                                 remoteJid, text, line.connector.code, attach)
 
