@@ -1,12 +1,13 @@
+import uuid
+import json
+import redis
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 
-import logging
-import redis
-import json
-import uuid
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, HttpResponseServerError
 from django.utils import timezone
@@ -19,7 +20,6 @@ import thoth.bitrix.utils as bitrix_utils
 import thoth.bitrix.tasks as bitrix_tasks
 
 from thoth.users.models import User, Message
-from thoth.bitrix.models import Line, Bitrix
 
 from .models import App, Waba, Phone, Template
 import thoth.waba.utils as waba_utils
@@ -151,14 +151,25 @@ def phone_details(request, phone_id):
 @login_message_required(code="waba")
 def waba_view(request):
     connector_service = "waba"
-    phones = Phone.objects.filter(owner=request.user)
-    instances = bitrix_utils.get_instances(request, connector_service)
-    waba_lines = Line.objects.filter(owner=request.user, connector__service=connector_service)
+    portals, instances, lines = bitrix_utils.get_instances(request, connector_service)
     request_id = str(uuid.uuid4())
     if not instances:
         user_message(request, "install_waba")
-    portals = Bitrix.objects.filter(owner=request.user)
+    b24_data = request.session.get('b24_data')
     selected_portal = None
+    if b24_data:
+        member_id = b24_data.get("member_id")
+        if member_id:
+            selected_portal = portals.filter(member_id=member_id).first()
+    if selected_portal:
+        phones = Phone.objects.filter(
+            Q(line__portal=selected_portal) | Q(owner=request.user)
+        )
+        lines = lines.filter(portal=selected_portal)
+    else:
+        phones = Phone.objects.filter(
+            Q(line__portal__in=portals) | Q(owner=request.user)
+        )
 
     if request.method == "POST":
         if "filter_portal_id" in request.POST:
@@ -198,7 +209,7 @@ def waba_view(request):
             phone.expiring_soon = False
     return render(request, "waba/list.html", {
         "phones": phones,
-        "waba_lines": waba_lines,
+        "waba_lines": lines,
         "instances": instances,
         "request_id": request_id,
         "days": days,

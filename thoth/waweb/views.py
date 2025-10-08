@@ -8,8 +8,6 @@ from django.contrib import messages
 from django.db.models import Count, Q, F
 from django.utils import timezone
 from django.conf import settings
-
-from thoth.bitrix.models import Line, Bitrix
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import Message
@@ -28,14 +26,26 @@ LINK_TTL = 60 * 60 * 24
 @login_message_required(code="waweb")
 def wa_sessions(request):
     connector_service = "waweb"
-    portals = Bitrix.objects.filter(owner=request.user)
+    portals, instances, lines = bitrix_utils.get_instances(request, connector_service)
     b24_data = request.session.get('b24_data')
     selected_portal = None
     if b24_data:
         member_id = b24_data.get("member_id")
         if member_id:
             selected_portal = portals.filter(member_id=member_id).first()
+    if selected_portal:
+        sessions = Session.objects.filter(
+            Q(line__portal=selected_portal) | Q(owner=request.user)
+        )
+        lines = lines.filter(portal=selected_portal)
+    else:
+        sessions = Session.objects.filter(
+            Q(line__portal__in=portals) | Q(owner=request.user)
+        )
 
+    if not instances:
+        user_message(request, "install_waweb")
+    
     if request.method == "POST":
         # days поле
         days = request.POST.get('days')
@@ -60,22 +70,6 @@ def wa_sessions(request):
             bitrix_utils.connect_line(request, line_id, phone, connector_service)
         except Exception as e:
             messages.error(request, str(e))
-    if selected_portal:
-        sessions = Session.objects.filter(owner=request.user).filter(
-            Q(line__portal=selected_portal) | Q(line__isnull=True)
-        )
-        wa_lines = Line.objects.filter(
-            owner=request.user, connector__service=connector_service, portal=selected_portal
-            ).exclude(id__in=Session.objects.filter(line__isnull=False).values_list('line_id', flat=True))
-    else:
-        sessions = Session.objects.filter(owner=request.user)
-        wa_lines = Line.objects.filter(
-            owner=request.user, connector__service=connector_service
-            ).exclude(id__in=Session.objects.filter(line__isnull=False).values_list('line_id', flat=True))
-
-    instances = bitrix_utils.get_instances(request, connector_service)
-    if not instances:
-        user_message(request, "install_waweb")
 
     days = request.session.get('waweb_days', 7)
     try:
@@ -92,7 +86,7 @@ def wa_sessions(request):
         request, 'waweb/wa_sessions.html', {
             "sessions": sessions,
             "instances": instances,
-            "wa_lines": wa_lines,
+            "wa_lines": lines,
             "days": days,
             "portals": portals,
             "selected_portal_id": selected_portal.id if selected_portal else "all",

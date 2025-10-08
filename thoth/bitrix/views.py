@@ -15,7 +15,7 @@ from rest_framework.authtoken.models import Token
 
 from .crest import call_method
 from .tasks import call_api
-from .utils import process_placement, get_b24_user
+from .utils import process_placement, get_b24_user, get_instances
 from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
 from .models import AppInstance, Bitrix, VerificationCode, Line, App
@@ -238,6 +238,7 @@ def app_install(request):
 
     if not member_id or not domain or not auth_id:
         return redirect("portals")
+    portal = Bitrix.objects.filter(member_id=member_id).first()
 
     try:
         app = get_app(auth_id)
@@ -245,10 +246,12 @@ def app_install(request):
         return redirect("portals")
 
     try:
-        get_owner(request)
+        user = get_owner(request)
     except Exception as e:
         messages.error(request, e)
         return redirect("/")
+    if user and portal:
+        link_ojects(portal, user)
     api_key, _ = Token.objects.get_or_create(user=app.owner)
 
     payload = {
@@ -280,7 +283,7 @@ def app_settings(request):
         domain = request.GET.get("DOMAIN")
         member_id = data.get("member_id")
         try:
-            portal = Bitrix.objects.get(member_id=member_id)
+            portal = Bitrix.objects.filter(member_id=member_id).first()
             if portal.domain != domain:
                 portal.domain = domain
                 portal.save()
@@ -302,21 +305,21 @@ def app_settings(request):
         elif placement == "DEFAULT":
             app_url = app.page_url
             try:
-                bitrix_user = get_owner(request)
+                user = get_owner(request)
             except Exception as e:
                 messages.error(request, e)
                 return redirect("/")
             
-            if bitrix_user is None:
+            if user is None:
                 return portals(request)
             
-            link_ojects(portal, bitrix_user)
-            should_login = not request.user.is_authenticated or request.user != bitrix_user
+            link_ojects(portal, user)
+            should_login = not request.user.is_authenticated or request.user != user
             if should_login and app.autologin:
                 if request.user.is_authenticated:
                     logout(request)
                 try:
-                    login(request, bitrix_user, backend='django.contrib.auth.backends.ModelBackend')
+                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception:
                     return redirect(app_url)
             return render(request, "bitrix/cookie_test.html", {"app_url": app_url})
@@ -331,9 +334,9 @@ def app_settings(request):
 @login_required
 def portal_detail(request, portal_id):
     """Отображение и редактирование данных портала"""
+    portals, lines = get_instances(request)
     b24_user = B24_user.objects.filter(owner=request.user, bitrix__id=portal_id).first()
-    portal = b24_user.bitrix
-    open_lines = Line.objects.filter(owner=request.user, portal=portal)
+    portal = portals.filter(id=portal_id).first()
     
     if request.method == 'POST':
         if b24_user and b24_user.admin:
@@ -342,7 +345,7 @@ def portal_detail(request, portal_id):
             portal.imopenlines_auto_finish = imopenlines_auto_finish
             portal.save()
 
-            for line in open_lines:
+            for line in lines:
                 if request.POST.get(f"delete_line_{line.id}") == 'on':
                     call_api.delay(line.app_instance.id, "imopenlines.config.delete", {"CONFIG_ID": line.line_id})
                     line.delete()
@@ -393,5 +396,5 @@ def portal_detail(request, portal_id):
                   'bitrix/portal_detail.html', 
                   {
                       'portal': portal,
-                      'open_lines': open_lines
+                      'open_lines': lines
                       })

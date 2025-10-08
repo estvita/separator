@@ -39,24 +39,21 @@ VENDOR_BITRIX_INSTANCE = settings.VENDOR_BITRIX_INSTANCE
 
 logger = logging.getLogger("django")
 
-def get_instances(request, connector_service):
-    """
-    Возвращает queryset AppInstance по порталу из сессии или пользователю и сервису коннектора.
-    """
-    b24_data = request.session.get('b24_data')
-    portal = None
-    if b24_data:
-        member_id = b24_data.get("member_id")
-        if member_id:
-            b24_user = B24_user.objects.filter(owner=request.user, bitrix__member_id=member_id).first()
-            portal = b24_user.bitrix
-    if portal:
-        return AppInstance.objects.filter(portal=portal, app__connectors__service=connector_service).distinct()
-    return AppInstance.objects.filter(owner=request.user, app__connectors__service=connector_service).distinct()
+def get_instances(request, service=None):
 
-
-def chech_is_admin(user, portal):
-    return B24_user.objects.filter(owner=user, bitrix=portal, admin=True).exists()
+    b24_users = B24_user.objects.filter(owner=request.user, admin=True).all()
+    portal_ids = b24_users.values_list('bitrix_id', flat=True).distinct()
+    portals = Bitrix.objects.filter(id__in=portal_ids).distinct()
+    lines = Line.objects.filter(portal__in=portals).distinct()
+    if service:
+        instances = AppInstance.objects.filter(portal__in=portals, app__connectors__service=service).distinct()
+        lines = lines \
+        .exclude(phones__isnull=False) \
+        .exclude(wawebs__isnull=False) \
+        .exclude(olx_users__isnull=False)
+        return portals, instances, lines
+    else:
+        return portals, lines
 
 
 def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
@@ -380,7 +377,6 @@ def event_processor(data, app_id=None, user_id=None):
 
         except AppInstance.DoesNotExist:
             if event == "ONAPPINSTALL":                
-                
                 # Получение приложения по app_id
                 app = get_object_or_404(App, id=app_id)                
                 owner_user = request.user if auth_status == "L" else None
@@ -455,8 +451,9 @@ def event_processor(data, app_id=None, user_id=None):
                     "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
                     "USER_ID": user_id,
                 }
-
-                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
+                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)            
+            else:
+                raise
 
         # Обработка события ONIMCONNECTORMESSAGEADD
         if event == "ONIMCONNECTORMESSAGEADD":
