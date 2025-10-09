@@ -1,8 +1,9 @@
 import json
 from django.utils import timezone
+from django.conf import settings
+from channels.db import database_sync_to_async
 from rest_framework.authtoken.models import Token
 from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.db import database_sync_to_async
 from .models import Server, Context
 from thoth.bitrix.models import User as BitrixUser, Credential
 
@@ -113,11 +114,16 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
         self.server.save()
 
     @database_sync_to_async
-    def mark_setup_complete(self, server_id):
-        Server.objects.filter(id=server_id).update(setup_complete=True)
+    def mark_setup_complete(self):
+        self.server.setup_complete = True
+
+        if "thoth.tariff" in settings.INSTALLED_APPS and not self.server.date_end:
+            from thoth.tariff.utils import get_trial
+            self.server.date_end = get_trial(self.server.owner, "asterx")
+        self.server.save()
 
     @database_sync_to_async
-    def get_server_and_instance_data(self, server_id):
+    def get_server_and_instance_data(self):
         server = self.server
         if not server.settings or not server.settings.app_instance:
             return None

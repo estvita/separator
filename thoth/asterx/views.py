@@ -12,8 +12,6 @@ from thoth.users.models import Message
 from thoth.asterx.models import Server, Context, Settings
 from thoth.bitrix.models import User as BitrixUser, Credential, AppInstance, Bitrix
 
-apps = settings.INSTALLED_APPS
-
 
 def get_portal_settings(member_id):
     portal = Bitrix.objects.filter(member_id=member_id).first()
@@ -98,10 +96,6 @@ def server_list(request):
             portal_settings = get_portal_settings(member_id)
         # Всё ок - создаём новый сервер
         server = Server.objects.create(owner=request.user, settings=portal_settings)
-        if "thoth.tariff" in apps and not server.date_end:
-            from thoth.tariff.utils import get_trial
-            server.date_end = get_trial(request.user, "asterx")
-            server.save()
         return redirect('asterx')
 
     settings_form = None

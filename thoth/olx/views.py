@@ -26,7 +26,7 @@ def olx_accounts(request):
         else:
             olx_id = request.POST.get("olx_id")
             line_id = request.POST.get("line_id")
-            olx_user = get_object_or_404(OlxUser, id=olx_id, owner=request.user)
+            olx_user = get_object_or_404(OlxUser, id=olx_id)
             try:
                 bitrix_utils.connect_line(request, line_id, olx_user, connector_service)
             except Exception as e:
