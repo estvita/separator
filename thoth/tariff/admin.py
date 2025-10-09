@@ -9,6 +9,8 @@ class ServiceAdmin(admin.ModelAdmin):
 @admin.register(Trial)
 class TrialAdmin(admin.ModelAdmin):
     list_display = ("service", "owner")
+    search_fields = ["owner__email"]
+    list_filter = ["service"]
     list_per_page = 50
 
 @admin.register(Tariff)
