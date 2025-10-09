@@ -64,8 +64,8 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
                 version, system, entity_id, pbx_uuid
             )
             await self.channel_layer.group_add(self.group_name, self.channel_name)
-            await self.mark_setup_complete(self.server_id)
-            server_data = await self.get_server_and_instance_data(self.server_id)
+            await self.mark_setup_complete()
+            server_data = await self.get_server_and_instance_data()
             if server_data:
                 await self.send(text_data=json.dumps(server_data))
         else:
@@ -74,7 +74,7 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
                 str(self.server.pbx_uuid) == str(pbx_uuid)):
                 await self.save_server_data(version, system)
                 await self.channel_layer.group_add(self.group_name, self.channel_name)
-                server_data = await self.get_server_and_instance_data(self.server_id)
+                server_data = await self.get_server_and_instance_data()
                 if server_data:
                     await self.send(text_data=json.dumps(server_data))
 
