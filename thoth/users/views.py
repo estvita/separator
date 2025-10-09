@@ -15,6 +15,10 @@ class UserDetailView(LoginRequiredMixin, DetailView):
     slug_field = "id"
     slug_url_kwarg = "id"
 
+    def get_object(self, queryset=None):
+        assert self.request.user.is_authenticated
+        return self.request.user
+
 
 user_detail_view = UserDetailView.as_view()
 
