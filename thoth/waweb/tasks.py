@@ -123,8 +123,12 @@ def event_processor(event_data):
             wuid = data.get("wuid")
             number = wuid.split("@")[0]
             session.phone = number
-            session.save(update_fields=["phone"])
-            
+
+            if not session.date_end and "thoth.tariff" in settings.INSTALLED_APPS:
+                from thoth.tariff.utils import get_trial
+                session.date_end = get_trial(session.owner, "waweb")            
+            session.save()
+
             # создание Inbox в чатвут
             if settings.CHATWOOT_ENABLED and not session.inbox:
                 new_inbox.delay(sessionid, number)

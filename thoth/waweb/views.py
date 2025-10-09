@@ -7,7 +7,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Q, F
 from django.utils import timezone
-from django.conf import settings
 import thoth.bitrix.utils as bitrix_utils
 
 from thoth.users.models import Message
@@ -16,8 +15,6 @@ from thoth.decorators import login_message_required, user_message
 from .models import Session, Server
 from .forms import SendMessageForm
 from .tasks import send_message_task
-
-apps = settings.INSTALLED_APPS
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
@@ -138,11 +135,6 @@ def connect_number(request, session_id=None):
 
     else:
         new_session = get_object_or_404(Session, session=session_id, owner=request.user)
-
-    if "thoth.tariff" in apps and not new_session.date_end:
-        from thoth.tariff.utils import get_trial
-        new_session.date_end = get_trial(request.user, "waweb")
-        # new_session.save()
 
     server = (
         Server.objects.annotate(
