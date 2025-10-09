@@ -154,16 +154,16 @@ def connect_line(request, line_id, entity, connector_service):
         app_instance = line.app_instance
         connector = app_instance.app.connectors.filter(service=connector_service).first()
         bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)       
-        if entity.line and str(entity.line.id) == str(line_id):
-            messages.warning(request, "Эта линия уже используется.")
-            return
         if entity.line:
-            bitrix_tasks.call_api.id(app_instance.id, "imconnector.activate", {
+            if str(entity.line.id) == str(line_id):
+                messages.warning(request, "Эта линия уже используется.")
+                return
+            bitrix_tasks.call_api(app_instance.id, "imconnector.activate", {
                 "CONNECTOR": connector.code,
                 "LINE": entity.line.line_id,
                 "ACTIVE": 0,
             })
-        response = bitrix_tasks.call_api.id(app_instance.id, "imconnector.activate", {
+        response = bitrix_tasks.call_api(app_instance.id, "imconnector.activate", {
             "CONNECTOR": connector.code,
             "LINE": line.line_id,
             "ACTIVE": 1,
