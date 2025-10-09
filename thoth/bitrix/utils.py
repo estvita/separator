@@ -379,12 +379,10 @@ def event_processor(data, app_id=None, user_id=None):
             if event == "ONAPPINSTALL":                
                 # Получение приложения по app_id
                 app = get_object_or_404(App, id=app_id)                
-                owner_user = request.user if auth_status == "L" else None
                 portal, created = Bitrix.objects.get_or_create(
                     member_id=member_id,
                     defaults={
                         "domain": domain,
-                        "owner": owner_user,
                     }
                 )
 
@@ -393,15 +391,15 @@ def event_processor(data, app_id=None, user_id=None):
                     "portal": portal,
                     "auth_status": auth_status,
                     "application_token": application_token,
-                    "owner": owner_user,
+                    "owner": portal.owner,
                 }
 
                 appinstance = AppInstance.objects.create(**appinstance_data)
 
                 try:
                     b24_user = get_b24_user(app, portal, access_token, refresh_token)
-                    if owner_user and not b24_user.owner:
-                        b24_user.owner = owner_user
+                    if portal.owner and not b24_user.owner:
+                        b24_user.owner = portal.owner
                         b24_user.save()
                 except Exception as e:
                     pass

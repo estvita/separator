@@ -35,9 +35,10 @@ def wa_sessions(request):
             selected_portal = portals.filter(member_id=member_id).first()
     if selected_portal:
         sessions = Session.objects.filter(
-            Q(line__portal=selected_portal) | Q(owner=request.user)
+            Q(line__portal=selected_portal) | Q(owner=request.user, line__isnull=True)
         )
         lines = lines.filter(portal=selected_portal)
+        instances = instances.filter(portal=selected_portal)
     else:
         sessions = Session.objects.filter(
             Q(line__portal__in=portals) | Q(owner=request.user)
@@ -62,7 +63,7 @@ def wa_sessions(request):
             return redirect('waweb')
         session_id = request.POST.get("session_id")
         line_id = request.POST.get("line_id")
-        phone = get_object_or_404(Session, id=session_id, owner=request.user)
+        phone = get_object_or_404(Session, id=session_id)
         if not phone.phone:
             messages.error(request, "Сначала необходимо подключить WhatsApp.")
             return redirect('waweb')

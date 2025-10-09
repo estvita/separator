@@ -163,9 +163,10 @@ def waba_view(request):
             selected_portal = portals.filter(member_id=member_id).first()
     if selected_portal:
         phones = Phone.objects.filter(
-            Q(line__portal=selected_portal) | Q(owner=request.user)
+            Q(line__portal=selected_portal) | Q(owner=request.user, line__isnull=True)
         )
         lines = lines.filter(portal=selected_portal)
+        instances = instances.filter(portal=selected_portal)
     else:
         phones = Phone.objects.filter(
             Q(line__portal__in=portals) | Q(owner=request.user)
@@ -188,7 +189,7 @@ def waba_view(request):
         else:
             phone_id = request.POST.get("phone_id")
             line_id = request.POST.get("line_id")
-            phone = get_object_or_404(Phone, id=phone_id, owner=request.user)
+            phone = get_object_or_404(Phone, id=phone_id)
             try:
                 bitrix_utils.connect_line(request, line_id, phone, connector_service)
             except Exception as e:
