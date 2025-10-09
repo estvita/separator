@@ -124,13 +124,6 @@ def event_processor(event_data):
             number = wuid.split("@")[0]
             session.phone = number
             session.save(update_fields=["phone"])
-
-            if Session.objects.exclude(pk=session.pk).filter(phone=number).exists():
-                headers = {"apikey": server.api_key}
-                response = requests.delete(f"{server.url}instance/logout/{sessionid}", headers=headers)
-                response = requests.delete(f"{server.url}instance/delete/{sessionid}", headers=headers)
-                session.delete()
-                raise Exception({'Phone number already in use, session deleted'})
             
             # создание Inbox в чатвут
             if settings.CHATWOOT_ENABLED and not session.inbox:
