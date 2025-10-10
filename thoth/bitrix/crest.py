@@ -20,6 +20,8 @@ def call_method(appinstance: AppInstance,
                 verify=True,
                 admin=None,
                 b24_user_id=None):
+    if data is None:
+        data = {}
     
     portal = appinstance.portal
     if b24_user_id:
