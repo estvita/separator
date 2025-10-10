@@ -126,7 +126,7 @@ def event_processor(event_data):
 
             if not session.date_end and "thoth.tariff" in settings.INSTALLED_APPS:
                 from thoth.tariff.utils import get_trial
-                session.date_end = get_trial(session.owner, "waweb")            
+                session.date_end = get_trial(session.owner, "waweb")
             session.save()
 
             # создание Inbox в чатвут
