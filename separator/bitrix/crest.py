@@ -105,7 +105,7 @@ def call_method(appinstance: AppInstance,
     appinstance.attempts += 1
     appinstance.save()
     if last_exc:
-        raise f"{last_exc} method: {b24_method} data:{data}"
+        raise Exception(f"{last_exc} method: {b24_method} data:{data}")
     raise Exception("No active users for portal")
 
 
