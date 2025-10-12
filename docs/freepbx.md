@@ -2,7 +2,7 @@
 
 FreePBX используется в качестве шлюза для SIP транка WhatsApp Business Calling API.
 
-## Порядок подключения FreePBX к серверу thoth
+## Порядок подключения FreePBX к серверу separator
 
 Подробная инструкция: [FreePBX GraphQL Provisioning Tutorial](https://sangomakb.atlassian.net/wiki/spaces/FCD/pages/10354832/FreePBX+GraphQL+Provisioning+Tutorial)
 
@@ -11,7 +11,7 @@ FreePBX используется в качестве шлюза для SIP тр�
 1. Установить и активировать модуль **PBX API**
 2. В модуле создать приложение **Machine-to-Machine** с правами   gql:framework gql:core
 3. Записать `client_id` и `client_secret`
-4. На сервере thoth в разделе `/admin/freepbx/server/` создать новый SIP сервер с `client_id` и `client_secret`
+4. На сервере separator в разделе `/admin/freepbx/server/` создать новый SIP сервер с `client_id` и `client_secret`
 5. В настройках приложения WhatsApp Cloud (`/admin/waba/app/`) привязать созданный SIP сервер
 
 ---

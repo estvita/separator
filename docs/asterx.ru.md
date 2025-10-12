@@ -15,7 +15,7 @@
 + OpenVox 
 + и другие
 
-Коонектор AsterX может работать самостоятельно или под управлением сервера thoth.
+Коонектор AsterX может работать самостоятельно или под управлением сервера separator.
 
 Основные возможности:
 
@@ -33,13 +33,13 @@
 
 ## Установка
 
-На стороне Битрикс и thoth:
-+ в .env thoth ASTERX_SERVER=True
+На стороне Битрикс и separator:
++ в .env separator ASTERX_SERVER=True
 + Установить дополнительные пакеты из ![asterx.txt](/requirements/asterx.txt)
 + Создать локальное приложение Битрикс24, указать адреса https://example.com/app-install/ и https://example.com/app-settings/, задать права crm, user, disk. telephony, im. Нажать "Сохранить", сохранить client_id, client_secret
 
 ![asterx_b24](/docs/img/asterx_b24.png)
-+ Создать приложение в интерфейсе thoth с событиями ONAPPUNINSTALL, ONEXTERNALCALLSTART, ONEXTERNALCALLBACKSTART. Отместить чекбокс "AsterX", Page url: /asterx/. Заполнить поля client_id, client_secret значениями из предыдущего пункта.
++ Создать приложение в интерфейсе separator с событиями ONAPPUNINSTALL, ONEXTERNALCALLSTART, ONEXTERNALCALLBACKSTART. Отместить чекбокс "AsterX", Page url: /asterx/. Заполнить поля client_id, client_secret значениями из предыдущего пункта.
 + Нажать "Перейти к приложению" в Битрикс24
 + В открывшемся интерфейсе нажать кнопку "Добавить АТС"
 ![add_pbx](/docs/img/add_pbx.png)
@@ -82,7 +82,7 @@ python main.py
 ```
 
 
-После авторизации коннектора на сервере thoth в базу коннектора будут переданы ключи и базовые настройки. 
+После авторизации коннектора на сервере separator в базу коннектора будут переданы ключи и базовые настройки. 
 
 Коннектор, в свою очередь, отправит на сервер список контекстов, из которых в настройках АТС в интерфейсе битрикс24 нужно выбрать внешние, внутренние и игнорируемые. 
 
@@ -96,7 +96,7 @@ python main.py
 
 После любых ихменений с настройками пользователей в списке АТС в иитерфейсе приложения необходмио нажать "Обновить" -  будет пересоздана локльаная база пользователей в коннекторе 
 
-Для запуска в проде использовать [daphne](/docs/example/thoth_asgi.service)
+Для запуска в проде использовать [daphne](/docs/example/separator_asgi.service)
 
 ```
 daphne -b 0.0.0.0 -p 8000 config.asgi:application

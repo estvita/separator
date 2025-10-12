@@ -2,9 +2,9 @@
 
 Video tutorial (based on previous version) - https://youtu.be/ti99AeGAr4k
 
-**#### Preparing the application on the thoth server**
+**#### Preparing the application on the separator server**
 
-+ In the Sites section, rename example.com to the domain through which thoth will be accessed
++ In the Sites section, rename example.com to the domain through which separator will be accessed
 + In Bitrix > Connectors section, add a connector with an SVG icon
 + Bitrix > Apps - add an app. Enter the name (waba, waweb, olx) and select a domain, choose the necessary connectors
 + For applications with connectors, add events to the events field one by one in the line ONAPPUNINSTALL, ONIMCONNECTORMESSAGEADD, ONIMCONNECTORLINEDELETE, ONIMCONNECTORSTATUSDELETE
@@ -24,14 +24,14 @@ In the local application's settings in Bitrix24, in addition to previous steps:
 + In the "Your handler path" field - https://example.com/app-settings/
 + In the "Initial installation path" field - https://example.com/app-install/
 + Fill in the "Menu item" field
-+ Click "Install", then paste the obtained client_id and client_secret into the corresponding fields in the application on the thoth server
++ Click "Install", then paste the obtained client_id and client_secret into the corresponding fields in the application on the separator server
 + In Bitrix24 local application, click the "Go to application" button, if everything is correct, you will see the page specified in the "Page url" field
 
 **### Installing the application without a web interface**
 
 + In the admin panel, create a token
 
-![thoth user token](img/token.png)
+![separator user token](img/token.png)
 
 + After saving the record, copy the Id displayed in the list of applications.
 
@@ -43,7 +43,7 @@ In the local application's settings in Bitrix24, in addition to previous steps:
 
 where XXXXXXX is your token, YYYYYYY is the app id from the previous step
 
-+ Click "Install", then paste the obtained client_id and client_secret into the relevant fields in the application on the thoth server
++ Click "Install", then paste the obtained client_id and client_secret into the relevant fields in the application on the separator server
 + In Bitrix in the "Contact Center" section, connectors should appear
 
 ![alt text](img/olx-connector.png)

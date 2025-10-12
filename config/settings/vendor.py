@@ -21,8 +21,8 @@ INSTALLED_APPS = [
     "wagtailcodeblock",
     "hijack",
     "hijack.contrib.admin",
-    "thoth.home",
-    "thoth.tariff",
+    "separator.home",
+    "separator.tariff",
 ] + INSTALLED_APPS
 
 MIDDLEWARE = MIDDLEWARE + [
@@ -32,10 +32,10 @@ MIDDLEWARE = MIDDLEWARE + [
 
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "wagtail.contrib.settings.context_processors.settings",
-    "thoth.home.context.internal_domains",
+    "separator.home.context.internal_domains",
 ]
 
-WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Thoth Site")
+WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="separator Site")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="https://example.com")
 WAGTAIL_CMS_URL = env("WAGTAIL_CMS_URL", default="cms/")
 WAGTAILEMBEDS_RESPONSIVE_HTML = True

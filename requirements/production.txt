@@ -19,5 +19,4 @@ python-magic
 psycopg2-binary
 redis
 requests
-openai
 whitenoise

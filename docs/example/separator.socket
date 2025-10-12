@@ -1,0 +1,8 @@
+[Unit]
+Description=separator socket
+
+[Socket]
+ListenStream=/run/separator.sock
+
+[Install]
+WantedBy=sockets.target

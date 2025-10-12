@@ -5,7 +5,7 @@ Login Flow https://developers.facebook.com/docs/facebook-login/guides/advanced/m
 + It is recommended to obtain a [Permanent Token](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), otherwise you will need to regenerate the token every day.  
 + Create an app in the [Developer Portal](https://developers.facebook.com/apps/)  
 + In the app dashboard, enable the products: **Webhooks, WhatsApp**  
-+ In the THOTH admin panel → **WABA → Add waba**  
++ In the separator admin panel → **WABA → Add waba**  
   + **name** – the name of your application  
   + **Access token** – permanent or temporary token  
   + After saving, in the WABA list copy the **Verify token** for the desired account  
@@ -15,13 +15,13 @@ Login Flow https://developers.facebook.com/docs/facebook-login/guides/advanced/m
   + **Verify token** – the verify token from the previous step  
 ![alt text](img/verify.png)
 
-+ In the THOTH admin panel → **waba → phones**, add phone numbers:  
++ In the separator admin panel → **waba → phones**, add phone numbers:  
   + **Phone** – the phone number  
   + **Phone id** – the id from the Facebook app  
 + Select the previously created WABA object  
 + Select the **App instance** (Bitrix portal) to which the WABA number will be linked  
 + Check the **Sms service** checkbox if you want to register this number as an [SMS provider](messageservice.md)  
-+ If everything is set up correctly, the connector in the Contact Center will turn green, and the line `THOTH_your_number` will be attached.  
++ If everything is set up correctly, the connector in the Contact Center will turn green, and the line `separator_your_number` will be attached.  
 ![ok](img/waba_ok.png)
 
 ## WABA Usage Notes

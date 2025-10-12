@@ -1,4 +1,4 @@
-DATABASE_URL=postgres://postgres:12345678@127.0.0.1:5432/thoth
+DATABASE_URL=postgres://postgres:12345678@127.0.0.1:5432/separator
 CSRF_TRUSTED_ORIGINS=https://example.com
 DJANGO_EMAIL_HOST=smtp.gmail.com
 DJANGO_EMAIL_PORT=465

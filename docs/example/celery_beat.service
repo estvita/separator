@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 User=root
-WorkingDirectory=/opt/thoth
-ExecStart=/opt/thoth/.venv/bin/celery -A config.celery_app beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+WorkingDirectory=/opt/separator
+ExecStart=/opt/separator/.venv/bin/celery -A config.celery_app beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
 Restart=always
 
 [Install]

@@ -81,14 +81,14 @@ STORAGES = {
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
 DEFAULT_FROM_EMAIL = env(
     "DJANGO_DEFAULT_FROM_EMAIL",
-    default="thoth <noreply@thoth.kz>",
+    default="separator <noreply@separator.biz>",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
 SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
 EMAIL_SUBJECT_PREFIX = env(
     "DJANGO_EMAIL_SUBJECT_PREFIX",
-    default="[thoth] ",
+    default="[separator] ",
 )
 
 EMAIL_HOST = env("DJANGO_EMAIL_HOST", default="smtp.gmail.com")
@@ -162,7 +162,7 @@ LOGGING = {
 # -------------------------------------------------------------------------------
 # Tools that generate code samples can use SERVERS to point to the correct domain
 SPECTACULAR_SETTINGS["SERVERS"] = [
-    {"url": "https://gulin.kz", "description": "Production server"},
+    {"url": "/", "description": "Production server"},
 ]
 # Your stuff...
 # ------------------------------------------------------------------------------

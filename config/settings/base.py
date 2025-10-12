@@ -7,8 +7,8 @@ from kombu import Queue
 import environ
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
-# thoth/
-APPS_DIR = BASE_DIR / "thoth"
+# separator/
+APPS_DIR = BASE_DIR / "separator"
 env = environ.Env()
 
 READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=True)
@@ -33,7 +33,6 @@ BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
 
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 
-VOICE_BOT_DOMAIN = env("VOICE_BOT_DOMAIN", default="exten.bot")
 WAWEB_SYTEM_ID = env("WAWEB_SYTEM_ID", default="")
 
 # GENERAL
@@ -109,16 +108,15 @@ THIRD_PARTY_APPS = [
 
 
 LOCAL_APPS = [
-    "thoth.users",
-    "thoth.bitrix",
-    "thoth.waba",
-    "thoth.olx",
-    "thoth.chatwoot",
-    "thoth.waweb",
-    "thoth.bot",
-    "thoth.dify",
-    "thoth.asterx",
-    "thoth.freepbx",
+    "separator.users",
+    "separator.bitrix",
+    "separator.waba",
+    "separator.olx",
+    "separator.chatwoot",
+    "separator.waweb",
+    "separator.dify",
+    "separator.asterx",
+    "separator.freepbx",
 ]
 
 # Asterisk Connector AsterX
@@ -143,7 +141,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # MIGRATIONS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#migration-modules
-MIGRATION_MODULES = {"sites": "thoth.contrib.sites.migrations"}
+MIGRATION_MODULES = {"sites": "separator.contrib.sites.migrations"}
 
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
@@ -237,10 +235,10 @@ TEMPLATES = [
                 "django.template.context_processors.static",
                 "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
-                "thoth.users.context_processors.allauth_settings",
-                "thoth.context_processors.footer_links_visibility",
-                "thoth.context_processors.installed_apps",
-                "thoth.context_processors.site_name",
+                "separator.users.context_processors.allauth_settings",
+                "separator.context_processors.footer_links_visibility",
+                "separator.context_processors.installed_apps",
+                "separator.context_processors.site_name",
             ],
         },
     },
@@ -283,7 +281,7 @@ EMAIL_TIMEOUT = 5
 # Django Admin URL.
 ADMIN_URL = "admin/"
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
-ADMINS = [("""Anton Gulin""", "gulin@thoth.kz")]
+ADMINS = [("""Anton Gulin""", "gulin@separator.kz")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
 # https://cookiecutter-django.readthedocs.io/en/latest/settings.html#other-environment-settings
@@ -355,7 +353,6 @@ CELERY_QUEUES = (
     Queue('olx'),
     Queue('waweb'),
     Queue('waba'),
-    Queue('bot'),
 )
 
 # django-allauth
@@ -370,13 +367,13 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="none")
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_ADAPTER = "thoth.users.adapters.AccountAdapter"
+ACCOUNT_ADAPTER = "separator.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
-ACCOUNT_FORMS = {"signup": "thoth.users.forms.UserSignupForm"}
+ACCOUNT_FORMS = {"signup": "separator.users.forms.UserSignupForm"}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-# SOCIALACCOUNT_ADAPTER = "thoth.users.adapters.SocialAccountAdapter"
+# SOCIALACCOUNT_ADAPTER = "separator.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-# SOCIALACCOUNT_FORMS = {"signup": "thoth.users.forms.UserSocialSignupForm"}
+# SOCIALACCOUNT_FORMS = {"signup": "separator.users.forms.UserSocialSignupForm"}
 
 # django-rest-framework
 # -------------------------------------------------------------------------------
@@ -398,8 +395,8 @@ CORS_URLS_REGEX = r"^/api/.*$"
 # By Default swagger ui is available only to admin user(s). You can change permission classes to change that
 # See more configuration options at https://drf-spectacular.readthedocs.io/en/latest/settings.html#settings
 SPECTACULAR_SETTINGS = {
-    "TITLE": "thoth API",
-    "DESCRIPTION": "Documentation of API endpoints of thoth",
+    "TITLE": "separator API",
+    "DESCRIPTION": "Documentation of API endpoints of separator",
     "VERSION": "1.0.0",
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAdminUser"],
     "SCHEMA_PATH_PREFIX": "/api/",

@@ -1,0 +1,15 @@
+[Unit]
+Description=separator Daphne ASGI daemon
+After=network.target postgresql.service redis.service
+Requires=postgresql.service redis.service
+
+[Service]
+User=separator
+WorkingDirectory=/opt/separator/app
+EnvironmentFile=/opt/separator/app/.env
+Environment=DJANGO_SETTINGS_MODULE=config.settings.production
+ExecStart=/opt/separator/app/.venv/bin/daphne -b 0.0.0.0 -p 8000 config.asgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -6,7 +6,7 @@
     "configurations": [
         
         {
-            "name": "Django WSGI",
+            "name": "App",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/manage.py",
@@ -19,40 +19,14 @@
             "python": "${workspaceFolder}/.venv/bin/python"
         },
         {
-            "name": "Django ASGI (Daphne)",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "daphne",
-            "args": [
-                "-p", "8000", "-b", "0.0.0.0",
-                "config.asgi:application"
-            ],
-            "django": true,
-            "cwd": "${workspaceFolder}",
-            "autoStartBrowser": false,
-            "env": {
-                "DJANGO_SETTINGS_MODULE": "config.settings.production"
-            },
-            "python": "${workspaceFolder}/.venv/bin/python"
-        },
-        {
-            "name": "Worker Win",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "celery",
-            "console": "integratedTerminal",
-            "args": ["-A", "config.celery_app", "worker", "-l", "info", "--pool", "solo"],
-
-        },
-        {
-            "name": "Worker Lin",
+            "name": "Worker",
             "type": "debugpy",
             "request": "launch",
             "module": "celery",
             "console": "integratedTerminal",
             "args": ["-A", "config.celery_app", "worker", "-l", 
                      "info", "-c", "3",
-                     "-Q", "bitrix,olx,waweb,waba,bot"],
+                     "-Q", "bitrix,olx,waweb,waba"],
             "python": "${workspaceFolder}/.venv/bin/python",
         },
         {
@@ -62,6 +36,14 @@
             "module": "celery",
             "console": "integratedTerminal",
             "args": ["-A", "config.celery_app", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"],
-        }
+        },
+        {
+            "name": "Flower",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "celery",
+            "console": "integratedTerminal",
+            "args": ["-A", "config.celery_app", "flower"],
+        },
     ]
 }

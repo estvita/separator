@@ -17,14 +17,12 @@ urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
-    path("users/", include("thoth.users.urls", namespace="users")),
+    path("users/", include("separator.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
-    path("waba/", include("thoth.waba.urls")),
-    path("chat/", include("thoth.chatwoot.urls")),
-    path('waweb/', include('thoth.waweb.urls')),
-    path('bots/', include('thoth.bot.urls_bot', namespace='bot')),
-    # path('voices/', include('thoth.bot.urls_voice', namespace='voice')),
-    path('dify/', include('thoth.dify.urls')),
+    path("waba/", include("separator.waba.urls")),
+    path("chat/", include("separator.chatwoot.urls")),
+    path('waweb/', include('separator.waweb.urls')),
+    path('dify/', include('separator.dify.urls')),
     # ...
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
@@ -32,7 +30,7 @@ urlpatterns = [
 
 if settings.ASTERX_SERVER:
     urlpatterns += [
-        path('asterx/', include('thoth.asterx.urls')),
+        path('asterx/', include('separator.asterx.urls')),
     ]
 
 # API URLS
@@ -47,8 +45,8 @@ urlpatterns += [
         SpectacularSwaggerView.as_view(url_name="api-schema"),
         name="api-docs",
     ),
-    path("", include("thoth.bitrix.urls")),
-    path("", include("thoth.olx.urls")),
+    path("", include("separator.bitrix.urls")),
+    path("", include("separator.olx.urls")),
 ]
 
 if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
@@ -101,6 +99,6 @@ if settings.DEBUG:
         urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
 
 
-admin.site.site_header = "gulin.kz"
+admin.site.site_header = "separator.biz"
 admin.site.site_title = "Admin Portal"
 admin.site.index_title = "Welcome to Admin Portal"

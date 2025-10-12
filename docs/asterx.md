@@ -15,7 +15,7 @@ Hardware solutions on Asterisk with AMI support (depends on the model)
 + OpenVox 
 + and others
 
-The AsterX connector can operate independently or be managed by the thoth server.
+The AsterX connector can operate independently or be managed by the separator server.
 
 Main features:
 
@@ -33,12 +33,12 @@ Main features:
 
 ## Installation
 
-On Bitrix and thoth side:
-+ In .env thoth set ASTERX_SERVER=True
+On Bitrix and separator side:
++ In .env separator set ASTERX_SERVER=True
 + Install additional packages from ![asterx.txt](/requirements/asterx.txt)
 + Create a local Bitrix24 application, specify addresses: https://example.com/app-install/ and https://example.com/app-settings/, set permissions crm, user, disk, telephony, im. Click "Save" and save client_id, client_secret
 ![asterx_b24](/docs/img/asterx_b24.png)
-+ Create an application in the thoth interface with ONAPPUNINSTALL, ONEXTERNALCALLSTART, ONEXTERNALCALLBACKSTART events. Check the "AsterX" box. Page url: /asterx/. Fill in client_id, client_secret with values from the previous step.
++ Create an application in the separator interface with ONAPPUNINSTALL, ONEXTERNALCALLSTART, ONEXTERNALCALLBACKSTART events. Check the "AsterX" box. Page url: /asterx/. Fill in client_id, client_secret with values from the previous step.
 + Click "Go to application" in Bitrix24
 + In the opened interface, click "Add PBX"
 ![add_pbx](/docs/img/add_pbx.png)
@@ -77,7 +77,7 @@ secret = AMI-secret
 
 Run in test mode: python main.py
 
-After connector authorization on the thoth server, keys and basic settings will be sent to the connector database.
+After connector authorization on the separator server, keys and basic settings will be sent to the connector database.
 
 In turn, the connector will send the server a list of contexts, from which you need to select external, internal, and ignored in the Bitrix24 PBX settings interface.
 

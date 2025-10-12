@@ -1,4 +1,4 @@
-# Translations for the gulin.kz project
+# Translations for the separator.biz project
 # Copyright (C) 2025 Anton Gulin
 # Anton Gulin <toogulin@gmail.com>, 2025.
 #

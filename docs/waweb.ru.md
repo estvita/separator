@@ -10,23 +10,23 @@
 + В .env установите переменные:
 ```
 WEBHOOK_GLOBAL_ENABLED=true
-WEBHOOK_GLOBAL_URL='http://thoth.url/api/waweb/?api-key=XXXX'
+WEBHOOK_GLOBAL_URL='http://separator.url/api/waweb/?api-key=XXXX'
 AUTHENTICATION_API_KEY=YYY
 ```
 
 где:
-+ thoth.url — адрес установленного портала [thoth](/README_ru.md).
-+ XXXX — токен пользователя thoth.
++ separator.url — адрес установленного портала [separator](/README_ru.md).
++ XXXX — токен пользователя separator.
 + YYY — произвольный токен для авторизации в Evolution API.
 
-**#### Настройки на стороне thoth**
-thoth поддерживает работу с несколькими серверами Evolution API.
-+ В админке thoth создайте коннектор waweb.
+**#### Настройки на стороне separator**
+separator поддерживает работу с несколькими серверами Evolution API.
++ В админке separator создайте коннектор waweb.
 + Установите [локальное приложение в Битрикс](bitrix.ru.md).
 + В разделе waweb/server/ добавьте сервер Evolution API.
   + Server URL = SERVER_URL (Evolution API)
   + API Key = AUTHENTICATION_API_KEY (Evolution API)
-  + max_connections — количество сессий WhatsApp на один сервер (по умолчанию 100). При достижении этого количества thoth будет искать следующий сервер. Если он не добавлен в админке, при подключении будет выведено сообщение об отсутствии свободных серверов.
+  + max_connections — количество сессий WhatsApp на один сервер (по умолчанию 100). При достижении этого количества separator будет искать следующий сервер. Если он не добавлен в админке, при подключении будет выведено сообщение об отсутствии свободных серверов.
 
 **### Подключение номера WhatsApp к Битрикс24**
 Подключение осуществляется из пользовательского интерфейса по адресу /waweb/

@@ -4,7 +4,7 @@
 + Рекомендуется получить [Постоянный маркер](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), иначе придется перевыпускать токен каждый день
 + Создайте приложение на [портале разработчиков](https://developers.facebook.com/apps/)
 + В панели подключите продукты Webhooks, WhatsApp
-+ В админке THOTH - WABA - Add waba 
++ В админке separator - WABA - Add waba 
 + + name - имя вашего приложения 
 + + Access token - Постоянный или временный маркер
 + + После сохранения в списке WABA скопируйте Verify token для нужной учётки
@@ -13,11 +13,11 @@
 + + Callback URL - https://example.com/api/waba/?api-key=XXXXXXX
 + + Verify token - Verify token из предыдущего шага 
 ![alt text](img/verify.png)
-+ В админке thoth - waba - phones и добавляем номера (Phone - номер, Phone id - id из приложения фейсбук)
++ В админке separator - waba - phones и добавляем номера (Phone - номер, Phone id - id из приложения фейсбук)
 + Выбрать объект waba, созданный ранее
 + Выбрать App instance (портал битрикс) к котрому привязать номер waba
 + Отметьте Чекбокс "Sms service", если хотите зарегистрировать этот номер в качестве [СМС провайдера](messageservice.md)  
-+ если все пройдет успешно, то в контакт центре коннектор станет зеленым и кнему будет прикрпелена линия THOTH_ваш_номер
++ если все пройдет успешно, то в контакт центре коннектор станет зеленым и кнему будет прикрпелена линия separator_ваш_номер
 ![ok](img/waba_ok.png)
 
 ## Особенности работы WABA

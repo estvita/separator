@@ -1,11 +1,11 @@
 [Unit]
-Description=THOTH Celery Worker
+Description=separator Celery Worker
 After=network.target
 
 [Service]
 User=root
-WorkingDirectory=/opt/thoth
-ExecStart=/opt/thoth/.venv/bin/celery -A config.celery_app worker -l info -Q bitrix,olx,waweb,waba,bot,chat_finish
+WorkingDirectory=/opt/separator
+ExecStart=/opt/separator/.venv/bin/celery -A config.celery_app worker -l info -Q bitrix,olx,waweb,waba,bot,chat_finish
 Restart=always
 
 [Install]

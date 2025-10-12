@@ -1,8 +1,8 @@
-**## Thoth: Bitrix24 Integration Hub**
+**## Separator.biz: Bitrix24 Integration Hub**
 
 **### Описание**
 
-Одна инсталляция Thoth позволяет создавать и обслуживать неограниченное количество локальных и тиражных приложений Битрикс24 с OAuth 2.0 авторизацией.
+Одна инсталляция separator позволяет создавать и обслуживать неограниченное количество локальных и тиражных приложений Битрикс24 с OAuth 2.0 авторизацией.
 
 **## Видеоинструкции на Youtube**
 
@@ -17,8 +17,8 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 ```
 
 cd /opt
-git clone https://github.com/estvita/thoth
-cd thoth
+git clone https://github.com/estvita/separator
+cd separator
 
 
 python3 -m venv .venv
@@ -54,12 +54,12 @@ sudo systemctl start celery_beat.service
 
 **## Обновление**
 ```
-cd /opt/thoth
+cd /opt/separator
 git  pull
 source .venv/bin/activate
 python manage.py migrate
 deactivate
-sudo systemctl restart thoth
+sudo systemctl restart separator
 ```
 
 **## Прокси-сервер**
@@ -67,13 +67,6 @@ sudo systemctl restart thoth
 + Процесс настройки Nginx и Gunicorn можно посмотреть [здесь](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
 + Примеры файлов конфигураций есть в [документации](/docs/example)
 
-**## Логирование**
-
-При необходимости можно включить подробные логи в консоль. Для этого в файле .env укажите уровень логирования LOG_LEVEL=DEBUG, перезапустите thoth и введите команду
-
-```
-journalctl -u thoth -f
-```
 
 **## Подключение**
 
@@ -85,8 +78,6 @@ journalctl -u thoth -f
 
 
 + [Chatwoot](/docs/chatwoot.md)
-+ [OpenAI chat-bot](/docs/openai_bot.md)
-+ [OpenAI voice-bot](/docs/openai_voice.md)
 
 **## Адреса пользовательских интерфейсов**
 
@@ -96,7 +87,4 @@ journalctl -u thoth -f
 + /waba/ — WABA
 + /waweb/ — WhatsApp Web
 
-
-+ /bots/ — OpenAI Assistants
-+ /voices/ — OpenAI Voice
 + /dify/ — Dify Bots

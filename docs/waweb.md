@@ -10,23 +10,23 @@ Celery is required for the integration service.
 + Set the following variables in .env:
 ```
 WEBHOOK_GLOBAL_ENABLED=true
-WEBHOOK_GLOBAL_URL='http://thoth.url/api/waweb/?api-key=XXXX'
+WEBHOOK_GLOBAL_URL='http://separator.url/api/waweb/?api-key=XXXX'
 AUTHENTICATION_API_KEY=YYY
 ```
 
 where
-+ thoth.url = the address of the installed [thoth] portal (/README_ru.md)
-+ XXXX - thoth user token
++ separator.url = the address of the installed [separator] portal (/README_ru.md)
++ XXXX - separator user token
 + YYY - any token for authentication in Evolution API
 
-**#### Thoth Side Settings**
-thoth supports working with multiple Evolution API servers
-+ In thoth admin panel, create a waweb connector
+**#### separator Side Settings**
+separator supports working with multiple Evolution API servers
++ In separator admin panel, create a waweb connector
 + Install [local app in Bitrix](bitrix.md)
 + In the waweb/server/ section, add an Evolution API server
   + Server URL = SERVER_URL (Evolution API)
   + API Key = AUTHENTICATION_API_KEY (Evolution API)
-  + max_connections – number of WhatsApp sessions per server (default is 100). When this number is reached, thoth will look for the next server; if it is not added in the admin panel, a message about the absence of free servers will be displayed when connecting
+  + max_connections – number of WhatsApp sessions per server (default is 100). When this number is reached, separator will look for the next server; if it is not added in the admin panel, a message about the absence of free servers will be displayed when connecting
 
 **### Connecting a WhatsApp Number to Bitrix24**
 The connection is done from the user interface at /waweb/

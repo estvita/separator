@@ -1,10 +1,10 @@
 [Русский](README_ru.md)
 
-## Thoth: Bitrix24 Integration Hub 
+## Separator.biz: Bitrix24 Integration Hub 
 
 ### Description
 
-One Thoth installation allows you to create and manage an unlimited number of local and mass-distributed Bitrix24 applications with OAuth 2.0 authorization.
+One separator installation allows you to create and manage an unlimited number of local and mass-distributed Bitrix24 applications with OAuth 2.0 authorization.
 
 ## Video Instructions on YouTube
 
@@ -18,8 +18,8 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 ```
 cd /opt 
-git clone https://github.com/estvita/thoth
-cd thoth
+git clone https://github.com/estvita/separator
+cd separator
 
 
 python3 -m venv .venv
@@ -58,12 +58,12 @@ The [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-
 ## Update
 
 ```
-cd /opt/thoth
+cd /opt/separator
 git pull
 source .venv/bin/activate
 python manage.py migrate
 deactivate
-sudo systemctl restart thoth
+sudo systemctl restart separator
 ```
 
 
@@ -71,12 +71,6 @@ sudo systemctl restart thoth
 + You can view the process of setting up Nginx and Gunicorn [here](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
 + Example configuration files are available in the [documentation](/docs/example)
 
-## Logging
-If needed, you can enable detailed logs in the console. To do this, specify the logging level LOG_LEVEL=DEBUG in the .env file, restart thoth, and run the command
-
-```
-journalctl -u thoth -f
-```
 
 
 ## Integrations
@@ -89,8 +83,6 @@ journalctl -u thoth -f
 
 
 + [Chatwoot](/docs/chatwoot.md)
-+ [Openai chat-bot](/docs/openai_bot.md)
-+ [Openai voice-bot](/docs/openai_voice.md)
 
 
 ## User Service Pages
@@ -100,7 +92,4 @@ journalctl -u thoth -f
 + /waba/ - waba
 + /waweb/ - whatsapp web
 
-
-+ /bots/ - openai assistants
-+ /voices/ - openai voice
 + /dify/ - dify bots
