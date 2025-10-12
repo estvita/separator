@@ -296,13 +296,15 @@ def event_processor(event_data):
                 attach = None
                 if fromme:
                     file_url = None
-                    file_id = upload_file.get("ID", None) if download_url else None
-                    if file_id:
-                        file_link = bitrix_tasks.call_api(session.app_instance.id, "disk.file.getExternalLink", {"id": file_id})
-                        if "result" in file_link:
-                            file_url = file_link.get("result")
                     source = data.get("source", "")
                     from_app = f"[B]Отправлено из WhatsApp {source}[/B][BR]"
+                    file_id = upload_file.get("ID", None) if download_url else None
+                    if file_id:
+                        try:
+                            file_link = bitrix_tasks.call_api(session.app_instance.id, "disk.file.getExternalLink", {"id": file_id})
+                            file_url = file_link.get("result")
+                        except Exception:
+                            pass
                     if file_url:
                         file_name = fileName[-fileName[::-1].find('.')-5:]
                         text = f"{from_app} [BR] {text}" if text else from_app
@@ -314,11 +316,11 @@ def event_processor(event_data):
                                 }
                             }
                         ]
-                    else:
-                        if text:
-                            text = f"{from_app} {text}"
-                    bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
-                                                remoteJid, text, line.connector.code, attach)
+                    if text and not attach:
+                        text = f"{from_app} {text}"
+                    if text or attach:
+                        bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
+                                                    remoteJid, text, line.connector.code, attach)
 
                 else:
                     if download_url:
