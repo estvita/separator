@@ -42,7 +42,6 @@ def get_app(auth_id):
         response = requests.get(f"{settings.BITRIX_OAUTH_URL}/rest/app.info", params={"auth": auth_id})
         response.raise_for_status()
         app_data = response.json().get("result")
-        print(app_data)
         client_id = app_data.get("client_id")
     except requests.RequestException:
         raise

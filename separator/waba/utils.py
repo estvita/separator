@@ -131,7 +131,7 @@ def message_template_status_update(entry):
         if waba:
             components = None
             try:
-                resp = call_api(waba_id, template_id)
+                resp = call_api(waba, template_id)
                 temp_data = resp.json()
                 components = temp_data.get('components')[0]
             except Exception:

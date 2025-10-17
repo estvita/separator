@@ -97,7 +97,7 @@ class Template(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     name = models.CharField(max_length=255)
     lang = models.CharField(max_length=10)
-    content = models.TextField()
+    content = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=255)
 
     def __str__(self):

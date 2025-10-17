@@ -27,6 +27,16 @@
   height: 100%;
 }
 
+@media (max-width: 600px) {
+  img.left,
+  img.right {
+    float: none;
+    display: block;
+    margin: 0 0 1rem 0;
+    max-width: 100%;
+    height: auto;
+  }
+}
 
 img.left {
   float: left;
