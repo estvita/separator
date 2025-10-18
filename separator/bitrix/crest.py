@@ -64,30 +64,38 @@ def call_method(appinstance: AppInstance,
                 portal.save()
             return response.json()
 
-        else:
-            if response.status_code == 401:
-                resp = response.json()
-                error = resp.get("error", "")
-                if error == "ACCESS_DENIED" and not portal.license_expired:
-                    portal.license_expired = True
-                    portal.save()                
-                elif error == "expired_token" and not attempted_refresh:
-                    refreshed = refresh_token(credential)
-                    if refreshed:
-                        return call_method(appinstance, b24_method, data, attempted_refresh=True)
-                    else:
-                        last_exc = Exception(f"Token refresh failed for user {b24_user.user_id} in portal {portal.domain}")
-                        continue
-                elif error == "authorization_error":
-                    b24_user.active = False
-                    b24_user.save()
-                    last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
+        elif response.status_code == 401:
+            resp = response.json()
+            error = resp.get("error", "")
+            if error == "ACCESS_DENIED" and not portal.license_expired:
+                portal.license_expired = True
+                portal.save()
+            elif error == "expired_token" and not attempted_refresh:
+                refreshed = refresh_token(credential)
+                if refreshed:
+                    return call_method(appinstance, b24_method, data, attempted_refresh=True)
+                else:
+                    last_exc = Exception(f"Token refresh failed for user {b24_user.user_id} in portal {portal.domain}")
                     continue
+            elif error == "authorization_error":
+                b24_user.active = False
+                b24_user.save()
                 last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
                 continue
-
+            last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
+            continue
+        elif response.status_code == 403:
+            try:
+                data = response.json()
+                last_exc = Exception(f"Access error: instance {appinstance.id} {data}")
+                continue
+            except ValueError:
+                last_exc = Exception(f"Access error: instance {appinstance.id} {response.text}")
+                portal.license_expired = True
+                portal.save()
+        else:
             last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
-                            f"status {response.status_code}, response: {response.json()}")
+                            f"status {response.status_code}, response: {response.text}")
             
     if last_exc:
         raise Exception(f"{last_exc} method: {b24_method} data:{data}")
