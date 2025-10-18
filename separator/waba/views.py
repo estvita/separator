@@ -19,8 +19,6 @@ from separator.decorators import login_message_required, user_message
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
 
-from separator.users.models import User, Message
-
 from .models import App, Waba, Phone, Template
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
@@ -87,11 +85,7 @@ def phone_details(request, phone_id):
                     def after_commit():
                         if call_dest == "b24":
                             if not phone.app_instance:
-                                text = _("Bitrix App not installed.")
-                                msg = Message.objects.filter(code="wa_calling_b24_error").first()
-                                if msg:
-                                    text = msg.message
-                                messages.error(request, text)
+                                user_message(request, "waba_calling_error", "error")
                                 return
                             if phone.voximplant_id:
                                 messages.info(request, _("This number is already connected."))
@@ -154,7 +148,7 @@ def waba_view(request):
     portals, instances, lines = bitrix_utils.get_instances(request, connector_service)
     request_id = str(uuid.uuid4())
     if not instances:
-        user_message(request, "install_waba")
+        user_message(request, "waba_install")
     b24_data = request.session.get('b24_data')
     selected_portal = None
     if b24_data:

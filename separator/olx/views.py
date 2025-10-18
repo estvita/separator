@@ -12,7 +12,7 @@ def olx_accounts(request):
     connector_service = "olx"
     portals, instances, lines = bitrix_utils.get_instances(request, connector_service)
     if not instances:
-        user_message(request, "install_olx")
+        user_message(request, "olx_install")
 
     b24_data = request.session.get('b24_data')
     selected_portal = None

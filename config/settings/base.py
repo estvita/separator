@@ -22,18 +22,10 @@ CHATWOOT_ID = env("CHATWOOT_ID", default=1)
 FACEBOOK_API_URL = env("FACEBOOK_API_URL", default="https://graph.facebook.com")
 WABA_APP_ID = env("WABA_APP_ID", default=1)
 
-# ID APP INSTANCE ON VENDOR CRM
-VENDOR_BITRIX_INSTANCE = env("VENDOR_BITRIX_INSTANCE", default="")
-
-# поле для проверки контакта из маркета Б24
-FROM_MARKET_FIELD = env("FROM_MARKET_FIELD", default="UF_CRM_FROM_MARKET")
-
 BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
 BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
 
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
-
-WAWEB_SYTEM_ID = env("WAWEB_SYTEM_ID", default="")
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -281,7 +273,7 @@ EMAIL_TIMEOUT = 5
 # Django Admin URL.
 ADMIN_URL = "admin/"
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
-ADMINS = [("""Anton Gulin""", "sprtrbiz@gmail.com")]
+ADMINS = env.list("ADMINS", default=[("""Anton Gulin""", "sprtrbiz@gmail.com")])
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
 # https://cookiecutter-django.readthedocs.io/en/latest/settings.html#other-environment-settings

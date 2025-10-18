@@ -82,8 +82,8 @@ class AdminMessageAdmin(admin.ModelAdmin):
 
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
-    list_display = ("name", "id", "autologin", "client_id", "site")
-    search_fields = ("name", "id", "client_id")
+    list_display = ("name", "client_id", "site", "owner")
+    search_fields = ("name", "id", "client_id", "owner__email")
     autocomplete_fields = ['owner']
     list_filter = ('autologin', 'asterx', 'imopenlines_auto_finish')
     list_per_page = 30

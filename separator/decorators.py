@@ -1,14 +1,19 @@
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.conf import settings
+from django.contrib.sites.models import Site
 from separator.users.models import Message
 
 
-def user_message(request, code=None):
+def user_message(request, code=None, message_type='info'):
     if code:
-        message = Message.objects.filter(code=code).first()
+        host = request.get_host().split(':')[0]
+        site = Site.objects.filter(domain=host).first()
+        message = Message.objects.filter(code=code, site=site).first()
         if message:
-            messages.warning(request, message.message)
+            msg_func = getattr(messages, message_type, messages.warning)
+            msg_func(request, message.message)
+
 
 def login_message_required(code=None):
     def decorator(view_func):

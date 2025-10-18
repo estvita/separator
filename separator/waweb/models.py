@@ -11,6 +11,7 @@ class Server(models.Model):
     groups_ignore = models.BooleanField(default=True)
     always_online = models.BooleanField(default=False)
     read_messages = models.BooleanField(default=False)
+    sync_history = models.BooleanField(default=True)
 
     def __str__(self):
         return self.url

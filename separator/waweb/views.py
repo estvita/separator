@@ -9,12 +9,11 @@ from django.db.models import Count, Q, F
 from django.utils import timezone
 import separator.bitrix.utils as bitrix_utils
 
-from separator.users.models import Message
 from separator.decorators import login_message_required, user_message
 
 from .models import Session, Server
 from .forms import SendMessageForm
-from .tasks import send_message_task
+from .tasks import send_message
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
@@ -42,7 +41,7 @@ def wa_sessions(request):
         )
 
     if not instances:
-        user_message(request, "install_waweb")
+        user_message(request, "waweb_install")
     
     if request.method == "POST":
         # days поле
@@ -103,6 +102,7 @@ def create_instance(session):
         "alwaysOnline": server.always_online,
         "groupsIgnore": server.groups_ignore,
         "readMessages": server.read_messages,
+        "syncFullHistory": server.sync_history,
     }
 
     try:
@@ -217,9 +217,7 @@ def qr_code_page(request, session_id):
         redis_client.set(f"public_qr:{session_id}", public_id, ex=LINK_TTL)
         redis_client.set(f"public_qr:{public_id}", str(session_id), ex=LINK_TTL)    
 
-    message = Message.objects.filter(code="waweb_instruction").first()
-    if message:
-        messages.info(request, message.message)
+    user_message(request, "waweb_instruction")
     return render(request, 'waweb/qr_code.html', {
         'qr_image': qr_image,
         'request': request,
@@ -240,9 +238,7 @@ def share_qr(request, public_id):
     qr_image = get_gr(request, session)
     if not qr_image:
         return redirect('waweb')
-    message = Message.objects.filter(code="waweb_instruction").first()
-    if message:
-        messages.info(request, message.message)
+    user_message(request, "waweb_instruction")
     return render(request, 'waweb/qr_code.html', {
         'qr_image': qr_image,
         'request': request,
@@ -267,8 +263,8 @@ def send_message_view(request, session_id):
             recipients_raw = form.cleaned_data['recipients']
             message = form.cleaned_data['message']
             recipients = [line.strip() for line in recipients_raw.splitlines() if line.strip()]
-            
-            send_message_task.delay(str(session.session), recipients, message)
+            for recipient in recipients:
+                send_message.delay(session.session, recipient, message)
             
             messages.success(request, "Задача на отправку сообщений создана.")
             return redirect('waweb')

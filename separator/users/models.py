@@ -1,6 +1,7 @@
 from django.db import models
 from typing import ClassVar
 
+from django.contrib.sites.models import Site
 from django.contrib.auth.models import AbstractUser
 from django.db.models import CharField
 from django.db.models import EmailField
@@ -44,6 +45,8 @@ class User(AbstractUser):
     
 
 class Message(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    site = models.ForeignKey(Site, on_delete=models.SET_NULL, related_name="messages", blank=True, null=True)
     code = models.CharField(max_length=255)
     message = models.TextField()
 

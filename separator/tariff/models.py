@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.sites.models import Site
 
 class Service(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -22,6 +23,7 @@ class Tariff(models.Model):
         ("KZT", "Тенге"),
     ]
 
+    site = models.ForeignKey(Site, on_delete=models.SET_NULL, related_name="tariffs", blank=True, null=True)
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="tariffs", blank=True, null=True)
     is_trial = models.BooleanField(default=False)
     price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)

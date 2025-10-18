@@ -4,8 +4,10 @@ from wagtail.models import (
     PreviewableMixin,
     RevisionMixin,
     TranslatableMixin,
-    Page, Site
+    Page
 )
+from wagtail.models import Site as WagtailSite
+from django.contrib.sites.models import Site as DjangoSite
 from wagtail.fields import (
     RichTextField,
     StreamField,
@@ -74,8 +76,10 @@ class TariffPage(Page):
 
     def get_context(self, request):
         context = super().get_context(request)
-        context["tariffs"] = Tariff.objects.all()
-        context["services"] = Service.objects.all()
+        wagtail_site = WagtailSite.find_for_request(request)
+        django_site = DjangoSite.objects.get(domain=wagtail_site.hostname)
+        context["tariffs"] = Tariff.objects.filter(site=django_site)
+        context["services"] = Service.objects.filter(tariffs__site=django_site).distinct()
         return context
 
 
@@ -87,7 +91,7 @@ class FooterText(
     TranslatableMixin,
     models.Model,
 ):
-    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name="footer_text")
+    site = models.OneToOneField(WagtailSite, on_delete=models.CASCADE, related_name="footer_text")
     body = StreamField([
         ("text", RichTextBlock()),
     ], blank=True, use_json_field=True)

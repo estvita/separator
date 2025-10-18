@@ -17,7 +17,6 @@ logger = logging.getLogger("django")
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-FROM_MARKET_FIELD = settings.FROM_MARKET_FIELD
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def call_api(self, id, method, payload, b24_user=None):
@@ -211,22 +210,17 @@ def create_deal(app_instance_id, vendor_inst_id, app_name):
         "FILTER": {
             "EMAIL": user_email
         },
-        "select": [FROM_MARKET_FIELD]
     }
     client_data = call_method(venrot_instance, "crm.contact.list", payload)
     if "result" in client_data:
         client_data = client_data.get("result", [])
         if client_data:
-            from_market = client_data[0].get(FROM_MARKET_FIELD)
-            if from_market == "1":
-                raise Exception("user from market")
             user_id = client_data[0].get("ID")
     if not user_id:        
         contact_data = {
             "fields": {
                 "NAME": user_data.get("NAME"),
                 "LAST_NAME": user_data.get("LAST_NAME"),
-                FROM_MARKET_FIELD: "1",
                 "EMAIL": [
                     {
                         "VALUE": user_email,

@@ -8,7 +8,7 @@ from django.forms import ModelForm, modelformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from separator.users.models import Message
+from separator.decorators import user_message
 from separator.asterx.models import Server, Context, Settings
 from separator.bitrix.models import User as BitrixUser, Credential, AppInstance, Bitrix
 
@@ -129,10 +129,8 @@ def server_list(request):
     #     servers = Server.objects.filter(owner=request.user, settings=portal_settings)
     # else:
     servers = Server.objects.filter(owner=request.user)
+    user_message(request, "asterx_info")
 
-    message = Message.objects.filter(code="asterx").first()
-    if message:
-        messages.info(request, message.message)
     return render(
         request,
         "asterx/list.html",

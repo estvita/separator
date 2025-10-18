@@ -43,6 +43,7 @@ class App(models.Model):
     connectors = models.ManyToManyField(Connector, blank=True, related_name='apps')
     imopenlines_auto_finish = models.BooleanField(default=False, help_text="Enable auto finish chat")
     asterx = models.BooleanField(default=False, help_text="Chek for AsterX connector")
+    vendor = models.BooleanField(default=False, help_text="Chek for Separator partner App")
     client_id = models.CharField(max_length=255, blank=True, unique=False)
     client_secret = models.CharField(max_length=255, blank=True)
 

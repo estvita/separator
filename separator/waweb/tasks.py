@@ -35,6 +35,7 @@ def send_message(session_id, recipient, content, cont_type="string"):
             url = f"{server.url}message/sendText/{session_id}"
             resp = requests.post(url, json=payload, headers=headers)
         elif cont_type == "media":
+            content = utils.download_file(content)
             url = f"{server.url}message/sendMedia/{session_id}"
             mimetype = content.get("mimetype", "")
             base_type = mimetype.split('/')[0]
@@ -58,14 +59,6 @@ def send_message(session_id, recipient, content, cont_type="string"):
 
     except Exception as e:
         raise
-
-
-@shared_task(queue='waweb')
-def send_message_task(session_id, recipients, content, cont_type="string"):
-    if cont_type == "media":
-        content = utils.download_file(content)
-    for recipient in recipients:
-        send_message.delay(session_id, recipient, content, cont_type)
 
 
 @shared_task(queue='waweb')
@@ -297,6 +290,8 @@ def event_processor(event_data):
                 if fromme:
                     file_url = None
                     source = data.get("source", "")
+                    if source in (None, "unknown"):
+                        source = ""
                     from_app = f"[B]Отправлено из WhatsApp {source}[/B][BR]"
                     file_id = upload_file.get("ID", None) if download_url else None
                     if file_id:

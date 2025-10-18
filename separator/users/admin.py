@@ -138,5 +138,5 @@ class UserAdmin(*bases):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ("code", "id")
+    list_display = ("id", "code", "owner", "site")
     list_per_page = 30

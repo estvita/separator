@@ -67,7 +67,7 @@ class EventsHandler(GenericViewSet):
             
             if attachments:
                 for attachment in attachments:
-                    tasks.send_message_task.delay(str(session.session), [phone_number], attachment, 'media')
+                    tasks.send_message.delay(session.session, phone_number, attachment, 'media')
                 return Response({'message': 'All files sent successfully'})
 
         return Response({'message': f'Session {session_id} authorized'})

@@ -38,7 +38,7 @@ msgid "Find a manager in Bitrix and connect with him"
 msgstr "Искать отвественного менеджера и соединять с ним"
 
 msgid "My PBX"
-msgstr "Мои АТС"
+msgstr "АТС"
 
 msgid "Exclude"
 msgstr "Исключить"

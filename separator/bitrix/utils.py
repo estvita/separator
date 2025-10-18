@@ -33,7 +33,6 @@ if settings.ASTERX_SERVER:
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-VENDOR_BITRIX_INSTANCE = settings.VENDOR_BITRIX_INSTANCE
 
 logger = logging.getLogger("django")
 
@@ -439,8 +438,11 @@ def event_processor(data):
                     from separator.asterx.views import get_portal_settings
                     get_portal_settings(member_id)
 
-                if VENDOR_BITRIX_INSTANCE:
-                    bitrix_tasks.create_deal.delay(appinstance.id, VENDOR_BITRIX_INSTANCE, app.name)
+                # если приложение интегратора и есть партнерское приложение
+                # создать сделку на его портале
+                vendor_instance = AppInstance.objects.filter(owner=app.owner, app__vendor=True).first()
+                if vendor_instance:
+                    bitrix_tasks.create_deal.delay(appinstance.id, vendor_instance.id, app.name)
 
                 # Если портал уже прявязан
                 if portal.owner:
@@ -554,7 +556,7 @@ def event_processor(data):
                     wa = Session.objects.get(line=line)
                     if files:
                         for file in files:
-                            waweb_tasks.send_message_task.delay(str(wa.session), [chat], file, 'media')
+                            waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
                     else:
                         waweb_tasks.send_message.delay(wa.session, chat, text)
                 except Exception as e:

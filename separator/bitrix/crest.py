@@ -1,12 +1,10 @@
+import logging
+import requests
 from urllib.parse import urlparse
 from django.utils import timezone
-import logging
 
-import requests
 from django.db import transaction
 from django.conf import settings
-from separator.waweb.tasks import send_message_task
-from separator.users.models import Message
 
 from .models import AppInstance, Credential, User
 
@@ -53,7 +51,6 @@ def call_method(appinstance: AppInstance,
         if response.status_code == 302 and not attempted_refresh:
             new_url = response.headers['Location']
             parsed_url = urlparse(new_url)
-            portal = appinstance.portal
             domain = parsed_url.netloc
             if portal.domain != domain:
                 portal.domain = domain
@@ -63,35 +60,29 @@ def call_method(appinstance: AppInstance,
             return call_method(appinstance, b24_method, data, attempted_refresh=True)
 
         elif response.status_code == 200:
-            appinstance.attempts = 0
-            appinstance.save()
+            if appinstance.attempts != 0:
+                appinstance.attempts = 0
+                appinstance.save()
+            if portal.license_expired:
+                portal.license_expired = False
+                portal.save()
             return response.json()
 
         else:
             if response.status_code == 401:
                 resp = response.json()
                 error = resp.get("error", "")
-                error_description = resp.get("error_description", "")
-                if "REST is available only on commercial plans" in error_description and not appinstance.portal.license_expired:
-                    appinstance.portal.license_expired = True
-                    appinstance.portal.save()
-                    waweb_id = settings.WAWEB_SYTEM_ID
-                    if waweb_id and appinstance.owner.phone_number:
-                        try:
-                            notification = Message.objects.get(code="b24_expired")
-                            send_message_task.delay(waweb_id, [str(appinstance.owner.phone_number)], notification.message)
-                        except Message.DoesNotExist:
-                            pass
-                    raise Exception("b24 license expired")
-                
-                if error == "expired_token" and not attempted_refresh:
+                if error == "ACCESS_DENIED" and not portal.license_expired:
+                    portal.license_expired = True
+                    portal.save()                
+                elif error == "expired_token" and not attempted_refresh:
                     refreshed = refresh_token(credential)
                     if refreshed:
                         return call_method(appinstance, b24_method, data, attempted_refresh=True)
                     else:
                         last_exc = Exception(f"Token refresh failed for user {b24_user.user_id} in portal {portal.domain}")
                         continue
-                if error == "authorization_error":
+                elif error == "authorization_error":
                     b24_user.active = False
                     b24_user.save()
                     last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
