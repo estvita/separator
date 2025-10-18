@@ -23,7 +23,6 @@ FACEBOOK_API_URL = env("FACEBOOK_API_URL", default="https://graph.facebook.com")
 WABA_APP_ID = env("WABA_APP_ID", default=1)
 
 BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
-BITRIX_CHECK_APP_ATTEMTS = env("BITRIX_CHECK_APP_ATTEMTS", default=10)
 
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 

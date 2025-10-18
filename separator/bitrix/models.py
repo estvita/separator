@@ -98,7 +98,6 @@ class AppInstance(models.Model):
     application_token = models.CharField(max_length=255, blank=True)
     storage_id = models.CharField(max_length=255, blank=True)
     status = models.IntegerField(default=0, blank=True)
-    attempts = models.IntegerField(default=0, blank=True)
 
     def __str__(self):
         return f"{self.app.name} on {self.portal.domain}"
@@ -115,9 +114,9 @@ class Credential(models.Model):
 
 
 class AdminMessage(models.Model):
+    app = models.ForeignKey(App, on_delete=models.SET_NULL, related_name="messages", blank=True, null=True)
     app_instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE, related_name='messages',
                                      null=True, blank=True)
-    app_users = models.ManyToManyField(User, related_name='messages')
     message = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
 

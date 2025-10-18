@@ -9,8 +9,8 @@ import separator.bitrix.tasks as bitrix_tasks
 class AppInstanceInline(admin.TabularInline):
     model = AppInstance
     autocomplete_fields = ['owner']
-    fields = ('instance_link', 'app', 'owner', 'auth_status', 'status', 'attempts')
-    readonly_fields = ('instance_link', 'app', 'owner', 'auth_status', 'status', 'attempts')
+    fields = ('instance_link', 'app', 'owner', 'auth_status', 'status')
+    readonly_fields = ('instance_link', 'app', 'owner', 'auth_status', 'status')
     extra = 0
     can_delete = False
 
@@ -38,46 +38,32 @@ class UserInline(admin.TabularInline):
 
 
 class AdminMessageAdmin(admin.ModelAdmin):
-    list_display = ('sent_at', 'message', 'app_instance')
-    fields = ('app_instance', 'app_users', 'message')
-    autocomplete_fields = ['app_instance']
+    list_display = ('sent_at', 'message')
+    fields = ('app', 'app_instance', 'message')
+    autocomplete_fields = ['app_instance', 'app']
     list_per_page = 30
 
-    def formfield_for_manytomany(self, db_field, request, **kwargs):
-        if db_field.name == "app_users":
-            obj_id = request.resolver_match.kwargs.get("object_id")
-            app_instance_id = None
-
-            if request.method == "POST":
-                data = request.POST
-                app_instance_id = data.get("app_instance")
-            elif obj_id:
-                app_instance_id = AdminMessage.objects.filter(pk=obj_id).values_list('app_instance', flat=True).first()
-
-            if app_instance_id:
-                try:
-                    app_instance = AppInstance.objects.get(pk=app_instance_id)
-                    kwargs["queryset"] = User.objects.filter(bitrix=app_instance.portal)
-                except AppInstance.DoesNotExist:
-                    kwargs["queryset"] = User.objects.none()
-            else:
-                kwargs["queryset"] = User.objects.none()
-
-        return super().formfield_for_manytomany(db_field, request, **kwargs)
+    def send_to_instance(self, instance, message):
+        users = User.objects.filter(bitrix=instance.portal)
+        for user in users:
+            payload = {'USER_ID': user.user_id, 'MESSAGE': message}
+            bitrix_tasks.call_api.delay(instance.id, "im.notify.system.add", payload, b24_user=user.id)
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
+        message = form.cleaned_data['message']
+        app = obj.app
         app_instance = obj.app_instance
-        app_users = form.cleaned_data.get('app_users')
-        message = form.cleaned_data.get('message')
 
-        for app_user in app_users:
-            user_id = app_user.id
-            payload = {
-                'USER_ID': user_id,
-                'MESSAGE': message,
-            }
-            bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload, b24_user=user_id)
+        if app:
+            for instance in AppInstance.objects.filter(app=app):
+                self.send_to_instance(instance, message)
+        elif app_instance:
+            self.send_to_instance(app_instance, message)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return form
 
 
 @admin.register(App)
@@ -106,10 +92,10 @@ class CredentialInline(admin.TabularInline):
 class AppInstanceAdmin(admin.ModelAdmin):
     inlines = [CredentialInline]
     autocomplete_fields = ['owner']
-    list_display = ("app", "owner", "portal_link", "status", "attempts")
+    list_display = ("app", "owner", "portal_link", "status")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
     readonly_fields = ("auth_status", "storage_id", "application_token", 
-                       "status", "attempts")
+                       "status")
     list_filter = ("app", "status", "auth_status")
     list_per_page = 30
 

@@ -43,7 +43,7 @@ def upd_refresh_token(period):
 def get_app_info():
     app_instances = AppInstance.objects.all()
     for app_instance in app_instances:
-        if app_instance.attempts < settings.BITRIX_CHECK_APP_ATTEMTS:
+        if not app_instance.portal.license_expired:
             call_api.delay(app_instance.id, "app.info", {})
 
 

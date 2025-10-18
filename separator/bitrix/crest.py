@@ -42,6 +42,7 @@ def call_method(appinstance: AppInstance,
             response = requests.post(f"{endpoint}{b24_method}", json=payload,
                                     allow_redirects=False, verify=verify)
             appinstance.status = response.status_code
+            appinstance.save()
         except requests.exceptions.SSLError:
             if verify:
                 return call_method(appinstance, b24_method, data, attempted_refresh, verify=False)
@@ -55,14 +56,9 @@ def call_method(appinstance: AppInstance,
             if portal.domain != domain:
                 portal.domain = domain
                 portal.save()
-            appinstance.attempts = 0
-            appinstance.save()
             return call_method(appinstance, b24_method, data, attempted_refresh=True)
 
         elif response.status_code == 200:
-            if appinstance.attempts != 0:
-                appinstance.attempts = 0
-                appinstance.save()
             if portal.license_expired:
                 portal.license_expired = False
                 portal.save()
@@ -93,8 +89,6 @@ def call_method(appinstance: AppInstance,
             last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
                             f"status {response.status_code}, response: {response.json()}")
             
-    appinstance.attempts += 1
-    appinstance.save()
     if last_exc:
         raise Exception(f"{last_exc} method: {b24_method} data:{data}")
     raise Exception("No active users for portal")
