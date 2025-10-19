@@ -7,7 +7,13 @@ Video tutorial (based on previous version) - https://youtu.be/ti99AeGAr4k
 + In the Sites section, rename example.com to the domain through which separator will be accessed
 + In Bitrix > Connectors section, add a connector with an SVG icon
 + Bitrix > Apps - add an app. Enter the name (waba, waweb, olx) and select a domain, choose the necessary connectors
-+ For applications with connectors, add events to the events field one by one in the line ONAPPUNINSTALL, ONIMCONNECTORMESSAGEADD, ONIMCONNECTORLINEDELETE, ONIMCONNECTORSTATUSDELETE
++ For applications with connectors, add events to the events field one by one in the line
+```
+ ONAPPUNINSTALL
+ ONIMCONNECTORMESSAGEADD
+ ONIMCONNECTORLINEDELETE
+ ONIMCONNECTORSTATUSDELETE
+ ```
 + Fill in the "Page url" field with a link to the application settings page. For example (/waweb/, /waba/), this page will open in Bitrix24 when using web interface installation.
 
 **#### Preparing the application in Bitrix24**
@@ -29,21 +35,12 @@ In the local application's settings in Bitrix24, in addition to previous steps:
 
 **### Installing the application without a web interface**
 
-+ In the admin panel, create a token
 
-![separator user token](img/token.png)
-
-+ After saving the record, copy the Id displayed in the list of applications.
-
-In the local application's settings in Bitrix24, in addition to previous steps:
-
-+ In the "Your handler path" field -  https://example.com/api/bitrix/?api-key=XXXXXXX&app-id=YYYYYYY
-+ In the "Initial installation path" field - https://example.com/api/bitrix/?api-key=XXXXXXX
++ In the "Your handler path" field -  https://example.com/api/bitrix/
++ In the "Initial installation path" field - https://example.com/api/bitrix/
 + Check the "Uses API only" checkbox
-
-where XXXXXXX is your token, YYYYYYY is the app id from the previous step
-
-+ Click "Install", then paste the obtained client_id and client_secret into the relevant fields in the application on the separator server
++ Click "Save", then paste the obtained client_id and client_secret into the relevant fields in the application on the separator server
++ After Click "Reinstall" button in b24 local app
 + In Bitrix in the "Contact Center" section, connectors should appear
 
 ![alt text](img/olx-connector.png)
