@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     "modelcluster",
     "taggit",
     "wagtailcodeblock",
+    "wagtail.contrib.typed_table_block",
     "hijack",
     "hijack.contrib.admin",
     "separator.home",

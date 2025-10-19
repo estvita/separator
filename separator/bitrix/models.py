@@ -100,7 +100,9 @@ class AppInstance(models.Model):
     status = models.IntegerField(default=0, blank=True)
 
     def __str__(self):
-        return f"{self.app.name} on {self.portal.domain}"
+        app_name = self.app.name if self.app else "—"
+        portal_domain = self.portal.domain if self.portal else "—"
+        return f"{app_name} on {portal_domain}"
 
 
 class Credential(models.Model):

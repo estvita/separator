@@ -7,10 +7,6 @@
     <h2>{{ page.title }}</h2>
 
     {% for block in page.body %}
-        {% if block.block_type == "rich_text" %}
-            <div>{{ block.value|richtext }}</div>
-        {% elif block.block_type == "code" %}
-            {% include_block block %}
-        {% endif %}
+        {% include_block block %}
     {% endfor %}
 {% endblock %}

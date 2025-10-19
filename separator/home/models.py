@@ -16,9 +16,10 @@ from wagtail.admin.panels import (
     FieldPanel,
     PublishingPanel,
 )
-
+from wagtail.contrib.typed_table_block.blocks import TypedTableBlock
 from wagtail.snippets.models import register_snippet
-from wagtail.blocks import RichTextBlock
+from wagtail import blocks
+from wagtail.images.blocks import ImageChooserBlock
 from wagtailcodeblock.blocks import CodeBlock
 
 from separator.tariff.models import Tariff, Service
@@ -42,8 +43,14 @@ class HomePage(Page):
 class ArticlePage(Page):
     menu_title = models.CharField(blank=True, max_length=150)
     body = StreamField([
-        ("rich_text", RichTextBlock()),
+        ("rich_text", blocks.RichTextBlock()),
         ("code", CodeBlock(label="Code")),
+        ("table", TypedTableBlock([
+            ('text', blocks.CharBlock()),
+            ('numeric', blocks.FloatBlock()),
+            ('rich_text', blocks.RichTextBlock()),
+            ('image', ImageChooserBlock())
+        ])),
     ], blank=True)
 
     content_panels = Page.content_panels + [
@@ -60,7 +67,7 @@ class ArticlePage(Page):
 class TariffPage(Page):
     menu_title = models.CharField(blank=True, max_length=150)
     body = StreamField([
-        ("rich_text", RichTextBlock()),
+        ("rich_text", blocks.RichTextBlock()),
     ], blank=True)
 
     content_panels = Page.content_panels + [
@@ -93,7 +100,7 @@ class FooterText(
 ):
     site = models.OneToOneField(WagtailSite, on_delete=models.CASCADE, related_name="footer_text")
     body = StreamField([
-        ("text", RichTextBlock()),
+        ("text", blocks.RichTextBlock()),
     ], blank=True, use_json_field=True)
     panels = [
         FieldPanel("site"),
