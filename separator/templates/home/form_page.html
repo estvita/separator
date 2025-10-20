@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load wagtailcore_tags %}
+{% load crispy_forms_tags %}
+{% block body_class %}template-formpage{% endblock %}
+{% block content %}
+    <h2>{{ page.title }}</h2>
+    {% if page.intro %}
+        {{ page.intro|richtext }}
+    {% endif %}
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+                <form action="{% pageurl page %}" method="POST">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

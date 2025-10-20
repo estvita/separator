@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load wagtailcore_tags %}
+
+{% block body_class %}template-formpage-landing{% endblock %}
+
+{% block content %}
+    <h2>{{ page.title }}</h2>
+    {% if page.thank_you_text %}
+        {{ page.thank_you_text|richtext }}
+    {% else %}
+        <p>{% trans "Thank you, message sent" %}</p>
+    {% endif %}
+{% endblock %}

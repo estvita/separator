@@ -555,8 +555,12 @@ def event_processor(data):
                     line = Line.objects.get(line_id=line_id, app_instance=appinstance)
                     wa = Session.objects.get(line=line)
                     if files:
-                        for file in files:
-                            waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
+                        if not appinstance.fileAsUrl:
+                            for file in files:
+                                waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
+                        else:
+                            msg = '\n'.join([f"{f['name']}: {f['link']}" for f in files])
+                            waweb_tasks.send_message.delay(str(wa.session), chat, msg)
                     else:
                         waweb_tasks.send_message.delay(wa.session, chat, text)
                 except Exception as e:
