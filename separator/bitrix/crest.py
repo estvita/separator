@@ -86,8 +86,8 @@ def call_method(appinstance: AppInstance,
             continue
         elif response.status_code == 403:
             try:
-                data = response.json()
-                last_exc = Exception(f"Access error: instance {appinstance.id} {data}")
+                resp_data = response.json()
+                last_exc = Exception(f"Access error: instance {appinstance.id} {resp_data}")
                 continue
             except ValueError:
                 last_exc = Exception(f"Access error: instance {appinstance.id} {response.text}")
