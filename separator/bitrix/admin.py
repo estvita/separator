@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import App, AppInstance, Bitrix, Line, AdminMessage, Connector, User, Credential
+from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Messageservice
 import separator.bitrix.tasks as bitrix_tasks
 
 
@@ -37,7 +37,34 @@ class UserInline(admin.TabularInline):
     user_link.short_description = "User"
 
 
-class AdminMessageAdmin(admin.ModelAdmin):
+class CredentialInline(admin.TabularInline):
+    model = Credential
+    fk_name = 'app_instance'
+    extra = 0
+    fields = ('credential', 'user')
+    readonly_fields = ('credential', 'user')
+    def credential(self, obj):
+        if obj.pk:
+            url = reverse("admin:bitrix_credential_change", args=[obj.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.pk)
+        return "-"
+
+
+class CredentialUserInline(admin.TabularInline):
+    model = Credential
+    fk_name = 'user'
+    extra = 0
+    fields = ('credential', 'app_instance')
+    readonly_fields = ('credential', 'app_instance')
+
+    def credential(self, obj):
+        if obj.pk:
+            url = reverse("admin:bitrix_credential_change", args=[obj.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.pk)
+        return "-"
+    
+@admin.register(ImNotify)
+class ImNotifyAdmin(admin.ModelAdmin):
     list_display = ('sent_at', 'message')
     fields = ('app', 'app_instance', 'message')
     autocomplete_fields = ['app_instance', 'app']
@@ -75,17 +102,21 @@ class AppAdmin(admin.ModelAdmin):
     list_per_page = 30
 
 
-class CredentialInline(admin.TabularInline):
-    model = Credential
-    fk_name = 'app_instance'
-    extra = 0
-    fields = ('credential', 'user')
-    readonly_fields = ('credential', 'user')
-    def credential(self, obj):
-        if obj.pk:
-            url = reverse("admin:bitrix_credential_change", args=[obj.pk])
-            return format_html('<a href="{}">{}</a>', url, obj.pk)
-        return "-"
+@admin.register(Connector)
+class ConnectorAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "service")
+    list_per_page = 30
+
+
+@admin.register(Bitrix)
+class BitrixAdmin(admin.ModelAdmin):
+    inlines = [UserInline, AppInstanceInline]    
+    autocomplete_fields = ['owner']
+    list_display = ("domain", "owner", "license_expired")
+    search_fields = ("domain", "member_id")
+    fields = ("protocol", "domain", "owner", "member_id", "license_expired")
+    list_filter = ('license_expired', 'imopenlines_auto_finish')
+    list_per_page = 30
 
 
 @admin.register(AppInstance)
@@ -107,28 +138,21 @@ class AppInstanceAdmin(admin.ModelAdmin):
     portal_link.short_description = "Portal"
 
 
-@admin.register(Bitrix)
-class BitrixAdmin(admin.ModelAdmin):
-    inlines = [UserInline, AppInstanceInline]    
+@admin.register(Line)
+class LineAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
-    list_display = ("domain", "owner", "license_expired")
-    search_fields = ("domain", "member_id")
-    fields = ("protocol", "domain", "owner", "member_id", "license_expired")
-    list_filter = ('license_expired', 'imopenlines_auto_finish')
+    list_display = ("line_id", "app_instance", "owner")
+    search_fields = ("line_id",)
     list_per_page = 30
 
-class CredentialUserInline(admin.TabularInline):
-    model = Credential
-    fk_name = 'user'
-    extra = 0
-    fields = ('credential', 'app_instance')
-    readonly_fields = ('credential', 'app_instance')
 
-    def credential(self, obj):
-        if obj.pk:
-            url = reverse("admin:bitrix_credential_change", args=[obj.pk])
-            return format_html('<a href="{}">{}</a>', url, obj.pk)
-        return "-"
+@admin.register(Messageservice)
+class MessageserviceAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['portal', 'wa_web', 'wa_cloud']
+    search_fields = ['portal__domain', 'id', 'code', 'name']
+    list_display = ['id', 'code', 'name', 'portal']
+    list_per_page = 30
+
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -149,19 +173,3 @@ class UserAdmin(admin.ModelAdmin):
 class CredentialAdmin(admin.ModelAdmin):
     list_display = ("id", "app_instance", "user", "refresh_date")
     list_per_page = 30
-
-
-@admin.register(Connector)
-class ConnectorAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "service")
-    list_per_page = 30
-
-@admin.register(Line)
-class LineAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['owner']
-    list_display = ("line_id", "app_instance", "owner")
-    search_fields = ("line_id",)
-    list_per_page = 30
-
-
-admin.site.register(AdminMessage, AdminMessageAdmin)

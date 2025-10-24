@@ -499,7 +499,7 @@ def event_processor(data):
                 time.sleep(1)
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
-            text = data.get("data[MESSAGES][0][message][text]", None)
+            text = data.get("data[MESSAGES][0][message][text]", "")
             if text:
                 excludes_raw = appinstance.exclude or ''
                 excludes = [e.strip() for e in excludes_raw.split(",") if e.strip()]
@@ -511,7 +511,11 @@ def event_processor(data):
             files = []
             if file_type:
                 files = extract_files(data)
-
+            if appinstance.fileAsUrl:
+                msg = '\n'.join([f"{f['name']}: {f['link']}" for f in files])
+                text = f"{text} {msg}"
+                files = []
+            
             # If WABA connector
             if connector.service == "waba":
                 message = {
@@ -555,12 +559,7 @@ def event_processor(data):
                     line = Line.objects.get(line_id=line_id, app_instance=appinstance)
                     wa = Session.objects.get(line=line)
                     if files:
-                        if not appinstance.fileAsUrl:
-                            for file in files:
-                                waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
-                        else:
-                            msg = '\n'.join([f"{f['name']}: {f['link']}" for f in files])
-                            waweb_tasks.send_message.delay(str(wa.session), chat, msg)
+                        waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
                     else:
                         waweb_tasks.send_message.delay(wa.session, chat, text)
                 except Exception as e:
