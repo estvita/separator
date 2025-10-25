@@ -559,7 +559,8 @@ def event_processor(data):
                     line = Line.objects.get(line_id=line_id, app_instance=appinstance)
                     wa = Session.objects.get(line=line)
                     if files:
-                        waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
+                        for file in files:
+                            waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
                     else:
                         waweb_tasks.send_message.delay(wa.session, chat, text)
                 except Exception as e:
