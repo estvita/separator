@@ -129,6 +129,11 @@ def add_waba_phone(request_id):
                         except Inbox.MultipleObjectsReturned:
                             raise Exception(f"Multiple Inboxes found for owner {user} and id {result['inbox_id']}")
                         
+            # subscribed_apps
+            try:
+                utils.call_api(endpoint=f"{waba_id}/subscribed_apps", method="post")
+            except Exception:
+                raise
 
 @shared_task(queue='waba')
 def send_message(template, recipients, phone_id):
