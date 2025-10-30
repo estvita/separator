@@ -1,6 +1,8 @@
 from django.contrib import admin, messages
 from django.db import transaction, models
 from django import forms
+from django.utils.html import format_html
+from django.urls import reverse
 import separator.bitrix.utils as bitrix_utils
 from separator.bitrix.models import AppInstance, Line
 
@@ -11,11 +13,25 @@ from .tasks import call_management
 class AppAdmin(admin.ModelAdmin):
     list_display = ("client_id", "verify_token", "api_version", "sip_server")
 
+class TemplateInline(admin.TabularInline):
+    model = Template
+    extra = 0
+    fields = ("template_link", "lang", "status", "owner")
+    readonly_fields = ("template_link", "lang", "status", "owner")
+
+    def template_link(self, instance):
+        if not instance.pk:
+            return "-"
+        url = reverse("admin:waba_template_change", args=[instance.pk])
+        return format_html('<a href="{}">{}</a>', url, instance.name)
+
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
     list_display = ("waba_id", "owner")
+    search_fields = ["waba_id", "owner__email"]
     list_per_page = 30
+    inlines = [TemplateInline]
 
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):

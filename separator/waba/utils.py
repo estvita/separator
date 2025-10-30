@@ -151,13 +151,15 @@ def message_template_status_update(entry):
 
     elif event == 'PENDING_DELETION':
         try:
-            template = Template.objects.get(id=template_id)
-            template.status = event
-            template.save()
+            template = Template.objects.filter(id=template_id, waba__waba_id=waba_id).first()
+            if template:
+                template.delete()
         except Template.DoesNotExist:
-            return Response({"error": "Template not found"})
+            raise Exception(f"Template not found: {entry}")
 
-    return Response({"this event is handled"})
+    else:
+        raise Exception(entry)
+
 
 @shared_task(queue='waba')
 def event_processing(data):
@@ -175,7 +177,6 @@ def event_processing(data):
         try:
             phone = Phone.objects.get(phone_id=phone_number_id)
         except Phone.DoesNotExist:
-            logger.error(f"Phone {phone_number} - {phone_number_id} not found")
             raise Exception(f"phone_number not found: {data}")
 
         if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
@@ -184,8 +185,21 @@ def event_processing(data):
 
     if field == 'message_template_status_update':
         return message_template_status_update(entry)
-    # elif field == 'account_update':
-    #     if event == "PHONE_NUMBER_ADDED"
+    elif field == 'account_update':
+        if event == "PHONE_NUMBER_REMOVED":
+            try:
+                phone_number = value.get("phone_number")
+                phone = Phone.objects.filter(phone=f"+{phone_number}", waba__waba_id=waba_id).first()
+                if phone:
+                    phone.delete()
+                    return(f"Phone {phone_number} deleted")
+                else:
+                    raise Exception(f"phone_number not found: {data}")
+            except Exception:
+                raise Exception(data)
+        else:
+            raise Exception(data)
+
     elif field == 'messages':
         if phone.date_end and timezone.now() > phone.date_end:
             raise Exception(f"phone tariff ended: {data}")

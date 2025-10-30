@@ -16,16 +16,18 @@
       <textarea class="form-control" id="recipient_phone" name="recipient_phone"
                 placeholder="{% trans 'Enter recipient phone numbers, one per line' %}" rows="4" required></textarea>
     </div>
-    <!-- Template selection field -->
     <div class="form-group">
       <label for="template">{% trans "Template" %} </label>
-      <select class="form-control" id="template" name="template">
+      <select class="form-control" id="template" name="template" {% if not templates %}disabled{% endif %}>
         {% for template in templates %}
           <option value="{{ template.id }}">{{ template }}</option>
         {% endfor %}
       </select>
+      {% if not templates %}
+        <small class="form-text text-danger">{% trans "Templates not found" %}</small>
+      {% endif %}
     </div>
-    <button type="submit" class="btn btn-primary mt-3">{% trans "Send" %}</button>
+    <button type="submit" class="btn btn-primary mt-3" {% if not templates %}disabled{% endif %}>{% trans "Send" %}</button>
   </form>
 
   <hr>
