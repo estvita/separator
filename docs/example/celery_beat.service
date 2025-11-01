@@ -3,9 +3,9 @@ Description=Celery Beat
 After=network.target
 
 [Service]
-User=root
-WorkingDirectory=/opt/separator
-ExecStart=/opt/separator/.venv/bin/celery -A config.celery_app beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+User=user
+WorkingDirectory=/home/user/separator
+ExecStart=/home/user/separator/.venv/bin/celery -A config.celery_app beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
 Restart=always
 
 [Install]

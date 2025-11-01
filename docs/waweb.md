@@ -7,10 +7,15 @@ Celery is required for the integration service.
 **### Integration Setup Process**
 
 + Run Evolution API according to the [instructions](https://doc.evolution-api.com/v2/en/get-started/introduction)
-+ Set the following variables in .env:
++ Set the following variables in Evolution API .env:
 ```
-WEBHOOK_GLOBAL_ENABLED=true
 WEBHOOK_GLOBAL_URL='http://separator.url/api/waweb/?api-key=XXXX'
+WEBHOOK_GLOBAL_ENABLED=true
+WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+WEBHOOK_EVENTS_APPLICATION_STARTUP=true
+WEBHOOK_EVENTS_MESSAGES_SET=true
+WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+WEBHOOK_EVENTS_CONNECTION_UPDATE=true
 AUTHENTICATION_API_KEY=YYY
 ```
 

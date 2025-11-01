@@ -4,11 +4,11 @@ After=network.target postgresql.service redis.service
 Requires=postgresql.service redis.service
 
 [Service]
-User=separator
-WorkingDirectory=/opt/separator/app
-EnvironmentFile=/opt/separator/app/.env
+User=user
+WorkingDirectory=/home/user/separator/app
+EnvironmentFile=/home/user/separator/app/.env
 Environment=DJANGO_SETTINGS_MODULE=config.settings.production
-ExecStart=/opt/separator/app/.venv/bin/daphne -b 0.0.0.0 -p 8000 config.asgi:application
+ExecStart=/home/user/separator/app/.venv/bin/daphne -b 0.0.0.0 -p 8000 config.asgi:application
 Restart=always
 
 [Install]

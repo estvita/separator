@@ -7,10 +7,15 @@
 **### Процесс настройки интеграции**
 
 + Запустите Evolution API согласно [инструкции](https://doc.evolution-api.com/v2/en/get-started/introduction).
-+ В .env установите переменные:
++ В .env Evolution API установите переменные:
 ```
-WEBHOOK_GLOBAL_ENABLED=true
 WEBHOOK_GLOBAL_URL='http://separator.url/api/waweb/?api-key=XXXX'
+WEBHOOK_GLOBAL_ENABLED=true
+WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+WEBHOOK_EVENTS_APPLICATION_STARTUP=true
+WEBHOOK_EVENTS_MESSAGES_SET=true
+WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+WEBHOOK_EVENTS_CONNECTION_UPDATE=true
 AUTHENTICATION_API_KEY=YYY
 ```
 

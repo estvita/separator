@@ -12,11 +12,10 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 + Python 3.12
 + PostgreSQL 16
-+ Redis Stack
++ [Redis Stack](https://redis.io/docs/latest/operate/oss_and_stack/install/archive/install-stack/)
 
 ```
 
-cd /opt
 git clone https://github.com/estvita/separator
 cd separator
 
@@ -25,9 +24,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements/production.txt
 
-cp docs/example/env_example .env
+cp docs/example/env.example .env
 nano .env
-заменить ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS на свои значения
+заменить DJANGO_ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS на свои значения
 заменить значение DATABASE_URL на свое значение (база psql должна быть предварительно создана)
 
 python manage.py migrate
@@ -54,7 +53,7 @@ sudo systemctl start celery_beat.service
 
 **## Обновление**
 ```
-cd /opt/separator
+cd separator
 git  pull
 source .venv/bin/activate
 python manage.py migrate

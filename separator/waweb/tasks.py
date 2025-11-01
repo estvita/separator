@@ -115,6 +115,13 @@ def event_processor(event_data):
         if state == "open":
             wuid = data.get("wuid")
             number = wuid.split("@")[0]
+            check_sessions = Session.objects.filter(phone=number).exclude(session=sessionid)
+            for other_session in check_sessions:
+                other_session.phone = None
+                other_session.save(update_fields=['phone'])
+                headers = {"apikey": other_session.server.api_key}
+                url = f"{other_session.server.url}instance/delete/{other_session.session}"
+                requests.delete(url, headers=headers)
             session.phone = number
 
             if not session.date_end and "separator.tariff" in settings.INSTALLED_APPS:

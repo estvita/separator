@@ -14,10 +14,9 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 + Python 3.12
 + PostgreSQL 16
-+ Redis Stack
++ [Redis Stack](https://redis.io/docs/latest/operate/oss_and_stack/install/archive/install-stack/)
 
 ```
-cd /opt 
 git clone https://github.com/estvita/separator
 cd separator
 
@@ -26,10 +25,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements/production.txt
 
-cp docs/example/env_example .env
+cp docs/example/env.example .env
 nano .env 
 
-replace ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
+replace DJANGO_ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
 Replace the value of DATABASE_URL with your own (the psql database must be created beforehand)
 
 python manage.py migrate 
@@ -58,7 +57,7 @@ The [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-
 ## Update
 
 ```
-cd /opt/separator
+cd separator
 git pull
 source .venv/bin/activate
 python manage.py migrate

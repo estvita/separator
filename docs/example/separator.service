@@ -7,11 +7,10 @@ Requires=separator.socket
 After=network.target
 
 [Service]
-User=root
-Group=root
-WorkingDirectory=/opt/separator
-Environment="PATH=/opt/separator/.venv/bin"
-ExecStart=/opt/separator/.venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/separator.sock config.wsgi:application
+User=user
+WorkingDirectory=/home/user/separator
+Environment="PATH=/home/user/separator/.venv/bin"
+ExecStart=/home/user/separator/.venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/separator.sock config.wsgi:application
 
 [Install]
 WantedBy=multi-user.target
