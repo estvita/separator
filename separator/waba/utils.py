@@ -133,7 +133,7 @@ def message_template_status_update(entry):
             try:
                 resp = call_api(waba, template_id)
                 temp_data = resp.json()
-                components = temp_data.get('components')[0]
+                components = temp_data.get('components')
             except Exception:
                 pass
 
@@ -311,7 +311,10 @@ def save_approved_templates(id):
             if template.get("status") == "APPROVED"
         ]
         if not any(t.get("name") == "hello_separator" for t in approved_templates):
-            sample_template(waba)
+            try:
+                sample_template(waba)
+            except:
+                pass
         
         for template in approved_templates:
             template_id = template.get("id")

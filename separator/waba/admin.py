@@ -16,8 +16,8 @@ class AppAdmin(admin.ModelAdmin):
 class TemplateInline(admin.TabularInline):
     model = Template
     extra = 0
-    fields = ("template_link", "lang", "status", "owner")
-    readonly_fields = ("template_link", "lang", "status", "owner")
+    fields = ("template_link", "lang", "status")
+    readonly_fields = ("template_link", "lang", "status")
 
     def template_link(self, instance):
         if not instance.pk:
@@ -25,13 +25,25 @@ class TemplateInline(admin.TabularInline):
         url = reverse("admin:waba_template_change", args=[instance.pk])
         return format_html('<a href="{}">{}</a>', url, instance.name)
 
+class PhoneInline(admin.TabularInline):
+    model = Phone
+    extra = 0
+    fields = ("phone_link", "phone_id")
+    readonly_fields = ("phone_link", "phone_id")
+
+    def phone_link(self, instance):
+        if not instance.pk:
+            return "-"
+        url = reverse("admin:waba_phone_change", args=[instance.pk])
+        return format_html('<a href="{}">{}</a>', url, instance.phone)
+
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
     list_display = ("waba_id", "owner")
     search_fields = ["waba_id", "owner__email"]
     list_per_page = 30
-    inlines = [TemplateInline]
+    inlines = [PhoneInline, TemplateInline]
 
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):

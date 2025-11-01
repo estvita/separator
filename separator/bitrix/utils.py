@@ -329,14 +329,30 @@ def sms_processor(data, service):
             message = None
             if message_body.startswith("template+"):
                 try:
-                    _, template_name, language = message_body.split("+", 2)
+                    # Разбираем message_body с дополнительными параметрами
+                    parts = message_body.split("+", 3)
+                    if len(parts) < 3:
+                        raise ValueError("Invalid message body format")
+                    _, template_name, language = parts[:3]
+                    params = []
+                    if len(parts) == 4:
+                        params = parts[3].split('|')
+                    message = {
+                        "messaging_product": "whatsapp",
+                        "type": "template",
+                        "template": {
+                            "name": template_name,
+                            "language": {"code": language},
+                        },
+                    }
+                    # Если есть параметры — добавляем компоненты BODY
+                    if params:
+                        message["template"]["components"] = [{
+                            "type": "body",
+                            "parameters": [{"type": "text", "text": p.strip()} for p in params]
+                        }]
                 except ValueError as e:
                     raise ValueError("Invalid message body format")
-                message = {
-                    "messaging_product": "whatsapp",
-                    "type": "template",
-                    "template": {"name": template_name, "language": {"code": language}},
-                }
             elif message_body == "#call_permission_request":
                 message = CALL_REQUEST
             if message:
@@ -524,14 +540,27 @@ def event_processor(data):
                     "to": chat,
                 }
                 # Обработка шаблонных сообщений
-                if "template-" in text:
-                    _, template_body = text.split("-")
-                    template, language = template_body.split("+")
+                if "template+" in text:
+                    template_start = text.index("template+")
+                    template_str = text[template_start:]
+                    parts = template_str.split("+", 3)
+                    if len(parts) < 3:
+                        raise ValueError("Invalid template format")
+                    template_name = parts[1]
+                    language = parts[2]
+                    params = []
+                    if len(parts) == 4:
+                        params = parts[3].split('|')
                     message["type"] = "template"
                     message["template"] = {
-                        "name": template,
+                        "name": template_name,
                         "language": {"code": language},
                     }
+                    if params:
+                        message["template"]["components"] = [{
+                            "type": "body",
+                            "parameters": [{"type": "text", "text": p.strip()} for p in params]
+                        }]
                 elif "#call_permission_request" in text:
                     message.update(CALL_REQUEST)
                 elif not files and text:
