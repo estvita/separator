@@ -1,23 +1,32 @@
 ## Connecting WhatsApp (WABA)
 
-Login Flow https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
+Works with Login Flow Logic https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
 
 + It is recommended to obtain a [Permanent Token](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), otherwise you will need to regenerate the token every day.  
 + Create an app in the [Developer Portal](https://developers.facebook.com/apps/)  
 + In the app dashboard, enable the products: **Webhooks, WhatsApp**  
-+ In the separator admin panel → **WABA → Add waba**  
-  + **name** – the name of your application  
++ In the separator admin panel → **WABA → Add App**  
+  + **Client id** – from fb App Settings > Basic  > App ID
+  + **Client secret** – from fb App Settings > Basic  > App secret  
   + **Access token** – permanent or temporary token  
-  + After saving, in the WABA list copy the **Verify token** for the desired account  
+  + After saving, in the WABA list copy the **Verify token** for the desired account
+  + insert WABA_APP_ID=1 in .env, default =1  
 
-+ In the Developer Portal → **Quickstart > Configuration**  
++ In the Developer Portal → **Webhooks**  
+  + **Select product** - Whatsapp Business Account
   + **Callback URL** – `https://example.com/api/waba/?api-key=XXXXXXX`  
-  + **Verify token** – the verify token from the previous step  
+  + **Verify token** – the verify token from the previous step and click "Verify and save" button
+  + **Webhook fields** – check "message_template_components_update", "message_template_status_update", "messages", "account_update"
 ![alt text](img/verify.png)
+
++ In the separator admin panel → **waba → waba**, add waba object:
+  + **App** - select App
+  + **Waba id** - paste WABA ID from FB > WhatsApp > Quickstart > API Setup > WhatsApp Business Account ID
+  + **Access token** permanent tocken from first step
 
 + In the separator admin panel → **waba → phones**, add phone numbers:  
   + **Phone** – the phone number  
-  + **Phone id** – the id from the Facebook app  
+  + **Phone id** – the id from the Facebook app  WhatsApp > Quickstart > API Setup > Phone number ID
 + Select the previously created WABA object  
 + Select the **App instance** (Bitrix portal) to which the WABA number will be linked  
 + Check the **Sms service** checkbox if you want to register this number as an [SMS provider](messageservice.md)  
@@ -29,7 +38,24 @@ Login Flow https://developers.facebook.com/docs/facebook-login/guides/advanced/m
 + The most important rule – the first message per day can only be sent using a pre-approved template.  
   If a line (chat) already exists, you can send a template using the format:  
   `template-hello_world+en_US`, where `hello_world` is the template name, and `en_US` is the template language.  
-  You can also send the first daily template message via [SMS](messageservice.md).  
+  You can also send the first daily template message via [SMS](messageservice.md).
+
+### Templates with variable
+if you added a template with variables
+```
+Hi {{variable1}},
+
+Your new account has been created successfully. 
+
+Please verify {{variable2}} to complete your profile.
+```
+To send this template from SMS or Open Lines to Bitrkis24, you can use the following structure:
+
+template-hello_world+en_US+variable1|variable2
+
+where "variable1" and "variable2" are the text of your variables.
+
+That is, to transfer the first variable, add + to the code and the text of the first variable. Separate the value of each subsequent variable with a pipe |.
 
 # WhatsApp Cloud API SIP Trunk Activation (receiving calls on a telephony server, e.g. Asterisk)
 
