@@ -136,20 +136,23 @@ def add_waba_phone(request_id):
                 raise
 
 @shared_task(queue='waba')
-def send_message(template, recipients, phone_id):
-    phone = get_object_or_404(Phone, id=phone_id)
-    tmp = Template.objects.get(id=template)
-    for recipient in recipients:
-        payload = {
-            "type": "template",
-            "to": recipient,
-            "template": {
-                "name": tmp.name,
-                "language": {"code": tmp.lang},
+def send_message(template, recipients, id):
+    try:
+        phone = Phone.objects.get(id=id)
+        tmp = Template.objects.get(id=template)
+        for recipient in recipients:
+            payload = {
+                "messaging_product": "whatsapp",
+                "type": "template",
+                "to": recipient,
+                "template": {
+                    "name": tmp.name,
+                    "language": {"code": tmp.lang},
+                }
             }
-        }
-        utils.call_api(waba=phone.waba, endpoint=f"{phone_id}/messages", method="post", payload=payload)
-
+            utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=payload)
+    except Exception:
+        raise
 
 @shared_task(queue='waba')
 def call_management(id):
