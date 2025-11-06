@@ -7,24 +7,13 @@ from .models import Extension
 
 class PbxClient:
     def __init__(self):
-        self.app_id = settings.WABA_APP_ID
         self.app = None
         self.server = None
         self.apps = settings.INSTALLED_APPS
 
-    def load_app_and_server(self):
-        from separator.waba.models import App
-        try:
-            self.app = App.objects.get(id=self.app_id)
-        except Exception:
-            self.app = None
-            self.server = None
-            return
+    def fetch_access_token(self, app):
+        self.app = app
         self.server = getattr(self.app, "sip_server", None)
-
-    def fetch_access_token(self):
-        if self.app is None or self.server is None:
-            self.load_app_and_server()
         if not self.server:
             raise Exception("SIP Server not connected to WA APP")
         data = {
@@ -57,10 +46,12 @@ class PbxClient:
 
     def create_extension(self, phone_id):
         waba_phone = Phone.objects.get(id=phone_id)
+        if not waba_phone.waba or not waba_phone.waba.app:
+            raise Exception("App not assigned to Phone")
         phone = waba_phone.phone
         phone = ''.join(filter(str.isdigit, str(phone)))
         phone = f"+{phone}"
-        token = self.fetch_access_token()
+        token = self.fetch_access_token(waba_phone.waba.app)
         ext = self.generate_unique_number()
 
         url = f"https://{self.server.domain}/admin/api/api/gql"

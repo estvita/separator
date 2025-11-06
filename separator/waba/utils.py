@@ -1,11 +1,11 @@
 import base64
+import json
 import logging
 from datetime import datetime
 
 import requests
 from rest_framework.response import Response
 from django.utils import timezone
-from django.shortcuts import  get_object_or_404
 from django.conf import settings
 from celery import shared_task
 
@@ -14,27 +14,19 @@ import separator.bitrix.tasks as bitrix_tasks
 
 from separator.chatwoot.tasks import send_to_chatwoot
 
-from .models import App, Phone, Waba, Template
+from .models import App, Phone, Waba, Template, Event
 
 API_URL = settings.FACEBOOK_API_URL
-WABA_APP_ID = settings.WABA_APP_ID
 
 logger = logging.getLogger("django")
 
 
-def get_app():
-    return get_object_or_404(App, id=WABA_APP_ID)
-
-def call_api(waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None):
-    try:
-        if waba:
-            access_token = waba.access_token
-            app = waba.app
-        else:
-            app = get_app()
-            access_token = app.access_token
-    except Exception:
-        raise
+def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None):
+    if not app and waba:
+        access_token = waba.access_token
+        app = waba.app
+    else:
+        access_token = app.access_token
     headers = {"Authorization": f"Bearer {access_token}"}
     base_url = f"{API_URL}/v{app.api_version}.0"
 
@@ -131,7 +123,7 @@ def message_template_status_update(entry):
         if waba:
             components = None
             try:
-                resp = call_api(waba, template_id)
+                resp = call_api(waba=waba, endpoint=template_id)
                 temp_data = resp.json()
                 components = temp_data.get('components')
             except Exception:
@@ -165,6 +157,13 @@ def message_template_status_update(entry):
 def event_processing(data):
     entry = data["entry"][0]
     waba_id = entry.get('id')
+    waba = Waba.objects.filter(waba_id=waba_id).first()
+    if waba:
+        if waba.app and waba.app.events:
+            Event.objects.create(waba=waba, content=json.dumps(data, ensure_ascii=False))
+    else:
+        if settings.SAVE_UNBOUND_WABA_EVENTS:
+            Event.objects.create(content=json.dumps(data, ensure_ascii=False))
     changes = entry["changes"][0]
     field = changes.get('field')
     value = changes.get('value', {})

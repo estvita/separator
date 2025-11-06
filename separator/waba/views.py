@@ -67,7 +67,8 @@ def phone_details(request, phone_id):
                 phone.sip_port = request.POST.get('sip_port')
                 save_required = True
             else:  # для всех, кроме pbx
-                app = waba_utils.get_app()
+                domain = request.get_host()
+                app = App.objects.filter(site__domain=domain).first()
                 if not app.sip_server:
                     messages.error(request, _("FreePBX Server not connected"))
                     return redirect('phone-details', phone_id=phone.id)
@@ -219,8 +220,9 @@ def save_request(request):
     request_id = request.GET.get('request-id')
 
     if user_id and request_id:
-        app = waba_utils.get_app()
-        redis_client.json().set(request_id, "$", {'user': user_id})
+        domain = request.get_host()
+        app = App.objects.filter(site__domain=domain).first()
+        redis_client.json().set(request_id, "$", {'user': user_id, "app": app.client_id})
         redis_client.expire(request_id, 7200)
         params = {
             'client_id': app.client_id,
@@ -237,11 +239,6 @@ def save_request(request):
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
 @login_required
 def facebook_callback(request):
-    app = waba_utils.get_app()
-    if not app:
-        messages.error("App not found")
-        return redirect('waba')
-
     if request.method == 'GET':
         error = request.GET.get('error')
         if error:
@@ -261,8 +258,13 @@ def facebook_callback(request):
         if not existing:
             messages.error(request, "Request data is missing")
             return redirect('waba')
+        app_id = existing.get('app')
+        app = App.objects.filter(client_id=app_id).first()
+        if not app:
+            messages.error("App not found")
+            return redirect('waba')
         redis_client.json().set(request_id, '$.code', code)        
-        waba_tasks.add_waba_phone.delay(request_id)
+        waba_tasks.add_waba_phone.delay(request_id, app_id)
         messages.success(request, 'Номер успешно добавлен. Через пару минут он отобразиться здесь.')
         return redirect('waba')
     

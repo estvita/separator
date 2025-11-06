@@ -20,7 +20,7 @@ CHATWOOT_ENABLED = env.bool("CHATWOOT_ENABLED", default=False)
 CHATWOOT_ID = env("CHATWOOT_ID", default=1)
 
 FACEBOOK_API_URL = env("FACEBOOK_API_URL", default="https://graph.facebook.com")
-WABA_APP_ID = env("WABA_APP_ID", default=1)
+SAVE_UNBOUND_WABA_EVENTS = env.bool("SAVE_UNBOUND_WABA_EVENTS", default=False)
 
 BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
 

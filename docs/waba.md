@@ -5,12 +5,14 @@ Works with Login Flow Logic https://developers.facebook.com/docs/facebook-login/
 + It is recommended to obtain a [Permanent Token](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), otherwise you will need to regenerate the token every day.  
 + Create an app in the [Developer Portal](https://developers.facebook.com/apps/)  
 + In the app dashboard, enable the products: **Webhooks, WhatsApp**  
-+ In the separator admin panel → **WABA → Add App**  
++ In the separator admin panel → **WABA → Add App**
+  + **Events** - If checked, all incoming events will be saved to the database (for debugging)
+  + **Site** – Select site. The website domain must match the domain on which the application will be used. 1 website - 1 application
   + **Client id** – from fb App Settings > Basic  > App ID
   + **Client secret** – from fb App Settings > Basic  > App secret  
   + **Access token** – permanent or temporary token  
   + After saving, in the WABA list copy the **Verify token** for the desired account
-  + insert WABA_APP_ID=1 in .env, default =1  
+
 
 + In the Developer Portal → **Webhooks**  
   + **Select product** - Whatsapp Business Account

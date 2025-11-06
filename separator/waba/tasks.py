@@ -5,7 +5,7 @@ import requests
 from celery import shared_task
 from django.shortcuts import  get_object_or_404
 
-from .models import Waba, Phone, Template
+from .models import App, Waba, Phone, Template
 import separator.waba.utils as utils
 import separator.chatwoot.utils as chatwoot
 from separator.chatwoot.models import Inbox
@@ -19,13 +19,11 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
 @shared_task(queue='waba')
-def add_waba_phone(request_id):
-    app = utils.get_app()
-    if not app:
-        raise
+def add_waba_phone(request_id, app_id):
     
     current_data = redis_client.json().get(request_id, "$")
     current_data = current_data[0]
+    app = App.objects.filter(client_id=app_id).first()
 
     payload = {
         "client_id": app.client_id,
@@ -35,13 +33,13 @@ def add_waba_phone(request_id):
     }
 
     try:
-        response = utils.call_api(endpoint="oauth/access_token", method="post", payload=payload)
+        response = utils.call_api(app=app, endpoint="oauth/access_token", method="post", payload=payload)
         access_token = response.json().get('access_token')
     except Exception as e:
         raise
     wabas = None
     try:
-        debug_token = utils.call_api(endpoint=f"debug_token?input_token={access_token}")
+        debug_token = utils.call_api(app=app, endpoint=f"debug_token?input_token={access_token}")
         token_data = debug_token.json().get('data', {})
         granular_scopes = token_data.get('granular_scopes', {})
         wabas = next((item['target_ids'] for item in granular_scopes if item['scope'] == 'whatsapp_business_management'), None)
@@ -131,7 +129,7 @@ def add_waba_phone(request_id):
                         
             # subscribed_apps
             try:
-                utils.call_api(endpoint=f"{waba_id}/subscribed_apps", method="post")
+                utils.call_api(app=app, endpoint=f"{waba_id}/subscribed_apps", method="post")
             except Exception:
                 raise
 

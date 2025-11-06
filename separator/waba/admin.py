@@ -6,12 +6,12 @@ from django.urls import reverse
 import separator.bitrix.utils as bitrix_utils
 from separator.bitrix.models import AppInstance, Line
 
-from .models import App, Waba, Phone, Template
+from .models import App, Waba, Phone, Template, Event
 from .tasks import call_management
 
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
-    list_display = ("client_id", "verify_token", "api_version", "sip_server")
+    list_display = ("client_id", "verify_token", "site", "api_version", "sip_server")
 
 class TemplateInline(admin.TabularInline):
     model = Template
@@ -111,3 +111,11 @@ class PhoneAdmin(admin.ModelAdmin):
                 except Exception as e:
                     messages.warning(request, f"Error: {e}")
             transaction.on_commit(send_connect)
+
+
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ("id", "date", "waba")
+    search_fields = ["waba__waba_id", "waba__app__client_id", "content"]
+    list_per_page = 30
+    list_filter = ("date",)

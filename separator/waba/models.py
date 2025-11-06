@@ -9,9 +9,8 @@ from separator.chatwoot.models import Inbox
 from separator.freepbx.models import Server, Extension
 
 class App(models.Model):
-    site = models.ForeignKey(
-        Site, on_delete=models.CASCADE, related_name="waba_apps", blank=True, null=True
-    )
+    events = models.BooleanField(default=False, help_text="Chek for save inbound events")
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="waba_apps", default=1)
     client_id = models.CharField(max_length=255, editable=True, unique=True)
     config_id = models.CharField(max_length=255, editable=True, null=True, blank=True)
     client_secret = models.CharField(max_length=255, editable=True)
@@ -102,3 +101,12 @@ class Template(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.lang})"
+
+
+class Event(models.Model):
+    waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="events", null=True, blank=True)
+    date = models.DateTimeField(auto_now_add=True)
+    content = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.id}"
