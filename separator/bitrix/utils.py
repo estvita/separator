@@ -302,6 +302,7 @@ def process_placement(request):
         return HttpResponse({"An unexpected error occurred"})
 
 CALL_REQUEST = {
+    "messaging_product": "whatsapp",
     "type": "interactive",
     "recipient_type": "individual",
     "interactive": {
@@ -328,6 +329,7 @@ def sms_processor(data, service):
         if service == "waba":
             message = None
             if message_body.startswith("template+"):
+                # https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages#template-object
                 try:
                     # Разбираем message_body с дополнительными параметрами
                     parts = message_body.split("+", 3)
@@ -355,6 +357,15 @@ def sms_processor(data, service):
                     raise ValueError("Invalid message body format")
             elif message_body == "#call_permission_request":
                 message = CALL_REQUEST
+            else:
+                message = {
+                    "messaging_product": "whatsapp",
+                    "type": "text",
+                    "text": {
+                        "body": message_body
+                    }
+                }
+            
             if message:
                 message['to'] = message_to
                 try:

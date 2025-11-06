@@ -67,7 +67,7 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
         return Response({"error": "phone tariff ended"})
     if not phone.phone_id:
         return None
-    call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
+    return call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
 
 
 def get_file(media_id, filename, appinstance, storage_id, waba):
