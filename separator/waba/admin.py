@@ -6,7 +6,7 @@ from django.urls import reverse
 import separator.bitrix.utils as bitrix_utils
 from separator.bitrix.models import AppInstance, Line
 
-from .models import App, Waba, Phone, Template, Event
+from .models import App, Waba, Phone, Template, Event, Error
 from .tasks import call_management
 
 @admin.register(App)
@@ -119,3 +119,9 @@ class EventAdmin(admin.ModelAdmin):
     search_fields = ["waba__waba_id", "waba__app__client_id", "content"]
     list_per_page = 30
     list_filter = ("date",)
+
+
+@admin.register(Error)
+class ErrorAdmin(admin.ModelAdmin):
+    list_display = ("code",)
+    search_fields = ("code", "details", "message")

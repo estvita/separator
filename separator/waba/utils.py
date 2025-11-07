@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 
 import requests
-from rest_framework.response import Response
 from django.utils import timezone
 from django.conf import settings
 from celery import shared_task
@@ -14,7 +13,7 @@ import separator.bitrix.tasks as bitrix_tasks
 
 from separator.chatwoot.tasks import send_to_chatwoot
 
-from .models import App, Phone, Waba, Template, Event
+from .models import App, Phone, Waba, Template, Event, Error
 
 API_URL = settings.FACEBOOK_API_URL
 
@@ -41,7 +40,7 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
 
         resp_data = resp.json()
         if "error" in resp_data:
-            raise Exception(f"Payload: {payload}, Endpoint: {endpoint}, API Error: {resp_data}")
+            raise Exception(resp_data)
 
         return resp
     except Exception:
@@ -58,16 +57,17 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
         waba = Waba.objects.filter(phones__line=line).first() if line else None
         phone = waba.phones.filter(line=line).first() if waba and line else None
     else:
-        return None
-
+        return {"error": True, "message": "phone not found"}
     if not phone or not waba:
-        return None
-
+        return {"error": True, "message": "not phone or not waba"}
     if phone.date_end and timezone.now() > phone.date_end:
-        return Response({"error": "phone tariff ended"})
+        return {"error": True, "message": "phone tariff expired"}
     if not phone.phone_id:
-        return None
-    return call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
+        return {"error": True, "message": "not phone phone_id"}
+    try:
+        return call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
+    except Exception as e:
+        return {"error": True, "message": str(e)}
 
 
 def get_file(media_id, filename, appinstance, storage_id, waba):
@@ -151,6 +151,22 @@ def message_template_status_update(entry):
 
     else:
         raise Exception(entry)
+    
+
+def error_message(data):
+    error = (data.get('errors') or [{}])[0]
+    code = error.get("code")
+    fb_message = error.get("message") or error.get("title") or ""
+    fb_details = (error.get("error_data") or {}).get("details", "")
+
+    error_obj, created = Error.objects.get_or_create(
+        code=code,
+        defaults={"message": fb_message, "details": fb_details}
+    )
+    out_message = f"Error for: {data.get('recipient_id')}:\n" \
+                f"{error_obj.message or fb_message}\n" \
+                f"{error_obj.details or fb_details}"
+    return out_message
 
 
 @shared_task(queue='waba')
@@ -264,17 +280,16 @@ def event_processing(data):
         statuses = value.get("statuses", [])
         if statuses:
             for item in statuses:
-                status_name = item.get("status")
-                if status_name == "failed":
-                    message_id = item.get("id")
-                    errors = item.get("errors", [])
-                    error_messages = []
-                    for error in errors:
-                        error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
-                        error_messages.append(error_message)
-                    combined_error_message = " | ".join(error_messages)
-                    user_phone = item.get("recipient_id")
-                    text = combined_error_message
+                if item.get("status") == "failed":
+                    # user_id
+                    biz_opaque_callback_data = item.get("biz_opaque_callback_data")
+                    if biz_opaque_callback_data:
+                        bitrix_user_id = json.loads(biz_opaque_callback_data).get('bitrix_user_id')                        
+                        if bitrix_user_id:
+                            out_message = error_message(item)
+                            payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
+                            bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
+                    raise Exception(data)
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,

@@ -303,7 +303,6 @@ def process_placement(request):
         return HttpResponse({"An unexpected error occurred"})
 
 CALL_REQUEST = {
-    "messaging_product": "whatsapp",
     "type": "interactive",
     "recipient_type": "individual",
     "interactive": {
@@ -353,7 +352,6 @@ def parse_template_code(code: str) -> dict:
                     params.append(pr)
 
         message = {
-            "messaging_product": "whatsapp",
             "type": "template",
             "template": {
                 "name": template_name,
@@ -411,6 +409,7 @@ def sms_processor(data, service):
     if not app_instance:
         raise Exception("app not found")
     message_body = data.get("message_body")
+    user_id = data.get("auth[user_id]")
     code = data.get("code", {})
     sender = code.split('_')[-1]
     message_to = re.sub(r'\D', '', data.get("message_to"))
@@ -419,26 +418,28 @@ def sms_processor(data, service):
     send_result = None
     try:
         if service == "waba":
-            message = None
+            message = {
+                "messaging_product": "whatsapp",
+                "biz_opaque_callback_data": {"bitrix_user_id": user_id}
+            }
             if message_body.startswith("template+"):
-                message = parse_template_code(message_body)
+                message.update(parse_template_code(message_body))
             elif message_body == "#call_permission_request":
-                message = CALL_REQUEST
+                message.update(CALL_REQUEST)
             else:
-                message = {
-                    "messaging_product": "whatsapp",
-                    "type": "text",
-                    "text": {
-                        "body": message_body
+                message.update(
+                    {
+                        "type": "text",
+                        "text": {
+                            "body": message_body
+                        }
                     }
-                }
+                )
             if message:
                 message['to'] = message_to
-                try:
-                    send_result = waba.send_message(app_instance, message, phone_num=sender)
+                send_result = waba.send_message(app_instance, message, phone_num=sender)
+                if not "error" in send_result:
                     status = "delivered"
-                except Exception:
-                    raise
         elif service == "waweb":
             try:
                 wa = Session.objects.get(phone=sender)
@@ -446,9 +447,9 @@ def sms_processor(data, service):
                 send_result = waweb_tasks.send_message(wa.session, message_to, message_body)
                 status = "delivered"
             except wa.DoesNotExist:
-                raise ValueError(f"No Session found for phone number: {code}")
+                send_result = {"error": True, "message": f"No Session found for phone number: {code}"}
             except Exception as e:
-                raise ValueError(e)
+                send_result = {"error": True, "message": {e}}
     finally:
         status_data = {
             "CODE": code,
@@ -459,8 +460,17 @@ def sms_processor(data, service):
 
         if line and status:
             bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
-    send_result.raise_for_status()
-    return send_result.json()
+    if isinstance(send_result, dict) and send_result.get("error"):
+        payload = {
+            "USER_ID": user_id,
+            "MESSAGE": str(send_result)
+        }
+        bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
+        raise ValueError(send_result)
+    if hasattr(send_result, "json"):
+        return send_result.json()
+    return send_result
+
 
 @shared_task(queue='bitrix')
 def event_processor(data):
@@ -559,7 +569,7 @@ def event_processor(data):
                     "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
                     "USER_ID": user_id,
                 }
-                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)            
+                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
             else:
                 raise
 
@@ -613,6 +623,7 @@ def event_processor(data):
             if connector.service == "waba":
                 message = {
                     "messaging_product": "whatsapp",
+                    "biz_opaque_callback_data": {"bitrix_user_id": user_id},
                     "to": chat,
                 }
                 # Обработка шаблонных сообщений

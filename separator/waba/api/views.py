@@ -15,8 +15,7 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
     queryset = Phone.objects.all()
 
     def create(self, request, *args, **kwargs):
-        data = request.data
-        event_processing.delay(data)
+        event_processing.delay(request.data)
         return HttpResponse("ok")
 
     def list(self, request, *args, **kwargs):

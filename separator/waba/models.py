@@ -110,3 +110,12 @@ class Event(models.Model):
 
     def __str__(self):
         return f"{self.id}"
+
+
+class Error(models.Model):
+    code = models.PositiveIntegerField()
+    details = models.TextField(null=True, blank=True)
+    message = models.TextField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.code}"
