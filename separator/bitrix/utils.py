@@ -6,6 +6,7 @@ import re
 import uuid
 import redis
 import requests
+from urllib.parse import unquote
 from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
@@ -313,6 +314,96 @@ CALL_REQUEST = {
     }    
 }
 
+
+def parse_template_code(code: str) -> dict:
+    try:
+        parts = code.split("+", 3)
+        if len(parts) < 3:
+            raise ValueError("Invalid message body format")
+        _, template_name, language = parts[:3]
+        params = []
+        file_url = None
+        file_type = None
+        waba_file_type = None
+        named_params = []
+
+        if len(parts) == 4:
+            params_raw = parts[3].split('|')
+            for pr in params_raw:
+                pr = pr.strip()
+                if pr.startswith('file_link:'):
+                    file_url = pr[len('file_link:'):]
+                    try:
+                        file_headers = requests.head(file_url, allow_redirects=True)
+                        file_type = file_headers.headers.get('Content-Type', '')
+                    except Exception:
+                        file_type = ''
+                    if file_type.startswith('image/'):
+                        waba_file_type = "image"
+                    elif file_type.startswith('video/'):
+                        waba_file_type = "video"
+                    elif file_type == "application/pdf" or file_url.lower().endswith('.pdf'):
+                        waba_file_type = "document"
+                    else:
+                        raise ValueError("Unsupported file type for header component.")
+                elif ':' in pr:
+                    key, value = pr.split(':', 1)
+                    named_params.append((key.strip(), value.strip()))
+                elif pr and not pr.startswith('file_link:'):
+                    params.append(pr)
+
+        message = {
+            "messaging_product": "whatsapp",
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language},
+            },
+        }
+
+        components = []
+
+        if file_url and waba_file_type:
+            file_param = {
+                "type": waba_file_type,
+                waba_file_type: {"link": file_url}
+            }
+            if waba_file_type == "document":
+                filename = "file.pdf"
+                cd = file_headers.headers.get('Content-Disposition', '')
+                m = re.search(r"filename\*=utf-8''(.+)", cd)
+                if m:
+                    filename = unquote(m.group(1))
+                else:
+                    m = re.search(r'filename="(.+?)"', cd)
+                    if m:
+                        filename = m.group(1)
+                file_param[waba_file_type]["filename"] = filename
+            components.append({
+                "type": "header",
+                "parameters": [file_param]
+            })
+
+        body_parameters = []
+        for key, value in named_params:
+            body_parameters.append({"type": "text", "text": value})
+        for p in params:
+            body_parameters.append({"type": "text", "text": p})
+
+        if body_parameters:
+            components.append({
+                "type": "body",
+                "parameters": body_parameters
+            })
+
+        if components:
+            message["template"]["components"] = components
+
+        return message
+    except ValueError:
+        raise ValueError(f"Invalid template code {code}")
+
+
 @shared_task(queue='bitrix')
 def sms_processor(data, service):
     application_token = data.get("auth[application_token]")
@@ -325,36 +416,12 @@ def sms_processor(data, service):
     message_to = re.sub(r'\D', '', data.get("message_to"))
     line = None
     status = None
+    send_result = None
     try:
         if service == "waba":
             message = None
             if message_body.startswith("template+"):
-                # https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages#template-object
-                try:
-                    # Разбираем message_body с дополнительными параметрами
-                    parts = message_body.split("+", 3)
-                    if len(parts) < 3:
-                        raise ValueError("Invalid message body format")
-                    _, template_name, language = parts[:3]
-                    params = []
-                    if len(parts) == 4:
-                        params = parts[3].split('|')
-                    message = {
-                        "messaging_product": "whatsapp",
-                        "type": "template",
-                        "template": {
-                            "name": template_name,
-                            "language": {"code": language},
-                        },
-                    }
-                    # Если есть параметры — добавляем компоненты BODY
-                    if params:
-                        message["template"]["components"] = [{
-                            "type": "body",
-                            "parameters": [{"type": "text", "text": p.strip()} for p in params]
-                        }]
-                except ValueError as e:
-                    raise ValueError("Invalid message body format")
+                message = parse_template_code(message_body)
             elif message_body == "#call_permission_request":
                 message = CALL_REQUEST
             else:
@@ -365,20 +432,18 @@ def sms_processor(data, service):
                         "body": message_body
                     }
                 }
-            
             if message:
                 message['to'] = message_to
                 try:
-                    waba.send_message(app_instance, message, phone_num=sender)
+                    send_result = waba.send_message(app_instance, message, phone_num=sender)
                     status = "delivered"
                 except Exception:
                     raise
-
         elif service == "waweb":
             try:
                 wa = Session.objects.get(phone=sender)
                 line = wa.line
-                waweb_tasks.send_message(wa.session, message_to, message_body)
+                send_result = waweb_tasks.send_message(wa.session, message_to, message_body)
                 status = "delivered"
             except wa.DoesNotExist:
                 raise ValueError(f"No Session found for phone number: {code}")
@@ -391,10 +456,11 @@ def sms_processor(data, service):
             "STATUS": status if status else "failed",
         }
         bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
-    
+
         if line and status:
             bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
-
+    send_result.raise_for_status()
+    return send_result.json()
 
 @shared_task(queue='bitrix')
 def event_processor(data):
@@ -547,31 +613,14 @@ def event_processor(data):
             if connector.service == "waba":
                 message = {
                     "messaging_product": "whatsapp",
-                    "biz_opaque_callback_data": f"{line_id}_{chat_id}_{message_id}",
                     "to": chat,
                 }
                 # Обработка шаблонных сообщений
                 if "template+" in text:
                     template_start = text.index("template+")
                     template_str = text[template_start:]
-                    parts = template_str.split("+", 3)
-                    if len(parts) < 3:
-                        raise ValueError("Invalid template format")
-                    template_name = parts[1]
-                    language = parts[2]
-                    params = []
-                    if len(parts) == 4:
-                        params = parts[3].split('|')
-                    message["type"] = "template"
-                    message["template"] = {
-                        "name": template_name,
-                        "language": {"code": language},
-                    }
-                    if params:
-                        message["template"]["components"] = [{
-                            "type": "body",
-                            "parameters": [{"type": "text", "text": p.strip()} for p in params]
-                        }]
+                    message.update(parse_template_code(template_str))
+
                 elif "#call_permission_request" in text:
                     message.update(CALL_REQUEST)
                 elif not files and text:
@@ -592,7 +641,9 @@ def event_processor(data):
                                 "filename": file["name"],
                             }
 
-                waba.send_message(appinstance, message, line_id=line_id)
+                resp = waba.send_message(appinstance, message, line_id=line_id)
+                resp.raise_for_status()
+                return resp.json()
 
             elif connector.service == "waweb":
                 try:

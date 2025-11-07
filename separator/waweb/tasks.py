@@ -53,7 +53,7 @@ def send_message(session_id, recipient, content, cont_type="string"):
 
         if resp and resp.status_code == 201:
             utils.store_msg(resp)
-            return resp.json()
+            return resp
         else:
             raise Exception(f"Request failed: {resp.status_code}, {resp.text}")
 

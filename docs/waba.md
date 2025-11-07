@@ -43,21 +43,30 @@ Works with Login Flow Logic https://developers.facebook.com/docs/facebook-login/
   You can also send the first daily template message via [SMS](messageservice.md).
 
 ### Templates with variable
+Now support only number variable type
+
 if you added a template with variables
 ```
-Hi {{variable1}},
+Hi {{1}},
 
 Your new account has been created successfully. 
 
-Please verify {{variable2}} to complete your profile.
+Please verify {{2}} to complete your profile.
 ```
 To send this template from SMS or Open Lines to Bitrkis24, you can use the following structure:
 
-template-hello_world+en_US+variable1|variable2
+template-hello_world+en_US+value1|value2
 
-where "variable1" and "variable2" are the text of your variables.
+where "value1" and "value2" are the text of your variables.
 
 That is, to transfer the first variable, add + to the code and the text of the first variable. Separate the value of each subsequent variable with a pipe |.
+
+### Templates with media
+Now support document, image and video
+
+template-hello_world+file_link:https://file_link.url
+
+template-hello_world+en_US+file_link:https://file_link.url|value1|value2
 
 # WhatsApp Cloud API SIP Trunk Activation (receiving calls on a telephony server, e.g. Asterisk)
 
