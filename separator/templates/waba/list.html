@@ -47,7 +47,15 @@
                 {% trans "Calls" %}: {{ phone.sip_extensions.date_end }}
               {% endif %}
             </td>
-            <td><a href="{% url 'phone-details' phone.id %}">{{ phone.call_dest }}</a></td>
+            <td>
+            <a href="{% url 'phone-details' phone.id %}">
+              {% if phone.calling == 'disabled' %}
+                {% trans "Disabled" %}
+              {% else %}
+                {{ phone.call_dest }}
+              {% endif %}
+            </a>
+            </td>
             <td>
               {% if phone.line %}
                 <span style="color: green;"> <a href="{% url 'portal_detail' phone.line.portal.id %}">{{ phone.line.portal.domain }}</a> - 

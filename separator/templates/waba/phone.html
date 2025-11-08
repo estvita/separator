@@ -60,6 +60,7 @@
 
   <!-- Форма настроек звонков -->
   <h3>{% trans "Calling Settings" %}</h3>
+  <p>{% trans "Status" %}: {{phone.calling}}</p>
   <form style="width: 40%;" method="POST">
     {% csrf_token %}
     <input type="hidden" name="action" value="update_calling">

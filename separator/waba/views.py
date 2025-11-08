@@ -54,7 +54,6 @@ def phone_details(request, phone_id):
 
             if call_dest == "disabled":
                 phone.calling = "disabled"
-                phone.sip_status = "disabled"
                 save_required = True
             else:
                 phone.calling = "enabled"
@@ -98,7 +97,7 @@ def phone_details(request, phone_id):
                             else:
                                 ext = phone.sip_extensions
                             payload = {
-                                "TITLE": f"{phone.phone} WhatsApp Cloud",
+                                "TITLE": f"{phone.phone} WhatsApp",
                                 "SERVER": ext.server.domain,
                                 "LOGIN": ext.number,
                                 "PASSWORD": ext.password

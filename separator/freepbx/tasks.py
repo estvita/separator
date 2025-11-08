@@ -9,7 +9,6 @@ class PbxClient:
     def __init__(self):
         self.app = None
         self.server = None
-        self.apps = settings.INSTALLED_APPS
 
     def fetch_access_token(self, app):
         self.app = app
@@ -77,7 +76,7 @@ class PbxClient:
                 message
             }
         }
-        """ % (ext, ext, waba_phone.owner.email)
+        """ % (ext, phone, waba_phone.owner.email)
 
         data_ext = {"query": gqlAddUser}
         try:
@@ -112,7 +111,7 @@ class PbxClient:
             raise Exception(phone, resp_fetch.json())
         
         date_end = None
-        if "separator.tariff" in self.apps:
+        if "separator.tariff" in settings.INSTALLED_APPS:
             from separator.tariff.utils import get_trial
             date_end = get_trial(waba_phone.owner, "sip_ext")
 

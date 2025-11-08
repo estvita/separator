@@ -215,6 +215,24 @@ def event_processing(data):
         else:
             raise Exception(data)
 
+    elif field == 'account_settings_update':
+        value_type = value.get("type")
+        if value_type == "phone_number_settings":
+            settings = value.get(value_type, {})
+            phone_id = settings.get('phone_number_id')
+            calling = settings.get('calling', {})
+            if not calling:
+                raise Exception(data)
+            status = calling.get('status', '').lower()
+            phone = Phone.objects.filter(phone_id=phone_id).first()
+            if not phone:
+                raise Exception(f"Phone with id {phone_id} not found")
+            if status and phone.calling != status:
+                phone.calling = status
+                phone.save()
+        else:
+            raise Exception(data)
+    
     elif field == 'messages':
         if phone.date_end and timezone.now() > phone.date_end:
             raise Exception(f"phone tariff ended: {data}")

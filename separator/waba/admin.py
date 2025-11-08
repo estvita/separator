@@ -16,8 +16,8 @@ class AppAdmin(admin.ModelAdmin):
 class TemplateInline(admin.TabularInline):
     model = Template
     extra = 0
-    fields = ("template_link", "lang", "status")
-    readonly_fields = ("template_link", "lang", "status")
+    # fields = ("name", "template_link", "lang", "status")
+    # readonly_fields = ("template_link", "lang", "status")
 
     def template_link(self, instance):
         if not instance.pk:
@@ -89,7 +89,7 @@ class PhoneAdmin(admin.ModelAdmin):
     form = SessionForm
     autocomplete_fields = ['owner']
     list_display = ("phone_id", "phone", "owner", "date_end", "sip_extensions", "sms_service")
-    search_fields = ("phone", "phone_id")
+    search_fields = ("phone", "phone_id", "owner__email")
     list_filter = ("calling", )
     readonly_fields = ("error", )
     list_per_page = 30

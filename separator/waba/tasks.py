@@ -1,9 +1,7 @@
 import re
 import redis
 import random
-import requests
 from celery import shared_task
-from django.shortcuts import  get_object_or_404
 
 from .models import App, Waba, Phone, Template
 import separator.waba.utils as utils
@@ -119,7 +117,7 @@ def add_waba_phone(request_id, app_id):
                         try:
                             inbox, created = Inbox.objects.update_or_create(
                                 owner=user,
-                                id=result['inbox_id'],  # Уникальный идентификатор inbox
+                                id=result['inbox_id'],
                                 defaults={'account': result['account']}
                             )
                             phone.inbox = inbox
@@ -154,13 +152,7 @@ def send_message(template, recipients, id):
 
 @shared_task(queue='waba')
 def call_management(id):
-    phone = get_object_or_404(Phone, id=id)
-    servers = []
-    if phone.calling == "enabled":
-        servers.append({
-            "hostname": phone.sip_hostname,
-            "port": phone.sip_port
-        })
+    phone = Phone.objects.filter(id=id).first()
     payload = {
         "calling": {
             "status": phone.calling,
@@ -168,14 +160,17 @@ def call_management(id):
             "callback_permission_status": phone.callback_permission_status,
             "sip": {
                 "status": phone.sip_status,
-                "servers": servers
+                "servers": [
+                    {
+                        "hostname": phone.sip_hostname,
+                        "port": phone.sip_port
+                    }
+                ]
             }
         }
     }
     try:
         resp = utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/settings", method="post", payload=payload)
-        resp.raise_for_status()
-        resp = resp.json()
         try:
             if phone.error:
                 phone.error = None
@@ -204,20 +199,12 @@ def call_management(id):
                 else:
                     raise Exception(f"No matching server found for app_id {app_id}")
                 
-            return resp
+            return resp.json()
 
         except ValueError:
             raise
 
-    except requests.exceptions.HTTPError:
-        resp = resp.json()
-        if "error" in resp:
-            error = resp.get("error", {})
-            message = error.get("message")
-            code = error.get("code")
-            phone.error = f"{code}: {message}"
-            phone.save()
-        raise Exception(phone.phone_id, resp)
-
-    except requests.exceptions.RequestException as e:
-        raise Exception(e)
+    except Exception as e:
+        phone.error = e
+        phone.save()
+        raise Exception(phone.phone_id, e)
