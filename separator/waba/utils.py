@@ -218,9 +218,9 @@ def event_processing(data):
     elif field == 'account_settings_update':
         value_type = value.get("type")
         if value_type == "phone_number_settings":
-            settings = value.get(value_type, {})
-            phone_id = settings.get('phone_number_id')
-            calling = settings.get('calling', {})
+            phone_number_settings = value.get(value_type, {})
+            phone_id = phone_number_settings.get('phone_number_id')
+            calling = phone_number_settings.get('calling', {})
             if not calling:
                 raise Exception(data)
             status = calling.get('status', '').lower()
