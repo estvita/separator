@@ -16,8 +16,8 @@ class AppAdmin(admin.ModelAdmin):
 class TemplateInline(admin.TabularInline):
     model = Template
     extra = 0
-    # fields = ("name", "template_link", "lang", "status")
-    # readonly_fields = ("template_link", "lang", "status")
+    fields = ("template_link", "lang", "status")
+    readonly_fields = ("id", "name", "template_link", "content", "lang", "status", "owner")
 
     def template_link(self, instance):
         if not instance.pk:

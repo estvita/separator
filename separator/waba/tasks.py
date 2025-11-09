@@ -3,7 +3,7 @@ import redis
 import random
 from celery import shared_task
 
-from .models import App, Waba, Phone, Template
+from .models import App, Waba, Phone, Template, Error
 import separator.waba.utils as utils
 import separator.chatwoot.utils as chatwoot
 from separator.chatwoot.models import Inbox
@@ -205,6 +205,18 @@ def call_management(id):
             raise
 
     except Exception as e:
-        phone.error = e
+        error = e.args[0].get("error")
+        code = error.get("code")
+        if code:
+            fb_message = error.get("error_user_title")
+            fb_details = error.get("error_user_msg")
+            error_obj, created = Error.objects.get_or_create(
+                code=code,
+                defaults={"message": fb_message, "details": fb_details}
+            )
+            error_text = f"Error code: {code}. {error_obj.message}. {error_obj.details}"
+        else:
+            error_text = e
+        phone.error = error_text
         phone.save()
         raise Exception(phone.phone_id, e)
