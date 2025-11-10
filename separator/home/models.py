@@ -50,11 +50,20 @@ class ArticlePage(Page):
     body = StreamField([
         ("rich_text", blocks.RichTextBlock()),
         ("code", CodeBlock(label="Code")),
+        ('html', blocks.RawHTMLBlock()),
         ("table", TypedTableBlock([
-            ('text', blocks.CharBlock()),
-            ('numeric', blocks.FloatBlock()),
-            ('rich_text', blocks.RichTextBlock()),
-            ('image', ImageChooserBlock())
+            ('text', blocks.CharBlock(required=False)),
+            ('numeric', blocks.FloatBlock(required=False)),
+            ('rich_text', blocks.RichTextBlock(required=False)),
+            ('image', ImageChooserBlock()),
+            ('url', blocks.URLBlock(required=False)),
+            ('flag', blocks.BooleanBlock(required=False)),
+            ('datetime', blocks.DateTimeBlock(required=False)),
+            ('date', blocks.DateBlock(required=False)),
+            ('time', blocks.TimeBlock(required=False)),
+            ('email', blocks.EmailBlock(required=False)),
+            ('html', blocks.RawHTMLBlock(required=False)),
+            ('page', blocks.PageChooserBlock()),
         ])),
     ], blank=True)
 

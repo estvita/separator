@@ -123,5 +123,5 @@ class EventAdmin(admin.ModelAdmin):
 
 @admin.register(Error)
 class ErrorAdmin(admin.ModelAdmin):
-    list_display = ("code",)
+    list_display = ("code", "message")
     search_fields = ("code", "details", "message")
