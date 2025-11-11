@@ -88,9 +88,9 @@ class SessionForm(forms.ModelForm):
 class PhoneAdmin(admin.ModelAdmin):
     form = SessionForm
     autocomplete_fields = ['owner']
-    list_display = ("phone_id", "phone", "owner", "date_end", "sip_extensions", "sms_service")
+    list_display = ("phone_id", "phone", "owner", "date_end", "type", "sms_service")
     search_fields = ("phone", "phone_id", "owner__email")
-    list_filter = ("calling", )
+    list_filter = ("calling", "type")
     readonly_fields = ("error", )
     list_per_page = 30
 

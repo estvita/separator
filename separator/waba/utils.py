@@ -119,7 +119,7 @@ def message_template_status_update(entry):
     template_name = value.get('message_template_name')
     lang = value.get('message_template_language')
     if event == "APPROVED":
-        waba = Waba.objects.get(waba_id=waba_id)
+        waba = Waba.objects.filter(waba_id=waba_id).first()
         if waba:
             components = None
             try:
@@ -169,10 +169,20 @@ def error_message(data):
     return out_message
 
 
+def extract_waba_id(data):
+    entry = data.get("entry", [{}])[0]
+    waba_id = entry.get("id")
+    changes = entry.get("changes", [{}])
+    if changes:
+        value = changes[0].get("value", {})
+        if "waba_info" in value:
+            waba_id = value["waba_info"].get("waba_id", waba_id)
+    return waba_id
+
+
 @shared_task(queue='waba')
 def event_processing(data):
-    entry = data["entry"][0]
-    waba_id = entry.get('id')
+    waba_id = extract_waba_id(data)
     waba = Waba.objects.filter(waba_id=waba_id).first()
     if waba:
         if waba.app and waba.app.events:
@@ -180,31 +190,21 @@ def event_processing(data):
     else:
         if settings.SAVE_UNBOUND_WABA_EVENTS:
             Event.objects.create(content=json.dumps(data, ensure_ascii=False))
+    entry = data["entry"][0]
     changes = entry["changes"][0]
     field = changes.get('field')
     value = changes.get('value', {})
     event = value.get('event')
 
-    metadata = value.get("metadata", {})
-    if metadata:    
-        phone_number = metadata.get('display_phone_number')
-        phone_number_id = metadata.get('phone_number_id')
-        try:
-            phone = Phone.objects.get(phone_id=phone_number_id)
-        except Phone.DoesNotExist:
-            raise Exception(f"phone_number not found: {data}")
-
-        if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
-            # send message to chatwoot 
-            send_to_chatwoot.delay(data, phone_number)
-
-    if field == 'message_template_status_update':
-        return message_template_status_update(entry)
-    elif field == 'account_update':
+    if field == 'account_update':
+        if event == "PARTNER_APP_UNINSTALLED":
+            if waba:
+                waba.delete()
+            return(data)
         if event == "PHONE_NUMBER_REMOVED":
             try:
                 phone_number = value.get("phone_number")
-                phone = Phone.objects.filter(phone=f"+{phone_number}", waba__waba_id=waba_id).first()
+                phone = Phone.objects.filter(phone=f"+{phone_number}", waba=waba).first()
                 if phone:
                     phone.delete()
                     return(f"Phone {phone_number} deleted")
@@ -214,6 +214,26 @@ def event_processing(data):
                 raise Exception(data)
         else:
             raise Exception(data)
+    
+    metadata = value.get("metadata", {})
+    if metadata:    
+        phone_number = metadata.get('display_phone_number')
+        phone_number_id = metadata.get('phone_number_id')
+        try:
+            phone = Phone.objects.get(phone_id=phone_number_id, waba=waba)
+        except Phone.DoesNotExist:
+            raise Exception(f"phone_number not found: {data}")
+        except Exception:
+            raise
+
+        if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
+            # send message to chatwoot 
+            send_to_chatwoot.delay(data, phone_number)
+    appinstance = phone.app_instance
+    storage_id = appinstance.storage_id
+
+    if field == 'message_template_status_update':
+        return message_template_status_update(entry)    
 
     elif field == 'account_settings_update':
         value_type = value.get("type")
@@ -239,8 +259,6 @@ def event_processing(data):
 
         if not phone.line or not phone.waba or not phone.app_instance:
             raise Exception(f"phone not connected to b24: {data}")
-        appinstance = phone.app_instance
-        storage_id = appinstance.storage_id
 
         messages = value.get("messages", [])
         filename = None
@@ -312,6 +330,37 @@ def event_processing(data):
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
                                                 phone.line.line_id, False, name, message_id)
+    
+    elif field == 'smb_message_echoes':
+        text = None
+        attach= None
+        message_echoes = value.get("message_echoes", {})
+        for message in message_echoes:
+            user_phone = message.get("to")
+            message_type = message.get("type")
+            if message_type == "text":
+                text = message.get("text", {}).get("body")
+
+            elif message_type in ["image", "video", "audio", "document"]:
+                media_data = message.get(message_type)
+                media_id = media_data["id"]
+                extension = media_data["mime_type"].split("/")[1].split(";")[0]
+                filename = media_data.get("filename", f"{media_id}.{extension}")
+                text = media_data.get("caption", None)
+                file_url = get_file(
+                    media_id, filename, appinstance, storage_id, phone.waba
+                )
+                if file_url:
+                    attach = [
+                        {
+                            "FILE": {
+                                "NAME": filename,
+                                "LINK": file_url
+                            }
+                        }
+                    ]
+            if text or attach:
+                bitrix_tasks.message_add.delay(appinstance.id, phone.line.line_id, user_phone, text, phone.line.connector.code, attach)
     else:
         raise Exception(f"this event is not handled: {data}")
 

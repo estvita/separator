@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block content %}
 <div class="container">
-  <h3>{% trans "Send Message via" %} {{ phone.phone }}</h3>
+  <h3>{% trans "Send Message via" %} {{ phone.phone }} ({{ phone.type }})</h3>
 
   <!-- Форма рассылки -->
   <form style="width: 40%;" method="POST">
@@ -58,21 +58,26 @@
   </table>
   <hr>
 
-  <!-- Форма настроек звонков -->
-  <h3>{% trans "Calling Settings" %}</h3>
-  <p>{% trans "Status" %}: {{phone.calling}}</p>
-  <form style="width: 40%;" method="POST">
-    {% csrf_token %}
+  {% if phone.type == "app" %}
+    <div class="alert alert-info">
+      {% trans "Calling settings are not available for WhatsApp Business App numbers." %}
+    </div>
+  {% else %}
+    <!-- Форма настроек звонков -->
+    <h3>{% trans "Calling Settings" %}</h3>
+    <p>{% trans "Status" %}: {{phone.calling}}</p>
+    <form style="width: 40%;" method="POST">
+        {% csrf_token %}
     <input type="hidden" name="action" value="update_calling">
-      <div class="form-group">
+    <div class="form-group">
     <label for="call_dest">{% trans "Call destination" %}</label>
     <select class="form-control" id="call_dest" name="call_dest" required>
-      <option value="disabled" {% if phone.call_dest == "disabled" %}selected{% endif %}>{% trans "Disabled" %}</option>
-      <option value="b24" {% if phone.call_dest == "b24" %}selected{% endif %}>{% trans "To Bitrix24" %}</option>
-      <option value="ext" {% if phone.call_dest == "ext" %}selected{% endif %}>{% trans "To SIP extension" %}</option>
-      <option value="pbx" {% if phone.call_dest == "pbx" %}selected{% endif %}>{% trans "To SIP server" %}</option>
+    <option value="disabled" {% if phone.call_dest == "disabled" %}selected{% endif %}>{% trans "Disabled" %}</option>
+    <option value="b24" {% if phone.call_dest == "b24" %}selected{% endif %}>{% trans "To Bitrix24" %}</option>
+    <option value="ext" {% if phone.call_dest == "ext" %}selected{% endif %}>{% trans "To SIP extension" %}</option>
+    <option value="pbx" {% if phone.call_dest == "pbx" %}selected{% endif %}>{% trans "To SIP server" %}</option>
     </select>
-  </div>
+    </div>
   <!-- Серверный блок -->
   <div id="server_block">
     <div class="form-group">
@@ -152,4 +157,5 @@
   document.getElementById("call_dest").addEventListener("change", toggleCallingBlocks);
   window.addEventListener("DOMContentLoaded", toggleCallingBlocks);
 </script>
+{% endif %}
 {% endblock content %}

@@ -134,7 +134,7 @@ def phone_details(request, phone_id):
                             messages.error(request, str(e))
                             return 
                     transaction.on_commit(after_commit)
-            return redirect('phone-details', phone_id=phone.id)
+            return redirect("waba")
     
     if phone.date_end and timezone.now() > phone.date_end:
         messages.error(request, _('The tariff has expired ') + str(phone.date_end))
@@ -223,12 +223,17 @@ def save_request(request):
         app = App.objects.filter(site__domain=domain).first()
         redis_client.json().set(request_id, "$", {'user': user_id, "app": app.client_id})
         redis_client.expire(request_id, 7200)
+        extras = {
+            "version": "v3",
+            "featureType": "whatsapp_business_app_onboarding"
+        }
         params = {
             'client_id': app.client_id,
             'config_id': app.config_id,
             'response_type': 'code',
             'redirect_uri': f'https://{app.site}/waba/callback/',
             'state': request_id,
+            'extras': json.dumps(extras)
         }
         url = f'https://www.facebook.com/v{app.api_version}.0/dialog/oauth?{urlencode(params)}'
         return redirect(url)

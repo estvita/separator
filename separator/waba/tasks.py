@@ -66,18 +66,29 @@ def add_waba_phone(request_id, app_id):
                 raise
             
             for phone in phone_numbers:
+                phone_type = "cloud"
                 phone_id = phone.get('id')
-                phone_number = phone.get('display_phone_number')
                 pin = f"{random.randint(0, 999999):06d}"
-
-                payload = {
-                    'messaging_product': 'whatsapp',
-                    'pin': pin
-                }
+                phone_number = phone.get('display_phone_number')
+                # https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users
                 try:
-                    resp = utils.call_api(waba=waba, endpoint=f"{phone_id}/register", method="post", payload=payload)
+                    biz_response = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
+                    biz_data = biz_response.json()
+                    is_on_biz_app = biz_data.get("is_on_biz_app")
                 except Exception:
                     raise
+                if is_on_biz_app and biz_data.get("platform_type") == "CLOUD_API":
+                    phone_type = "app"
+                    pass
+                else:
+                    payload = {
+                        'messaging_product': 'whatsapp',
+                        'pin': pin
+                    }
+                    try:
+                        resp = utils.call_api(waba=waba, endpoint=f"{phone_id}/register", method="post", payload=payload)
+                    except Exception:
+                        raise
 
                 phone, created = Phone.objects.get_or_create(
                     phone_id=phone_id,
@@ -86,6 +97,7 @@ def add_waba_phone(request_id, app_id):
                         "owner": user,
                         "phone": phone_number,
                         "pin": pin,
+                        "type": phone_type,
                     }
                 )
 

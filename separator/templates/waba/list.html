@@ -38,7 +38,7 @@
       <tbody>
         {% for phone in phones %}
           <tr {% if phone.expiring_soon %}style="background: #ffdddd;"{% endif %}>
-            <td><a href="{% url 'phone-details' phone.id %}">{{ phone.phone }}</a></td>
+            <td><a href="{% url 'phone-details' phone.id %}">{{ phone.phone }}</a> ({{ phone.type }})</td>
             <td>
               {% if phone.date_end %}
                 {% trans "Messages" %}: {{ phone.date_end }}<br>
