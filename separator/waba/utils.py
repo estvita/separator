@@ -221,6 +221,8 @@ def event_processing(data):
         phone_number_id = metadata.get('phone_number_id')
         try:
             phone = Phone.objects.get(phone_id=phone_number_id, waba=waba)
+            appinstance = phone.app_instance
+            storage_id = appinstance.storage_id
         except Phone.DoesNotExist:
             raise Exception(f"phone_number not found: {data}")
         except Exception:
@@ -229,8 +231,6 @@ def event_processing(data):
         if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
             # send message to chatwoot 
             send_to_chatwoot.delay(data, phone_number)
-    appinstance = phone.app_instance
-    storage_id = appinstance.storage_id
 
     if field == 'message_template_status_update':
         return message_template_status_update(entry)    
