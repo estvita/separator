@@ -150,11 +150,15 @@ def event_processor(event_data):
             sender = sender.split('@')[0]
         else:
             raise Exception({'sender not found'})
-        remoteJid = key_data.get('remoteJid')
+        addressingMode = key_data.get('addressingMode')
+        if addressingMode == "lid":
+            remote_user = key_data.get('remoteJidAlt')
+        else:
+            remote_user = key_data.get('remoteJid')
         pushName = data.get("pushName")
         group_message = False
         # если g.us значит группа
-        if "g.us" in remoteJid:
+        if "g.us" in remote_user:
             participantPn = key_data.get('participantPn')
             participant = key_data.get('participant')
             group_message = True
@@ -163,7 +167,7 @@ def event_processor(event_data):
             if "@lid" in participant:
                 try:
                     participants_data = requests.get(f"{server.url}group/participants/{sessionid}", 
-                                                params={"groupJid": remoteJid}, headers=headers)
+                                                params={"groupJid": remote_user}, headers=headers)
                     participants_data.raise_for_status()
                     participants_dict = participants_data.json()
                     participants_list = participants_dict.get('participants', [])
@@ -173,24 +177,24 @@ def event_processor(event_data):
                     pass
             participant = participant.split('@')[0]
             participant = f"{pushName} ({participant})"
-            params = {"groupJid": remoteJid}
+            params = {"groupJid": remote_user}
             group_name = requests.get(f"{server.url}group/findGroupInfos/{sessionid}", params=params, headers=headers)
             if group_name.status_code == 200:
                 pushName = group_name.json().get("subject")
         file_data = {}
-        remoteJid = remoteJid.split('@')[0]
+        remote_user = remote_user.split('@')[0]
 
         profilepic_url = None
         if not group_message:
             profilepic = requests.post(f"{server.url}chat/fetchProfilePictureUrl/{sessionid}", 
-                                    json={"number": remoteJid}, headers=headers)
+                                    json={"number": remote_user}, headers=headers)
             if profilepic.status_code == 200:
                 profilepic = profilepic.json()
                 profilepic_url = profilepic.get("profilePictureUrl")
         
         payload = {
             'sender': sender,
-            'remoteJid': remoteJid,
+            'remoteJid': remote_user,
             'fromme': fromme,
         }
 
@@ -283,7 +287,7 @@ def event_processor(event_data):
                 text = payload.get("content", None)
                 if file_data:
                     member_id = line.portal.member_id
-                    chat_key = f'bitrix_chat:{member_id}:{line.line_id}:{remoteJid}'
+                    chat_key = f'bitrix_chat:{member_id}:{line.line_id}:{remote_user}'
                     if redis_client.exists(chat_key):
                         upload_file = bitrix_utils.upload_file(
                             session.app_instance, session.app_instance.storage_id,
@@ -322,7 +326,7 @@ def event_processor(event_data):
                         text = f"{from_app} {text}"
                     if text or attach:
                         bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
-                                                    remoteJid, text, line.connector.code, attach)
+                                                    remote_user, text, line.connector.code, attach)
 
                 else:
                     if download_url:
@@ -332,7 +336,7 @@ def event_processor(event_data):
                                 "name": fileName
                             }
                         ]
-                    bitrix_tasks.send_messages.delay(session.app_instance.id, remoteJid, text, line.connector.code, line.line_id,
+                    bitrix_tasks.send_messages.delay(session.app_instance.id, remote_user, text, line.connector.code, line.line_id,
                                                         False, pushName, message_id, attach, profilepic_url)
                     
         except Exception as e:

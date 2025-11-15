@@ -100,6 +100,8 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                   message_id=None, attachments=None, profilepic_url=None,
                   chat_id=None, chat_url=None, user_id=None):
     init_message = "System: initiation message."
+    if pushName:
+        pushName = f"{user_phone} ({pushName})"
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
         bitrix_msg = {
