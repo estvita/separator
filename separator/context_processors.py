@@ -3,13 +3,19 @@ from django.conf import settings
 
 def footer_links_visibility(request):
     hostname = request.get_host().split(':')[0].lower()
-    blocked = ['gulin.kz', 'separator.biz']
-    is_blocked = any(
-        hostname == base or hostname.endswith('.' + base)
-        for base in blocked
-    )
+    show_footer_links = True
+
+    if 'wagtail.sites' in settings.INSTALLED_APPS or 'wagtailcore' in settings.INSTALLED_APPS:
+        try:
+            from wagtail.models import Site
+            exists = Site.objects.filter(hostname__iexact=hostname).exists()
+            if exists:
+                show_footer_links = False
+        except Exception:
+            pass
+
     return {
-        'SHOW_FOOTER_LINKS': not is_blocked
+        'SHOW_FOOTER_LINKS': show_footer_links
     }
 
 def installed_apps(request):
