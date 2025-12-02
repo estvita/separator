@@ -652,9 +652,7 @@ def event_processor(data):
                                 "filename": file["name"],
                             }
 
-                resp = waba.send_message(appinstance, message, line_id=line_id)
-                resp.raise_for_status()
-                return resp.json()
+                return waba.send_message(appinstance, message, line_id=line_id)
 
             elif connector.service == "waweb":
                 try:
