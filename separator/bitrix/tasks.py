@@ -67,7 +67,6 @@ def messageservice_add(app_instance_id, entity_id, service):
                 raise Exception("Owner has no auth_token!")
 
             phone = re.sub(r'\D', '', entity.phone)
-            code = f"gulin.kz_{phone}"
             if entity.sms_service:
                 try:
                     all_providers = call_method(app_instance, "messageservice.sender.list", admin=True)
@@ -77,7 +76,8 @@ def messageservice_add(app_instance_id, entity_id, service):
                 if "result" in all_providers and code in all_providers.get("result"):
                     raise Exception(f"{code} already exists")
 
-                url = app_instance.app.site
+                url = app_instance.app.site.domain
+                code = f"{url}_{phone}"
                 payload = {
                     "CODE": code,
                     "NAME": code,
