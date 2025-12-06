@@ -225,7 +225,7 @@ def event_processing(data):
         except Phone.DoesNotExist:
             raise Exception(f"phone_number not found: {data}")
         except Exception:
-            raise
+            raise Exception(data)
 
         if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
             # send message to chatwoot 
