@@ -87,7 +87,7 @@ class SessionForm(forms.ModelForm):
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
     form = SessionForm
-    autocomplete_fields = ['owner']
+    autocomplete_fields = ['owner', 'waba']
     list_display = ("phone_id", "phone", "owner", "date_end", "type", "sms_service")
     search_fields = ("phone", "phone_id", "owner__email")
     list_filter = ("calling", "type")

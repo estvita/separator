@@ -68,6 +68,12 @@ template-hello_world+file_link:https://file_link.url
 
 template-hello_world+en_US+file_link:https://file_link.url|value1|value2
 
+### Templates with dynamic URL in button
+
+https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/components#properties-4
+
+template-hello_world+button_param:test-value
+
 # WhatsApp Cloud API SIP Trunk Activation (receiving calls on a telephony server, e.g. Asterisk)
 
 https://developers.facebook.com/docs/whatsapp/cloud-api/calling  

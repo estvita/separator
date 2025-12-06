@@ -42,7 +42,7 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         if "error" in resp_data:
             raise Exception(resp_data)
 
-        return resp
+        return resp_data
     except Exception:
         raise
 
@@ -73,7 +73,7 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
 def get_file(media_id, filename, appinstance, storage_id, waba):
     try:
         file_data = call_api(waba=waba, endpoint=media_id)
-        file_url = file_data.json().get("url", None)
+        file_url = file_data.get("url", None)
         download_file = call_api(file_url=file_url, waba=waba)
     except Exception:
         return None
@@ -123,8 +123,7 @@ def message_template_status_update(entry):
         if waba:
             components = None
             try:
-                resp = call_api(waba=waba, endpoint=template_id)
-                temp_data = resp.json()
+                temp_data = call_api(waba=waba, endpoint=template_id)
                 components = temp_data.get('components')
             except Exception:
                 pass
@@ -201,7 +200,7 @@ def event_processing(data):
             if waba:
                 waba.delete()
             return(data)
-        if event == "PHONE_NUMBER_REMOVED":
+        elif event == "PHONE_NUMBER_REMOVED":
             try:
                 phone_number = value.get("phone_number")
                 phone = Phone.objects.filter(phone=f"+{phone_number}", waba=waba).first()
@@ -384,8 +383,7 @@ def sample_template(waba: Waba):
 def save_approved_templates(id):
     try:
         waba = Waba.objects.get(id=id)
-        template_resp = call_api(waba=waba, endpoint=f"{waba.waba_id}/message_templates")
-        templates_data = template_resp.json()
+        templates_data = call_api(waba=waba, endpoint=f"{waba.waba_id}/message_templates")
 
         approved_templates = [
             template for template in templates_data.get("data", [])

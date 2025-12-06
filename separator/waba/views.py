@@ -221,6 +221,9 @@ def save_request(request):
     if user_id and request_id:
         domain = request.get_host()
         app = App.objects.filter(site__domain=domain).first()
+        if not app:
+            messages.error(request, f"App not found for domain {domain}")
+            return redirect("waba")
         redis_client.json().set(request_id, "$", {'user': user_id, "app": app.client_id})
         redis_client.expire(request_id, 7200)
         extras = {

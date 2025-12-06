@@ -316,40 +316,40 @@ CALL_REQUEST = {
 
 def parse_template_code(code: str) -> dict:
     try:
-        parts = code.split("+", 3)
+        parts = code.split("+")
         if len(parts) < 3:
             raise ValueError("Invalid message body format")
-        _, template_name, language = parts[:3]
+        _, template_name, language, *other = parts
         params = []
         file_url = None
         file_type = None
         waba_file_type = None
-        named_params = []
+        button_param = None
 
-        if len(parts) == 4:
-            params_raw = parts[3].split('|')
-            for pr in params_raw:
-                pr = pr.strip()
-                if pr.startswith('file_link:'):
-                    file_url = pr[len('file_link:'):]
-                    try:
-                        file_headers = requests.head(file_url, allow_redirects=True)
-                        file_type = file_headers.headers.get('Content-Type', '')
-                    except Exception:
-                        file_type = ''
-                    if file_type.startswith('image/'):
-                        waba_file_type = "image"
-                    elif file_type.startswith('video/'):
-                        waba_file_type = "video"
-                    elif file_type == "application/pdf" or file_url.lower().endswith('.pdf'):
-                        waba_file_type = "document"
-                    else:
-                        raise ValueError("Unsupported file type for header component.")
-                elif ':' in pr:
-                    key, value = pr.split(':', 1)
-                    named_params.append((key.strip(), value.strip()))
-                elif pr and not pr.startswith('file_link:'):
-                    params.append(pr)
+        for p in other:
+            p = p.strip()
+            if p.startswith('file_link:'):
+                file_url = p[len('file_link:'):]
+                try:
+                    file_headers = requests.head(file_url, allow_redirects=True)
+                    file_type = file_headers.headers.get('Content-Type', '')
+                except Exception:
+                    file_type = ''
+                if file_type.startswith('image/'):
+                    waba_file_type = "image"
+                elif file_type.startswith('video/'):
+                    waba_file_type = "video"
+                elif file_type == "application/pdf" or file_url.lower().endswith('.pdf'):
+                    waba_file_type = "document"
+                else:
+                    raise ValueError("Unsupported file type for header component.")
+            elif p.startswith('button_param:'):
+                button_param = p[len('button_param:'):]
+            elif p:
+                if "|" in p:
+                    params.extend([x.strip() for x in p.split("|") if x.strip()])
+                else:
+                    params.append(p)
 
         message = {
             "type": "template",
@@ -358,9 +358,7 @@ def parse_template_code(code: str) -> dict:
                 "language": {"code": language},
             },
         }
-
         components = []
-
         if file_url and waba_file_type:
             file_param = {
                 "type": waba_file_type,
@@ -381,22 +379,25 @@ def parse_template_code(code: str) -> dict:
                 "type": "header",
                 "parameters": [file_param]
             })
-
         body_parameters = []
-        for key, value in named_params:
-            body_parameters.append({"type": "text", "text": value})
         for p in params:
             body_parameters.append({"type": "text", "text": p})
-
         if body_parameters:
             components.append({
                 "type": "body",
                 "parameters": body_parameters
             })
-
+        if button_param:
+            components.append({
+                "type": "button",
+                "sub_type": "url",
+                "index": "0",
+                "parameters": [
+                    {"type": "text", "text": button_param}
+                ]
+            })
         if components:
             message["template"]["components"] = components
-
         return message
     except ValueError:
         raise ValueError(f"Invalid template code {code}")

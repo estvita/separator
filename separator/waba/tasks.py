@@ -32,13 +32,13 @@ def add_waba_phone(request_id, app_id):
 
     try:
         response = utils.call_api(app=app, endpoint="oauth/access_token", method="post", payload=payload)
-        access_token = response.json().get('access_token')
+        access_token = response.get('access_token')
     except Exception as e:
         raise
     wabas = None
     try:
         debug_token = utils.call_api(app=app, endpoint=f"debug_token?input_token={access_token}")
-        token_data = debug_token.json().get('data', {})
+        token_data = debug_token.get('data', {})
         granular_scopes = token_data.get('granular_scopes', {})
         wabas = next((item['target_ids'] for item in granular_scopes if item['scope'] == 'whatsapp_business_management'), None)
     except Exception:
@@ -61,7 +61,7 @@ def add_waba_phone(request_id, app_id):
             # get phones
             try:
                 resp = utils.call_api(waba=waba, endpoint=f"{waba_id}/phone_numbers")
-                phone_numbers = resp.json().get('data', {})
+                phone_numbers = resp.get('data', {})
             except Exception:
                 raise
             
@@ -72,8 +72,7 @@ def add_waba_phone(request_id, app_id):
                 phone_number = phone.get('display_phone_number')
                 # https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users
                 try:
-                    biz_response = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
-                    biz_data = biz_response.json()
+                    biz_data = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
                     is_on_biz_app = biz_data.get("is_on_biz_app")
                 except Exception:
                     raise
@@ -190,8 +189,6 @@ def call_management(id):
          
             if phone.calling == "enabled":
                 sip_cred = utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/settings?include_sip_credentials=true")
-                sip_cred.raise_for_status()
-                sip_cred = sip_cred.json()
                 
                 # Получаем и сохраняем SIP пароль
                 calling_data = sip_cred.get("calling", {})
