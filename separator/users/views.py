@@ -30,7 +30,7 @@ class UserUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 
     def get_success_url(self) -> str:
         redirect_url = self.request.session.pop("redirect_after_profile_update", None)
-        installed_app = self.request.session.pop("installed_app")
+        installed_app = self.request.session.pop("installed_app", None)
         if installed_app and not self.request.user.integrator:
             from separator.bitrix.tasks import prepare_lead
             prepare_lead.delay(self.request.user.id, f'App installed: {installed_app}')

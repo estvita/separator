@@ -203,10 +203,12 @@ def prepare_lead(user_id, lead_title):
     if not vendor_instance:
         raise Exception(f"vendor instance for vendor {owner.email} not found")
     payload = {
-        "FILTER": {
-            "LOGIC": "OR",
-            "EMAIL": user.email,
-            "PHONE": str(user.phone_number)
+        "filter": {
+            "0": {
+                "logic": "OR",
+                "0": {"phone": str(user.phone_number)},
+                "1": {"email": user.email}
+            }
         },
         "entityTypeId": 3, #contacts
     }
