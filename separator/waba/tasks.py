@@ -100,6 +100,11 @@ def add_waba_phone(request_id, app_id):
                     }
                 )
 
+                # create lead in b24
+                if not user.integrator:
+                    from separator.bitrix.tasks import prepare_lead
+                    prepare_lead.delay(user.id, f'New WhatsApp Cloud: {phone_number}')
+
                 if "separator.tariff" in settings.INSTALLED_APPS and not phone.date_end:
                     from separator.tariff.utils import get_trial
                     phone.date_end = get_trial(user, "waba")

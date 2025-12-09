@@ -21,11 +21,12 @@ class User(AbstractUser):
     """
 
     # First and last name do not cover name patterns around the globe
+    site = models.ForeignKey(Site, on_delete=models.SET_NULL, related_name='users', blank=True, null=True)
     name = CharField(_("Name of User"), blank=True, null=True, max_length=255)
     first_name = CharField(_("First Name"), blank=True, null=True, max_length=150)
     last_name = CharField(_("Last Name"), blank=True, null=True, max_length=150)
     email = EmailField(_("email address"), unique=True)
-    phone_number = PhoneNumberField(blank=True, null=True)
+    phone_number = PhoneNumberField(_("Phone number"), blank=True, null=True)
     integrator = models.BooleanField(default=False)
     username = None  # type: ignore[assignment]
 
@@ -52,3 +53,8 @@ class Message(models.Model):
 
     def __str__(self):
         return self.code
+    
+
+class SiteProfile(models.Model):
+    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name='profile')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)

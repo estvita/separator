@@ -25,6 +25,7 @@ SAVE_UNBOUND_WABA_EVENTS = env.bool("SAVE_UNBOUND_WABA_EVENTS", default=False)
 BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
 
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
+CHECK_PHONE_NUMBER = env.bool("CHECK_PHONE_NUMBER", False)
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -182,6 +183,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
+
+if CHECK_PHONE_NUMBER:
+    MIDDLEWARE = MIDDLEWARE + [
+        "separator.users.middleware.CheckPhoneNumberMiddleware",
+    ]
 
 # STATIC
 # ------------------------------------------------------------------------------

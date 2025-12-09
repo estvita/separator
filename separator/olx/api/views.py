@@ -11,8 +11,7 @@ from rest_framework.views import APIView
 from django_celery_beat.models import PeriodicTask
 from django.utils import timezone
 
-from separator.olx.models import OlxApp
-from separator.olx.models import OlxUser
+from separator.olx.models import OlxApp, OlxUser
 
 from .serializers import OlxAuthorizationSerializer
 
@@ -118,6 +117,11 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                     olx_acc.save()
                     messages.success(request, "OLX Account successfully added")
 
+                    # create lead in b24
+                    if not request.user.integrator:
+                        from separator.bitrix.tasks import prepare_lead
+                        prepare_lead.delay(request.user.id, f'New OLX: {olx_id}')
+                
                 return redirect("olx-accounts")
 
             else:

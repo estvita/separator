@@ -146,7 +146,6 @@ def phone_details(request, phone_id):
 def waba_view(request):
     connector_service = "waba"
     portals, instances, lines = bitrix_utils.get_instances(request, connector_service)
-    request_id = str(uuid.uuid4())
     if not instances:
         user_message(request, "waba_install")
     b24_data = request.session.get('b24_data')
@@ -206,7 +205,7 @@ def waba_view(request):
         "phones": phones,
         "waba_lines": lines,
         "instances": instances,
-        "request_id": request_id,
+        "request_id": str(uuid.uuid4()),
         "days": days,
         "portals": portals,
         "selected_portal_id": request.session.get('b24_data', {}).get('member_id') if request.session.get('b24_data') else "all",

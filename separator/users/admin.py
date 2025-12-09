@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
-from .models import User, Message
+from .models import User, Message, SiteProfile
 
 import os
 from django.urls import reverse
@@ -105,7 +105,7 @@ class UserAdmin(*bases):
     add_form = UserAdminCreationForm
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        (_("Personal info"), {"fields": ("name", "phone_number", "integrator")}),
+        (_("Personal info"), {"fields": ("site", "name", "phone_number", "integrator")}),
         (
             _("Permissions"),
             {
@@ -120,8 +120,9 @@ class UserAdmin(*bases):
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
-    list_display = ["email", "name", "phone_number", "is_superuser", "integrator"]
-    list_filter = ("integrator", "is_staff", "is_active", "is_superuser")
+    list_display = ["email", "name", "phone_number", "site", "integrator"]
+    list_filter = ("integrator", "is_staff", "is_active", "is_superuser", "site")
+    autocomplete_fields = ['site']
     list_per_page = 30
     search_fields = ["name", "email", "phone_number"]
     ordering = ["id"]
@@ -140,3 +141,8 @@ class UserAdmin(*bases):
 class MessageAdmin(admin.ModelAdmin):
     list_display = ("id", "code", "owner", "site")
     list_per_page = 30
+
+@admin.register(SiteProfile)
+class SiteProfileAdmin(admin.ModelAdmin):
+    list_display = ("site", "owner")
+    autocomplete_fields = ["site", "owner"]

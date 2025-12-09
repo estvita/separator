@@ -29,6 +29,13 @@ class UserUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     success_message = _("Information successfully updated")
 
     def get_success_url(self) -> str:
+        redirect_url = self.request.session.pop("redirect_after_profile_update", None)
+        installed_app = self.request.session.pop("installed_app")
+        if installed_app and not self.request.user.integrator:
+            from separator.bitrix.tasks import prepare_lead
+            prepare_lead.delay(self.request.user.id, f'App installed: {installed_app}')
+        if redirect_url:
+            return redirect_url
         assert self.request.user.is_authenticated  # type guard
         return self.request.user.get_absolute_url()
 

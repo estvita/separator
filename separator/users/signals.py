@@ -1,10 +1,16 @@
-from allauth.account.signals import email_confirmed
+from allauth.account.signals import email_confirmed, user_logged_in
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.conf import settings
 
-from separator.users.tasks import create_user_task
+from separator.users.tasks import create_user_task, get_site
 
+@receiver(user_logged_in)
+def set_user_site(sender, request, user, **kwargs):
+    site = get_site(request)
+    if site and not user.site:
+        user.site = site
+        user.save()
 
 @receiver(email_confirmed)
 def email_confirmed_handler(request, email_address, **kwargs):

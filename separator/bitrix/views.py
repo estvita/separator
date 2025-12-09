@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
 
 from .crest import call_method
-from .tasks import call_api
+from .tasks import call_api, prepare_lead
 from .utils import process_placement, get_b24_user, get_instances, get_app
 from .forms import BitrixPortalForm, VerificationCodeForm
 from .models import AppInstance, Bitrix, VerificationCode, Line
@@ -178,6 +178,9 @@ def get_owner(request):
                 user_last_name = user_data.get("LAST_NAME")
                 user_email = user_data.get("EMAIL")
                 user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
+
+                from separator.users.tasks import get_site
+                
                 owner_user, created = User.objects.get_or_create(
                     email=user_email,
                     defaults={
@@ -185,6 +188,7 @@ def get_owner(request):
                         "first_name": user_name,
                         "last_name": user_last_name,
                         "phone_number": user_phone,
+                        "site": get_site(request)
                     }
                 )
                 if user_email and settings.CHATWOOT_ENABLED:
@@ -234,6 +238,7 @@ def app_install(request):
         "auth": auth_id,
     }
 
+    request.session["installed_app"] = app.name
     try:
         proto = "https" if protocol == "1" else "http"
         response = requests.post(f"{proto}://{domain}/rest/event.bind", json=payload)
@@ -277,6 +282,11 @@ def app_settings(request):
             return process_placement(request)
         
         elif placement == "DEFAULT":
+            installed_app = None
+            try:
+                installed_app = request.session.pop("installed_app")
+            except Exception:
+                pass
             app_url = app.page_url
             try:
                 user = get_owner(request)
@@ -295,6 +305,11 @@ def app_settings(request):
                     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception:
                     return redirect(app_url)
+            if installed_app:
+                if user.phone_number and not user.integrator:
+                    prepare_lead.delay(user.id, f"App installed: {app.name}")
+                else:
+                    request.session["installed_app"] = installed_app
             return render(request, "bitrix/cookie_test.html", {"app_url": app_url})
         else:
             return portals(request)

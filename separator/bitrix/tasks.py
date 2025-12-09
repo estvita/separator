@@ -12,6 +12,7 @@ from .models import AppInstance, Credential
 
 from separator.waba.models import Phone
 from separator.waweb.models import Session
+from separator.users.models import User
 
 logger = logging.getLogger("django")
 
@@ -38,16 +39,6 @@ def upd_refresh_token(period):
         )
         if need_refresh:
             refresh_token(credential)
-
-@shared_task(queue='bitrix')
-def get_app_info(instance_id=None):
-    if instance_id:
-        app_instances = AppInstance.objects.filter(id=instance_id)
-    else:
-        app_instances = AppInstance.objects.all()
-    for app_instance in app_instances:
-        if app_instance.portal and not app_instance.portal.license_expired:
-            call_api.delay(app_instance.id, "app.info", {})
 
 
 # Регистрация SMS-провайдера
@@ -198,65 +189,65 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
 
 
 @shared_task(queue='bitrix')
-def create_deal(app_instance_id, vendor_inst_id, app_name):
-    app_instance = AppInstance.objects.get(id=app_instance_id)
-    try:
-        user_current = call_method(app_instance, "user.current")
-        user_data = user_current.get("result", {})
-        user_email = user_data.get("EMAIL")
-    except Exception as e:
-        raise
-    if not user_email:
-        raise Exception("user email not found")
-    user_id = None
-    venrot_instance = AppInstance.objects.get(id=vendor_inst_id)
-    # Поиск контакта в битрикс 
+def prepare_lead(user_id, lead_title):
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        raise Exception("user not found")
+    site = user.site
+    if not site:
+        raise Exception(f"site for {user.email} not found")
+    if not site.profile:
+        raise Exception(f"site.profile for {site.domain} not found")
+    owner = site.profile.owner
+    vendor_instance = AppInstance.objects.filter(owner=owner, app__vendor=True).first()
+    if not vendor_instance:
+        raise Exception(f"vendor instance for vendor {owner.email} not found")
     payload = {
         "FILTER": {
-            "EMAIL": user_email
+            "LOGIC": "OR",
+            "EMAIL": user.email,
+            "PHONE": str(user.phone_number)
         },
+        "entityTypeId": 3, #contacts
     }
-    client_data = call_method(venrot_instance, "crm.contact.list", payload)
+    contact_id = None
+    client_data = call_method(vendor_instance, "crm.item.list", payload)
     if "result" in client_data:
-        client_data = client_data.get("result", [])
+        client_data = client_data.get("result", {}).get("items", [])
         if client_data:
-            user_id = client_data[0].get("ID")
-    if not user_id:        
+            contact_id = client_data[0].get("id")
+    if not contact_id:
+        # create contact
         contact_data = {
             "fields": {
-                "NAME": user_data.get("NAME"),
-                "LAST_NAME": user_data.get("LAST_NAME"),
+                "NAME": user.name,
                 "EMAIL": [
                     {
-                        "VALUE": user_email,
+                        "VALUE": user.email,
                         "VALUE_TYPE": "WORK"
                     }
                 ],
                 "PHONE": [
                     {
-                        "VALUE": user_data.get("WORK_PHONE"),
-                        "VALUE_TYPE": "WORK"
-                    },
-                    {
-                        "VALUE": user_data.get("PERSONAL_MOBILE"),
+                        "VALUE": str(user.phone_number),
                         "VALUE_TYPE": "MOBILE"
                     }
                 ]
             }
         }
 
-        create_contact = call_method(venrot_instance, "crm.contact.add", contact_data)
+        create_contact = call_method(vendor_instance, "crm.contact.add", contact_data)
         if "result" in create_contact:
-            user_id = create_contact.get("result")
-    if user_id:
-        deal_data = {
+            contact_id = create_contact.get("result")
+    if contact_id:
+        lead_data = {
             "fields": {
-                "TITLE": f"Установка приложения: {app_name}",
-                "CONTACT_IDS": [user_id],
+                "TITLE": lead_title,
+                "CONTACT_ID": contact_id,
                 "OPENED": "N",
             }
         }
-        call_method(venrot_instance, "crm.deal.add", deal_data)
+        call_method(vendor_instance, "crm.lead.add", lead_data)
 
 
 @shared_task(queue='chat_finish')

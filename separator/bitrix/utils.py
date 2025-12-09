@@ -414,6 +414,7 @@ def sms_processor(data, service):
     code = data.get("code", {})
     sender = code.split('_')[-1]
     message_to = re.sub(r'\D', '', data.get("message_to"))
+    message_id = data.get("message_id")
     line = None
     status = None
     send_result = None
@@ -421,7 +422,10 @@ def sms_processor(data, service):
         if service == "waba":
             message = {
                 "messaging_product": "whatsapp",
-                "biz_opaque_callback_data": {"bitrix_user_id": user_id}
+                "biz_opaque_callback_data": {
+                    "bitrix_user_id": user_id,
+                    "sms_message_id": message_id
+                }
             }
             if message_body.startswith("template+"):
                 message.update(parse_template_code(message_body))
@@ -454,7 +458,7 @@ def sms_processor(data, service):
     finally:
         status_data = {
             "CODE": code,
-            "MESSAGE_ID": data.get("message_id"),
+            "MESSAGE_ID": message_id,
             "STATUS": status if status else "failed",
         }
         bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
@@ -542,19 +546,11 @@ def event_processor(data):
                     from separator.asterx.views import get_portal_settings
                     get_portal_settings(member_id)
 
-                # если приложение интегратора и есть партнерское приложение
-                # создать сделку на его портале
-                vendor_instance = AppInstance.objects.filter(owner=app.owner, app__vendor=True).first()
-                if vendor_instance:
-                    bitrix_tasks.create_deal.delay(appinstance.id, vendor_instance.id, app.name)
-
                 # Если портал уже прявязан
                 if portal.owner:
                     return "App successfully created and linked"
                 
-                verify_code = VerificationCode.objects.filter(
-                    portal=portal,
-                ).first()
+                verify_code = VerificationCode.objects.filter(portal=portal).first()
 
                 if verify_code:
                     code = verify_code.code
