@@ -364,21 +364,6 @@ def event_processing(data):
         raise Exception(f"this event is not handled: {data}")
 
 
-def sample_template(waba: Waba):
-    payload = {
-        "name": "hello_separator",
-        "category": "MARKETING",
-        "allow_category_change": True,
-        "language": "en_US",
-        "components": [
-            {
-            "type": "BODY",
-            "text": "Hello, separator!"
-            }
-        ]
-    }
-    return call_api(waba=waba, endpoint=f"{waba.waba_id}/message_templates", method="post", payload=payload)
-
 @shared_task(queue='waba')
 def save_approved_templates(id):
     try:
@@ -389,11 +374,6 @@ def save_approved_templates(id):
             template for template in templates_data.get("data", [])
             if template.get("status") == "APPROVED"
         ]
-        if not any(t.get("name") == "hello_separator" for t in approved_templates):
-            try:
-                sample_template(waba)
-            except:
-                pass
         
         for template in approved_templates:
             template_id = template.get("id")

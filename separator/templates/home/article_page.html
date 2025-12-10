@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% load wagtailcore_tags %} 
 
 {% block body_class %}template-articlepage{% endblock %}
@@ -9,4 +10,9 @@
     {% for block in page.body %}
         {% include_block block %}
     {% endfor %}
+    <p class="text-muted">
+        {% if page.last_published_at %}
+           {% trans "Updated" %}: {{ page.last_published_at|date:"d.m.Y H:i" }}
+        {% endif %}
+    </p>
 {% endblock %}

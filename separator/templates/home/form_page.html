@@ -5,9 +5,19 @@
 {% block body_class %}template-formpage{% endblock %}
 {% block content %}
     <h2>{{ page.title }}</h2>
+    {% if page.body %}
+        {% for block in page.body %}
+            {{ block }}
+        {% endfor %}
+    {% endif %}
     {% if page.intro %}
         {{ page.intro|richtext }}
     {% endif %}
+    <p class="text-muted">
+        {% if page.last_published_at %}
+            {% trans "Updated" %}: {{ page.last_published_at|date:"d.m.Y H:i" }}
+        {% endif %}
+    </p>
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">

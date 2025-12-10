@@ -134,10 +134,26 @@ class FormField(AbstractFormField):
 class FormPage(AbstractEmailForm):
     intro = RichTextField(blank=True)
     thank_you_text = RichTextField(blank=True)
+    body = StreamField([
+        ("rich_text", blocks.RichTextBlock()),
+        ("table", TypedTableBlock([
+            ('text', blocks.CharBlock(required=False)),
+            ('numeric', blocks.FloatBlock(required=False)),
+            ('image', ImageChooserBlock()),
+            ('url', blocks.URLBlock(required=False)),
+            ('flag', blocks.BooleanBlock(required=False)),
+            ('datetime', blocks.DateTimeBlock(required=False)),
+            ('date', blocks.DateBlock(required=False)),
+            ('time', blocks.TimeBlock(required=False)),
+            ('email', blocks.EmailBlock(required=False)),
+            ('page', blocks.PageChooserBlock()),
+        ])),
+    ], blank=True, use_json_field=True)
 
     content_panels = AbstractEmailForm.content_panels + [
         FormSubmissionsPanel(),
         FieldPanel('intro'),
+        FieldPanel('body'),
         InlinePanel('form_fields'),
         FieldPanel('thank_you_text'),
         MultiFieldPanel([
