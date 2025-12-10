@@ -64,11 +64,12 @@ def messageservice_add(app_instance_id, entity_id, service):
                 except Exception as e:
                     raise Exception(f"list providers fail: {e}")
 
+                url = app_instance.app.site.domain
+                code = f"{url}_{phone}"
+                
                 if "result" in all_providers and code in all_providers.get("result"):
                     raise Exception(f"{code} already exists")
 
-                url = app_instance.app.site.domain
-                code = f"{url}_{phone}"
                 payload = {
                     "CODE": code,
                     "NAME": code,
