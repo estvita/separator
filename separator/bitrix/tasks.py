@@ -213,44 +213,31 @@ def prepare_lead(user_id, lead_title):
         },
         "entityTypeId": 3, #contacts
     }
-    contact_id = None
     client_data = call_method(vendor_instance, "crm.item.list", payload)
+    contact_ids = []
     if "result" in client_data:
         client_data = client_data.get("result", {}).get("items", [])
-        if client_data:
-            contact_id = client_data[0].get("id")
-    if not contact_id:
-        # create contact
-        contact_data = {
-            "fields": {
-                "NAME": user.name,
-                "EMAIL": [
-                    {
-                        "VALUE": user.email,
-                        "VALUE_TYPE": "WORK"
-                    }
-                ],
-                "PHONE": [
-                    {
-                        "VALUE": str(user.phone_number),
-                        "VALUE_TYPE": "MOBILE"
-                    }
-                ]
-            }
-        }
+        contact_ids = [contact.get("id") for contact in client_data if contact.get("id")]
 
-        create_contact = call_method(vendor_instance, "crm.contact.add", contact_data)
-        if "result" in create_contact:
-            contact_id = create_contact.get("result")
-    if contact_id:
-        lead_data = {
-            "fields": {
-                "TITLE": lead_title,
-                "CONTACT_ID": contact_id,
-                "OPENED": "N",
-            }
+    lead_data = {
+        "fields": {
+            "TITLE": lead_title,
         }
-        call_method(vendor_instance, "crm.lead.add", lead_data)
+    }
+    if contact_ids:
+        lead_data["fields"]["CONTACT_IDS"] = contact_ids
+    else:
+        lead_data["fields"]["NAME"] = user.name
+        lead_data["fields"]["EMAIL"] = [{
+            "VALUE": user.email,
+            "VALUE_TYPE": "WORK"
+        }]
+        lead_data["fields"]["PHONE"] = [{
+            "VALUE": str(user.phone_number),
+            "VALUE_TYPE": "MOBILE"
+        }]
+
+    call_method(vendor_instance, "crm.lead.add", lead_data)
 
 
 @shared_task(queue='chat_finish')
