@@ -7,17 +7,6 @@ from .models import OlxUser
 from separator.bitrix.models import Connector, Line
 import separator.bitrix.utils as bitrix_utils
 
-class UsersForm(forms.ModelForm):
-    class Meta:
-        model = OlxUser
-        fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        owner = self.instance.owner or self.initial.get('owner')
-        if owner:
-            self.fields['line'].queryset = Line.objects.filter(owner=owner)
-
 @admin.register(OlxApp)
 class OlxAppAdmin(admin.ModelAdmin):
     list_display = ("name", "client_domain", "owner", "client_id")
@@ -25,7 +14,6 @@ class OlxAppAdmin(admin.ModelAdmin):
 
 @admin.register(OlxUser)
 class OlxUserAdmin(admin.ModelAdmin):
-    form = UsersForm
     list_display = (
         "olx_id",
         "owner",
@@ -33,7 +21,7 @@ class OlxUserAdmin(admin.ModelAdmin):
         "status",
         "attempts",
     )
-    autocomplete_fields = ['owner']
+    autocomplete_fields = ['owner', 'line']
     search_fields = ("olx_id", )
     list_filter = ("status", )
     readonly_fields = (

@@ -1,7 +1,7 @@
 import re
 import redis
-from celery import shared_task
 import logging
+from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.utils import timezone
@@ -60,21 +60,21 @@ def messageservice_add(app_instance_id, entity_id, service):
             phone = re.sub(r'\D', '', entity.phone)
             if entity.sms_service:
                 try:
-                    all_providers = call_method(app_instance, "messageservice.sender.list", admin=True)
+                    providers = call_method(app_instance, "messageservice.sender.list", admin=True)
                 except Exception as e:
                     raise Exception(f"list providers fail: {e}")
 
-                url = app_instance.app.site.domain
-                code = f"{url}_{phone}"
+                domain = app_instance.app.site.domain
+                code = f"{domain}_{phone}"
                 
-                if "result" in all_providers and code in all_providers.get("result"):
+                if "result" in providers and code in providers.get("result"):
                     raise Exception(f"{code} already exists")
 
                 payload = {
                     "CODE": code,
                     "NAME": code,
                     "TYPE": "SMS",
-                    "HANDLER": f"https://{url}/api/bitrix/sms/?service={service}",
+                    "HANDLER": f"https://{domain}/api/bitrix/sms/?service={service}",
                 }
                 return call_method(app_instance, "messageservice.sender.add", payload, admin=True)
             else:

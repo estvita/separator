@@ -36,13 +36,14 @@ def call_method(appinstance: AppInstance,
         credential = b24_user.credentials.filter(app_instance=appinstance).first()
         if not credential:
             continue
-        endpoint = f"{portal.protocol}://{portal.domain}/rest/"
+        endpoint = f"{portal.protocol}://{portal.domain}/rest"
         payload = {"auth": credential.access_token, **data}
         try:
-            response = requests.post(f"{endpoint}{b24_method}", json=payload,
+            response = requests.post(f"{endpoint}/{b24_method}", json=payload,
                                     allow_redirects=False, verify=verify)
-            appinstance.status = response.status_code
-            appinstance.save()
+            if appinstance.status != response.status_code:
+                appinstance.status = response.status_code
+                appinstance.save()
         except requests.exceptions.SSLError:
             if verify:
                 return call_method(appinstance, b24_method, data, attempted_refresh, verify=False)

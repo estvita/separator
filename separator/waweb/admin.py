@@ -1,46 +1,13 @@
 from django.contrib import admin
-from django.db import transaction, models
+from django.db import transaction
 from django.contrib import messages
-from django import forms
 from .models import Session, Server
-from separator.bitrix.models import Connector, AppInstance, Line
 import separator.bitrix.utils as bitrix_utils
-
-
-class SessionForm(forms.ModelForm):
-    class Meta:
-        model = Session
-        fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        owner = self.instance.owner or self.initial.get('owner')
-
-        app_instance_qs = AppInstance.objects.all()
-        line_qs = Line.objects.all()
-
-        if owner:
-            app_instance_qs = app_instance_qs.filter(owner=owner)
-            line_qs = line_qs.filter(owner=owner)
-
-        if self.instance.pk:
-            if self.instance.app_instance:
-                app_instance_qs = AppInstance.objects.filter(
-                    models.Q(pk=self.instance.app_instance.pk) | models.Q(owner=owner)
-                )
-            if self.instance.line:
-                line_qs = Line.objects.filter(
-                    models.Q(pk=self.instance.line.pk) | models.Q(owner=owner)
-                )
-
-        self.fields['app_instance'].queryset = app_instance_qs.distinct()
-        self.fields['line'].queryset = line_qs.distinct()
 
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
-    form = SessionForm
-    autocomplete_fields = ['owner', 'server']
+    autocomplete_fields = ['owner', 'server', 'line']
     list_display = ('session', 'server', 'phone', 'date_end', 'status', 'owner')
     search_fields = ("session", 'phone', "owner__email")
     list_filter = ("status", "server")

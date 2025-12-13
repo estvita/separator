@@ -140,26 +140,6 @@ class Line(models.Model):
     portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="lines", blank=True, null=True)
     def __str__(self):
         return f"Line {self.line_id} for AppInstance {self.app_instance}"
-    
-
-class Messageservice(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.CharField(max_length=255)
-    name = models.CharField(max_length=255)
-    type = models.CharField(max_length=10, default="SMS")
-    description = models.CharField(max_length=255, blank=True, null=True)
-    portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="messageservice")
-    wa_web = models.OneToOneField('waweb.Session', on_delete=models.CASCADE, related_name="messageservice", blank=True, null=True)
-    wa_cloud = models.OneToOneField('waba.Phone', on_delete=models.CASCADE, related_name="messageservice", blank=True, null=True)
-
-    def clean(self):
-        if self.wa_web and self.wa_cloud:
-            raise ValidationError(_('Select only one: wa_web or wa_cloud'))
-        if not self.wa_web and not self.wa_cloud:
-            raise ValidationError(_('Select at least one: wa_web or wa_cloud'))
-        
-    def __str__(self):
-        return self.code
 
 
 class VerificationCode(models.Model):

@@ -50,4 +50,3 @@ class SmsViewSet(GenericViewSet, CreateModelMixin):
         service = request.query_params.get('service')
         utils.sms_processor.delay(request.data, service)
         return Response("ok")
-

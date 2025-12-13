@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Messageservice
+from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential
 import separator.bitrix.tasks as bitrix_tasks
 
 
@@ -143,14 +143,6 @@ class LineAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
     list_display = ("line_id", "app_instance", "owner")
     search_fields = ("line_id",)
-    list_per_page = 30
-
-
-@admin.register(Messageservice)
-class MessageserviceAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['portal', 'wa_web', 'wa_cloud']
-    search_fields = ['portal__domain', 'id', 'code', 'name']
-    list_display = ['id', 'code', 'name', 'portal']
     list_per_page = 30
 
 
