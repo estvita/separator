@@ -9,7 +9,7 @@ import separator.bitrix.utils as bitrix_utils
 class SessionAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', 'server', 'line']
     list_display = ('session', 'server', 'phone', 'date_end', 'status', 'owner')
-    search_fields = ("session", 'phone', "owner__email")
+    search_fields = ("session", 'phone', "owner__email", "line__name")
     list_filter = ("status", "server")
     readonly_fields = ('session',)
     list_per_page = 30

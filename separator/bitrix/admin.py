@@ -113,7 +113,7 @@ class BitrixAdmin(admin.ModelAdmin):
     inlines = [UserInline, AppInstanceInline]    
     autocomplete_fields = ['owner']
     list_display = ("domain", "owner", "license_expired")
-    search_fields = ("domain", "member_id")
+    search_fields = ("domain", "member_id", "owner__email")
     fields = ("protocol", "domain", "owner", "member_id", "license_expired")
     list_filter = ('license_expired', 'imopenlines_auto_finish')
     list_per_page = 30
@@ -142,7 +142,7 @@ class AppInstanceAdmin(admin.ModelAdmin):
 class LineAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
     list_display = ("line_id", "app_instance", "owner")
-    search_fields = ("line_id",)
+    search_fields = ("line_id", "portal__domain")
     list_per_page = 30
 
 

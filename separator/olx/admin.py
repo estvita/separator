@@ -22,7 +22,7 @@ class OlxUserAdmin(admin.ModelAdmin):
         "attempts",
     )
     autocomplete_fields = ['owner', 'line']
-    search_fields = ("olx_id", )
+    search_fields = ("olx_id", 'line__name')
     list_filter = ("status", )
     readonly_fields = (
         "olx_id",
