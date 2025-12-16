@@ -150,7 +150,12 @@ def event_processor(event_data):
             sender = sender.split('@')[0]
         else:
             raise Exception({'sender not found'})
-        remote_user = key_data.get('remoteJidAlt') or key_data.get('remoteJid')
+        # нужно исправить чтобы группы работали
+        addressingMode = key_data.get('addressingMode')
+        if addressingMode == "lid":
+            remote_user = key_data.get('remoteJidAlt')
+        else:
+            remote_user = key_data.get('remoteJid')
         pushName = data.get("pushName")
         group_message = False
         # если g.us значит группа
