@@ -20,7 +20,6 @@ from .models import AppInstance, Bitrix, VerificationCode, Line
 from .models import User as B24_user
 
 from separator.decorators import login_message_required
-from separator.users.tasks import create_user_task
 
 from django.contrib.auth import get_user_model, login, logout
 User = get_user_model()
@@ -191,11 +190,6 @@ def get_owner(request):
                         "site": get_site(request)
                     }
                 )
-                if user_email and settings.CHATWOOT_ENABLED:
-                    from django.db import transaction
-                    def run_task():
-                        create_user_task.delay(user_email, owner_user.id)
-                    transaction.on_commit(run_task)
 
             except Exception as e:
                 print("Error", e)

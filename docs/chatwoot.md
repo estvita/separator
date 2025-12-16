@@ -1,1 +1,0 @@
-Chatwoot is considered as an alternative to Bitrix for non-demanding clients, as well as for connecting AI bots to various messengers.

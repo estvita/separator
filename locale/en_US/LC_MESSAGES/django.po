@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-04 18:49+0500\n"
+"POT-Creation-Date: 2025-12-16 17:45+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -188,6 +188,93 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+msgid "Edit"
+msgstr ""
+
+msgid "Create"
+msgstr ""
+
+msgid "Your Connectors"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Chat Bots"
+msgstr ""
+
+msgid "Provider"
+msgstr ""
+
+msgid "URL"
+msgstr ""
+
+msgid "No connectors"
+msgstr ""
+
+msgid "Delete bot?"
+msgstr ""
+
+msgid "Delete bot"
+msgstr ""
+
+msgid "Commands"
+msgstr ""
+
+msgid "Command"
+msgstr ""
+
+msgid "Common"
+msgstr ""
+
+msgid "Hidden"
+msgstr ""
+
+msgid "Extranet"
+msgstr ""
+
+msgid "Translations"
+msgstr ""
+
+msgid "No translations"
+msgstr ""
+
+msgid "Delete this command?"
+msgstr ""
+
+msgid "No commands yet"
+msgstr ""
+
+msgid "Add command"
+msgstr ""
+
+msgid "Add translation"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Title"
+msgstr ""
+
+msgid "Params"
+msgstr ""
+
+msgid "Your BitBots"
+msgstr ""
+
+msgid "Connectors"
+msgstr ""
+
+msgid "Connector"
+msgstr ""
+
+msgid "Bitrix24"
+msgstr ""
+
+msgid "No bots"
+msgstr ""
+
 msgid "Enable third-party cookies for this app to work."
 msgstr ""
 
@@ -251,9 +338,6 @@ msgstr ""
 msgid "Line ID"
 msgstr ""
 
-msgid "Connector"
-msgstr ""
-
 msgid "Back to Portals"
 msgstr ""
 
@@ -281,22 +365,28 @@ msgstr ""
 msgid "Send"
 msgstr ""
 
+msgid "Updated"
+msgstr ""
+
+msgid "Thank you, message sent"
+msgstr ""
+
 msgid "My Profile"
 msgstr ""
 
 msgid "Sign Out"
 msgstr ""
 
-msgid "Your WhatsApp Cloud numbers"
-msgstr ""
-
-msgid "Expires in (days)"
-msgstr ""
-
 msgid "All"
 msgstr ""
 
 msgid "Apply"
+msgstr ""
+
+msgid "Your WhatsApp Cloud numbers"
+msgstr ""
+
+msgid "Expires in (days)"
 msgstr ""
 
 msgid "Number"
@@ -306,6 +396,9 @@ msgid "Calls"
 msgstr ""
 
 msgid "Messages"
+msgstr ""
+
+msgid "Disabled"
 msgstr ""
 
 msgid "Select a line"
@@ -338,13 +431,13 @@ msgstr ""
 msgid "Template"
 msgstr ""
 
-msgid "Add New"
+msgid "Templates not found"
 msgstr ""
 
 msgid "Template list"
 msgstr ""
 
-msgid "Language"
+msgid "Add New"
 msgstr ""
 
 msgid "Bitrix Code"
@@ -353,13 +446,16 @@ msgstr ""
 msgid "No templates found."
 msgstr ""
 
+msgid "Calling settings are not available for WhatsApp Business App numbers."
+msgstr ""
+
 msgid "Calling Settings"
 msgstr ""
 
-msgid "Call destination"
+msgid "Status"
 msgstr ""
 
-msgid "Disabled"
+msgid "Call destination"
 msgstr ""
 
 msgid "To Bitrix24"
@@ -420,9 +516,6 @@ msgstr ""
 msgid "Your WhatsApp Web Numbers"
 msgstr ""
 
-msgid "Status"
-msgstr ""
-
 msgid "No line"
 msgstr ""
 
@@ -463,9 +556,6 @@ msgid "The mailing has been added to the queue."
 msgstr ""
 
 msgid "FreePBX Server not connected"
-msgstr ""
-
-msgid "Bitrix App not installed."
 msgstr ""
 
 msgid "This number is already connected."

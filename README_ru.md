@@ -75,9 +75,6 @@ sudo systemctl restart separator
 + [WhatsApp - WEB](/docs/waweb.ru.md)
 + [OLX](/docs/olx.md)
 
-
-+ [Chatwoot](/docs/chatwoot.md)
-
 **## Адреса пользовательских интерфейсов**
 
 + /portals/ — Bitrix24
@@ -85,5 +82,3 @@ sudo systemctl restart separator
 + /olx/accounts/ — OLX
 + /waba/ — WABA
 + /waweb/ — WhatsApp Web
-
-+ /dify/ — Dify Bots

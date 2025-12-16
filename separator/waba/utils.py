@@ -10,8 +10,7 @@ from celery import shared_task
 
 from separator.bitrix.models import Line
 import separator.bitrix.tasks as bitrix_tasks
-
-from separator.chatwoot.tasks import send_to_chatwoot
+import separator.bitrix.utils as bitrix_utils
 
 from .models import App, Phone, Waba, Template, Event, Error
 
@@ -70,7 +69,7 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
         return {"error": True, "message": str(e)}
 
 
-def get_file(media_id, filename, appinstance, storage_id, waba):
+def get_file(media_id, filename, appinstance, waba, external=True):
     try:
         file_data = call_api(waba=waba, endpoint=media_id)
         file_url = file_data.get("url", None)
@@ -79,17 +78,21 @@ def get_file(media_id, filename, appinstance, storage_id, waba):
         return None
     fileContent = base64.b64encode(download_file.content).decode("utf-8")
 
-    payload = {
-        "id": storage_id,
-        "fileContent": fileContent,
-        "data": {"NAME": f"{media_id}_{filename}"},
-    }
-
-    upload_to_bitrix = bitrix_tasks.call_api(appinstance.id, "disk.storage.uploadfile", payload)
-    if "result" in upload_to_bitrix:
-        return upload_to_bitrix["result"]["DOWNLOAD_URL"]
-    else:
-        return None
+    upload_file = bitrix_utils.upload_file(
+        appinstance, appinstance.storage_id, 
+        fileContent, filename
+    )
+    if upload_file:
+        download_url = upload_file.get("DOWNLOAD_URL")
+        if not external:
+            return download_url
+    file_id = upload_file.get("ID") if download_url else None
+    if file_id:
+        try:
+            file_link = bitrix_tasks.call_api(appinstance.id, "disk.file.getExternalLink", {"id": file_id})
+            return file_link.get("result")
+        except Exception:
+            raise
 
 
 def format_contacts(contacts):
@@ -227,10 +230,6 @@ def event_processing(data):
         except Exception:
             raise Exception(data)
 
-        if settings.CHATWOOT_ENABLED and (not phone.date_end or timezone.now() < phone.date_end):
-            # send message to chatwoot 
-            send_to_chatwoot.delay(data, phone_number)
-
     if field == 'message_template_status_update':
         return message_template_status_update(entry)    
 
@@ -282,9 +281,7 @@ def event_processing(data):
                 filename = media_data.get("filename", f"{media_id}.{extension}")
                 caption = media_data.get("caption", None)
 
-                file_url = get_file(
-                    media_id, filename, appinstance, storage_id, phone.waba
-                )
+                file_url = get_file(media_id, filename, appinstance, phone.waba, external=False)
 
             elif message_type == "contacts":
                 contacts = value["messages"][0]["contacts"]
@@ -346,9 +343,7 @@ def event_processing(data):
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
                 filename = media_data.get("filename", f"{media_id}.{extension}")
                 text = media_data.get("caption", None)
-                file_url = get_file(
-                    media_id, filename, appinstance, storage_id, phone.waba
-                )
+                file_url = get_file(media_id, filename, appinstance, phone.waba)
                 if file_url:
                     attach = [
                         {

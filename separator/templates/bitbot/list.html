@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<div class="container">
+  <h3>{% trans "Your BitBots" %}</h3>
+
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <a href="{% url 'bitbot_add' %}" class="btn btn-success connect-btn">{% trans "Add" %}</a>
+    <a href="{% url 'connector_list' %}" class="btn btn-secondary connect-btn">{% trans "Connectors" %}</a>
+  </div>
+
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Connector" %}</th>
+        <th>{% trans "Type" %}</th>
+        <th>{% trans "ID" %}</th>
+        <th>{% trans "Bitrix24" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for bot in object_list %}
+      <tr>
+        <td><a href="{% url 'bitbot_edit' bot.pk %}">{{ bot.name }}</a></td>
+        <td>{{ bot.connector }}</td>
+        <td>{{ bot.bot_type }}</td>
+        <td>{{ bot.bot_id }}</td>
+        <td>{{ bot.app_instance }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3">{% trans "No bots" %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

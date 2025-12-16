@@ -79,9 +79,7 @@ sudo systemctl restart separator
 + [WhatsApp - WABA](/docs/waba.md)
 + [WhatsApp - WEB](/docs/waweb.md)
 + [OLX](/docs/olx.md)
-
-
-+ [Chatwoot](/docs/chatwoot.md)
++ [BitBot](/docs/bitbot.md) - Dify, Typebot, Langflow
 
 
 ## User Service Pages
@@ -90,5 +88,4 @@ sudo systemctl restart separator
 + /olx/accounts/ - OLX
 + /waba/ - waba
 + /waweb/ - whatsapp web
-
-+ /dify/ - dify bots
++ /bitbot/ - chat-bot connector

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<div class="container">
+  {% if object %}<h3>{% trans "Edit" %}</h3>{% else %}<h3>{% trans "Create" %}</h3>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-md-4">{{ form.provider.label_tag }} {{ form.provider }}</div>
+      <div class="col-md-4">{{ form.key.label_tag }} {{ form.key }}</div>
+      <div class="col-md-4">{{ form.url.label_tag }} {{ form.url }}</div>
+    </div>
+    <div class="d-flex align-items-center mt-3 gap-2">
+      <button class="btn btn-primary connect-btn" type="submit" name="save_connector">{% trans "Save" %}</button>
+      <a href="{% url 'connector_list' %}" class="btn btn-secondary">{% trans "Back" %}</a>
+      {% if object %}
+      <button class="btn btn-outline-danger connect-btn" type="submit" name="delete_connector">{% trans "Delete" %}</button>
+      {% endif %}
+    </div>
+    {% if form.errors %}<pre class="mt-2 text-danger small">{{ form.errors.as_text }}</pre>{% endif %}
+  </form>
+</div>
+{% endblock %}

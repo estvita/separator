@@ -20,3 +20,6 @@ psycopg2-binary
 redis
 requests
 whitenoise
+
+# BitBot
+git+https://github.com/langgenius/dify-python-sdk.git

@@ -16,9 +16,6 @@ if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
     env.read_env(str(BASE_DIR / ".env"))
 
-CHATWOOT_ENABLED = env.bool("CHATWOOT_ENABLED", default=False)
-CHATWOOT_ID = env("CHATWOOT_ID", default=1)
-
 FACEBOOK_API_URL = env("FACEBOOK_API_URL", default="https://graph.facebook.com")
 SAVE_UNBOUND_WABA_EVENTS = env.bool("SAVE_UNBOUND_WABA_EVENTS", default=False)
 
@@ -104,11 +101,10 @@ LOCAL_APPS = [
     "separator.bitrix",
     "separator.waba",
     "separator.olx",
-    "separator.chatwoot",
     "separator.waweb",
-    "separator.dify",
     "separator.asterx",
     "separator.freepbx",
+    "separator.bitbot"
 ]
 
 # Asterisk Connector AsterX

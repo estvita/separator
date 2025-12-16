@@ -1,12 +1,9 @@
-import re
 import redis
 import random
 from celery import shared_task
 
 from .models import App, Waba, Phone, Template, Error
 import separator.waba.utils as utils
-import separator.chatwoot.utils as chatwoot
-from separator.chatwoot.models import Inbox
 
 from separator.users.models import User
 
@@ -109,37 +106,6 @@ def add_waba_phone(request_id, app_id):
                     from separator.tariff.utils import get_trial
                     phone.date_end = get_trial(user, "waba")
                     phone.save()
-
-                if settings.CHATWOOT_ENABLED and not phone.inbox:
-                    # add phone to chatwoot
-                    cleaned_number = re.sub(r'[^\d+]', '', phone_number)
-                    inbox_data = {
-                        'name': cleaned_number,
-                        'lock_to_single_conversation': True,
-                        'channel': {
-                            'phone_number': cleaned_number,
-                            'provider': 'whatsapp_cloud',
-                            'type': 'whatsapp',
-                            'provider_config': {
-                                'api_key': access_token,
-                                'business_account_id': waba_id,
-                                'phone_number_id': phone_id
-                            }
-                        }
-                    }
-                    resp = chatwoot.add_inbox(user, inbox_data)
-                    if "result" in resp:
-                        result = resp.get('result', {})
-                        try:
-                            inbox, created = Inbox.objects.update_or_create(
-                                owner=user,
-                                id=result['inbox_id'],
-                                defaults={'account': result['account']}
-                            )
-                            phone.inbox = inbox
-                            phone.save()
-                        except Inbox.MultipleObjectsReturned:
-                            raise Exception(f"Multiple Inboxes found for owner {user} and id {result['inbox_id']}")
                         
             # subscribed_apps
             try:

@@ -8,7 +8,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('bitrix', '0004_alter_connector_service'),
-        ('chatwoot', '0001_initial'),
         ('waweb', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

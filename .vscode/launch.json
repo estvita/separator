@@ -26,7 +26,7 @@
             "console": "integratedTerminal",
             "args": ["-A", "config.celery_app", "worker", "-l", 
                      "info", "-c", "3",
-                     "-Q", "bitrix,olx,waweb,waba"],
+                     "-Q", "bitrix,olx,waweb,waba,bitbot"],
             "python": "${workspaceFolder}/.venv/bin/python",
         },
         {

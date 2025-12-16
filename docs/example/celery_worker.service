@@ -5,7 +5,7 @@ After=network.target
 [Service]
 User=user
 WorkingDirectory=/home/user/separator
-ExecStart=/home/user/separator/.venv/bin/celery -A config.celery_app worker -l info -Q bitrix,olx,waweb,waba,bot,chat_finish
+ExecStart=/home/user/separator/.venv/bin/celery -A config.celery_app worker -l info -Q bitrix,olx,waweb,waba,bitbot
 Restart=always
 
 [Install]

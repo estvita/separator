@@ -28,6 +28,8 @@ from .models import User as B24_user
 
 import separator.bitrix.tasks as bitrix_tasks
 
+import separator.bitbot.router as bitbot_router
+
 if settings.ASTERX_SERVER:
     from separator.asterx.models import Server
     from separator.asterx.utils import send_call_info
@@ -476,7 +478,6 @@ def sms_processor(data, service):
         return send_result.json()
     return send_result
 
-
 @shared_task(queue='bitrix')
 def event_processor(data):
     try:
@@ -729,6 +730,16 @@ def event_processor(data):
                 send_call_info(pbx.id, payload)
             except Exception as e:
                 raise
+
+        # BitBot
+        elif event in ["ONIMBOTMESSAGEADD", "ONIMCOMMANDADD"]:
+            # from pprint import pprint
+            # from datetime import datetime
+            # filename = f'{int(datetime.now().timestamp())}.json'
+            # with open(filename, 'w', encoding='utf-8') as f:
+            #     pprint(data, stream=f)
+            # pass
+            bitbot_router.event_processor.delay(data)
 
         elif event == "ONAPPUNINSTALL":
             portal = appinstance.portal

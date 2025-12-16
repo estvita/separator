@@ -5,7 +5,6 @@ from django.db import models
 from django.contrib.sites.models import Site
 
 from separator.bitrix.models import AppInstance, Line
-from separator.chatwoot.models import Inbox
 from separator.freepbx.models import Server, Extension
 
 class App(models.Model):
@@ -46,7 +45,6 @@ class Phone(models.Model):
     type = models.CharField(max_length=10, choices=TYPES_CHOICES, default="cloud")
     pin = models.CharField(max_length=6, default="000000")
     phone_id = models.CharField(max_length=50, unique=True)
-    inbox = models.ForeignKey(Inbox, on_delete=models.SET_NULL, null=True, blank=True)
     sms_service = models.BooleanField(default=True)
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="phones", null=True, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)

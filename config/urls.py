@@ -1,10 +1,10 @@
 # ruff: noqa
+import os
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
-import os
 from django.views.generic import TemplateView
 from django.views import defaults as default_views
 from drf_spectacular.views import SpectacularAPIView
@@ -20,9 +20,8 @@ urlpatterns = [
     path("users/", include("separator.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     path("waba/", include("separator.waba.urls")),
-    path("chat/", include("separator.chatwoot.urls")),
     path('waweb/', include('separator.waweb.urls')),
-    path('dify/', include('separator.dify.urls')),
+    path('bitbot/', include('separator.bitbot.urls')),
     # ...
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),

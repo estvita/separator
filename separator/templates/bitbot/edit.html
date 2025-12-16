@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<div class="container">
+  {% if object %}<h3>{% trans "Edit" %}: {{ object.name }}</h3>{% else %}<h3>{% trans "Create" %}</h3>{% endif %}
+  <form method="post" class="mb-4">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-md-4">{{ form.name.label_tag }} {{ form.name }}</div>
+      <div class="col-md-3">{{ form.bot_type.label_tag }} {{ form.bot_type }}</div>
+      <div class="col-md-5">{{ form.app_instance.label_tag }} {{ form.app_instance }}</div>
+    </div>
+    <div class="row g-2 mt-2">
+      <div class="col-md-6">{{ form.connector.label_tag }} {{ form.connector }}</div>
+    </div>
+    <div class="d-flex align-items-center mt-3 gap-2">
+      <button class="btn btn-primary connect-btn" type="submit" name="save_bot">{% trans "Save" %}</button>
+      <a href="{% url 'bitbot_list' %}" class="btn btn-secondary">{% trans "Back" %}</a>
+      {% if object %}
+      <button class="btn btn-outline-danger connect-btn" type="submit" name="delete_bot" onclick="return confirm('{% trans "Delete bot?" %}')">{% trans "Delete bot" %}</button>
+      {% endif %}
+    </div>
+    {% if form.errors %}<pre class="mt-2 text-danger small">{{ form.errors.as_text }}</pre>{% endif %}
+  </form>
+
+  {% if object %}
+  <h4 class="mt-4">{% trans "Commands" %}</h4>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>{% trans "Command" %}</th>
+        <th>{% trans "Common" %}</th>
+        <th>{% trans "Hidden" %}</th>
+        <th>{% trans "Extranet" %}</th>
+        <th>{% trans "Translations" %}</th>
+        <th style="width:120px;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in commands %}
+      <tr>
+        <td>{{ c.command }}</td>
+        <td>{{ c.common }}</td>
+        <td>{{ c.hidden }}</td>
+        <td>{{ c.extranet }}</td>
+        <td>
+          {% for l in c.langs.all %}
+            <div>{{ l.language }} — {{ l.title }}{% if l.params %} ({{ l.params }}){% endif %}</div>
+          {% empty %}<span class="text-muted">{% trans "No translations" %}</span>{% endfor %}
+        </td>
+        <td>
+          <form method="post" onsubmit="return confirm('{% trans "Delete this command?" %}');">
+            {% csrf_token %}
+            <input type="hidden" name="command_id" value="{{ c.id }}">
+            <button type="submit" name="delete_command" class="btn btn-sm btn-danger connect-btn">{% trans "Delete" %}</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6">{% trans "No commands yet" %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4 class="mt-3">{% trans "Add command" %}</h4>
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-md-4">{{ cmd_form.command.label_tag }} {{ cmd_form.command }}</div>
+      <div class="col-md-2">{{ cmd_form.common.label_tag }} {{ cmd_form.common }}</div>
+      <div class="col-md-2">{{ cmd_form.hidden.label_tag }} {{ cmd_form.hidden }}</div>
+      <div class="col-md-2">{{ cmd_form.extranet.label_tag }} {{ cmd_form.extranet }}</div>
+    </div>
+    <div class="mt-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <h6 class="mb-2">{% trans "Translations" %}</h6>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="add-lang-row">+ {% trans "Add translation" %}</button>
+      </div>
+      {{ lang_formset.management_form }}
+      <table class="table table-bordered" id="lang-table">
+        <thead>
+          <tr>
+            <th style="width:150px">{% trans "Language" %}</th>
+            <th>{% trans "Title" %}</th>
+            <th style="width:220px">{% trans "Params" %}</th>
+            <th style="width:60px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in lang_formset %}
+          <tr class="lang-row">
+            <td>{{ f.language }}</td>
+            <td>{{ f.title }}</td>
+            <td>{{ f.params }}</td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger remove-lang">&times;</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex align-items-center mt-3 gap-2">
+      <button class="btn btn-success connect-btn" type="submit" name="add_command">{% trans "Add command" %}</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+<script>
+(function() {
+  const addBtn = document.getElementById('add-lang-row');
+  const tbody = document.querySelector('#lang-table tbody');
+  const totalEl = document.querySelector('input[name="lang-TOTAL_FORMS"]');
+  function addRow() {
+    const total = parseInt(totalEl.value || '0', 10);
+    const tr = document.createElement('tr');
+    tr.className = 'lang-row';
+    tr.innerHTML = `
+      <td><input type="text" name="lang-${total}-language" class="form-control" placeholder="ru"></td>
+      <td><input type="text" name="lang-${total}-title" class="form-control" placeholder="Title"></td>
+      <td><input type="text" name="lang-${total}-params" class="form-control" placeholder="optional"></td>
+      <td><button type="button" class="btn btn-sm btn-outline-danger remove-lang">&times;</button></td>
+    `;
+    tbody.appendChild(tr);
+    totalEl.value = total + 1;
+  }
+  addBtn && addBtn.addEventListener('click', addRow);
+  tbody && tbody.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-lang')) {
+      const row = e.target.closest('tr'); row && row.remove();
+    }
+  });
+})();
+</script>
+{% endblock %}

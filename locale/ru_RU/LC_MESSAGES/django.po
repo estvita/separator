@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-04 18:49+0500\n"
+"POT-Creation-Date: 2025-12-16 17:45+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -193,6 +193,93 @@ msgstr "Редактировать настройки:"
 msgid "Back"
 msgstr "Назад"
 
+msgid "Edit"
+msgstr "Редактировать"
+
+msgid "Create"
+msgstr "Создать"
+
+msgid "Your Connectors"
+msgstr "Коннекторы"
+
+msgid "Add"
+msgstr "Добавить"
+
+msgid "Chat Bots"
+msgstr "Чат боты"
+
+msgid "Provider"
+msgstr "Провайдер"
+
+msgid "URL"
+msgstr ""
+
+msgid "No connectors"
+msgstr "Нет коннекторов"
+
+msgid "Delete bot?"
+msgstr "Удалить бота?"
+
+msgid "Delete bot"
+msgstr "Удалить бота"
+
+msgid "Commands"
+msgstr "Команды"
+
+msgid "Command"
+msgstr "Команда"
+
+msgid "Common"
+msgstr "Общая"
+
+msgid "Hidden"
+msgstr "Скрытая"
+
+msgid "Extranet"
+msgstr "Экстранет"
+
+msgid "Translations"
+msgstr "Переводы"
+
+msgid "No translations"
+msgstr "Нет переводов"
+
+msgid "Delete this command?"
+msgstr "Удалить эту команду?"
+
+msgid "No commands yet"
+msgstr "Комманды не найдеры"
+
+msgid "Add command"
+msgstr "Добавить команду"
+
+msgid "Add translation"
+msgstr "Добавить перевод"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Title"
+msgstr "Заголовок"
+
+msgid "Params"
+msgstr "Параметры"
+
+msgid "Your BitBots"
+msgstr "Ваши BitBot'ы"
+
+msgid "Connectors"
+msgstr "Коннекторы"
+
+msgid "Connector"
+msgstr "Коннектор"
+
+msgid "Bitrix24"
+msgstr "Битрикс24"
+
+msgid "No bots"
+msgstr "Нет ботов"
+
 msgid "Enable third-party cookies for this app to work."
 msgstr "Включите сторонние cookie-файлы для работы приложения."
 
@@ -262,9 +349,6 @@ msgstr "Открытые линии"
 msgid "Line ID"
 msgstr "ID линии"
 
-msgid "Connector"
-msgstr "Коннектор"
-
 msgid "Back to Portals"
 msgstr "Вернуться к списку"
 
@@ -292,23 +376,31 @@ msgstr "Получить код"
 msgid "Send"
 msgstr "Отправить"
 
+#, fuzzy
+#| msgid "Update"
+msgid "Updated"
+msgstr "Обновить"
+
+msgid "Thank you, message sent"
+msgstr ""
+
 msgid "My Profile"
 msgstr "Профиль"
 
 msgid "Sign Out"
 msgstr "Выйти"
 
+msgid "All"
+msgstr "Все"
+
+msgid "Apply"
+msgstr "Применить"
+
 msgid "Your WhatsApp Cloud numbers"
 msgstr "Ваши номера WhatsApp Cloud"
 
 msgid "Expires in (days)"
 msgstr "Истекает в течение (дни)"
-
-msgid "All"
-msgstr ""
-
-msgid "Apply"
-msgstr "Применить"
 
 msgid "Number"
 msgstr "Номер"
@@ -318,6 +410,9 @@ msgstr "Звонки"
 
 msgid "Messages"
 msgstr "Сообщения"
+
+msgid "Disabled"
+msgstr "Отключено"
 
 msgid "Select a line"
 msgstr "Выберите линию"
@@ -349,14 +444,16 @@ msgstr "Введите номера получателей, по одному в
 msgid "Template"
 msgstr "Шаблон"
 
-msgid "Add New"
-msgstr "Добавить новый"
+#, fuzzy
+#| msgid "No templates found."
+msgid "Templates not found"
+msgstr "Нет доступных шаблонов"
 
 msgid "Template list"
 msgstr "Список шаблонов"
 
-msgid "Language"
-msgstr "Язык"
+msgid "Add New"
+msgstr "Добавить новый"
 
 msgid "Bitrix Code"
 msgstr "Код для Bitrix24"
@@ -364,14 +461,17 @@ msgstr "Код для Bitrix24"
 msgid "No templates found."
 msgstr "Нет доступных шаблонов"
 
+msgid "Calling settings are not available for WhatsApp Business App numbers."
+msgstr "Настройки звонков недоступны для номеров приложения WhatsApp Business."
+
 msgid "Calling Settings"
 msgstr "Настройки звонков:"
 
+msgid "Status"
+msgstr "Статус"
+
 msgid "Call destination"
 msgstr "Направление звонка:"
-
-msgid "Disabled"
-msgstr "Отключено"
 
 msgid "To Bitrix24"
 msgstr "В Битрикс24"
@@ -431,9 +531,6 @@ msgstr "Сессии WAWeb"
 msgid "Your WhatsApp Web Numbers"
 msgstr "Ваши номера WhatsApp Web"
 
-msgid "Status"
-msgstr "Статус"
-
 msgid "No line"
 msgstr "Нет линии"
 
@@ -476,9 +573,6 @@ msgstr "Рассылка добавлена в очередь"
 msgid "FreePBX Server not connected"
 msgstr "Сервер FreePBX не подключен"
 
-msgid "Bitrix App not installed."
-msgstr "Приложение для Битрикс24 не установлено"
-
 msgid "This number is already connected."
 msgstr "Этот номер уже подключен."
 
@@ -494,12 +588,3 @@ msgstr "Направление звонка активировано: %(dest)s"
 
 msgid "The tariff has expired "
 msgstr "Срок действия тарифа истёк "
-
-#~ msgid "Administrator"
-#~ msgstr "Администратор"
-
-#~ msgid "Not Found"
-#~ msgstr "Не найдено"
-
-#~ msgid "Portal Address"
-#~ msgstr "Адрес портала"

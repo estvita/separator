@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<div class="container">
+  <h3>{% trans "Your Connectors" %}</h3>
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <a href="{% url 'connector_add' %}" class="btn btn-success">{% trans "Add" %}</a>
+    <a href="{% url 'bitbot_list' %}" class="btn btn-secondary">{% trans "Chat Bots" %}</a>
+  </div>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>{% trans "ID" %}</th>
+        <th>{% trans "Provider" %}</th>
+        <th>{% trans "URL" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in object_list %}
+      <tr>
+        <td><a class="btn btn-sm btn-primary" href="{% url 'connector_edit' c.pk %}">{{ c.pk }}</a></td>
+        <td>{{ c.provider }}</td>
+        <td>{{ c.url }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">{% trans "No connectors" %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

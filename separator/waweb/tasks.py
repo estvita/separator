@@ -10,8 +10,6 @@ import separator.waweb.utils as utils
 from separator.waweb.models import Session
 
 from django.conf import settings
-import separator.chatwoot.utils as chatwoot
-from separator.chatwoot.tasks import new_inbox
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
 
@@ -134,10 +132,6 @@ def event_processor(event_data):
             
             session.phone = number
             session.save()
-
-            # создание Inbox в чатвут
-            if settings.CHATWOOT_ENABLED and not session.inbox:
-                new_inbox.delay(sessionid, number)
 
     elif event in ["messages.upsert", "send.message"]:
         if session.date_end and timezone.now() > session.date_end:
@@ -272,15 +266,6 @@ def event_processor(event_data):
                     payload.update({'attachments': (file_like.name, file_like, mimetype)})
         
         try:
-            # chatwoot не поддерживает группы, поэтому фильтруем
-            if settings.CHATWOOT_ENABLED and session.inbox and not group_message:
-                try:
-                    resp_chatwoot = chatwoot.send_api_message(session.inbox, payload)
-                    if resp_chatwoot.status_code == 200:
-                        cw_msg_id = resp_chatwoot.json().get("id")
-                        redis_client.setex(f'chatwoot:{cw_msg_id}', 600, cw_msg_id)
-                except Exception:
-                    pass
             
             # отправка сообщения в битрикс
             if session.line:

@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from separator.chatwoot.models import Inbox
 from separator.bitrix.models import AppInstance, Line
 import uuid
 
@@ -25,7 +24,6 @@ class Session(models.Model):
     phone = models.CharField(max_length=15, blank=True, null=True)
     groups_ignore = models.BooleanField(default=True)
     sms_service = models.BooleanField(default=True)
-    inbox = models.ForeignKey(Inbox, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=15, blank=True, null=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     app_instance = models.ForeignKey(

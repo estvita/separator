@@ -12,7 +12,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('bitrix', '__first__'),
-        ('chatwoot', '__first__'),
         ('sites', '0002_alter_site_options_alter_site_domain'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
@@ -61,7 +60,6 @@ class Migration(migrations.Migration):
                 ('sms_service', models.BooleanField(default=True)),
                 ('date_end', models.DateTimeField(blank=True, null=True)),
                 ('app_instance', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='phones', to='bitrix.appinstance')),
-                ('inbox', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='chatwoot.inbox')),
                 ('line', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='phones', to='bitrix.line')),
                 ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
                 ('waba', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='phones', to='waba.waba')),
