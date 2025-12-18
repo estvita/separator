@@ -16,6 +16,7 @@
         <th>{% trans "Connector" %}</th>
         <th>{% trans "Type" %}</th>
         <th>{% trans "ID" %}</th>
+        <th>{% trans "Expiry Date" %}</th>
         <th>{% trans "Bitrix24" %}</th>
       </tr>
     </thead>
@@ -26,6 +27,7 @@
         <td>{{ bot.connector }}</td>
         <td>{{ bot.bot_type }}</td>
         <td>{{ bot.bot_id }}</td>
+        <td>{{ bot.date_end }}</td>
         <td>{{ bot.app_instance }}</td>
       </tr>
       {% empty %}

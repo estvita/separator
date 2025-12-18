@@ -2,6 +2,7 @@ from django.views import View
 from django.views.generic import ListView
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.forms import formset_factory
@@ -99,6 +100,12 @@ class BotEditView(LoginRequiredMixin, View):
                         bot.save()
                     except Exception as e:
                         messages.error(request, e)
+                
+                if not bot.date_end and "separator.tariff" in settings.INSTALLED_APPS:
+                    from separator.tariff.utils import get_trial
+                    bot.date_end = get_trial(bot.owner, "bitbot")
+                    bot.save()
+
                 messages.success(request, "Bot saved.")
                 return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
             messages.error(request, "Please fix bot form errors.")

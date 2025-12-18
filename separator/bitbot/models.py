@@ -6,14 +6,16 @@ from separator.bitrix.models import AppInstance
 # Create your models here.
 class Provider(models.Model):
     TYPE_CHOICES = (
+        ('typebot', 'Typebot'),
         ('dify_chatflow', 'Dify Chatflow'),
         ('dify_workflow', 'Dify Workflow'),
     )
+    name = models.CharField(max_length=255)
     site = models.ForeignKey(Site, on_delete=models.SET_NULL, related_name="chatbotproviders", null=True)
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
-    url = models.CharField(max_length=1020)
+    url = models.CharField(max_length=1020, blank=True, null=True)
     def __str__(self):
-        return self.get_type_display()
+        return f"{self.name} ({self.get_type_display()})"
 
 
 class Connector(models.Model):
@@ -33,6 +35,7 @@ class ChatBot(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
     connector = models.ForeignKey(Connector, on_delete=models.CASCADE, related_name="chatbots")
+    date_end = models.DateTimeField(null=True, blank=True)
     app_instance = models.ForeignKey(AppInstance, on_delete=models.SET_NULL, related_name="chatbots", null=True)
     name = models.CharField(max_length=255, default="BitBot")
     bot_id = models.PositiveIntegerField(default=0)
