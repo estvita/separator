@@ -30,8 +30,27 @@ separator supports working with multiple Evolution API servers
 + Install [local app in Bitrix](bitrix.md)
 + In the waweb/server/ section, add an Evolution API server
   + Server URL = SERVER_URL (Evolution API)
+    > **Note for Docker:** If Separator is running in a Docker container and Evolution API is running on the host machine, use `http://host.docker.internal:PORT` (where PORT is the Evolution API port, e.g., 8080 or 8085) for the Server URL.
   + API Key = AUTHENTICATION_API_KEY (Evolution API)
   + max_connections – number of WhatsApp sessions per server (default is 100). When this number is reached, separator will look for the next server; if it is not added in the admin panel, a message about the absence of free servers will be displayed when connecting
+
+> **Tip:** You can also add the Evolution API service directly to the `docker-compose.yml` of the Separator project. In this case, you can use the service name (e.g., `http://evolution:8080`) for connection, and no host access configuration is required.
+
+Example `docker-compose.yml` service configuration:
+```yaml
+  evolution:
+    image: evoapicloud/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_store:/evolution/store
+      - evolution_instances:/evolution/instances
+    environment:
+      - AUTHENTICATION_API_KEY=YOUR_SECURE_TOKEN
+      - SERVER_URL=http://localhost:8080
+      # Add other required environment variables here
+```
 
 **### Connecting a WhatsApp Number to Bitrix24**
 The connection is done from the user interface at /waweb/

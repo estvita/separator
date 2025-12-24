@@ -24,6 +24,7 @@ BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech"
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 CHECK_PHONE_NUMBER = env.bool("CHECK_PHONE_NUMBER", False)
 
+REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
@@ -118,7 +119,7 @@ if ASTERX_SERVER:
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [("localhost", 6379)],
+                "hosts": [env("REDIS_URL", default="redis://localhost:6379/0")],
             },
         },
     }
@@ -310,7 +311,7 @@ if USE_TZ:
     # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-timezone
     CELERY_TIMEZONE = TIME_ZONE
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-broker_url
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default=REDIS_URL)
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-result_backend
 # CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_RESULT_BACKEND = None
@@ -341,11 +342,15 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-task_send_sent_event
 CELERY_TASK_SEND_SENT_EVENT = True
 
+CELERY_TASK_DEFAULT_QUEUE = "default"
+
 CELERY_QUEUES = (
+    Queue('default'),
     Queue('bitrix'),
     Queue('olx'),
     Queue('waweb'),
     Queue('waba'),
+    Queue('bitbot'),
 )
 
 # django-allauth

@@ -17,6 +17,19 @@ class AccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request: HttpRequest) -> bool:
         return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
 
+    def send_mail(self, template_prefix, email, context):
+        from separator.users.tasks import send_allauth_email_task
+
+        ctx = context.copy()
+        if 'request' in ctx:
+            del ctx['request']
+        
+        if 'user' in ctx:
+            ctx['user_id'] = ctx['user'].pk
+            del ctx['user']
+            
+        send_allauth_email_task.delay(template_prefix, email, ctx)
+
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
     def is_open_for_signup(

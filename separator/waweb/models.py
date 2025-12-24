@@ -4,7 +4,7 @@ from separator.bitrix.models import AppInstance, Line
 import uuid
 
 class Server(models.Model):
-    url = models.URLField(max_length=255, unique=True, verbose_name="Server URL")
+    url = models.URLField(max_length=255, unique=True, verbose_name="Server URL", help_text="http://127.0.0.1:8080")
     api_key = models.CharField(max_length=255, verbose_name="API Key")
     max_connections = models.PositiveIntegerField(default=100)
     groups_ignore = models.BooleanField(default=True)

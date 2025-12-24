@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+if [ "${ASTERX_SERVER:-False}" == "True" ]; then
+    echo "Starting AsterX ASGI server..."
+    exec daphne -b 0.0.0.0 -p 9000 config.asgi:application
+else
+    echo "ASTERX_SERVER is not True. AsterX service is disabled."
+    # Keep container running but doing nothing, or exit?
+    # If we exit, Docker might restart it.
+    # Let's sleep infinity to keep it "up" but idle, consuming minimal resources.
+    # This avoids "CrashLoopBackOff" behavior if restart policy is always.
+    exec sleep infinity
+fi

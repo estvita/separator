@@ -12,6 +12,35 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 ## Installation
 
+### Docker (Recommended)
+
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/estvita/separator
+    cd separator
+    ```
+
+2.  Configure environment:
+    ```bash
+    cp docs/example/env.example .env
+    nano .env
+    ```
+    *Ensure `ASTERX_SERVER=True` is set if you need the AsterX service.*
+
+3.  Start with Docker Compose:
+    ```bash
+    docker compose up -d --build
+    ```
+
+4.  Create a superuser:
+    ```bash
+    docker compose run --rm web python manage.py createsuperuser
+    ```
+
+[Migration Guide from Systemd to Docker](docs/docker_migration.md)
+
+### Manual Installation
+
 + Python 3.12
 + PostgreSQL 16
 + [Redis Stack](https://redis.io/docs/latest/operate/oss_and_stack/install/archive/install-stack/)
@@ -50,6 +79,26 @@ sudo systemctl start celery_beat.service
 ```
 
 The default path to access the admin panel is /admin. To set your own path, change the DJANGO_ADMIN_URL variable in the .env file.
+
+## Celery Configuration (Docker only)
+
+When running in Docker, you can configure the concurrency (number of worker processes) for each Celery queue using environment variables in your `.env` file. This is useful for optimizing resource usage based on your server's capabilities.
+
+Default value is 3 for all queues.
+
+Available variables:
+- `CELERY_BITRIX_CONCURRENCY`: Concurrency for Bitrix24 tasks.
+- `CELERY_OLX_CONCURRENCY`: Concurrency for OLX tasks.
+- `CELERY_WAWEB_CONCURRENCY`: Concurrency for WhatsApp Web tasks.
+- `CELERY_WABA_CONCURRENCY`: Concurrency for WhatsApp Business API tasks.
+- `CELERY_BITBOT_CONCURRENCY`: Concurrency for BitBot tasks.
+- `CELERY_DEFAULT_CONCURRENCY`: Concurrency for default tasks.
+
+Example `.env` configuration:
+```bash
+CELERY_BITRIX_CONCURRENCY=5
+CELERY_WAWEB_CONCURRENCY=2
+```
 
 ## Database
 The [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-file#url-schema) module allows connecting various databases. See the documentation via the link.

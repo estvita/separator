@@ -13,7 +13,7 @@ from .models import OlxUser
 from .utils import deactivate_task
 
 logger = logging.getLogger("django")
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 @shared_task(queue='olx')
 def refresh_token(olx_user_id):

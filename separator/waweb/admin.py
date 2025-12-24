@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.db import transaction
 from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django import forms
+import requests
 from .models import Session, Server
 import separator.bitrix.utils as bitrix_utils
 
@@ -29,10 +32,43 @@ class SessionAdmin(admin.ModelAdmin):
 
             transaction.on_commit(send_connect)
 
+class ServerForm(forms.ModelForm):
+    class Meta:
+        model = Server
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        url = cleaned_data.get("url")
+        api_key = cleaned_data.get("api_key")
+
+        if url and api_key:
+            try:
+                # Проверка соединения с Evolution API
+                headers = {"apikey": api_key}
+                response = requests.get(url, headers=headers, timeout=5)
+                
+                if response.status_code != 200:
+                    raise ValidationError(f"Connection error: {response.status_code} {response.text}")
+                
+                data = response.json()
+                self.evolution_data = data
+                
+            except requests.RequestException as e:
+                raise ValidationError(f"Failed to connect to server: {str(e)}")
+
+        return cleaned_data
+
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
+    form = ServerForm
     list_display = ('url', 'api_key', 'max_connections', 'connected')
     search_fields = ['url']
 
     def connected(self, obj):
         return obj.sessions.filter(status='open').count()
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if hasattr(form, 'evolution_data'):
+            messages.success(request, f"Server connected successfully. Data: {form.evolution_data}")

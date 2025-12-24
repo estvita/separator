@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+QUEUE="${CELERY_QUEUE:-celery}"
+CONCURRENCY="${CELERY_CONCURRENCY:-3}"
+
+echo "Starting Celery worker for queue: $QUEUE with concurrency: $CONCURRENCY"
+
+celery -A config.celery_app worker -l info -c "$CONCURRENCY" -Q "$QUEUE"

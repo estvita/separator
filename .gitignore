@@ -280,3 +280,4 @@ separator/media/
 .envs/*
 !.envs/.local/
 test.py
+docker-compose.vendor.yml

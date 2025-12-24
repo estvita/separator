@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+python manage.py migrate
+python manage.py collectstatic --noinput
+
+# Run Gunicorn (WSGI)
+/usr/local/bin/gunicorn config.wsgi:application --bind 0.0.0.0:8000 --chdir=/app

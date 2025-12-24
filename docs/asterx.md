@@ -92,3 +92,32 @@ To match calls between Bitrix24 users and PBX, assign each user's extension in t
 After any change to PBX user settings in the application interface, click "Update" in the PBX list — the local connector user database will be recreated.
 
 For production use: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+
+## Docker Deployment
+
+The project includes a Docker configuration for running the AsterX ASGI server alongside the main application.
+
+1.  **Enable AsterX**: Set `ASTERX_SERVER=True` in your `.env` file.
+2.  **Nginx Configuration**: Configure your host Nginx to proxy WebSocket requests to the `asterx` container on port 9000.
+
+Example Nginx configuration block:
+
+```nginx
+upstream django_async {
+    server 127.0.0.1:9000;
+}
+
+server {
+    # ...
+    location /ws/ {
+        proxy_pass http://django_async;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+    # ...
+}
+```
+
+When `ASTERX_SERVER=True`, the `asterx` container will automatically start the Daphne server. If set to `False`, the container will remain idle.

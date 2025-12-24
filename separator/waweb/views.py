@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Q, F
 from django.utils import timezone
+from django.conf import settings
 import separator.bitrix.utils as bitrix_utils
 
 from separator.decorators import login_message_required, user_message
@@ -15,7 +16,7 @@ from .models import Session, Server
 from .forms import SendMessageForm
 from .tasks import send_message
 
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, decode_responses=True)
 
 LINK_TTL = 60 * 60 * 24
 
@@ -106,7 +107,7 @@ def create_instance(session):
     }
 
     try:
-        response = requests.post(f"{server.url}instance/create", json=payload, headers=headers, timeout=15)
+        response = requests.post(f"{server.url}/instance/create", json=payload, headers=headers, timeout=15)
         inst_data = response.json()
         instanceId = inst_data.get("instance", {}).get("instanceId")
         session.instanceId = instanceId
@@ -176,7 +177,7 @@ def get_gr(request, session):
         messages.warning(request, "Session is connected.")
         return
 
-    gr_url = f"{server.url}instance/connect/{session.session}"
+    gr_url = f"{server.url}/instance/connect/{session.session}"
     headers = {"apikey": server.api_key}
     try:
         response = requests.get(gr_url, headers=headers)

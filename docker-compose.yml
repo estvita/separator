@@ -1,0 +1,319 @@
+version: '3'
+
+volumes:
+  production_postgres_data: {}
+  production_postgres_backups: {}
+  production_redis_data: {}
+
+services:
+  db:
+    image: postgres:16
+    volumes:
+      - production_postgres_data:/var/lib/postgresql/data
+      - production_postgres_backups:/backups
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis/redis-stack:latest
+    volumes:
+      - production_redis_data:/data
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+
+  web:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  asterx:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-asgi
+    volumes:
+      - .:/app
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker_bitrix:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-celeryworker
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    hostname: bitrix
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      CELERY_QUEUE: bitrix
+      CELERY_CONCURRENCY: ${CELERY_BITRIX_CONCURRENCY:-3}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker_olx:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-celeryworker
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    hostname: olx
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      CELERY_QUEUE: olx
+      CELERY_CONCURRENCY: ${CELERY_OLX_CONCURRENCY:-3}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker_waweb:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-celeryworker
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    hostname: waweb
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      CELERY_QUEUE: waweb
+      CELERY_CONCURRENCY: ${CELERY_WAWEB_CONCURRENCY:-3}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker_waba:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-celeryworker
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    hostname: waba
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      CELERY_QUEUE: waba
+      CELERY_CONCURRENCY: ${CELERY_WABA_CONCURRENCY:-3}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker_bitbot:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-celeryworker
+    volumes:
+      - .:/app
+    hostname: bitbot
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      CELERY_QUEUE: bitbot
+      CELERY_CONCURRENCY: ${CELERY_BITBOT_CONCURRENCY:-3}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  worker_default:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-celeryworker
+    volumes:
+      - .:/app
+    hostname: default
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+      CELERY_QUEUE: default
+      CELERY_CONCURRENCY: ${CELERY_DEFAULT_CONCURRENCY:-3}
+    depends_on:
+      - db
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  beat:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-celerybeat
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+    depends_on:
+      - db
+      - redis
+
+  flower:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: separator_production_django
+    command: /start-flower
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-separator}
+      POSTGRES_USER: ${POSTGRES_USER:-separator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-separator}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://${POSTGRES_USER:-separator}:${POSTGRES_PASSWORD:-separator}@db:5432/${POSTGRES_DB:-separator}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secret-key-change-me}
+    depends_on:
+      - db
+      - redis

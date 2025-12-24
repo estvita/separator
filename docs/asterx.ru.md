@@ -98,6 +98,35 @@ python main.py
 
 Для запуска в проде использовать [daphne](/docs/example/separator_asgi.service)
 
+## Развертывание в Docker
+
+Проект включает конфигурацию Docker для запуска ASGI-сервера AsterX параллельно с основным приложением.
+
+1.  **Включение AsterX**: Установите `ASTERX_SERVER=True` в вашем файле `.env`.
+2.  **Настройка Nginx**: Настройте Nginx на хосте для проксирования WebSocket-запросов в контейнер `asterx` на порт 9000.
+
+Пример блока конфигурации Nginx:
+
+```nginx
+upstream django_async {
+    server 127.0.0.1:9000;
+}
+
+server {
+    # ...
+    location /ws/ {
+        proxy_pass http://django_async;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+    # ...
+}
+```
+
+Когда `ASTERX_SERVER=True`, контейнер `asterx` автоматически запустит сервер Daphne. Если установлено значение `False`, контейнер будет находиться в режиме ожидания.
+
 ```
 daphne -b 0.0.0.0 -p 8000 config.asgi:application
 ```

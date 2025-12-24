@@ -119,6 +119,7 @@ def server_list(request):
                             "crm_create": portal_settings.crm_create,
                             "vm_send": portal_settings.vm_send,
                             "smart_route": portal_settings.smart_route,
+                            "default_user_id": portal_settings.default_user_id,
                         }}
                     )
                 messages.success(request, 'Settings saved and sent to client!')

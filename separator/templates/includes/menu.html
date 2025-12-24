@@ -5,6 +5,11 @@
     {% include "includes/menu_wagtail.html" %}
   {% endif %}
   {% if request.user.is_authenticated %}
+  {% if request.user.is_superuser %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
+  </li>
+  {% endif %}
   <li class="nav-item">
     <a class="nav-link" href="{% url 'users:detail' request.user.pk %}">{% translate "My Profile" %}</a>
   </li>

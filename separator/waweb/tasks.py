@@ -13,7 +13,7 @@ from django.conf import settings
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
 
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 @shared_task(queue='waweb')
 def send_message(session_id, recipient, content, cont_type="string"):
@@ -30,11 +30,11 @@ def send_message(session_id, recipient, content, cont_type="string"):
                 "text": content,
                 "linkPreview": True,
             }
-            url = f"{server.url}message/sendText/{session_id}"
+            url = f"{server.url}/message/sendText/{session_id}"
             resp = requests.post(url, json=payload, headers=headers)
         elif cont_type == "media":
             content = utils.download_file(content)
-            url = f"{server.url}message/sendMedia/{session_id}"
+            url = f"{server.url}/message/sendMedia/{session_id}"
             mimetype = content.get("mimetype", "")
             base_type = mimetype.split('/')[0]
             mediatype = base_type if base_type in ["image"] else "document"
@@ -75,7 +75,7 @@ def delete_sessions(days):
     for session in sessions:
         server = session.server
         headers = {"apikey": server.api_key}
-        url = f"{server.url}instance/delete/{session.session}"
+        url = f"{server.url}/instance/delete/{session.session}"
         requests.delete(url, headers=headers)
 
 @shared_task(queue='waweb')
@@ -118,7 +118,7 @@ def event_processor(event_data):
                 other_session.phone = None
                 other_session.save(update_fields=['phone'])
                 headers = {"apikey": other_session.server.api_key}
-                url = f"{other_session.server.url}instance/delete/{other_session.session}"
+                url = f"{other_session.server.url}/instance/delete/{other_session.session}"
                 requests.delete(url, headers=headers)
 
             if not session.date_end and "separator.tariff" in settings.INSTALLED_APPS:
@@ -167,7 +167,7 @@ def event_processor(event_data):
                 participant = participantPn
             if "@lid" in participant:
                 try:
-                    participants_data = requests.get(f"{server.url}group/participants/{sessionid}", 
+                    participants_data = requests.get(f"{server.url}/group/participants/{sessionid}", 
                                                 params={"groupJid": remote_user}, headers=headers)
                     participants_data.raise_for_status()
                     participants_dict = participants_data.json()
@@ -179,7 +179,7 @@ def event_processor(event_data):
             participant = participant.split('@')[0]
             participant = f"{pushName} ({participant})"
             params = {"groupJid": remote_user}
-            group_name = requests.get(f"{server.url}group/findGroupInfos/{sessionid}", params=params, headers=headers)
+            group_name = requests.get(f"{server.url}/group/findGroupInfos/{sessionid}", params=params, headers=headers)
             if group_name.status_code == 200:
                 pushName = group_name.json().get("subject")
         file_data = {}
@@ -187,7 +187,7 @@ def event_processor(event_data):
 
         profilepic_url = None
         if not group_message:
-            profilepic = requests.post(f"{server.url}chat/fetchProfilePictureUrl/{sessionid}", 
+            profilepic = requests.post(f"{server.url}/chat/fetchProfilePictureUrl/{sessionid}", 
                                     json={"number": remote_user}, headers=headers)
             if profilepic.status_code == 200:
                 profilepic = profilepic.json()
@@ -254,7 +254,7 @@ def event_processor(event_data):
 
         elif msg_type in ["imageMessage", "documentMessage", "videoMessage", "audioMessage"]:
             payload.update({'content': message.get(msg_type, {}).get("caption")})
-            media_url = f"{server.url}chat/getBase64FromMediaMessage/{sessionid}"
+            media_url = f"{server.url}/chat/getBase64FromMediaMessage/{sessionid}"
             msg_payload = {"message": {"key": {"id": message_id}}}
             response = requests.post(media_url, json=msg_payload, headers=headers)
             if response.status_code == 201:

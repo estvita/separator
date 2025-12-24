@@ -10,6 +10,35 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 **## Установка**
 
+### Docker (Рекомендуется)
+
+1.  Клонируйте репозиторий:
+    ```bash
+    git clone https://github.com/estvita/separator
+    cd separator
+    ```
+
+2.  Настройте окружение:
+    ```bash
+    cp docs/example/env.example .env
+    nano .env
+    ```
+    *Убедитесь, что `ASTERX_SERVER=True` установлен, если вам нужен сервис AsterX.*
+
+3.  Запустите с помощью Docker Compose:
+    ```bash
+    docker compose up -d --build
+    ```
+
+4.  Создайте суперпользователя:
+    ```bash
+    docker compose run --rm web python manage.py createsuperuser
+    ```
+
+[Руководство по миграции с Systemd на Docker](docs/docker_migration.ru.md)
+
+### Ручная установка
+
 + Python 3.12
 + PostgreSQL 16
 + [Redis Stack](https://redis.io/docs/latest/operate/oss_and_stack/install/archive/install-stack/)
@@ -45,6 +74,26 @@ sudo systemctl start celery_worker.service
 sudo systemctl start celery_beat.service
 ```
 Путь по умолчанию для входа в админку: /admin. Чтобы задать свой путь — измените значение переменной DJANGO_ADMIN_URL в .env
+
+## Настройка Celery (только для Docker)
+
+При запуске в Docker вы можете настроить конкурентность (количество рабочих процессов) для каждой очереди Celery, используя переменные окружения в файле `.env`. Это полезно для оптимизации использования ресурсов в зависимости от возможностей вашего сервера.
+
+Значение по умолчанию — 3 для всех очередей.
+
+Доступные переменные:
+- `CELERY_BITRIX_CONCURRENCY`: Конкурентность для задач Bitrix24.
+- `CELERY_OLX_CONCURRENCY`: Конкурентность для задач OLX.
+- `CELERY_WAWEB_CONCURRENCY`: Конкурентность для задач WhatsApp Web.
+- `CELERY_WABA_CONCURRENCY`: Конкурентность для задач WhatsApp Business API.
+- `CELERY_BITBOT_CONCURRENCY`: Конкурентность для задач BitBot.
+- `CELERY_DEFAULT_CONCURRENCY`: Конкурентность для задач по умолчанию.
+
+Пример настройки в `.env`:
+```bash
+CELERY_BITRIX_CONCURRENCY=5
+CELERY_WAWEB_CONCURRENCY=2
+```
 
 **## База данных**
 

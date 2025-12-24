@@ -81,13 +81,103 @@
         <div class="container flex-grow-1">
           {% block main %}
             {% block content %}
-              <ul>
-                <li>CRM: <a href="/portals/">Bitrix24</a></li>
-                <li>PBX: <a href="/asterx/">AsterX</a></li>
-                <li>WhatsApp: <a href="/waba/">Cloud</a>, <a href="/waweb/">Web</a></li>
-                <li>Classified: <a href="/olx/accounts/">OLX</a></li>
-                <li>Chat Bot: <a href="/bitbot/">BitBot</a>(Dify, Typebot)</li>
-              </ul>
+              <div class="mt-4">
+                <!-- CRM -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <h6 class="text-uppercase text-muted border-bottom pb-2">CRM</h6>
+                  </div>
+                  <div class="col-6 col-sm-4 col-md-2 col-xl-1">
+                    <div class="card h-100 shadow-sm text-center">
+                      <div class="card-body p-2">
+                        <a href="/portals/" class="text-decoration-none text-dark stretched-link">
+                          <img src="{% static 'images/icons/bitrix24.svg' %}" alt="Bitrix24" class="mb-2" style="width: 48px; height: 48px;">
+                          <h6 class="card-title text-nowrap mb-0" style="font-size: 0.65rem;">Bitrix24</h6>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Messengers -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <h6 class="text-uppercase text-muted border-bottom pb-2">Messengers</h6>
+                  </div>
+                  <div class="col-6 col-sm-4 col-md-2 col-xl-1">
+                    <div class="card h-100 shadow-sm text-center">
+                      <div class="card-body p-2">
+                        <a href="/waba/" class="text-decoration-none text-dark stretched-link">
+                          <img src="{% static 'images/icons/whatsapp.svg' %}" alt="WhatsApp Cloud" class="mb-2" style="height: 48px;">
+                          <h6 class="card-title text-nowrap mb-0" style="font-size: 0.65rem;">WhatsApp Cloud</h6>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-6 col-sm-4 col-md-2 col-xl-1">
+                    <div class="card h-100 shadow-sm text-center">
+                      <div class="card-body p-2">
+                        <a href="/waweb/" class="text-decoration-none text-dark stretched-link">
+                          <img src="{% static 'images/icons/whatsapp.svg' %}" alt="WhatsApp Web" class="mb-2" style="height: 48px;">
+                          <h6 class="card-title text-nowrap mb-0" style="font-size: 0.65rem;">WhatsApp Web</h6>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- PBX -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <h6 class="text-uppercase text-muted border-bottom pb-2">PBX</h6>
+                  </div>
+                  <div class="col-6 col-sm-4 col-md-2 col-xl-1">
+                    <div class="card h-100 shadow-sm text-center">
+                      <div class="card-body p-2">
+                        <a href="/asterx/" class="text-decoration-none text-dark stretched-link">
+                          <img src="{% static 'images/icons/asterisk.svg' %}" alt="AsterX" class="mb-2" style="height: 48px;">
+                          <h6 class="card-title text-nowrap mb-0" style="font-size: 0.65rem;">AsterX</h6>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Classifieds -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <h6 class="text-uppercase text-muted border-bottom pb-2">Classifieds</h6>
+                  </div>
+                  <div class="col-6 col-sm-4 col-md-2 col-xl-1">
+                    <div class="card h-100 shadow-sm text-center">
+                      <div class="card-body p-2">
+                        <a href="/olx/accounts/" class="text-decoration-none text-dark stretched-link">
+                          <img src="{% static 'images/icons/olx.svg' %}" alt="OLX" class="mb-2" style="height: 48px;">
+                          <h6 class="card-title text-nowrap mb-0" style="font-size: 0.65rem;">OLX</h6>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bots -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <h6 class="text-uppercase text-muted border-bottom pb-2">Bots</h6>
+                  </div>
+                  <div class="col-6 col-sm-4 col-md-2 col-xl-1">
+                    <div class="card h-100 shadow-sm text-center">
+                      <div class="card-body p-2">
+                        <a href="/bitbot/" class="text-decoration-none text-dark stretched-link">
+                          <div class="display-4 mb-2" style="font-size: 2.5rem;">🤖</div>
+                          <h6 class="card-title text-nowrap mb-0" style="font-size: 0.65rem;">BitBot</h6>
+                          <small class="text-muted" style="font-size: 0.6rem;">Dify, Typebot</small>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             {% endblock content %}
           {% endblock main %}
         </div>
