@@ -117,9 +117,10 @@ def event_processor(event_data):
             for other_session in check_sessions:
                 other_session.phone = None
                 other_session.save(update_fields=['phone'])
-                headers = {"apikey": other_session.server.api_key}
-                url = f"{other_session.server.url}/instance/delete/{other_session.session}"
-                requests.delete(url, headers=headers)
+                if other_session.server:
+                    headers = {"apikey": other_session.server.api_key}
+                    url = f"{other_session.server.url.rstrip('/')}/instance/delete/{other_session.session}"
+                    requests.delete(url, headers=headers)
 
             if not session.date_end and "separator.tariff" in settings.INSTALLED_APPS:
                 from separator.tariff.utils import get_trial

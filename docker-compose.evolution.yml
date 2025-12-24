@@ -1,0 +1,19 @@
+volumes:
+  evolution_store: {}
+  evolution_instances: {}
+
+services:
+  db:
+    volumes:
+      - ./compose/production/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+
+  evolution:
+    image: evoapicloud/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_store:/evolution/store
+      - evolution_instances:/evolution/instances
+    env_file:
+      - .env.evolution

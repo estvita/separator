@@ -33,6 +33,8 @@ class SessionAdmin(admin.ModelAdmin):
             transaction.on_commit(send_connect)
 
 class ServerForm(forms.ModelForm):
+    url = forms.CharField(label="Server URL", help_text="http://evolution:8080")
+
     class Meta:
         model = Server
         fields = '__all__'
