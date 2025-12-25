@@ -55,6 +55,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   asterx:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-asgi
     volumes:
@@ -82,6 +85,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   worker_bitrix:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-celeryworker
     volumes:
@@ -109,6 +115,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   worker_olx:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-celeryworker
     volumes:
@@ -136,6 +145,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   worker_waweb:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-celeryworker
     volumes:
@@ -163,6 +175,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   worker_waba:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-celeryworker
     volumes:
@@ -190,6 +205,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   worker_bitbot:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-celeryworker
     volumes:
@@ -217,6 +235,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   worker_default:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-celeryworker
     volumes:
@@ -244,6 +265,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   beat:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-celerybeat
     volumes:
@@ -266,6 +290,9 @@ services:
       - redis
 
   flower:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     image: separator_production_django
     command: /start-flower
     volumes:
