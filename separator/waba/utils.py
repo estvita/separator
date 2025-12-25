@@ -5,6 +5,7 @@ from datetime import datetime
 
 import requests
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.conf import settings
 from celery import shared_task
 
@@ -96,7 +97,7 @@ def get_file(media_id, filename, appinstance, waba, external=True):
 
 
 def format_contacts(contacts):
-    contact_text = "Присланы контакты:\n"
+    contact_text = _("Присланы контакты:\n")
     for i, contact in enumerate(contacts, start=1):
         name = contact["name"]["formatted_name"]
         phones = ", ".join([phone["phone"] for phone in contact.get("phones", [])])

@@ -62,7 +62,7 @@ def wa_sessions(request):
         line_id = request.POST.get("line_id")
         phone = get_object_or_404(Session, id=session_id)
         if not phone.phone:
-            messages.error(request, "Сначала необходимо подключить WhatsApp.")
+            messages.error(request, _("You must connect WhatsApp first."))
             return redirect('waweb')
         try:
             bitrix_utils.connect_line(request, line_id, phone, connector_service)
@@ -128,7 +128,7 @@ def connect_number(request, session_id=None):
             owner=request.user
         )
         if sessions and not request.user.integrator:
-            messages.warning(request, "У вас уже есть незавершенное подключение. Нажмите 'Подключить'")
+            messages.warning(request, _("You already have an incomplete connection. Click 'Connect'"))
             return redirect('waweb')
         
         new_session = Session.objects.create(owner=request.user)
@@ -147,7 +147,7 @@ def connect_number(request, session_id=None):
     )
 
     if not server:
-        messages.error(request, "Нет доступных серверов.")
+        messages.error(request, _("No available servers."))
         new_session.delete()
         return redirect('waweb')
 
@@ -229,7 +229,7 @@ def qr_code_page(request, session_id):
 def share_qr(request, public_id):
     session_id = redis_client.get(f"public_qr:{public_id}")
     if not session_id:
-        messages.error(request, "Временная ссылка истекла или некорректна.")
+        messages.error(request, _("The temporary link has expired or is invalid."))
         return redirect('waweb')
     try:
         session = Session.objects.get(session=session_id)
@@ -252,12 +252,12 @@ def send_message_view(request, session_id):
     session = get_object_or_404(Session, session=session_id, owner=request.user)
 
     if session.date_end and timezone.now() > session.date_end:
-        messages.error(request, f'Срок дествия вашего тарифа истек {session.date_end}')
+        messages.error(request, _('Your tariff expired on %(date)s') % {'date': session.date_end})
         return redirect('waweb')
 
     if request.method == "POST":
         if session.status == 'close':
-            messages.error(request, "Телефон не подключен. Необходимо произвести повторное подключение.")
+            messages.error(request, _("Phone not connected. Reconnection required."))
             return redirect('waweb')
         form = SendMessageForm(request.POST)
         if form.is_valid():
@@ -267,7 +267,7 @@ def send_message_view(request, session_id):
             for recipient in recipients:
                 send_message.delay(session.session, recipient, message)
             
-            messages.success(request, "Задача на отправку сообщений создана.")
+            messages.success(request, _("Message sending task created."))
             return redirect('waweb')
     else:
         form = SendMessageForm()

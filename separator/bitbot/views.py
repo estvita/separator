@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.forms import formset_factory
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils.translation import gettext as _
 from .models import ChatBot, Connector, Command, CommandLang
 from .forms import ChatBotForm, ConnectorForm, CommandCreateForm, CommandLangForm
 from separator.bitrix.crest import call_method
@@ -45,13 +46,13 @@ class ConnectorEditView(LoginRequiredMixin, View):
                 obj = form.save(commit=False)
                 obj.owner = request.user
                 obj.save()
-                messages.success(request, "Connector saved.")
+                messages.success(request, _("Connector saved."))
                 return redirect("connector_list")
-            messages.error(request, "Please fix form errors.")
+            messages.error(request, _("Please fix form errors."))
             return render(request, self.template_name, {"object": connector, "form": form})
         if "delete_connector" in request.POST and connector:
             connector.delete()
-            messages.success(request, "Connector deleted.")
+            messages.success(request, _("Connector deleted."))
             return redirect("connector_list")
         return redirect("connector_list")
 
@@ -106,15 +107,15 @@ class BotEditView(LoginRequiredMixin, View):
                     bot.date_end = get_trial(bot.owner, "bitbot")
                     bot.save()
 
-                messages.success(request, "Bot saved.")
+                messages.success(request, _("Bot saved."))
                 return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
-            messages.error(request, "Please fix bot form errors.")
+            messages.error(request, _("Please fix bot form errors."))
             return self.get(request, pk=bot.pk if bot else None)
 
         # Добавление команды
         if "add_command" in request.POST:
             if not bot:
-                messages.error(request, "Save the bot first.")
+                messages.error(request, _("Save the bot first."))
                 return redirect("bitbot_add")
             cmd_form = CommandCreateForm(request.POST)
             lang_formset = CommandLangFormSet(request.POST, prefix="lang")
@@ -129,7 +130,7 @@ class BotEditView(LoginRequiredMixin, View):
                     if lang and title:
                         valid_translations.append(cd)
                 if not valid_translations:
-                    messages.error(request, "Add at least one translation (language and title).")
+                    messages.error(request, _("Add at least one translation (language and title)."))
                     return self.get(request, pk=bot.pk)
 
                 cmd = cmd_form.save(commit=False)
@@ -161,11 +162,11 @@ class BotEditView(LoginRequiredMixin, View):
                     try:
                         resp = call_method(bot.app_instance, "imbot.command.register", payload)
                         cmd.command_id = int(resp["result"]); cmd.save(update_fields=["command_id"])
-                        messages.success(request, "Command added.")
+                        messages.success(request, _("Command added."))
                         return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
                     except Exception as e:
                         messages.error(request, e)
-            messages.error(request, "Please fix command form/translations.")
+            messages.error(request, _("Please fix command form/translations."))
             return self.get(request, pk=bot.pk)
 
         # Удаление команды
@@ -173,7 +174,7 @@ class BotEditView(LoginRequiredMixin, View):
             cmd_id = request.POST.get("command_id")
             cmd = Command.objects.filter(id=cmd_id, bot=bot).first()
             if not cmd:
-                messages.error(request, "Command not found.")
+                messages.error(request, _("Command not found."))
                 return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
 
             # Удаление команды на портале Bitrix:

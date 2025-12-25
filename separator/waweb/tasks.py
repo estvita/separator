@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db.models import Q
 from datetime import timedelta
 from celery import shared_task
+from django.utils.translation import gettext as _
 import separator.waweb.utils as utils
 from separator.waweb.models import Session
 
@@ -296,7 +297,7 @@ def event_processor(event_data):
                     source = data.get("source", "")
                     if source in (None, "unknown"):
                         source = ""
-                    from_app = f"[B]Отправлено из WhatsApp {source}[/B][BR]"
+                    from_app = f"[B]{_('Отправлено из WhatsApp')} {source}[/B][BR]"
                     file_id = upload_file.get("ID", None) if download_url else None
                     if file_id:
                         try:

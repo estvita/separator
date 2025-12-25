@@ -14,6 +14,7 @@ from django.contrib import messages
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
+from django.utils.translation import gettext as _
 
 from celery import shared_task
 
@@ -77,7 +78,7 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
         admin = profile_data.get("ADMIN")
         user_id = profile_data.get("ID")
     except Exception as e:
-        raise Exception(f"Ошибка: {e}")
+        raise Exception(f"Error: {e}")
     
     b24_user, user_created = B24_user.objects.get_or_create(
         bitrix=portal,
@@ -112,7 +113,7 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
 
 def connect_line(request, line_id, entity, connector_service):
     if not line_id:
-        messages.warning(request, "Необходимо выбрать линию из списка или создать новую.")
+        messages.warning(request, _("You must select a line from the list or create a new one."))
         return
     line_id = str(line_id)
     if line_id.startswith("create__"):
@@ -159,9 +160,9 @@ def connect_line(request, line_id, entity, connector_service):
             }
             bitrix_tasks.call_api(app_instance.id, "imconnector.activate", activate_payload)
             bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)
-            messages.success(request, f"Создана и подключена линия {new_line_id}")
+            messages.success(request, _("Line %(line_id)s created and connected") % {'line_id': new_line_id})
         else:
-            messages.error(request, f"Ошибка при создании линии: {result}")
+            messages.error(request, _("Error creating line: %(result)s") % {'result': result})
             return
     else:
         line = get_object_or_404(Line, id=line_id)                
@@ -170,7 +171,7 @@ def connect_line(request, line_id, entity, connector_service):
         bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)       
         if entity.line:
             if str(entity.line.id) == str(line_id):
-                messages.warning(request, "Эта линия уже используется.")
+                messages.warning(request, _("This line is already in use."))
                 return
             bitrix_tasks.call_api(app_instance.id, "imconnector.activate", {
                 "CONNECTOR": connector.code,
@@ -186,7 +187,7 @@ def connect_line(request, line_id, entity, connector_service):
             entity.line = line
             entity.app_instance = app_instance
             entity.save()
-            messages.success(request, "Линия подключена")
+            messages.success(request, _("Line connected"))
 
 
 # Подписка на события
@@ -298,7 +299,7 @@ def process_placement(request):
             owner=app_instance.owner
         )
         return HttpResponse(
-            f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/"
+            _("Line changed, configure the line at https://%(site)s/portals/") % {'site': app_instance.app.site}
         )
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -564,7 +565,7 @@ def event_processor(data):
                     )
 
                 payload = {
-                    "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
+                    "message": _("To link the portal, follow the link https://%(site)s/portals/?code=%(code)s") % {'site': appinstance.app.site, 'code': code},
                     "USER_ID": user_id,
                 }
                 bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)

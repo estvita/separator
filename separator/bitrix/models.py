@@ -43,10 +43,10 @@ class App(models.Model):
     autologin = models.BooleanField(default=True)
     events = models.TextField(blank=True, default="ONAPPUNINSTALL")
     connectors = models.ManyToManyField(Connector, blank=True, related_name='apps')
-    imopenlines_auto_finish = models.BooleanField(default=False, help_text="Enable auto finish chat")
-    asterx = models.BooleanField(default=False, help_text="Chek for AsterX connector")
-    vendor = models.BooleanField(default=False, help_text="Chek for Separator partner App")
-    bitbot = models.BooleanField(default=False, help_text="Chek for BitBot App")
+    imopenlines_auto_finish = models.BooleanField(default=False, help_text=_("Enable auto finish chat"))
+    asterx = models.BooleanField(default=False, help_text=_("Chek for AsterX connector"))
+    vendor = models.BooleanField(default=False, help_text=_("Chek for Separator partner App"))
+    bitbot = models.BooleanField(default=False, help_text=_("Chek for BitBot App"))
     client_id = models.CharField(max_length=255, blank=True, unique=False)
     client_secret = models.CharField(max_length=255, blank=True)
 
@@ -67,7 +67,7 @@ class Bitrix(models.Model):
     member_id = models.CharField(max_length=255, unique=True, blank=True, null=True)
     license_expired = models.BooleanField(default=False)
     imopenlines_auto_finish = models.BooleanField(default=False)
-    finish_delay = models.IntegerField(default=0, help_text="in minutes")
+    finish_delay = models.IntegerField(default=0, help_text=_("in minutes"))
 
     def __str__(self):
         return self.domain

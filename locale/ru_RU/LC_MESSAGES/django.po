@@ -609,3 +609,225 @@ msgstr "Если вы используете Docker, убедитесь, что 
 
 msgid "If you are running on the host, ensure the systemd service is active:"
 msgstr "Если вы запускаете на хосте, убедитесь, что служба systemd активна:"
+
+msgid "A user with this number already exists."
+msgstr "Пользователь с таким номером уже существует."
+
+msgid "If you were not redirected,"
+msgstr "Если вы не были перенаправлены,"
+
+msgid "Click here"
+msgstr "Нажмите сюда"
+
+msgid "Return to application"
+msgstr "Вернуться в приложение"
+
+msgid "Day"
+msgstr "День"
+
+msgid "Month"
+msgstr "Месяц"
+
+msgid "Year"
+msgstr "Год"
+
+msgid "US Dollar"
+msgstr "Доллар США"
+
+msgid "Euro"
+msgstr "Евро"
+
+msgid "Ruble"
+msgstr "Рубль"
+
+msgid "Tenge"
+msgstr "Тенге"
+
+msgid "Portal not found by code."
+msgstr "Портал по коду не найден."
+
+msgid "Portal and related apps successfully linked to you."
+msgstr "Портал и связанные приложения успешно закреплены за вами."
+
+msgid "Verification code expired."
+msgstr "Код подтверждения истек."
+
+msgid "Invalid verification code."
+msgstr "Неверный код подтверждения."
+
+msgid "Server not found or not yet connected"
+msgstr "Сервер не найден или еще не подключен"
+
+msgid "User update started."
+msgstr "Обновление пользователей запущено."
+
+msgid "You already have an unconnected server!"
+msgstr "У вас уже есть неподключённый сервер!"
+
+msgid "The number has been successfully added. It will appear here in a few minutes."
+msgstr "Номер успешно добавлен. Через пару минут он отобразиться здесь."
+
+msgid "You must connect WhatsApp first."
+msgstr "Сначала необходимо подключить WhatsApp."
+
+msgid "You already have an incomplete connection. Click 'Connect'"
+msgstr "У вас уже есть незавершенное подключение. Нажмите 'Подключить'"
+
+msgid "No available servers."
+msgstr "Нет доступных серверов."
+
+msgid "The temporary link has expired or is invalid."
+msgstr "Временная ссылка истекла или некорректна."
+
+msgid "Your tariff expired on %(date)s"
+msgstr "Срок дествия вашего тарифа истек %(date)s"
+
+msgid "Phone not connected. Reconnection required."
+msgstr "Телефон не подключен. Необходимо произвести повторное подключение."
+
+msgid "Message sending task created."
+msgstr "Задача на отправку сообщений создана."
+
+msgid "Enter recipient numbers, one per line"
+msgstr "Введите номера получателей, по одному в строке"
+
+msgid "Enter message text"
+msgstr "Введите текст сообщения"
+
+msgid "Line created, configure the line at https://%(site)s/app-settings/"
+msgstr "Линия создана, настройте линию по адресу https://%(site)s/app-settings/"
+
+msgid "Error creating line"
+msgstr "Ошибка создания линии"
+
+msgid "Line changed, configure the line at https://%(site)s/app-settings/"
+msgstr "Линия изменена, настройте линию по адресу https://%(site)s/app-settings/"
+
+msgid "Error changing line"
+msgstr "Ошибка изменения линии"
+
+msgid "Connector not found"
+msgstr "Коннектор не найден"
+
+msgid "To link the portal, follow the link https://%(site)s/portals/?code=%(code)s"
+msgstr "Для привязки портала перейдите по ссылке https://%(site)s/portals/?code=%(code)s"
+
+msgid "OLX disabled due to a problem"
+msgstr "OLX отключен из-за проблемы"
+
+msgid "Your OLX accounts"
+msgstr "Ваши OLX аккаунты"
+
+msgid "Term"
+msgstr "Срок"
+
+msgid "Select line"
+msgstr "Выберите линию"
+
+msgid "line"
+msgstr "линия"
+
+msgid "Connect OLX account"
+msgstr "Подключить OLX аккаунт"
+
+msgid "Select service:"
+msgstr "Выберите услугу:"
+
+msgid "All services"
+msgstr "Все услуги"
+
+msgid "Service"
+msgstr "Услуга"
+
+msgid "Trial"
+msgstr "Пробный"
+
+msgid "Price"
+msgstr "Цена"
+
+msgid "Currency"
+msgstr "Валюта"
+
+msgid "Period"
+msgstr "Период"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
+msgid "No tariffs yet"
+msgstr "Тарифов пока нет"
+
+msgid "Connector saved."
+msgstr "Коннектор сохранен."
+
+msgid "Please fix form errors."
+msgstr "Пожалуйста, исправьте ошибки в форме."
+
+msgid "Connector deleted."
+msgstr "Коннектор удален."
+
+msgid "Bot saved."
+msgstr "Бот сохранен."
+
+msgid "Please fix bot form errors."
+msgstr "Пожалуйста, исправьте ошибки в форме бота."
+
+msgid "Save the bot first."
+msgstr "Сначала сохраните бота."
+
+msgid "Add at least one translation (language and title)."
+msgstr "Добавьте хотя бы один перевод (язык и заголовок)."
+
+msgid "Command added."
+msgstr "Команда добавлена."
+
+msgid "Please fix command form/translations."
+msgstr "Пожалуйста, исправьте форму команды/переводы."
+
+msgid "Command not found."
+msgstr "Команда не найдена."
+
+msgid "Optional"
+msgstr "Необязательно"
+
+msgid "help"
+msgstr "help"
+
+msgid "Enable auto finish chat"
+msgstr "Включить автозавершение чата"
+
+msgid "Chek for AsterX connector"
+msgstr "Проверка коннектора AsterX"
+
+msgid "Chek for Separator partner App"
+msgstr "Проверка партнерского приложения Separator"
+
+msgid "Chek for BitBot App"
+msgstr "Проверка приложения BitBot"
+
+msgid "in minutes"
+msgstr "в минутах"
+
+msgid "Код подтверждения отправлен на ваш портал Bitrix24."
+msgstr "Код подтверждения отправлен на ваш портал Bitrix24."
+
+msgid "Портал не найден или уже закреплен за другим пользователем."
+msgstr "Портал не найден или уже закреплен за другим пользователем."
+
+msgid "Код подтверждения"
+msgstr "Код подтверждения"
+
+msgid "Отправлено из WhatsApp"
+msgstr "Отправлено из WhatsApp"
+
+msgid "Присланы контакты:\n"
+msgstr "Присланы контакты:\n"
+
+msgid "Для привязки портала перейдите по ссылке https://{site}/portals/?code={code}"
+msgstr "Для привязки портала перейдите по ссылке https://{site}/portals/?code={code}"

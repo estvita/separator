@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load wagtailcore_tags %}
+{% load i18n %}
 
 {% block content %}
     <h1>{{ page.title }}</h1>
@@ -27,9 +28,9 @@
     </style>
 
     <!-- Фильтр по сервисам -->
-    <label for="service-filter">Выберите услугу:</label>
+    <label for="service-filter">{% trans "Select service:" %}</label>
     <select id="service-filter">
-        <option value="all">Все услуги</option>
+        <option value="all">{% trans "All services" %}</option>
         {% for service in services %}
             <option value="{{ service.name }}">{{ service.name }}</option>
         {% endfor %}
@@ -38,19 +39,19 @@
     <table>
         <thead>
             <tr>
-                <th>Услуга</th>
-                <th>Пробный</th>
-                <th>Цена</th>
-                <th>Валюта</th>
-                <th>Период</th>
-                <th>Описание</th>
+                <th>{% trans "Service" %}</th>
+                <th>{% trans "Trial" %}</th>
+                <th>{% trans "Price" %}</th>
+                <th>{% trans "Currency" %}</th>
+                <th>{% trans "Period" %}</th>
+                <th>{% trans "Description" %}</th>
             </tr>
         </thead>
         <tbody id="tariff-table">
             {% for tariff in tariffs %}
                 <tr class="tariff-row" data-service="{{ tariff.service.name }}">
                     <td>{{ tariff.service.name }}</td>
-                    <td>{% if tariff.is_trial %}✅ Да {% else %}❌ Нет {% endif %}</td>
+                    <td>{% if tariff.is_trial %}✅ {% trans "Yes" %} {% else %}❌ {% trans "No" %} {% endif %}</td>
                     <td>{{ tariff.price }}</td>
                     <td>{{ tariff.get_currency_display }}</td>
                     <td>{{ tariff.duration }}/{{ tariff.get_period_display }}</td>
@@ -58,7 +59,7 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="6">Тарифов пока нет</td>
+                    <td colspan="6">{% trans "No tariffs yet" %}</td>
                 </tr>
             {% endfor %}
         </tbody>

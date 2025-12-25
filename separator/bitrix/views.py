@@ -42,17 +42,17 @@ def link_portal(request, code):
         user = request.user
 
         if not portal:
-            messages.error(request, "Портал по коду не найден.")
+            messages.error(request, _("Portal not found by code."))
             return
 
         if verification.is_valid():
             verification.delete()
             link_ojects(portal, user)
-            messages.success(request, "Портал и связанные приложения успешно закреплены за вами.")
+            messages.success(request, _("Portal and related apps successfully linked to you."))
         else:
-            messages.error(request, "Код подтверждения истек.")
+            messages.error(request, _("Verification code expired."))
     except (VerificationCode.DoesNotExist, ValueError):
-        messages.error(request, "Неверный код подтверждения.")
+        messages.error(request, _("Invalid verification code."))
 
 
 @login_message_required(code="bitrix")
@@ -101,17 +101,17 @@ def portals(request):
                     appinstance = AppInstance.objects.filter(portal=portal).first()
 
                     payload = {
-                        "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
+                        "message": _("Для привязки портала перейдите по ссылке https://{site}/portals/?code={code}").format(site=appinstance.app.site, code=code),
                         "USER_ID": b24_admin.user_id,
                     }
 
                     call_method(appinstance, "im.notify.system.add", payload)
 
                     messages.success(
-                        request, "Код подтверждения отправлен на ваш портал Bitrix24."
+                        request, _("Код подтверждения отправлен на ваш портал Bitrix24.")
                     )
                 except Bitrix.DoesNotExist:
-                    messages.error(request, "Портал не найден или уже закреплен за другим пользователем.")
+                    messages.error(request, _("Портал не найден или уже закреплен за другим пользователем."))
         
         elif "confirm" in request.POST:
             verification_form = VerificationCodeForm(request.POST)

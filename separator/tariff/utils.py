@@ -34,5 +34,5 @@ def get_trial(user, code: str):
         return expiration_date
 
     except Exception as e:
-        print(f"Ошибка при обработке триального периода для пользователя {user} и модуля {code}: {e}")
+        print(f"Error processing trial period for user {user} and module {code}: {e}")
         return now()

@@ -272,7 +272,7 @@ def facebook_callback(request):
             return redirect('waba')
         redis_client.json().set(request_id, '$.code', code)        
         waba_tasks.add_waba_phone.delay(request_id, app_id)
-        messages.success(request, 'Номер успешно добавлен. Через пару минут он отобразиться здесь.')
+        messages.success(request, _('The number has been successfully added. It will appear here in a few minutes.'))
         return redirect('waba')
     
     else:

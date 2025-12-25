@@ -1,4 +1,5 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 from .models import ChatBot, Connector, AppInstance, Command, CommandLang
 
 class ConnectorForm(forms.ModelForm):
@@ -11,12 +12,12 @@ class ConnectorForm(forms.ModelForm):
         widgets = {
             'provider': forms.Select(attrs={'class': 'form-control'}),
             'key': forms.PasswordInput(attrs={'class': 'form-control'}),
-            'url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
+            'url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': _('Optional')}),
         }
 
 class ChatBotForm(forms.ModelForm):
     app_instance = forms.ModelChoiceField(
-        queryset=AppInstance.objects.none(), required=True, label="Bitrix24",
+        queryset=AppInstance.objects.none(), required=True, label=_("Bitrix24"),
         widget=forms.Select(attrs={"class": "form-control"})
     )
     class Meta:
@@ -39,7 +40,7 @@ class CommandCreateForm(forms.ModelForm):
         model = Command
         fields = ['command', 'common', 'hidden', 'extranet']
         widgets = {
-            'command': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'help'}),
+            'command': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('help')}),
             'common': forms.Select(choices=[('Y', 'Y'), ('N', 'N')], attrs={'class': 'form-control'}),
             'hidden': forms.Select(choices=[('N', 'N'), ('Y', 'Y')], attrs={'class': 'form-control'}),
             'extranet': forms.Select(choices=[('N', 'N'), ('Y', 'Y')], attrs={'class': 'form-control'}),

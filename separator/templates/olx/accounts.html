@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block content %}
   <div class="container">
-    <h3>Ваши OLX аккаунты</h3>
+    <h3>{% trans "Your OLX accounts" %}</h3>
     <form method="post" class="mb-2">
         {% csrf_token %}
         <div class="d-flex align-items-center">
@@ -25,7 +25,7 @@
         <thead>
           <tr>
             <th>ID (Status)</th>
-            <th>Срок</th>
+            <th>{% trans "Term" %}</th>
             <th>Line ID</th>
             <th>Bitrix24 line</th>
           </tr>
@@ -50,16 +50,16 @@
                   {% csrf_token %}
                   <div class="form-group d-flex align-items-center">
                     <select id="line_id" name="line_id" class="form-control mr-2">
-                      <option value="" disabled {% if not wa.line %}selected{% endif %}>Выберите линию</option>
+                      <option value="" disabled {% if not wa.line %}selected{% endif %}>{% trans "Select line" %}</option>
                       {% for line in olx_lines %}
                       <option value="{{ line.id }}">{{ line.line_id }} ({{ line.name }}) - {{ line.portal.domain }}</option>
                       {% endfor %}
                       {% for instance in instances %}
-                      <option value="create__{{ instance.id }}">➕ линия {{ instance.portal.domain }}</option>
+                      <option value="create__{{ instance.id }}">➕ {% trans "line" %} {{ instance.portal.domain }}</option>
                       {% endfor %}
                     </select>
                     <input type="hidden" name="olx_id" value="{{ account.id }}" />
-                    <button type="submit" name="action" value="link" class="btn btn-secondary connect-btn">Подключить</button>
+                    <button type="submit" name="action" value="link" class="btn btn-secondary connect-btn">{% trans "Connect" %}</button>
                   </div>
                 </form>
               </td>
@@ -71,14 +71,14 @@
       <p>No OLX accounts connected yet.</p>
     {% endif %}
     <!-- Форма для добавления нового OLX аккаунта -->
-    <h3>Подключить OLX аккаунт</h3>
+    <h3>{% trans "Connect OLX account" %}</h3>
     <form method="POST" action="{% url 'olx-accounts' %}">
       {% csrf_token %}
       <div style="width:30%;" class="form-group d-flex align-items-center">
         <select id="olx_app" name="olx_app" class="form-control mr-2">
           {% for app in olx_apps %}<option value="{{ app.id }}">{{ app.client_domain }}</option>{% endfor %}
         </select>
-        <button type="submit" name="action" value="connect" class="btn btn-primary connect-btn">Подключить</button>
+        <button type="submit" name="action" value="connect" class="btn btn-primary connect-btn">{% trans "Connect" %}</button>
       </div>
     </form>
   </div>

@@ -1,5 +1,6 @@
 import logging
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.core.mail import send_mail
 from django.conf import settings
 import requests
@@ -179,7 +180,7 @@ def get_threads(olx_user_id):
                 if user.line:
 
                     send_mail(
-                        subject="OLX отключен из-за проблемы",
+                        subject=_("OLX disabled due to a problem"),
                         message=message,
                         from_email=settings.EMAIL_HOST_USER,
                         recipient_list=[user.owner],

@@ -9,18 +9,20 @@ class Service(models.Model):
     def __str__(self):
         return self.name
 
+from django.utils.translation import gettext_lazy as _
+
 class Tariff(models.Model):
     PERIOD_CHOICES = [
-        ("day", "День"),
-        ("month", "Месяц"),
-        ("year", "Год"),
+        ("day", _("Day")),
+        ("month", _("Month")),
+        ("year", _("Year")),
     ]
 
     CURRENCY_CHOICES = [
-        ("USD", "Доллар США"),
-        ("EUR", "Евро"),
-        ("RUB", "Рубль"),
-        ("KZT", "Тенге"),
+        ("USD", _("US Dollar")),
+        ("EUR", _("Euro")),
+        ("RUB", _("Ruble")),
+        ("KZT", _("Tenge")),
     ]
 
     site = models.ForeignKey(Site, on_delete=models.SET_NULL, related_name="tariffs", blank=True, null=True)

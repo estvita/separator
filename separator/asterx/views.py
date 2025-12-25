@@ -74,13 +74,13 @@ def server_list(request):
         server_id = request.POST.get("server_id")
         server = Server.objects.filter(id=server_id, owner=request.user).first()
         if not server or not server.setup_complete:
-            messages.error(request, "Сервер не найден или еще не подключен")
+            messages.error(request, _("Server not found or not yet connected"))
             return redirect('asterx')
         async_to_sync(get_channel_layer().group_send)(
             f"server_{server_id}",
             {"type": "send_event", "message": {"event": "refresh_users"}}
         )
-        messages.success(request, "Обновление пользователей запущено.")
+        messages.success(request, _("User update started."))
         return redirect('asterx')
 
     # POST "Добавить сервер"
@@ -90,7 +90,7 @@ def server_list(request):
             setup_complete=False
         ).exists()
         if exists_incomplete:
-            messages.error(request, "У вас уже есть неподключённый сервер!")
+            messages.error(request, _("You already have an unconnected server!"))
             return redirect('asterx')
         if member_id:
             portal_settings = get_portal_settings(member_id)
