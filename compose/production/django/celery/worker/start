@@ -7,6 +7,11 @@ set -o nounset
 QUEUE="${CELERY_QUEUE:-celery}"
 CONCURRENCY="${CELERY_CONCURRENCY:-3}"
 
+if [ "$CONCURRENCY" -eq 0 ]; then
+    echo "Worker for queue $QUEUE is disabled (concurrency set to 0)."
+    tail -f /dev/null
+fi
+
 echo "Starting Celery worker for queue: $QUEUE with concurrency: $CONCURRENCY"
 
 celery -A config.celery_app worker -l info -c "$CONCURRENCY" -Q "$QUEUE"

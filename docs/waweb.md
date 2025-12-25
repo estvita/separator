@@ -8,27 +8,41 @@ Celery is required for the integration service.
 
 For convenience, a separate configuration file `docker-compose.evolution.yml` is provided to run Evolution API alongside Separator in Docker.
 
-1.  **Create the `.env.evolution` configuration file**
+1.  **Configure environment**
+    
+    **Option A: Automatic Setup (Recommended)**
+    Run the following command to generate keys and configuration files automatically:
+    ```bash
+    make setup-evolution
+    # OR manually: python scripts/init_evolution.py
+    ```
+    This script will:
+    *   Generate a secure `AUTHENTICATION_API_KEY`.
+    *   Create a unified `.env` file with settings for both Separator and Evolution.
+
+    **Option B: Manual Setup**
     Copy the example configuration:
     ```bash
-    cp docs/example/env.evolution.example .env.evolution
+    cp docs/example/env.example .env
     ```
-    Edit `.env.evolution` and set your `AUTHENTICATION_API_KEY`. The other settings are already optimized for running within the Separator Docker network.
+    Edit `.env` and set your `AUTHENTICATION_API_KEY` in the Evolution settings section.
 
 2.  **Start the services**
     Use the following command to start Separator together with Evolution API:
     ```bash
-    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d
+    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d --build
     ```
+    
+    *Note: If you used the automatic setup, the Evolution server will be automatically registered in the Separator database upon startup.*
 
 **#### Settings on the Separator side**
 Separator supports working with multiple Evolution API servers.
 
 + In the Separator admin panel, create a `waweb` connector.
 + Install the [local application in Bitrix](bitrix.md).
-+ In the `waweb/server/` section, add the Evolution API server.
++ In the `waweb/server/` section, add the Evolution API server (if not created automatically).
   + **Server URL**: `http://evolution:8080` (internal Docker address)
-  + **API Key**: Your key from `AUTHENTICATION_API_KEY` (in the `.env.evolution` file)
+  + **API Key**: Your key from `AUTHENTICATION_API_KEY` (in the `.env` file)
   + **max_connections**: Number of WhatsApp sessions per server (default is 100).
 
 > **Note:** Thanks to the internal Docker network, Separator automatically trusts requests from Evolution API, so you do not need to specify an API key in the webhook settings (`WEBHOOK_GLOBAL_URL`).

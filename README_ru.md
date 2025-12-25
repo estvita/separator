@@ -20,6 +20,10 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 2.  Настройте окружение:
     ```bash
+    # Автоматическая настройка (генерирует ключи и конфиги)
+    make setup-evolution
+    
+    # ИЛИ Ручная настройка
     cp docs/example/env.example .env
     nano .env
     ```
@@ -27,6 +31,10 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 3.  Запустите с помощью Docker Compose:
     ```bash
+    # Запуск всех сервисов (Separator + Evolution)
+    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d --build
+    
+    # ИЛИ Запуск только Separator
     docker compose up -d --build
     ```
 
@@ -80,6 +88,8 @@ sudo systemctl start celery_beat.service
 При запуске в Docker вы можете настроить конкурентность (количество рабочих процессов) для каждой очереди Celery, используя переменные окружения в файле `.env`. Это полезно для оптимизации использования ресурсов в зависимости от возможностей вашего сервера.
 
 Значение по умолчанию — 3 для всех очередей.
+
+Чтобы отключить конкретного воркера, установите его конкурентность в 0.
 
 Доступные переменные:
 - `CELERY_BITRIX_CONCURRENCY`: Конкурентность для задач Bitrix24.

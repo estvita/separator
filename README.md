@@ -22,6 +22,10 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 2.  Configure environment:
     ```bash
+    # Automatic setup (generates keys and configs)
+    make setup-evolution
+    
+    # OR Manual setup
     cp docs/example/env.example .env
     nano .env
     ```
@@ -29,6 +33,10 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 3.  Start with Docker Compose:
     ```bash
+    # Start all services (Separator + Evolution)
+    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d --build
+    
+    # OR Start only Separator
     docker compose up -d --build
     ```
 
@@ -85,6 +93,8 @@ The default path to access the admin panel is /admin. To set your own path, chan
 When running in Docker, you can configure the concurrency (number of worker processes) for each Celery queue using environment variables in your `.env` file. This is useful for optimizing resource usage based on your server's capabilities.
 
 Default value is 3 for all queues.
+
+To disable a specific worker, set its concurrency to 0.
 
 Available variables:
 - `CELERY_BITRIX_CONCURRENCY`: Concurrency for Bitrix24 tasks.

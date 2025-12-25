@@ -31,3 +31,7 @@ migrate:
 # Создание суперпользователя
 superuser:
 	docker compose run --rm web python manage.py createsuperuser
+
+# Настройка Evolution (генерация ключей и конфигов)
+setup-evolution:
+	python scripts/init_evolution.py

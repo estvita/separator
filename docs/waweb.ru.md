@@ -8,27 +8,41 @@
 
 Для удобства запуска Evolution API вместе с Separator в Docker предусмотрен отдельный файл конфигурации `docker-compose.evolution.yml`.
 
-1.  **Создайте файл конфигурации `.env.evolution`**
+1.  **Настройка окружения**
+
+    **Вариант А: Автоматическая настройка (Рекомендуется)**
+    Запустите следующую команду для автоматической генерации ключей и файлов конфигурации:
+    ```bash
+    make setup-evolution
+    # ИЛИ вручную: python scripts/init_evolution.py
+    ```
+    Этот скрипт:
+    *   Сгенерирует безопасный `AUTHENTICATION_API_KEY`.
+    *   Создаст единый файл `.env` с настройками для Separator и Evolution.
+
+    **Вариант Б: Ручная настройка**
     Скопируйте пример конфигурации:
     ```bash
-    cp docs/example/env.evolution.example .env.evolution
+    cp docs/example/env.example .env
     ```
-    Отредактируйте `.env.evolution`, задав свой `AUTHENTICATION_API_KEY`. Остальные настройки уже оптимизированы для работы внутри Docker-сети Separator.
+    Отредактируйте `.env`, задав свой `AUTHENTICATION_API_KEY` в секции настроек Evolution.
 
 2.  **Запустите сервисы**
     Используйте следующую команду для запуска Separator вместе с Evolution API:
     ```bash
-    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d
+    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d --build
     ```
+    
+    *Примечание: Если вы использовали автоматическую настройку, сервер Evolution будет автоматически зарегистрирован в базе данных Separator при запуске.*
 
 **#### Настройки на стороне separator**
 separator поддерживает работу с несколькими серверами Evolution API.
 
 + В админке separator создайте коннектор waweb.
 + Установите [локальное приложение в Битрикс](bitrix.ru.md).
-+ В разделе waweb/server/ добавьте сервер Evolution API.
++ В разделе waweb/server/ добавьте сервер Evolution API (если он не был создан автоматически).
   + **Server URL**: `http://evolution:8080` (внутренний адрес в Docker)
-  + **API Key**: Ваш ключ из `AUTHENTICATION_API_KEY` (в файле `.env.evolution`)
+  + **API Key**: Ваш ключ из `AUTHENTICATION_API_KEY` (в файле `.env`)
   + **max_connections**: количество сессий WhatsApp на один сервер (по умолчанию 100).
 
 > **Примечание:** Благодаря внутренней сети Docker, Separator автоматически доверяет запросам от Evolution API, поэтому в настройках вебхука (`WEBHOOK_GLOBAL_URL`) не требуется указывать API-ключ.

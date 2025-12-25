@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.db import transaction
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 from django import forms
 import requests
 from .models import Session, Server
@@ -66,6 +67,15 @@ class ServerAdmin(admin.ModelAdmin):
     form = ServerForm
     list_display = ('url', 'api_key', 'max_connections', 'connected')
     search_fields = ['url']
+    fieldsets = (
+        (None, {
+            'fields': ('url', 'api_key', 'max_connections')
+        }),
+        (_('Default settings for new sessions'), {
+            'fields': ('groups_ignore', 'always_online', 'read_messages', 'sync_history'),
+            'description': _('These settings will be applied by default when creating new sessions.')
+        }),
+    )
 
     def connected(self, obj):
         return obj.sessions.filter(status='open').count()

@@ -5,8 +5,9 @@ This is a Django-based integration hub for Bitrix24 applications with OAuth 2.0.
 - **bitrix app**: Manages Bitrix24 portals, apps, and OAuth flows
 - **Connector model**: Links apps to services (OLX, WhatsApp Web, WhatsApp Cloud)
 - **Service-specific apps**: `waba`, `waweb`, `olx`, `asterx`, `freepbx`, `bitbot` handle integrations
+- **Evolution API**: External service (Node.js) for WhatsApp Web automation, running in `evolution` container
 - **Celery queues**: `bitrix`, `olx`, `waweb`, `waba`, `bitbot`, `default` for async processing
-- **Docker Services**: Dedicated containers for `web`, `db`, `redis`, `beat`, `flower`, `asterx` (ASGI), and separate workers for each queue (`worker_bitrix`, `worker_olx`, etc.)
+- **Docker Services**: Dedicated containers for `web`, `db`, `redis`, `beat`, `flower`, `asterx` (ASGI), `evolution`, and separate workers for each queue (`worker_bitrix`, `worker_olx`, etc.)
 - **ASGI setup**: Daphne + Channels for AsterX WebSocket connections (running in `asterx` container)
 
 ## Key Patterns
@@ -16,9 +17,14 @@ This is a Django-based integration hub for Bitrix24 applications with OAuth 2.0.
 - **User Linking**: `link_objects()` assigns ownership of portals/instances to authenticated users
 - **Validation**: SVG-only icons for connectors via `validate_svg()`
 - **Async Emails**: System emails (registration, password reset) are handled asynchronously via `send_allauth_email_task` in the `default` queue
+- **Evolution Integration**: 
+    - Managed via `waweb` app
+    - Auto-registration on startup via `setup_evolution` management command
+    - Uses `AUTHENTICATION_API_KEY` from `.env` for auth
 
 ## Development Workflow
-- **Docker Run**: `docker compose up -d` (starts all services including workers)
+- **Setup**: `make setup-evolution` (generates keys and unified `.env` file)
+- **Docker Run**: `docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d --build`
 - **Restart Service**: `docker compose restart <service_name>` (e.g., `worker_default`)
 - **Run Server (Manual)**: `python manage.py runserver 0.0.0.0:8000`
 - **Celery Worker (Manual)**: `celery -A config.celery_app worker -l info -c 3 -Q bitrix,olx,waweb,waba,bitbot,default`
@@ -28,12 +34,12 @@ This is a Django-based integration hub for Bitrix24 applications with OAuth 2.0.
 
 ## Integration Points
 - **Bitrix24 OAuth**: Apps created in B24 with handler paths like `/api/bitrix/` or `/app-settings/`
-- **External APIs**: Facebook Graph API for WABA, Typebot/Dify for BitBot, OpenAI-compatible APIs (e.g., OpenAI, Grok), OLX APIs
+- **External APIs**: Facebook Graph API for WABA, Typebot/Dify for BitBot, OpenAI-compatible APIs (e.g., OpenAI, Grok), OLX APIs, Evolution API (local)
 - **Webhooks**: REST endpoints for event processing; CSRF-exempt for external calls
 - **Phone Validation**: Optional via `CHECK_PHONE_NUMBER` env var
 
 ## Conventions
-- **Settings Structure**: Base settings in `config/settings/`, env-based config
+- **Settings Structure**: Base settings in `config/settings/`, unified `.env` file for all services (Django + Evolution)
 - **App Registration**: Add to `LOCAL_APPS` in base.py for auto-discovery
 - **Task Discovery**: Celery auto-discovers tasks from app configs
 - **Translations**: Russian primary (`ru-RU`), English secondary; locale files in `locale/`
@@ -49,5 +55,7 @@ This is a Django-based integration hub for Bitrix24 applications with OAuth 2.0.
 - **Queue Names**: Match exactly in worker commands and task decorators
 - **OAuth Scopes**: Ensure `crm`, `im`, `imconnector` permissions in B24 apps
 - **Environment**: Always activate venv; use production settings for Celery
-- **Migrations**: Run before collectstatic on updates</content>
+- **Migrations**: Run before collectstatic on updates
+- **Celery Concurrency**: Set `CELERY_<QUEUE>_CONCURRENCY=0` in `.env` to disable a specific worker container
+- **Docker Build**: Only `web` service builds the image; others use `image: separator_production_django` to avoid race conditions</content>
 <parameter name="filePath">/home/anton/code/separator/.github/copilot-instructions.md

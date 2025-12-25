@@ -588,3 +588,9 @@ msgstr "Направление звонка активировано: %(dest)s"
 
 msgid "The tariff has expired "
 msgstr "Срок действия тарифа истёк "
+
+msgid "Default settings for new sessions"
+msgstr "Настройки по умолчанию для новых сессий"
+
+msgid "These settings will be applied by default when creating new sessions."
+msgstr "Эти настройки будут применены по умолчанию при создании новых сессий."

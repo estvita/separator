@@ -16,4 +16,8 @@ services:
       - evolution_store:/evolution/store
       - evolution_instances:/evolution/instances
     env_file:
-      - .env.evolution
+      - .env
+    environment:
+      - AUTHENTICATION_API_KEY=${AUTHENTICATION_API_KEY:-separator-evolution-secret-key}
+      - SERVER_URL=${SERVER_URL:-http://evolution:8080}
+
