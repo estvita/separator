@@ -594,3 +594,18 @@ msgstr "Настройки по умолчанию для новых сесси�
 
 msgid "These settings will be applied by default when creating new sessions."
 msgstr "Эти настройки будут применены по умолчанию при создании новых сессий."
+
+msgid "Service Disabled"
+msgstr "Сервис отключен"
+
+msgid "The AsterX service is currently disabled."
+msgstr "Сервис AsterX в данный момент отключен."
+
+msgid "To enable it, please set ASTERX_SERVER=True in your .env file and ensure the service is running."
+msgstr "Чтобы включить его, установите ASTERX_SERVER=True в вашем .env файле и убедитесь, что сервис запущен."
+
+msgid "If you are using Docker, make sure the 'asterx' container is running."
+msgstr "Если вы используете Docker, убедитесь, что контейнер 'asterx' запущен."
+
+msgid "If you are running on the host, ensure the systemd service is active:"
+msgstr "Если вы запускаете на хосте, убедитесь, что служба systemd активна:"

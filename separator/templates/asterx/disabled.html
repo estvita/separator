@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">{% trans "Service Disabled" %}</h4>
+        <p>
+            {% trans "The AsterX service is currently disabled." %}
+        </p>
+        <hr>
+        <p class="mb-0">
+            {% trans "To enable it, please set ASTERX_SERVER=True in your .env file and ensure the service is running." %}
+            <br>
+            {% trans "If you are using Docker, make sure the 'asterx' container is running." %}
+            <br>
+            {% trans "If you are running on the host, ensure the systemd service is active:" %} <code>daphne -b 0.0.0.0 -p 8000 config.asgi:application</code>
+        </p>
+    </div>
+</div>
+{% endblock %}

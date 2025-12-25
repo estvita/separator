@@ -35,9 +35,20 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY ./requirements /app/requirements
-RUN pip install -r requirements/production.txt
-RUN pip install -r requirements/vendor.txt
-RUN pip install -r requirements/asterx.txt
+
+ARG DJANGO_SETTINGS_MODULE=config.settings.production
+ARG ASTERX_SERVER=False
+
+RUN if [ "$DJANGO_SETTINGS_MODULE" = "config.settings.vendor" ]; then \
+        pip install -r requirements/vendor.txt; \
+    else \
+        pip install -r requirements/production.txt; \
+    fi
+
+RUN if [ "$ASTERX_SERVER" = "True" ] || [ "$ASTERX_SERVER" = "true" ]; then \
+        pip install -r requirements/asterx.txt; \
+    fi
+
 # Install flower explicitly if not in requirements (it usually isn't in production.txt)
 RUN pip install flower
 

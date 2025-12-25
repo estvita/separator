@@ -31,6 +31,10 @@ if settings.ASTERX_SERVER:
     urlpatterns += [
         path('asterx/', include('separator.asterx.urls')),
     ]
+else:
+    urlpatterns += [
+        path('asterx/', TemplateView.as_view(template_name="asterx/disabled.html")),
+    ]
 
 # API URLS
 urlpatterns += [
