@@ -20,10 +20,6 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 2.  Настройте окружение:
     ```bash
-    # Автоматическая настройка (генерирует ключи и конфиги)
-    make setup-evolution
-    
-    # ИЛИ Ручная настройка
     cp docs/example/env.example .env
     nano .env
     ```
@@ -31,10 +27,6 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 3.  Запустите с помощью Docker Compose:
     ```bash
-    # Запуск всех сервисов (Separator + Evolution)
-    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d --build
-    
-    # ИЛИ Запуск только Separator
     docker compose up -d --build
     ```
 

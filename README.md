@@ -1,4 +1,4 @@
-[Русский](README_ru.md)
+[Русский](README.ru.md)
 
 ## Separator.biz: Bitrix24 Integration Hub 
 
@@ -22,10 +22,6 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 2.  Configure environment:
     ```bash
-    # Automatic setup (generates keys and configs)
-    make setup-evolution
-    
-    # OR Manual setup
     cp docs/example/env.example .env
     nano .env
     ```
@@ -33,10 +29,6 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 3.  Start with Docker Compose:
     ```bash
-    # Start all services (Separator + Evolution)
-    docker compose -f docker-compose.yml -f docker-compose.evolution.yml up -d --build
-    
-    # OR Start only Separator
     docker compose up -d --build
     ```
 
