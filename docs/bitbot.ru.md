@@ -55,7 +55,8 @@ BitBot подключает ботов из Dify (Chatflow / Workflow) и Typebo
 Из события Битрикс24 в ваш бот (Dify или Typebot) передаются переменные:
 
 ```text
-access_token: 09d14269007efbde007f131200000001000007422b0d6b3b327f77b31be5908ebd77f6
+user_access_token: XXX
+bot_access_token: YYY
 scope: task,entity,im,user_basic,log,calendar,disk,imbot,booking,documentgenerator
 client_endpoint: https://b24-2zjuyu.bitrix24.kz/rest/
 
@@ -76,6 +77,8 @@ LANGUAGE: en
 CHAT_ENTITY_DATA_1: Y|DEAL|1|N|N|17|1765971491|0|0|0
 CHAT_ENTITY_DATA_2: LEAD|0|COMPANY|0|CONTACT|1|DEAL|1
 CHAT_ENTITY_ID: separator|3|7778889966|13
+file_id: 48
+file_type
 ```
 
 Добавьте в вашем боте входные переменные с такими же именами.
@@ -88,6 +91,10 @@ CHAT_ENTITY_ID: separator|3|7778889966|13
 
 - Эти переменные можно использовать в логике бота для запросов к Битрикс24:
   чтение/запись данных, вызов REST‑методов и т.п.
+
+- **Обработка файлов**: Если к сообщению в Битрикс24 прикреплён файл, переменная `file_id` будет передана боту с ID этого файла.  
+  Вы можете использовать этот ID для скачивания файла через REST‑методы Битрикс24 (`disk.file.get`).  
+  Если сообщение пусто, но к нему прикреплён файл, боту автоматически будет передано сообщение `"File sent: {имя_файла}"`.
 
 ---
 

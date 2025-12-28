@@ -57,7 +57,8 @@ The following variables from Bitrix24 events are passed to Dify / Typebot.
 Create corresponding input variables in your bot with the **same names**:
 
 ```text
-access_token: 09d14269007efbde007f131200000001000007422b0d6b3b327f77b31be5908ebd77f6
+user_access_token: XXX
+bot_access_token: YYY
 scope: task,entity,im,user_basic,log,calendar,disk,imbot,booking,documentgenerator
 client_endpoint: https://b24-2zjuyu.bitrix24.kz/rest/
 
@@ -78,6 +79,8 @@ LANGUAGE: en
 CHAT_ENTITY_DATA_1: Y|DEAL|1|N|N|17|1765971491|0|0|0
 CHAT_ENTITY_DATA_2: LEAD|0|COMPANY|0|CONTACT|1|DEAL|1
 CHAT_ENTITY_ID: separator|3|7778889966|13
+file_id: 48
+file_type
 ```
 
 Notes:
@@ -87,6 +90,10 @@ Notes:
   `access_token in input form must be less than 48 characters`.
 
 - You can use `access_token`, `client_endpoint` and other values in your flow to call Bitrix24 REST API.
+
+- **File handling**: If a file is attached to the message in Bitrix24, the `file_id` variable will be passed to the bot.  
+  You can use this ID to download the file via Bitrix24 REST API method `disk.file.get` 
+  If the message is empty but a file is attached, the bot will receive the message `"File sent: {filename}"` automatically.
 
 ---
 
