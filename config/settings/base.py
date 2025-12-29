@@ -25,6 +25,9 @@ OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 CHECK_PHONE_NUMBER = env.bool("CHECK_PHONE_NUMBER", False)
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+SALT_KEY = env("SALT_KEY")
+
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug

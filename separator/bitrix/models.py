@@ -6,6 +6,7 @@ from django.contrib.sites.models import Site
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from encrypted_fields.fields import EncryptedCharField
 
 
 def generate_uuid():
@@ -48,7 +49,7 @@ class App(models.Model):
     vendor = models.BooleanField(default=False, help_text=_("Chek for Separator partner App"))
     bitbot = models.BooleanField(default=False, help_text=_("Chek for BitBot App"))
     client_id = models.CharField(max_length=255, blank=True, unique=False)
-    client_secret = models.CharField(max_length=255, blank=True)
+    client_secret = EncryptedCharField(max_length=255, blank=True)
 
     def __str__(self):
         return self.name
@@ -114,8 +115,8 @@ class Credential(models.Model):
                                blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='credentials',
                              blank=True, null=True)
-    access_token = models.CharField(max_length=255, blank=True)
-    refresh_token = models.CharField(max_length=255, blank=True)
+    access_token = EncryptedCharField(max_length=2000, blank=True)
+    refresh_token = EncryptedCharField(max_length=2000, blank=True)
     refresh_date = models.DateTimeField(blank=True, null=True)
 
 

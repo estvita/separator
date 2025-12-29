@@ -2,13 +2,24 @@ from django.contrib import admin, messages
 from django.db import transaction
 from django.utils.html import format_html
 from django.urls import reverse
+from django import forms
 import separator.bitrix.utils as bitrix_utils
 
 from .models import App, Waba, Phone, Template, Event, Error
 from .tasks import call_management
 
+class AppAdminForm(forms.ModelForm):
+    class Meta:
+        model = App
+        fields = '__all__'
+        widgets = {
+            'client_secret': forms.PasswordInput(render_value=True),
+            'access_token': forms.PasswordInput(render_value=True),
+        }
+
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
+    form = AppAdminForm
     list_display = ("client_id", "verify_token", "site", "api_version", "sip_server")
 
 class TemplateInline(admin.TabularInline):

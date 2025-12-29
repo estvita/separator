@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from django.urls import reverse
 
@@ -93,8 +94,18 @@ class ImNotifyAdmin(admin.ModelAdmin):
         return form
 
 
+class AppAdminForm(forms.ModelForm):
+    class Meta:
+        model = App
+        fields = '__all__'
+        widgets = {
+            'client_secret': forms.PasswordInput(render_value=True),
+        }
+
+
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
+    form = AppAdminForm
     list_display = ("name", "client_id", "site", "owner")
     search_fields = ("name", "id", "client_id", "owner__email")
     autocomplete_fields = ['owner']
@@ -161,7 +172,18 @@ class UserAdmin(admin.ModelAdmin):
     portal_link.short_description = "Portal"
 
 
+class CredentialAdminForm(forms.ModelForm):
+    class Meta:
+        model = Credential
+        fields = '__all__'
+        widgets = {
+            'access_token': forms.PasswordInput(render_value=True),
+            'refresh_token': forms.PasswordInput(render_value=True),
+        }
+
+
 @admin.register(Credential)
 class CredentialAdmin(admin.ModelAdmin):
+    form = CredentialAdminForm
     list_display = ("id", "app_instance", "user", "refresh_date")
     list_per_page = 30

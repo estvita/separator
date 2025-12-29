@@ -186,7 +186,7 @@ def extract_waba_id(data):
 
 
 @shared_task(queue='waba')
-def event_processing(data=None, raw_body=None, signature=None, app_id=None, host=None):
+def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if signature and raw_body:
         if app_id:
             apps = App.objects.filter(client_id=app_id)
@@ -216,14 +216,13 @@ def event_processing(data=None, raw_body=None, signature=None, app_id=None, host
             logger.warning(f"Signature verification failed. Signature: {signature}")
             raise Exception(f"Invalid signature: {signature}")
 
-    if not data and raw_body:
+    if raw_body:
         try:
             data = json.loads(raw_body)
         except json.JSONDecodeError:
             logger.error("Failed to decode JSON from raw_body")
             raise Exception("Invalid JSON")
-            
-    if not data:
+    else:
         raise Exception("No data provided")
 
     waba_id = extract_waba_id(data)

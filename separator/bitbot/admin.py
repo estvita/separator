@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from .models import Provider, Connector, ChatBot, Command, CommandLang
 
 class ConnectorInline(admin.TabularInline):
@@ -29,10 +30,19 @@ class ProviderAdmin(admin.ModelAdmin):
     inlines = [ConnectorInline]
     list_per_page = 50
 
+class ConnectorAdminForm(forms.ModelForm):
+    class Meta:
+        model = Connector
+        fields = '__all__'
+        widgets = {
+            'key': forms.PasswordInput(render_value=True),
+        }
+
 @admin.register(Connector)
 class ConnectorAdmin(admin.ModelAdmin):
-    list_display = ['id', 'owner', 'provider', 'url', 'key']
-    search_fields = ['id', 'owner__email', 'provider__type', 'url', 'key']
+    form = ConnectorAdminForm
+    list_display = ['id', 'owner', 'provider', 'url']
+    search_fields = ['id', 'owner__email', 'provider__type', 'url']
     list_filter = ['provider']
     inlines = [ChatBotInline]
     autocomplete_fields = ['owner', 'provider']

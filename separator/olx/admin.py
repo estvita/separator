@@ -7,13 +7,35 @@ from .models import OlxUser
 from separator.bitrix.models import Connector, Line
 import separator.bitrix.utils as bitrix_utils
 
+class OlxAppAdminForm(forms.ModelForm):
+    class Meta:
+        model = OlxApp
+        fields = '__all__'
+        widgets = {
+            'client_secret': forms.PasswordInput(render_value=True),
+        }
+
+
 @admin.register(OlxApp)
 class OlxAppAdmin(admin.ModelAdmin):
+    form = OlxAppAdminForm
     list_display = ("name", "client_domain", "owner", "client_id")
     readonly_fields = ("authorization_link",)
 
+
+class OlxUserAdminForm(forms.ModelForm):
+    class Meta:
+        model = OlxUser
+        fields = '__all__'
+        widgets = {
+            'access_token': forms.PasswordInput(render_value=True),
+            'refresh_token': forms.PasswordInput(render_value=True),
+        }
+
+
 @admin.register(OlxUser)
 class OlxUserAdmin(admin.ModelAdmin):
+    form = OlxUserAdminForm
     list_display = (
         "olx_id",
         "owner",

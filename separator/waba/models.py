@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.contrib.sites.models import Site
+from encrypted_fields.fields import EncryptedCharField
 
 from separator.bitrix.models import AppInstance, Line
 from separator.freepbx.models import Server, Extension
@@ -10,10 +11,10 @@ from separator.freepbx.models import Server, Extension
 class App(models.Model):
     events = models.BooleanField(default=False, help_text="Chek for save inbound events")
     site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="waba_apps", default=1)
-    client_id = models.CharField(max_length=255, editable=True, unique=True)
-    config_id = models.CharField(max_length=255, editable=True, null=True, blank=True)
-    client_secret = models.CharField(max_length=255, editable=True)
-    access_token = models.CharField(max_length=1000, null=True, blank=True,
+    client_id = models.CharField(max_length=255, editable=True, default='')
+    config_id = models.CharField(max_length=255, editable=True, default='')
+    client_secret = EncryptedCharField(max_length=500, editable=True, default='')
+    access_token = EncryptedCharField(max_length=2000, default='',
                                     help_text="System admin user access_token")
     api_version = models.IntegerField(default=20)
     verify_token = models.CharField(
@@ -29,7 +30,7 @@ class App(models.Model):
 class Waba(models.Model):
     app = models.ForeignKey(App, on_delete=models.SET_NULL, null=True, blank=True)
     waba_id = models.CharField(max_length=255, editable=True, unique=True)
-    access_token = models.CharField(max_length=1000)
+    access_token = EncryptedCharField(max_length=2000)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):

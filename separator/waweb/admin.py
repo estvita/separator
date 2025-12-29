@@ -9,8 +9,18 @@ from .models import Session, Server
 import separator.bitrix.utils as bitrix_utils
 
 
+class SessionAdminForm(forms.ModelForm):
+    class Meta:
+        model = Session
+        fields = '__all__'
+        widgets = {
+            'apikey': forms.PasswordInput(render_value=True),
+        }
+
+
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
+    form = SessionAdminForm
     autocomplete_fields = ['owner', 'server', 'line']
     list_display = ('session', 'server', 'phone', 'date_end', 'status', 'owner')
     search_fields = ("session", 'phone', "owner__email", "line__name")
@@ -39,6 +49,9 @@ class ServerForm(forms.ModelForm):
     class Meta:
         model = Server
         fields = '__all__'
+        widgets = {
+            'api_key': forms.PasswordInput(render_value=True),
+        }
 
     def clean(self):
         cleaned_data = super().clean()

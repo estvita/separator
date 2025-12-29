@@ -26,6 +26,7 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
     nano .env
     ```
     *Ensure `ASTERX_SERVER=True` is set if you need the AsterX service.*
+    *Set `SALT_KEY` to a secure random string for database field encryption. You can generate one using `openssl rand -base64 32`.*
 
 3.  Start with Docker Compose:
     ```bash
@@ -38,6 +39,11 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
     ```
 
 [Migration Guide from Systemd to Docker](docs/docker_migration.md)
+
+### Data Encryption
+
+Sensitive data (tokens, secrets, passwords) in the database is encrypted using `SALT_KEY`.
+If you are migrating an existing installation to use encryption, please follow the [Encryption Migration Guide](docs/encryption_migration.md).
 
 ### Manual Installation
 
@@ -57,8 +63,9 @@ pip install -r requirements/production.txt
 cp docs/example/env.example .env
 nano .env 
 
-replace DJANGO_ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
-Replace the value of DATABASE_URL with your own (the psql database must be created beforehand)
+# Set SALT_KEY for encryption
+# replace DJANGO_ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
+# Replace the value of DATABASE_URL with your own (the psql database must be created beforehand)
 
 python manage.py migrate 
 python manage.py collectstatic 

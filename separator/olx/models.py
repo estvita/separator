@@ -7,6 +7,7 @@ from django.db import models
 from django.utils import timezone
 from django_celery_beat.models import IntervalSchedule
 from django_celery_beat.models import PeriodicTask
+from encrypted_fields.fields import EncryptedCharField
 
 from separator.bitrix.models import Line
 
@@ -32,7 +33,7 @@ class OlxApp(models.Model):
     )
     client_domain = models.CharField(max_length=10, choices=CLIENT_DOMAINS)
     client_id = models.CharField(max_length=255)
-    client_secret = models.CharField(max_length=255)
+    client_secret = EncryptedCharField(max_length=255)
     authorization_link = models.URLField(
         max_length=500,
         blank=True,
@@ -81,13 +82,13 @@ class OlxUser(models.Model):
     email = models.EmailField(blank=True, null=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=255, blank=True, null=True)
-    access_token = models.CharField(
+    access_token = EncryptedCharField(
         max_length=4096,  # Увеличено до 4KB для JWT токенов (OLX requirement)
         blank=True,
         null=True,
         # editable=False,
     )
-    refresh_token = models.CharField(
+    refresh_token = EncryptedCharField(
         max_length=4096,  # Увеличено до 4KB для JWT токенов (OLX requirement)
         blank=True,
         null=True,

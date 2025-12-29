@@ -20,6 +20,7 @@ psycopg2-binary
 redis
 requests
 whitenoise
+django-fernet-encrypted-fields
 
 # BitBot
 git+https://github.com/langgenius/dify-python-sdk.git

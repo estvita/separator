@@ -28,7 +28,6 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
         raw_body = request.body.decode('utf-8')
         
         event_processing.delay(
-            data=None, 
             raw_body=raw_body, 
             signature=signature, 
             app_id=app_id, 

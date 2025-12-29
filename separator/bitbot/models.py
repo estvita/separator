@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.sites.models import Site
+from encrypted_fields.fields import EncryptedCharField
 from separator.bitrix.models import AppInstance
 
 # Create your models here.
@@ -24,7 +25,7 @@ class Connector(models.Model):
     )
     provider = models.ForeignKey(Provider, on_delete=models.SET_NULL, related_name="connectors", null=True)
     url = models.URLField(max_length=1020, blank=True, null=True)
-    key = models.CharField(max_length=1020)
+    key = EncryptedCharField(max_length=2000)
 
     def __str__(self):
         return f"{str(self.id)} - {self.provider}"

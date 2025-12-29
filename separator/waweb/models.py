@@ -1,11 +1,12 @@
+import uuid
 from django.db import models
 from django.conf import settings
+from encrypted_fields.fields import EncryptedCharField
 from separator.bitrix.models import AppInstance, Line
-import uuid
 
 class Server(models.Model):
     url = models.CharField(max_length=255, unique=True, verbose_name="Server URL", help_text="http://127.0.0.1:8080")
-    api_key = models.CharField(max_length=255, verbose_name="API Key")
+    api_key = EncryptedCharField(max_length=2000, verbose_name="API Key")
     max_connections = models.PositiveIntegerField(default=100)
     groups_ignore = models.BooleanField(default=True)
     always_online = models.BooleanField(default=False)
@@ -18,7 +19,7 @@ class Server(models.Model):
 class Session(models.Model):
     session = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     server = models.ForeignKey(Server, on_delete=models.SET_NULL, related_name="sessions", null=True, blank=True)
-    apikey = models.CharField(max_length=255, blank=True, null=True)
+    apikey = EncryptedCharField(max_length=2000, blank=True, null=True)
     instanceId = models.CharField(max_length=255, blank=True, null=True)
     date_end = models.DateTimeField(null=True, blank=True)
     phone = models.CharField(max_length=15, blank=True, null=True)
