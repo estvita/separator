@@ -16,7 +16,9 @@ Works with Login Flow Logic https://developers.facebook.com/docs/facebook-login/
 
 + In the Developer Portal → **Webhooks**  
   + **Select product** - Whatsapp Business Account
-  + **Callback URL** – `https://example.com/api/waba/?api-key=XXXXXXX`  
+  + **Callback URL** – `https://example.com/api/waba/` or `https://example.com/api/waba/?app_id=YOUR_APP_ID`
+    + The system identifies the App by the domain name (`example.com`) or by the `app_id` parameter if provided.
+    + Security is ensured via `X-Hub-Signature-256` using your App Secret.
   + **Verify token** – the verify token from the previous step and click "Verify and save" button
   + **Webhook fields** – check "message_template_components_update", "message_template_status_update", "messages", "account_update"
 ![alt text](img/verify.png)

@@ -10,7 +10,9 @@
 + + После сохранения в списке WABA скопируйте Verify token для нужной учётки
 
 + На портале разработчиков - Quickstart > Configuration > 
-+ + Callback URL - https://example.com/api/waba/?api-key=XXXXXXX
++ + Callback URL - `https://example.com/api/waba/` или `https://example.com/api/waba/?app_id=YOUR_APP_ID`
+  + Система определяет приложение по домену (`example.com`) или по параметру `app_id`, если он указан.
+  + Безопасность обеспечивается проверкой подписи `X-Hub-Signature-256` с использованием вашего App Secret.
 + + Verify token - Verify token из предыдущего шага 
 ![alt text](img/verify.png)
 + В админке separator - waba - phones и добавляем номера (Phone - номер, Phone id - id из приложения фейсбук)

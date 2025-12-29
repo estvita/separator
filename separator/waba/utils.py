@@ -1,6 +1,8 @@
 import base64
 import json
 import logging
+import hmac
+import hashlib
 from datetime import datetime
 
 import requests
@@ -184,7 +186,46 @@ def extract_waba_id(data):
 
 
 @shared_task(queue='waba')
-def event_processing(data):
+def event_processing(data=None, raw_body=None, signature=None, app_id=None, host=None):
+    if signature and raw_body:
+        if app_id:
+            apps = App.objects.filter(client_id=app_id)
+        elif host:
+            domains = [host]
+            if ':' in host:
+                domains.append(host.split(':')[0])
+            apps = App.objects.filter(site__domain__in=domains)
+        else:
+            apps = []
+
+        verified = False
+        payload = raw_body.encode('utf-8')
+        for app in apps:
+            if not app.client_secret:
+                continue
+            try:
+                secret = app.client_secret.encode('utf-8')
+                expected = 'sha256=' + hmac.new(secret, payload, hashlib.sha256).hexdigest()
+                if hmac.compare_digest(signature, expected):
+                    verified = True
+                    break
+            except Exception as e:
+                logger.error(f"Error verifying signature for app {app.id}: {e}")
+        
+        if not verified:
+            logger.warning(f"Signature verification failed. Signature: {signature}")
+            raise Exception(f"Invalid signature: {signature}")
+
+    if not data and raw_body:
+        try:
+            data = json.loads(raw_body)
+        except json.JSONDecodeError:
+            logger.error("Failed to decode JSON from raw_body")
+            raise Exception("Invalid JSON")
+            
+    if not data:
+        raise Exception("No data provided")
+
     waba_id = extract_waba_id(data)
     waba = Waba.objects.filter(waba_id=waba_id).first()
     if waba:

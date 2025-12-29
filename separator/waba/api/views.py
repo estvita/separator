@@ -1,9 +1,12 @@
 # waba/views.py
 import logging
+import hmac
+import hashlib
 
 from django.http import HttpResponse
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.permissions import AllowAny
 
 from separator.waba.models import App, Waba, Phone
 from separator.waba.utils import event_processing
@@ -13,9 +16,24 @@ logger = logging.getLogger("waba")
 
 class WabaWebhook(GenericViewSet, CreateModelMixin):
     queryset = Phone.objects.all()
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        event_processing.delay(request.data)
+        signature = request.headers.get("X-Hub-Signature-256")
+        app_id = request.query_params.get('app_id')
+        host = request.get_host()
+        
+        # Pass raw body for signature verification in the task
+        raw_body = request.body.decode('utf-8')
+        
+        event_processing.delay(
+            data=None, 
+            raw_body=raw_body, 
+            signature=signature, 
+            app_id=app_id, 
+            host=host
+        )
         return HttpResponse("ok")
 
     def list(self, request, *args, **kwargs):
