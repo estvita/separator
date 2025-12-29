@@ -1,6 +1,8 @@
 from django import forms
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from .models import ChatBot, Connector, AppInstance, Command, CommandLang
+from separator.bitrix.models import User as BitrixUser
 
 class ConnectorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -32,7 +34,14 @@ class ChatBotForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user")
         super().__init__(*args, **kwargs)
-        self.fields['app_instance'].queryset = AppInstance.objects.filter(owner=user, app__bitbot=True)
+        
+        admin_portal_ids = BitrixUser.objects.filter(owner=user, admin=True, active=True).values_list('bitrix_id', flat=True)
+        
+        self.fields['app_instance'].queryset = AppInstance.objects.filter(
+            Q(owner=user) | Q(portal__id__in=admin_portal_ids),
+            app__bitbot=True
+        ).distinct()
+        
         self.fields['connector'].queryset = Connector.objects.filter(owner=user)
 
 class CommandCreateForm(forms.ModelForm):

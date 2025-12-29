@@ -5,12 +5,14 @@ from django.urls import reverse
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.forms import formset_factory
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.translation import gettext as _
 from .models import ChatBot, Connector, Command, CommandLang
 from .forms import ChatBotForm, ConnectorForm, CommandCreateForm, CommandLangForm
 from separator.bitrix.crest import call_method
+from separator.bitrix.models import User as BitrixUser, Bitrix
 
 CommandLangFormSet = formset_factory(CommandLangForm, extra=1, can_delete=True)
 
@@ -18,8 +20,35 @@ class BotListView(LoginRequiredMixin, ListView):
     model = ChatBot
     template_name = "bitbot/list.html"
     paginate_by = 20
+
     def get_queryset(self):
-        return ChatBot.objects.filter(owner=self.request.user).select_related("connector", "app_instance")
+        user = self.request.user
+        admin_portal_ids = BitrixUser.objects.filter(owner=user, admin=True, active=True).values_list('bitrix_id', flat=True)
+        
+        qs = ChatBot.objects.filter(
+            Q(owner=user) | Q(app_instance__portal__id__in=admin_portal_ids)
+        ).select_related("connector", "app_instance", "app_instance__portal").distinct()
+
+        portal_id = self.request.GET.get('portal')
+        if portal_id:
+            qs = qs.filter(app_instance__portal__id=portal_id)
+            
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        admin_portal_ids = BitrixUser.objects.filter(owner=user, admin=True, active=True).values_list('bitrix_id', flat=True)
+        
+        # Get all bots accessible to user to determine available portals
+        base_qs = ChatBot.objects.filter(
+            Q(owner=user) | Q(app_instance__portal__id__in=admin_portal_ids)
+        ).select_related("app_instance__portal")
+        
+        portal_ids = base_qs.values_list('app_instance__portal', flat=True).distinct()
+        context['portals'] = Bitrix.objects.filter(id__in=portal_ids).order_by('domain')
+        context['selected_portal'] = self.request.GET.get('portal')
+        return context
 
 class ConnectorListView(LoginRequiredMixin, ListView):
     model = Connector
@@ -61,7 +90,16 @@ class BotEditView(LoginRequiredMixin, View):
     def _get_bot(self, pk):
         if not pk:
             return None
-        return get_object_or_404(ChatBot.objects.filter(owner=self.request.user).select_related("connector", "app_instance"), pk=pk)
+        
+        user = self.request.user
+        admin_portal_ids = BitrixUser.objects.filter(owner=user, admin=True, active=True).values_list('bitrix_id', flat=True)
+
+        qs = ChatBot.objects.filter(
+            Q(owner=user) | Q(app_instance__portal__id__in=admin_portal_ids)
+        ).select_related("connector", "app_instance")
+        
+        return get_object_or_404(qs, pk=pk)
+
     def get(self, request, pk=None):
         bot = self._get_bot(pk)
         form = ChatBotForm(instance=bot, user=request.user)
@@ -83,7 +121,8 @@ class BotEditView(LoginRequiredMixin, View):
             form = ChatBotForm(request.POST, instance=bot, user=request.user)
             if form.is_valid():
                 bot = form.save(commit=False)
-                bot.owner = request.user
+                if not bot.owner:
+                    bot.owner = request.user
                 bot.save()
                 if bot.bot_id == 0:
                     domain = bot.app_instance.app.site.domain

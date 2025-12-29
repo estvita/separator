@@ -7,6 +7,16 @@
   <div class="d-flex align-items-center gap-2 mb-3">
     <a href="{% url 'bitbot_add' %}" class="btn btn-success connect-btn">{% trans "Add" %}</a>
     <a href="{% url 'connector_list' %}" class="btn btn-secondary connect-btn">{% trans "Connectors" %}</a>
+    
+    <form method="get" class="d-flex align-items-center gap-2">
+        <select name="portal" class="form-select">
+            <option value="">{% trans "All Portals" %}</option>
+            {% for portal in portals %}
+                <option value="{{ portal.id }}" {% if selected_portal == portal.id|stringformat:"s" %}selected{% endif %}>{{ portal.domain }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">{% trans "Apply" %}</button>
+    </form>
   </div>
 
   <table class="table table-bordered">
