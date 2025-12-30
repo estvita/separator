@@ -51,12 +51,6 @@ def messageservice_add(app_instance_id, entity_id, service):
         elif service == "waba":
             entity = Phone.objects.get(id=entity_id)
         if hasattr(entity, 'sms_service'):
-            owner = app_instance.app.owner
-            if not hasattr(owner, "auth_token"):
-                entity.sms_service = False
-                entity.save()
-                raise Exception("Owner has no auth_token!")
-
             phone = re.sub(r'\D', '', entity.phone)
             if entity.sms_service:
                 try:
