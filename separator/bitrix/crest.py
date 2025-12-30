@@ -36,67 +36,73 @@ def call_method(appinstance: AppInstance,
         credential = b24_user.credentials.filter(app_instance=appinstance).first()
         if not credential:
             continue
-        endpoint = f"{portal.protocol}://{portal.domain}/rest"
-        payload = {"auth": credential.access_token, **data}
-        try:
-            response = requests.post(f"{endpoint}/{b24_method}", json=payload,
-                                    allow_redirects=False, verify=verify)
-            if appinstance.status != response.status_code:
-                appinstance.status = response.status_code
-                appinstance.save()
-        except requests.exceptions.SSLError:
-            if verify:
-                return call_method(appinstance, b24_method, data, attempted_refresh, verify=False)
-            else:
-                raise
-
-        if response.status_code == 302 and not attempted_refresh:
-            new_url = response.headers['Location']
-            parsed_url = urlparse(new_url)
-            domain = parsed_url.netloc
-            if portal.domain != domain:
-                portal.domain = domain
-                portal.save()
-            return call_method(appinstance, b24_method, data, attempted_refresh=True)
-
-        elif response.status_code == 200:
-            if portal.license_expired:
-                portal.license_expired = False
-                portal.save()
-            return response.json()
-
-        elif response.status_code == 401:
-            resp = response.json()
-            error = resp.get("error", "")
-            if error == "ACCESS_DENIED" and not portal.license_expired:
-                portal.license_expired = True
-                portal.save()
-            elif error == "expired_token" and not attempted_refresh:
-                refreshed = refresh_token(credential)
-                if refreshed:
-                    return call_method(appinstance, b24_method, data, attempted_refresh=True)
-                else:
-                    last_exc = Exception(f"Token refresh failed for user {b24_user.user_id} in portal {portal.domain}")
-                    continue
-            elif error == "authorization_error":
-                b24_user.active = False
-                b24_user.save()
-                last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
-                continue
-            last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
-            continue
-        elif response.status_code == 403:
+        
+        refresh_attempted = False
+        while True:
+            endpoint = f"{portal.protocol}://{portal.domain}/rest"
+            payload = {"auth": credential.access_token, **data}
             try:
-                resp_data = response.json()
-                last_exc = Exception(f"Access error: instance {appinstance.id} {resp_data}")
-                continue
-            except ValueError:
-                last_exc = Exception(f"Access error: instance {appinstance.id} {response.text}")
-                portal.license_expired = True
-                portal.save()
-        else:
-            last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
-                            f"status {response.status_code}, response: {response.text}")
+                response = requests.post(f"{endpoint}/{b24_method}", json=payload,
+                                        allow_redirects=False, verify=verify)
+                if appinstance.status != response.status_code:
+                    appinstance.status = response.status_code
+                    appinstance.save()
+            except requests.exceptions.SSLError:
+                if verify:
+                    return call_method(appinstance, b24_method, data, attempted_refresh, verify=False)
+                else:
+                    raise
+
+            if response.status_code == 302 and not attempted_refresh:
+                new_url = response.headers['Location']
+                parsed_url = urlparse(new_url)
+                domain = parsed_url.netloc
+                if portal.domain != domain:
+                    portal.domain = domain
+                    portal.save()
+                return call_method(appinstance, b24_method, data, attempted_refresh=True)
+
+            elif response.status_code == 200:
+                if portal.license_expired:
+                    portal.license_expired = False
+                    portal.save()
+                return response.json()
+
+            elif response.status_code == 401:
+                resp = response.json()
+                error = resp.get("error", "")
+                if error == "ACCESS_DENIED" and not portal.license_expired:
+                    portal.license_expired = True
+                    portal.save()
+                elif error == "expired_token" and not refresh_attempted:
+                    refreshed = refresh_token(credential)
+                    if refreshed:
+                        refresh_attempted = True
+                        continue
+                    else:
+                        last_exc = Exception(f"Token refresh failed for user {b24_user.user_id} in portal {portal.domain}")
+                        break
+                elif error == "authorization_error":
+                    b24_user.active = False
+                    b24_user.save()
+                    last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
+                    break
+                last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
+                break
+            elif response.status_code == 403:
+                try:
+                    resp_data = response.json()
+                    last_exc = Exception(f"Access error: instance {appinstance.id} {resp_data}")
+                    break
+                except ValueError:
+                    last_exc = Exception(f"Access error: instance {appinstance.id} {response.text}")
+                    portal.license_expired = True
+                    portal.save()
+                    break
+            else:
+                last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
+                                f"status {response.status_code}, response: {response.text}")
+                break
             
     if last_exc:
         raise Exception(f"{last_exc} method: {b24_method} data:{data}")

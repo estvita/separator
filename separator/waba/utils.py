@@ -6,6 +6,7 @@ import hashlib
 from datetime import datetime
 
 import requests
+from django.db import OperationalError
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.conf import settings
@@ -185,7 +186,12 @@ def extract_waba_id(data):
     return waba_id
 
 
-@shared_task(queue='waba')
+@shared_task(
+    queue='waba',
+    autoretry_for=(OperationalError, requests.RequestException),
+    default_retry_delay=5,
+    max_retries=5
+)
 def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if signature and raw_body:
         if app_id:
@@ -265,7 +271,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         try:
             phone = Phone.objects.get(phone_id=phone_number_id, waba=waba)
             appinstance = phone.app_instance
-            storage_id = appinstance.storage_id
+            if not appinstance:
+                raise Exception(f"appinstance not connected: {data}")
         except Phone.DoesNotExist:
             raise Exception(f"phone_number not found: {data}")
         except Exception:
@@ -353,16 +360,31 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         statuses = value.get("statuses", [])
         if statuses:
             for item in statuses:
-                if item.get("status") == "failed":
-                    # user_id
-                    biz_opaque_callback_data = item.get("biz_opaque_callback_data")
-                    if biz_opaque_callback_data:
-                        bitrix_user_id = json.loads(biz_opaque_callback_data).get('bitrix_user_id')                        
-                        if bitrix_user_id:
-                            out_message = error_message(item)
-                            payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
-                            bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
-                    raise Exception(data)
+                biz_opaque_callback_data = item.get("biz_opaque_callback_data")
+                if biz_opaque_callback_data:
+                    try:
+                        callback_data = json.loads(biz_opaque_callback_data)
+                        bitrix_user_id = callback_data.get('bitrix_user_id')
+                        sms_message_id = callback_data.get('sms_message_id')
+                        
+                        fb_status = item.get("status")
+
+                        if fb_status == "failed":
+                            if bitrix_user_id:
+                                out_message = error_message(item)
+                                payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
+                                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
+                        
+                        if sms_message_id and fb_status in ["delivered", "failed"]:
+                            status_data = {
+                                "CODE": phone.line.connector.code,
+                                "MESSAGE_ID": sms_message_id,
+                                "STATUS": fb_status
+                            }
+                            bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
+                    except Exception:
+                        pass
+            return data
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,

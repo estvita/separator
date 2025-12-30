@@ -14,7 +14,6 @@ from django.contrib import messages
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
-from django.utils.translation import gettext as _
 
 from celery import shared_task
 
@@ -35,7 +34,7 @@ if settings.ASTERX_SERVER:
     from separator.asterx.models import Server
     from separator.asterx.utils import send_call_info
 
-redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 logger = logging.getLogger("django")
@@ -78,7 +77,7 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
         admin = profile_data.get("ADMIN")
         user_id = profile_data.get("ID")
     except Exception as e:
-        raise Exception(f"Error: {e}")
+        raise Exception(f"Ошибка: {e}")
     
     b24_user, user_created = B24_user.objects.get_or_create(
         bitrix=portal,
@@ -113,7 +112,7 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
 
 def connect_line(request, line_id, entity, connector_service):
     if not line_id:
-        messages.warning(request, _("You must select a line from the list or create a new one."))
+        messages.warning(request, "Необходимо выбрать линию из списка или создать новую.")
         return
     line_id = str(line_id)
     if line_id.startswith("create__"):
@@ -160,9 +159,9 @@ def connect_line(request, line_id, entity, connector_service):
             }
             bitrix_tasks.call_api(app_instance.id, "imconnector.activate", activate_payload)
             bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)
-            messages.success(request, _("Line %(line_id)s created and connected") % {'line_id': new_line_id})
+            messages.success(request, f"Создана и подключена линия {new_line_id}")
         else:
-            messages.error(request, _("Error creating line: %(result)s") % {'result': result})
+            messages.error(request, f"Ошибка при создании линии: {result}")
             return
     else:
         line = get_object_or_404(Line, id=line_id)                
@@ -171,7 +170,7 @@ def connect_line(request, line_id, entity, connector_service):
         bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)       
         if entity.line:
             if str(entity.line.id) == str(line_id):
-                messages.warning(request, _("This line is already in use."))
+                messages.warning(request, "Эта линия уже используется.")
                 return
             bitrix_tasks.call_api(app_instance.id, "imconnector.activate", {
                 "CONNECTOR": connector.code,
@@ -187,7 +186,7 @@ def connect_line(request, line_id, entity, connector_service):
             entity.line = line
             entity.app_instance = app_instance
             entity.save()
-            messages.success(request, _("Line connected"))
+            messages.success(request, "Линия подключена")
 
 
 # Подписка на события
@@ -299,7 +298,7 @@ def process_placement(request):
             owner=app_instance.owner
         )
         return HttpResponse(
-            _("Line changed, configure the line at https://%(site)s/portals/") % {'site': app_instance.app.site}
+            f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/"
         )
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -447,7 +446,7 @@ def sms_processor(data, service):
                 message['to'] = message_to
                 send_result = waba.send_message(app_instance, message, phone_num=sender)
                 if not "error" in send_result:
-                    status = "delivered"
+                    pass
         elif service == "waweb":
             try:
                 wa = Session.objects.get(phone=sender)
@@ -459,12 +458,15 @@ def sms_processor(data, service):
             except Exception as e:
                 send_result = {"error": True, "message": {e}}
     finally:
-        status_data = {
-            "CODE": code,
-            "MESSAGE_ID": message_id,
-            "STATUS": status if status else "failed",
-        }
-        bitrix_tasks.call_api(app_instance.id, "messageservice.message.status.update", status_data)
+        is_waba_success = service == "waba" and send_result and "error" not in send_result
+        
+        if not is_waba_success:
+            status_data = {
+                "CODE": code,
+                "MESSAGE_ID": message_id,
+                "STATUS": status if status else "failed",
+            }
+            bitrix_tasks.call_api.delay(app_instance.id, "messageservice.message.status.update", status_data)
 
         if line and status:
             bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
@@ -565,7 +567,7 @@ def event_processor(data):
                     )
 
                 payload = {
-                    "message": _("To link the portal, follow the link https://%(site)s/portals/?code=%(code)s") % {'site': appinstance.app.site, 'code': code},
+                    "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
                     "USER_ID": user_id,
                 }
                 bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 17:45+0500\n"
+"POT-Creation-Date: 2025-12-30 20:45+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -55,6 +55,95 @@ msgstr ""
 msgid "On answer"
 msgstr ""
 
+msgid "Server not found or not yet connected"
+msgstr ""
+
+msgid "User update started."
+msgstr ""
+
+msgid "You already have an unconnected server!"
+msgstr ""
+
+msgid "Optional"
+msgstr ""
+
+msgid "Bitrix24"
+msgstr ""
+
+msgid "help"
+msgstr ""
+
+msgid "Connector saved."
+msgstr ""
+
+msgid "Please fix form errors."
+msgstr ""
+
+msgid "Connector deleted."
+msgstr ""
+
+msgid "Bot saved."
+msgstr ""
+
+msgid "Please fix bot form errors."
+msgstr ""
+
+msgid "Save the bot first."
+msgstr ""
+
+msgid "Add at least one translation (language and title)."
+msgstr ""
+
+msgid "Command added."
+msgstr ""
+
+msgid "Please fix command form/translations."
+msgstr ""
+
+msgid "Command not found."
+msgstr ""
+
+msgid "Код подтверждения"
+msgstr ""
+
+msgid "Enable auto finish chat"
+msgstr ""
+
+msgid "Chek for AsterX connector"
+msgstr ""
+
+msgid "Chek for Separator partner App"
+msgstr ""
+
+msgid "Chek for BitBot App"
+msgstr ""
+
+msgid "in minutes"
+msgstr ""
+
+msgid "Portal not found by code."
+msgstr ""
+
+msgid "Portal and related apps successfully linked to you."
+msgstr ""
+
+msgid "Verification code expired."
+msgstr ""
+
+msgid "Invalid verification code."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Для привязки портала перейдите по ссылке https://{site}/portals/?code={code}"
+msgstr ""
+
+msgid "Код подтверждения отправлен на ваш портал Bitrix24."
+msgstr ""
+
+msgid "Портал не найден или уже закреплен за другим пользователем."
+msgstr ""
+
 msgid "Auto-close chats is enabled and the event is binded"
 msgstr ""
 
@@ -65,6 +154,30 @@ msgid "Auto-closing of chats is disabled and events are unbind"
 msgstr ""
 
 msgid "Administrator rights are required to edit the portal."
+msgstr ""
+
+msgid "OLX disabled due to a problem"
+msgstr ""
+
+msgid "Day"
+msgstr ""
+
+msgid "Month"
+msgstr ""
+
+msgid "Year"
+msgstr ""
+
+msgid "US Dollar"
+msgstr ""
+
+msgid "Euro"
+msgstr ""
+
+msgid "Ruble"
+msgstr ""
+
+msgid "Tenge"
 msgstr ""
 
 msgid "Sign In"
@@ -93,6 +206,23 @@ msgid "Already have an account? Then please %(link)ssign in%(end_link)s."
 msgstr ""
 
 msgid "Sign up using a passkey"
+msgstr ""
+
+msgid "Service Disabled"
+msgstr ""
+
+msgid "The AsterX service is currently disabled."
+msgstr ""
+
+msgid ""
+"To enable it, please set ASTERX_SERVER=True in your .env file and ensure the "
+"service is running."
+msgstr ""
+
+msgid "If you are using Docker, make sure the 'asterx' container is running."
+msgstr ""
+
+msgid "If you are running on the host, ensure the systemd service is active:"
 msgstr ""
 
 msgid "Edit AsterX Server"
@@ -266,10 +396,13 @@ msgstr ""
 msgid "Connectors"
 msgstr ""
 
-msgid "Connector"
+msgid "All Portals"
 msgstr ""
 
-msgid "Bitrix24"
+msgid "Apply"
+msgstr ""
+
+msgid "Connector"
 msgstr ""
 
 msgid "No bots"
@@ -371,16 +504,73 @@ msgstr ""
 msgid "Thank you, message sent"
 msgstr ""
 
+msgid "Select service:"
+msgstr ""
+
+msgid "All services"
+msgstr ""
+
+msgid "Service"
+msgstr ""
+
+msgid "Trial"
+msgstr ""
+
+msgid "Price"
+msgstr ""
+
+msgid "Currency"
+msgstr ""
+
+msgid "Period"
+msgstr ""
+
+msgid "Description"
+msgstr ""
+
+msgid "Yes"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
+msgid "No tariffs yet"
+msgstr ""
+
 msgid "My Profile"
 msgstr ""
 
 msgid "Sign Out"
 msgstr ""
 
+msgid "Your OLX accounts"
+msgstr ""
+
 msgid "All"
 msgstr ""
 
-msgid "Apply"
+msgid "Term"
+msgstr ""
+
+msgid "Select line"
+msgstr ""
+
+msgid "line"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Connect OLX account"
+msgstr ""
+
+msgid "If you were not redirected,"
+msgstr ""
+
+msgid "Click here"
+msgstr ""
+
+msgid "Return to application"
 msgstr ""
 
 msgid "Your WhatsApp Cloud numbers"
@@ -405,9 +595,6 @@ msgid "Select a line"
 msgstr ""
 
 msgid "add line"
-msgstr ""
-
-msgid "Connect"
 msgstr ""
 
 msgid "You don't have any connected sessions."
@@ -534,7 +721,7 @@ msgstr ""
 msgid "Phone number"
 msgstr ""
 
-msgid "Пользователь с таким номером уже существует."
+msgid "A user with this number already exists."
 msgstr ""
 
 msgid "Name of User"
@@ -550,6 +737,9 @@ msgid "email address"
 msgstr ""
 
 msgid "Information successfully updated"
+msgstr ""
+
+msgid "Присланы контакты:\n"
 msgstr ""
 
 msgid "The mailing has been added to the queue."
@@ -572,4 +762,42 @@ msgid "Call destination %(dest)s enabled"
 msgstr ""
 
 msgid "The tariff has expired "
+msgstr ""
+
+msgid ""
+"The number has been successfully added. It will appear here in a few minutes."
+msgstr ""
+
+msgid "Default settings for new sessions"
+msgstr ""
+
+msgid "These settings will be applied by default when creating new sessions."
+msgstr ""
+
+msgid "Enter recipient numbers, one per line"
+msgstr ""
+
+msgid "Enter message text"
+msgstr ""
+
+msgid "You must connect WhatsApp first."
+msgstr ""
+
+msgid "You already have an incomplete connection. Click 'Connect'"
+msgstr ""
+
+msgid "No available servers."
+msgstr ""
+
+msgid "The temporary link has expired or is invalid."
+msgstr ""
+
+#, python-format
+msgid "Your tariff expired on %(date)s"
+msgstr ""
+
+msgid "Phone not connected. Reconnection required."
+msgstr ""
+
+msgid "Message sending task created."
 msgstr ""
