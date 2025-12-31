@@ -23,10 +23,11 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 2.  Configure environment:
     ```bash
     cp docs/example/env.example .env
+    make generate-keys
     nano .env
     ```
+    *`make generate-keys` will automatically generate secure values for `DJANGO_SECRET_KEY`, `SALT_KEY`, and `DJANGO_ADMIN_URL`.*
     *Ensure `ASTERX_SERVER=True` is set if you need the AsterX service.*
-    *Set `SALT_KEY` to a secure random string for database field encryption. You can generate one using `openssl rand -base64 32`.*
 
 3.  Start with Docker Compose:
     ```bash

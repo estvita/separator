@@ -35,3 +35,7 @@ superuser:
 # Настройка Evolution (генерация ключей и конфигов)
 setup-evolution:
 	python scripts/init_evolution.py
+
+# Генерация секретных ключей (Django Secret, Salt, Admin URL)
+generate-keys:
+	python scripts/generate_keys.py
