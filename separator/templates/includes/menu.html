@@ -4,6 +4,9 @@
   {% if 'wagtail' in INSTALLED_APPS %}
     {% include "includes/menu_wagtail.html" %}
   {% endif %}
+</ul>
+
+<ul class="navbar-nav">
   {% if request.user.is_authenticated %}
   {% if request.user.is_superuser %}
   <li class="nav-item">

@@ -42,9 +42,11 @@ class SettingsForm(forms.ModelForm):
         coerce=int,
         label='Show Card'
     )
-    crm_create = forms.BooleanField(
-        required=False,
-        label='Create CRM'
+    crm_create = forms.TypedChoiceField(
+        choices=Settings.CRM_CREATE_CHOICES,
+        widget=forms.Select,
+        coerce=int,
+        label=_('Create CRM')
     )
     vm_send = forms.BooleanField(
         required=False,

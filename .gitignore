@@ -281,4 +281,4 @@ separator/media/
 !.envs/.local/
 test.py
 docker-compose.vendor.yml
-.env.evolution
+.vscode/settings.json

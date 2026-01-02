@@ -17,10 +17,17 @@ class Settings(models.Model):
         default=2,
         help_text=_("0 - not show, 1 - on call, 2 - on answer")
     )
-    crm_create = models.BooleanField(
-        default=True,
-        help_text=_("Create Deal on B24")
-        )
+    CRM_CREATE_CHOICES = [
+        (0, _('Do not create')),
+        (1, _('Always create')),
+        (2, _('Only for incoming calls')),
+        (3, _('Only for outgoing calls')),
+    ]
+    crm_create = models.IntegerField(
+        choices=CRM_CREATE_CHOICES,
+        default=1,
+        help_text=_("Rule for creating deals in CRM")
+    )
     vm_send = models.BooleanField(
         default=True,
         help_text=_("Send VoiceMail to B24")

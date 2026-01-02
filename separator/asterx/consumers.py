@@ -55,8 +55,6 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
         version = data.get("version")
         system = data.get("system")
 
-        if contexts:
-            await self.process_contexts(contexts)
         self.group_name = f"server_{self.server_id}"
         if not self.server.setup_complete:
             # 4. setup_complete == False: записать поля и отметить сервер
@@ -68,6 +66,8 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             server_data = await self.get_server_and_instance_data()
             if server_data:
                 await self.send(text_data=json.dumps(server_data))
+            
+            await self.process_contexts(contexts)
         else:
             # 5. setup_complete == True — сверить entity_id/pbx_uuid
             if (str(self.server.entity_id) == str(entity_id) and
@@ -77,6 +77,8 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
                 server_data = await self.get_server_and_instance_data()
                 if server_data:
                     await self.send(text_data=json.dumps(server_data))
+                
+                await self.process_contexts(contexts)
 
             else:
                 await self.send(text_data=json.dumps(
@@ -84,8 +86,19 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
                 ))
                 await self.close()
 
+    async def process_contexts(self, contexts):
+        if contexts:
+            await self._save_contexts(contexts)
+        
+        contexts_data = await self.get_existing_contexts()
+        if contexts_data:
+            await self.send(text_data=json.dumps({
+                "event": "contexts_updated",
+                "contexts": contexts_data
+            }))
+
     @database_sync_to_async
-    def process_contexts(self, contexts):
+    def _save_contexts(self, contexts):
         for ctx in contexts or []:
             context_name = ctx.get("context")
             endpoint = ctx.get("endpoint")
@@ -162,7 +175,11 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             "smart_route": settings.smart_route,
             "default_user_id": settings.default_user_id,
         }
-    
+
+    @database_sync_to_async
+    def get_existing_contexts(self):
+        contexts = Context.objects.filter(server_id=self.server.id)
+        return [{c.context: c.type} for c in contexts]
     
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):

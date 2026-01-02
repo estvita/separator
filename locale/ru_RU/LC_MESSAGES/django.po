@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 20:45+0500\n"
+"POT-Creation-Date: 2026-01-02 12:39+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,8 +28,20 @@ msgstr "ID пользователя б24 по умолчанию для прив
 msgid "0 - not show, 1 - on call, 2 - on answer"
 msgstr "0 - не показывать, 1 - при звонке, 2 - при ответе"
 
-msgid "Create Deal on B24"
-msgstr "Создавать сделку в Б24"
+msgid "Do not create"
+msgstr "Не создавать"
+
+msgid "Always create"
+msgstr "Всегда создавать"
+
+msgid "Only for incoming calls"
+msgstr "Только для входящих звонков"
+
+msgid "Only for outgoing calls"
+msgstr "Только для исходящих звонков"
+
+msgid "Rule for creating deals in CRM"
+msgstr "Настройка создания сделки"
 
 msgid "Send VoiceMail to B24"
 msgstr "Отправлять голосовую почту"
@@ -57,6 +69,11 @@ msgstr "При звонке"
 
 msgid "On answer"
 msgstr "При ответе"
+
+#, fuzzy
+#| msgid "Create"
+msgid "Create CRM"
+msgstr "Создать"
 
 msgid "Server not found or not yet connected"
 msgstr "Сервер не найден или еще не подключен"
@@ -822,15 +839,15 @@ msgstr "Телефон не подключен. Необходимо произ�
 msgid "Message sending task created."
 msgstr "Задача на отправку сообщений создана."
 
+#~ msgid "Create Deal on B24"
+#~ msgstr "Создавать сделку в Б24"
+
 #~ msgid "Пользователь с таким номером уже существует."
 #~ msgstr "Пользователь с таким номером уже существует."
 
 #~ msgid "Line created, configure the line at https://%(site)s/app-settings/"
 #~ msgstr ""
 #~ "Линия создана, настройте линию по адресу https://%(site)s/app-settings/"
-
-#~ msgid "Error creating line"
-#~ msgstr "Ошибка создания линии"
 
 #~ msgid "Line changed, configure the line at https://%(site)s/app-settings/"
 #~ msgstr ""
