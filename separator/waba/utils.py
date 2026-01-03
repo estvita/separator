@@ -73,11 +73,9 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
         return {"error": True, "message": str(e)}
 
 
-def get_file(media_id, filename, appinstance, waba, external=True):
+def get_file(media_url, filename, appinstance, waba, external=True):
     try:
-        file_data = call_api(waba=waba, endpoint=media_id)
-        file_url = file_data.get("url", None)
-        download_file = call_api(file_url=file_url, waba=waba)
+        download_file = call_api(file_url=media_url, waba=waba)
     except Exception:
         return None
     fileContent = base64.b64encode(download_file.content).decode("utf-8")
@@ -325,11 +323,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type in ["image", "video", "audio", "document"]:
                 media_data = value["messages"][0][message_type]
                 media_id = media_data["id"]
+                media_url = media_data.get("url")
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
                 filename = media_data.get("filename", f"{media_id}.{extension}")
                 caption = media_data.get("caption", None)
 
-                file_url = get_file(media_id, filename, appinstance, phone.waba, external=False)
+                file_url = get_file(media_url, filename, appinstance, phone.waba, external=False)
 
             elif message_type == "contacts":
                 contacts = value["messages"][0]["contacts"]
@@ -403,10 +402,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type in ["image", "video", "audio", "document"]:
                 media_data = message.get(message_type)
                 media_id = media_data["id"]
+                media_url = media_data.get("url")
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
                 filename = media_data.get("filename", f"{media_id}.{extension}")
                 text = media_data.get("caption", None)
-                file_url = get_file(media_id, filename, appinstance, phone.waba)
+                file_url = get_file(media_url, filename, appinstance, phone.waba)
                 if file_url:
                     attach = [
                         {
