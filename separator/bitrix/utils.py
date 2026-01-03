@@ -581,20 +581,6 @@ def event_processor(data):
             message_id = data.get("data[MESSAGES][0][im][message_id]")
             chat_id = data.get("data[MESSAGES][0][im][chat_id]")
             chat = data.get("data[MESSAGES][0][chat][id]")
-            status_data = {
-                "CONNECTOR": connector_code,
-                "LINE": line_id,
-                "MESSAGES": [
-                    {
-                        "im": {
-                            "chat_id": chat_id,
-                            "message_id": message_id,
-                        },
-                    },
-                ],
-            }
-
-            bitrix_tasks.call_api(appinstance.id, "imconnector.send.status.delivery", status_data)
 
             # Проверяем наличие сообщения в редис (отправлено из других сервисов )
             for _ in range(5):
@@ -653,7 +639,9 @@ def event_processor(data):
                                 "filename": file["name"],
                             }
 
-                return waba.send_message(appinstance, message, line_id=line_id)
+                send_result = waba.send_message(appinstance, message, line_id=line_id)
+                if "error" in send_result:
+                    raise Exception(send_result)
 
             elif connector.service == "waweb":
                 try:
@@ -661,20 +649,33 @@ def event_processor(data):
                     wa = Session.objects.get(line=line)
                     if files:
                         for file in files:
-                            waweb_tasks.send_message.delay(str(wa.session), chat, file, 'media')
+                            waweb_tasks.send_message(str(wa.session), chat, file, 'media')
                     else:
-                        waweb_tasks.send_message.delay(wa.session, chat, text)
+                        waweb_tasks.send_message(wa.session, chat, text)
                 except Exception as e:
                     raise
 
             # If OLX connector
             elif connector.service == "olx":
-                olx_tasks.send_message.delay(chat, text, files)
+                try:
+                    olx_tasks.send_message(chat, text, files)
+                except Exception:
+                    raise
 
-        elif event == "ONCRMDEALUPDATE":
-            if appinstance.portal.imopenlines_auto_finish:
-                deal_id = data.get("data[FIELDS][ID]")
-                bitrix_tasks.auto_finish_chat.delay(appinstance.id, deal_id, True)
+            status_data = {
+                "CONNECTOR": connector_code,
+                "LINE": line_id,
+                "MESSAGES": [
+                    {
+                        "im": {
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                        },
+                    },
+                ],
+            }
+
+            bitrix_tasks.call_api(appinstance.id, "imconnector.send.status.delivery", status_data)
         
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")

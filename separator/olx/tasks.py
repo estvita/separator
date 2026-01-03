@@ -84,6 +84,8 @@ def send_message(chat_id, text, files=None):
         msg_data = response.json().get("data")
         message_id = msg_data.get("id")
         redis_client.set(f'olx:{threadid}', message_id)
+    else:
+        raise Exception(f"OLX send message failed: {response.status_code} {response.text}")
 
     return response.json()
 
