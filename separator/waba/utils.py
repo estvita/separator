@@ -279,6 +279,23 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if field == 'message_template_status_update':
         return message_template_status_update(entry)    
 
+    elif field == 'phone_number_name_update':
+        display_phone_number = value.get('display_phone_number')
+        if display_phone_number and waba:
+            
+            phone = Phone.objects.filter(phone=f"+{display_phone_number}", waba=waba).first()
+            
+            if phone:
+                pin = phone.pin
+                payload = {
+                    'messaging_product': 'whatsapp',
+                    'pin': pin
+                }
+                try:
+                    return call_api(waba=waba, endpoint=f"{phone.phone_id}/register", method="post", payload=payload)
+                except Exception:
+                    raise
+
     elif field == 'account_settings_update':
         value_type = value.get("type")
         if value_type == "phone_number_settings":
