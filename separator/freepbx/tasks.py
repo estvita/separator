@@ -124,7 +124,7 @@ class PbxClient:
         )
         waba_phone.sip_extensions = extension
         waba_phone.save()
-        finish_create.delay(url, headers, phone, ext)
+        finish_create.delay(url, waba_phone.id, ext)
         return extension
 
 @shared_task
@@ -133,7 +133,15 @@ def create_extension_task(phone_id):
     return pbx.create_extension(phone_id)
 
 @shared_task
-def finish_create(url, headers, phone, ext):
+def finish_create(url, phone_id, ext):
+    waba_phone = Phone.objects.get(id=phone_id)
+    phone = waba_phone.phone
+    pbx = PbxClient()
+    token = pbx.fetch_access_token(waba_phone.waba.app)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
     gqlRoute = """
     mutation {
         addInboundRoute(

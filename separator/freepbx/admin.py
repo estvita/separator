@@ -31,6 +31,6 @@ class ExtensionAdminForm(forms.ModelForm):
 class ExtensionAdmin(admin.ModelAdmin):
     form = ExtensionAdminForm
     autocomplete_fields = ['owner']
-    search_fields = ['number', 'domain']
+    search_fields = ['number', 'server__domain']
     list_display = ('number', 'date_end', 'owner')
     list_per_page = 30
