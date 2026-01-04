@@ -88,7 +88,7 @@ def event_processor(data):
             'scope', 'client_endpoint', 'DIALOG_ID', 'AUTHOR_ID',
             'MESSAGE_ID', 'MESSAGE', 'COMMAND_ID', 'COMMAND', 'COMMAND_PARAMS', 'CHAT_TITLE',
             'LANGUAGE', 'CHAT_ENTITY_DATA_1', 'CHAT_ENTITY_DATA_2', 'CHAT_ENTITY_ID',
-            'FIRST_NAME', 'LAST_NAME'
+            'FIRST_NAME', 'LAST_NAME', 'BOT_ID', 'CHAT_ID',
         ])
         
         files = extract_files(data)

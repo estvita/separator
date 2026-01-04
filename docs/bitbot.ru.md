@@ -62,6 +62,7 @@ client_endpoint: https://b24-2zjuyu.bitrix24.kz/rest/
 
 BOT_ID: 55
 DIALOG_ID: chat7
+CHAT_ID: 7
 MESSAGE_ID: 456
 MESSAGE: text
 AUTHOR_ID: 2
