@@ -152,34 +152,69 @@ def event_processor(event_data):
             sender = sender.split('@')[0]
         else:
             raise Exception({'sender not found'})
-        # нужно исправить чтобы группы работали
+        if sender:
+            sender = sender.split('@')[0]
+        else:
+            raise Exception({'sender not found'})
+        
+        # Определение remote_user (ID чата)
         addressingMode = key_data.get('addressingMode')
-        if addressingMode == "lid":
+        remote_jid_raw = key_data.get('remoteJid')
+        
+        # Если это группа, всегда берем remoteJid, так как remoteJidAlt может быть пустым
+        if remote_jid_raw and "g.us" in remote_jid_raw:
+            remote_user = remote_jid_raw
+        # Для личных чатов используем логику addressingMode
+        elif addressingMode == "lid":
             remote_user = key_data.get('remoteJidAlt')
         else:
-            remote_user = key_data.get('remoteJid')
+            remote_user = remote_jid_raw
+
+        if not remote_user:
+             # Fallback если вдруг remoteJidAlt пустой при lid (хотя не должно быть в личке)
+             remote_user = remote_jid_raw
+
         pushName = data.get("pushName")
         group_message = False
+        
         # если g.us значит группа
         if "g.us" in remote_user:
             participantPn = key_data.get('participantPn')
             participant = key_data.get('participant')
             group_message = True
+            
+            # Пытаемся найти номер телефона участника
             if participantPn and "@lid" not in participantPn:
                 participant = participantPn
-            if "@lid" in participant:
+            
+            # Если у нас все еще LID, пробуем разрешить его через API
+            if participant and "@lid" in participant:
                 try:
+                    # Нормализуем искомый LID (убираем суффикс для сравнения)
+                    target_lid = participant.split('@')[0]
+                    
                     participants_data = requests.get(f"{server.url}/group/participants/{sessionid}", 
                                                 params={"groupJid": remote_user}, headers=headers)
                     participants_data.raise_for_status()
                     participants_dict = participants_data.json()
                     participants_list = participants_dict.get('participants', [])
-                    participant = next((p['jid'] for p in participants_list if p['lid'] == participant), None)
-                except Exception:
-                    print(participants_data.json())
+                    
+                    # Ищем участника, сравнивая LID без суффиксов
+                    found_participant = next((
+                        p for p in participants_list 
+                        if p.get('lid', '').split('@')[0] == target_lid
+                    ), None)
+                    
+                    if found_participant:
+                        participant = found_participant.get('id') # Берем JID (номер телефона)
+                        
+                except Exception as e:
+                    print(f"Error resolving participant: {e}")
                     pass
-            participant = participant.split('@')[0]
-            participant = f"{pushName} ({participant})"
+            
+            participant = participant.split('@')[0] if participant else "Unknown"
+            participant = f"{pushName} ({participant})" if pushName else participant
+            
             params = {"groupJid": remote_user}
             group_name = requests.get(f"{server.url}/group/findGroupInfos/{sessionid}", params=params, headers=headers)
             if group_name.status_code == 200:
