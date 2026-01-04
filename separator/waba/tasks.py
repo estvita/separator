@@ -179,14 +179,18 @@ def call_management(id):
                 else:
                     raise Exception(f"No matching server found for app_id {app_id}")
                 
-            return resp.json()
+            return resp
 
         except ValueError:
             raise
 
     except Exception as e:
-        error = e.args[0].get("error")
-        code = error.get("code")
+        error = None
+        if e.args and isinstance(e.args[0], dict):
+            error = e.args[0].get("error")
+        
+        if error:
+            code = error.get("code")
         if code:
             fb_message = error.get("error_user_title")
             fb_details = error.get("error_user_msg")
@@ -196,7 +200,7 @@ def call_management(id):
             )
             error_text = f"Error code: {code}. {error_obj.message}. {error_obj.details}"
         else:
-            error_text = e
+            error_text = str(e)
         phone.error = error_text
         phone.save()
         raise Exception(phone.phone_id, e)
