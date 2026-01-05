@@ -1,7 +1,8 @@
-import base64
 import json
-import logging
 import hmac
+import base64
+import redis
+import logging
 import hashlib
 from datetime import datetime
 
@@ -21,6 +22,7 @@ from .models import App, Phone, Waba, Template, Event, Error
 API_URL = settings.FACEBOOK_API_URL
 
 logger = logging.getLogger("django")
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 
 def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None):
@@ -342,8 +344,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
-                filename = media_data.get("filename", f"{media_id}.{extension}")
+                filename = f"wamid.{media_id}.{extension}"
                 caption = media_data.get("caption", None)
+                
+                # Store mapping media_id -> message_id in Redis (expire 3 months)
+                redis_client.set(f"wamid:{media_id}", message_id, ex=7776000)
 
                 file_url = get_file(media_url, filename, appinstance, phone.waba, external=False)
 

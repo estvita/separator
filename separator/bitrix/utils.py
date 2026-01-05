@@ -607,13 +607,27 @@ def event_processor(data):
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
             text = data.get("data[MESSAGES][0][message][text]", "")
+            
+            quoted_msg_id = None
             if text:
+                # Поиск ID цитируемого сообщения (wamid.ID.ext)
+                match = re.search(r"wamid\.([a-zA-Z0-9_]+)\.", text)
+                if match:
+                    short_id = match.group(1)
+                    # Lookup full message ID from Redis
+                    full_id = redis_client.get(f"wamid:{short_id}")
+                    if full_id:
+                        quoted_msg_id = full_id.decode('utf-8')
+                    else:
+                        # Fallback: try using the ID directly if not found in Redis (legacy behavior)
+                        quoted_msg_id = short_id
+
                 excludes_raw = appinstance.exclude or ''
                 excludes = [e.strip() for e in excludes_raw.split(",") if e.strip()]
                 if any(ex.lower() in text.lower() for ex in excludes):
                     raise Exception("message filtered")
-                text = re.sub(r"\[(?!(br|\n))[^\]]+\]", "", text)
                 text = text.replace("[br]", "\n")
+                text = re.sub(r"\[/?[a-zA-Z*][a-zA-Z0-9*]*\]|\[[a-zA-Z0-9\s]+=[^\]]+\]", "", text)
 
             files = []
             if file_type:
@@ -630,6 +644,10 @@ def event_processor(data):
                     "biz_opaque_callback_data": {"bitrix_user_id": user_id},
                     "to": chat,
                 }
+                
+                if quoted_msg_id:
+                    message["context"] = {"message_id": quoted_msg_id}
+
                 # Обработка шаблонных сообщений
                 if "template+" in text:
                     template_start = text.index("template+")
