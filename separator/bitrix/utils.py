@@ -457,6 +457,8 @@ def sms_processor(data, service):
                 send_result = {"error": True, "message": f"No Session found for phone number: {code}"}
             except Exception as e:
                 send_result = {"error": True, "message": {e}}
+    except Exception as e:
+        send_result = {"error": True, "message": str(e)}
     finally:
         is_waba_success = service == "waba" and send_result and "error" not in send_result
         
@@ -471,9 +473,24 @@ def sms_processor(data, service):
         if line and status:
             bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
     if isinstance(send_result, dict) and send_result.get("error"):
+        error_msg = send_result.get("message")
+        if service == "waba":
+            try:
+                import ast
+                error_data = ast.literal_eval(error_msg)
+                if isinstance(error_data, dict):
+                    if "error" in error_data:
+                        adapted_data = {"errors": [error_data["error"]], "recipient_id": message_to}
+                        error_msg = waba.error_message(adapted_data)
+                    elif "errors" in error_data:
+                        error_data["recipient_id"] = message_to
+                        error_msg = waba.error_message(error_data)
+            except Exception:
+                pass
+
         payload = {
             "USER_ID": user_id,
-            "MESSAGE": str(send_result)
+            "MESSAGE": error_msg
         }
         bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
         raise ValueError(send_result)
