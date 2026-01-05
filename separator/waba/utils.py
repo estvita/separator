@@ -344,8 +344,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
-                filename = f"wamid.{media_id}.{extension}"
-                caption = media_data.get("caption", None)
+                filename = f"wamid.{media_id}.{extension}"     
+                           
+                caption = media_data.get("caption") or ""
+                original_filename = media_data.get("filename")
+                if original_filename:
+                    caption = f"{original_filename} {caption}"
+                caption = caption.strip() if caption else None
                 
                 # Store mapping media_id -> message_id in Redis (expire 3 months)
                 redis_client.set(f"wamid:{media_id}", message_id, ex=7776000)
