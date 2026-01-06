@@ -386,6 +386,25 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         statuses = value.get("statuses", [])
         if statuses:
             for item in statuses:
+                fb_status = item.get("status")
+                out_message = None
+
+                if fb_status == "failed":
+                    try:
+                        out_message = error_message(item)
+                        user_phone = item.get("recipient_id")
+                        if user_phone and appinstance:
+                            line_msg = f"[color=#ff0000]{out_message}[/color]"
+                            bitrix_tasks.send_messages.delay(
+                                appinstance.id, 
+                                user_phone, 
+                                line_msg, 
+                                phone.line.connector.code,
+                                phone.line.line_id
+                            )
+                    except Exception:
+                        pass
+
                 biz_opaque_callback_data = item.get("biz_opaque_callback_data")
                 if biz_opaque_callback_data:
                     try:
@@ -393,24 +412,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         bitrix_user_id = callback_data.get('bitrix_user_id')
                         sms_message_id = callback_data.get('sms_message_id')
                         
-                        fb_status = item.get("status")
-
-                        if fb_status == "failed":
-                            out_message = error_message(item)
-                            if bitrix_user_id:
-                                payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
-                                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
-
-                            user_phone = item.get("recipient_id")
-                            if user_phone:
-                                line_msg = f"[color=#ff0000]{out_message}[/color]"
-                                bitrix_tasks.send_messages.delay(
-                                    appinstance.id, 
-                                    user_phone, 
-                                    line_msg, 
-                                    phone.line.connector.code,
-                                    phone.line.line_id
-                                )
+                        if fb_status == "failed" and bitrix_user_id:
+                            if not out_message:
+                                out_message = error_message(item)
+                            payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
+                            bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
                         
                         if sms_message_id and fb_status in ["delivered", "failed"]:
                             status_data = {
@@ -421,6 +427,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
                     except Exception:
                         pass
+            return data
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
