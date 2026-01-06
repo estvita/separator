@@ -41,6 +41,17 @@ def upd_refresh_token(period):
             refresh_token(credential)
 
 
+@shared_task(queue='bitrix')
+def get_app_info(instance_id=None):
+    if instance_id:
+        app_instances = AppInstance.objects.filter(id=instance_id)
+    else:
+        app_instances = AppInstance.objects.all()
+    for app_instance in app_instances:
+        if app_instance.portal and not app_instance.portal.license_expired:
+            call_api.delay(app_instance.id, "app.info", {})
+
+
 # Регистрация SMS-провайдера
 @shared_task(queue='bitrix')
 def messageservice_add(app_instance_id, entity_id, service):
