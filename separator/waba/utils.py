@@ -344,7 +344,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
-                filename = f"wamid.{media_id}.{extension}"     
+                filename = f"wamid.{media_id}.{extension}"
                            
                 caption = media_data.get("caption") or ""
                 original_filename = media_data.get("filename")
@@ -396,10 +396,21 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         fb_status = item.get("status")
 
                         if fb_status == "failed":
+                            out_message = error_message(item)
                             if bitrix_user_id:
-                                out_message = error_message(item)
                                 payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
                                 bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
+
+                            user_phone = item.get("recipient_id")
+                            if user_phone:
+                                line_msg = f"[color=#ff0000]{out_message}[/color]"
+                                bitrix_tasks.send_messages.delay(
+                                    appinstance.id, 
+                                    user_phone, 
+                                    line_msg, 
+                                    phone.line.connector.code,
+                                    phone.line.line_id
+                                )
                         
                         if sms_message_id and fb_status in ["delivered", "failed"]:
                             status_data = {
@@ -410,7 +421,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
                     except Exception:
                         pass
-            return data
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
@@ -431,8 +441,14 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
-                filename = media_data.get("filename", f"{media_id}.{extension}")
-                text = media_data.get("caption", None)
+                filename = f"wamid.{media_id}.{extension}"
+                
+                text = media_data.get("caption") or ""
+                original_filename = media_data.get("filename")
+                if original_filename:
+                    text = f"{original_filename} {text}"
+                text = text.strip() if text else None
+
                 file_url = get_file(media_url, filename, appinstance, phone.waba)
                 if file_url:
                     attach = [
