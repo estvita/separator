@@ -774,7 +774,7 @@ def event_processor(data):
         elif event in ["ONIMBOTMESSAGEADD", "ONIMCOMMANDADD"]:
             # from pprint import pprint
             # from datetime import datetime
-            # filename = f'{int(datetime.now().timestamp())}.json'
+            # filename = f'logs/{str(datetime.now().timestamp())}.json'
             # with open(filename, 'w', encoding='utf-8') as f:
             #     pprint(data, stream=f)
             # pass

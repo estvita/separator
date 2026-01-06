@@ -159,6 +159,10 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
 
         for attempt in range(max_send_attempts):
             try:
+                try:
+                    call_method(app_instance, "imopenlines.session.start", {"CHAT_ID": chat_id})
+                except Exception as e:
+                    logger.warning(f"Failed to start session for chat {chat_id}: {e}")
                 resp = call_method(app_instance, "im.message.add", payload)
                 message_id = resp.get("result")
                 redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
