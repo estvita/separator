@@ -52,14 +52,14 @@ def messageservice_add(app_instance_id, entity_id, service):
             entity = Phone.objects.get(id=entity_id)
         if hasattr(entity, 'sms_service'):
             phone = re.sub(r'\D', '', entity.phone)
+            domain = app_instance.app.site.domain
+            code = f"{domain}_{phone}"
+
             if entity.sms_service:
                 try:
                     providers = call_method(app_instance, "messageservice.sender.list", admin=True)
                 except Exception as e:
                     raise Exception(f"list providers fail: {e}")
-
-                domain = app_instance.app.site.domain
-                code = f"{domain}_{phone}"
                 
                 if "result" in providers and code in providers.get("result"):
                     raise Exception(f"{code} already exists")
