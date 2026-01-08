@@ -27,7 +27,7 @@ INSTALLED_APPS = [
 ] + INSTALLED_APPS
 
 MIDDLEWARE = MIDDLEWARE + [
-    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+    "separator.home.middleware.FlexibleRedirectMiddleware",
     "hijack.middleware.HijackUserMiddleware",
 ]
 

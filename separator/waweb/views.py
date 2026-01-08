@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.db.models import Count, Q, F
 from django.utils import timezone
 from django.conf import settings
+from django.utils.translation import gettext as _
 import separator.bitrix.utils as bitrix_utils
 
 from separator.decorators import login_message_required, user_message
