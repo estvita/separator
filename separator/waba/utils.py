@@ -328,7 +328,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         file_url = None
         text = None
         name = None
+        chat_url = None
         for message in messages:
+            referral = message.get("referral")
+            if referral:
+                chat_url = referral.get("source_url")
+
             message_type = message.get("type")
             user_phone = message["from"]
             message_id = message["id"]
@@ -381,7 +386,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     }
                 ]
                 bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
-                                                phone.line.line_id, False, name, message_id, attach)
+                                                phone.line.line_id, False, name, message_id, attach, chat_url=chat_url)
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -431,7 +436,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                                phone.line.line_id, False, name, message_id)
+                                                phone.line.line_id, False, name, message_id, chat_url=chat_url)
     
     elif field == 'smb_message_echoes':
         text = None
