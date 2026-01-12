@@ -235,16 +235,25 @@ def app_install(request):
     request.session["installed_app"] = app.name
     try:
         proto = "https" if protocol == "1" else "http"
-        response = requests.post(f"{proto}://{domain}/rest/event.bind", json=payload)
+        response = requests.post(f"{proto}://{domain}/rest/event.bind", json=payload, timeout=25)
         response.raise_for_status()
     except requests.RequestException as e:
-        resp = response.json()
-        error_description = resp.get("error_description")
-        if "Handler already binded" in error_description:
-            return render(request, "bitrix/install_finish.html")
+        # Check if it's a specific API error response
+        if e.response is not None:
+            try:
+                resp = e.response.json()
+                error_description = resp.get("error_description", "")
+                if "Handler already binded" in error_description:
+                    return render(request, "bitrix/install_finish.html")
+                error_detail = f"Status: {e.response.status_code}, Response: {resp}"
+            except ValueError:
+                error_detail = f"Status: {e.response.status_code}, Body: {e.response.text[:200]}"
         else:
-            messages.error(request, f"event.bind failed {response.status_code, resp}")
-            return redirect("/")
+            # Connection errors, Timeouts, etc.
+            error_detail = str(e)
+
+        messages.error(request, f"Installation failed. Error connecting to Bitrix ({domain}): {error_detail}")
+        return redirect("/")
 
     return render(request, "bitrix/install_finish.html")
 
