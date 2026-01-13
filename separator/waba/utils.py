@@ -437,7 +437,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
                                                 phone.line.line_id, False, name, message_id, chat_url=chat_url)
-    
+
     elif field == 'smb_message_echoes':
         text = None
         attach= None
@@ -452,6 +452,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 media_data = message.get(message_type)
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
+                if not media_url:
+                    try:
+                        media_info = call_api(waba=phone.waba, endpoint=media_id)
+                        media_url = media_info.get("url")
+                    except Exception:
+                        pass
+
                 extension = media_data["mime_type"].split("/")[1].split(";")[0]
                 filename = f"wamid.{media_id}.{extension}"
                 
