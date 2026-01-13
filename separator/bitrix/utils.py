@@ -710,7 +710,7 @@ def event_processor(data):
                 ],
             }
 
-            bitrix_tasks.call_api(appinstance.id, "imconnector.send.status.delivery", status_data)
+            bitrix_tasks.call_api.delay(appinstance.id, "imconnector.send.status.delivery", status_data)
         
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")

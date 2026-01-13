@@ -188,7 +188,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
                     }]
                 }
                 call_api.delay(app_instance.id, "imconnector.send.status.delivery", payload_status)
-                break
+                return resp
             except Exception as e:
                 if attempt >= max_send_attempts - 1:
                     logger.error(f"Exception occurred while sending message: {e}")
