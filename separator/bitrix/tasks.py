@@ -23,7 +23,7 @@ redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 def call_api(self, id, method, payload, b24_user=None):
     try:
         app_instance = AppInstance.objects.get(id=id)
-        resp = call_method(app_instance, method, payload, b24_user_id=b24_user)
+        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=15)
         return resp
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
@@ -128,7 +128,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
             ],
         }
 
-        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg)
+        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=15)
 
         result = resp.get("result", {})
         results = result.get("DATA", {}).get("RESULT", [])
@@ -174,7 +174,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
                 #     call_method(app_instance, "imopenlines.session.start", {"CHAT_ID": chat_id})
                 # except Exception as e:
                 #     logger.warning(f"Failed to start session for chat {chat_id}: {e}")
-                resp = call_method(app_instance, "im.message.add", payload)
+                resp = call_method(app_instance, "im.message.add", payload, timeout=10)
                 message_id = resp.get("result")
                 redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
                 payload_status = {
@@ -187,7 +187,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
                         }
                     }]
                 }
-                return call_method(app_instance, "imconnector.send.status.delivery", payload_status)
+                call_api.delay(app_instance.id, "imconnector.send.status.delivery", payload_status)
             except Exception as e:
                 if attempt >= max_send_attempts - 1:
                     logger.error(f"Exception occurred while sending message: {e}")

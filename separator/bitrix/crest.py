@@ -17,7 +17,8 @@ def call_method(appinstance: AppInstance,
                 attempted_refresh=False, 
                 verify=True,
                 admin=None,
-                b24_user_id=None):
+                b24_user_id=None,
+                timeout=30):
     if data is None:
         data = {}
     
@@ -43,13 +44,17 @@ def call_method(appinstance: AppInstance,
             payload = {"auth": credential.access_token, **data}
             try:
                 response = requests.post(f"{endpoint}/{b24_method}", json=payload,
-                                        allow_redirects=False, verify=verify)
+                                        allow_redirects=False, verify=verify, timeout=timeout)
                 if appinstance.status != response.status_code:
                     appinstance.status = response.status_code
                     appinstance.save()
+            except requests.exceptions.Timeout:
+                # If timeout occurs, we should probably stop trying for this user/portal this time
+                # and let the caller handle the retry (e.g. Celery task)
+                raise
             except requests.exceptions.SSLError:
                 if verify:
-                    return call_method(appinstance, b24_method, data, attempted_refresh, verify=False)
+                    return call_method(appinstance, b24_method, data, attempted_refresh, verify=False, timeout=timeout)
                 else:
                     raise
 
@@ -116,7 +121,11 @@ def refresh_token(credential: Credential):
         "client_secret": credential.app_instance.app.client_secret,
         "refresh_token": credential.refresh_token,
     }
-    response = requests.post(f"{settings.BITRIX_OAUTH_URL}/oauth/token/", data=payload)
+    try:
+        response = requests.post(f"{settings.BITRIX_OAUTH_URL}/oauth/token/", data=payload, timeout=15)
+    except requests.exceptions.RequestException:
+        return False
+        
     try:
         response_data = response.json()
     except Exception:
