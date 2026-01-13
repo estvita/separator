@@ -11,6 +11,7 @@ User=user
 WorkingDirectory=/home/user/separator
 Environment="PATH=/home/user/separator/.venv/bin"
 ExecStart=/home/user/separator/.venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/separator.sock config.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target

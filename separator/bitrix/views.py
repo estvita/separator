@@ -272,9 +272,9 @@ def app_settings(request):
         member_id = data.get("member_id")
         try:
             portal = Bitrix.objects.filter(member_id=member_id).first()
-            if portal.domain != domain:
-                portal.domain = domain
-                portal.save()
+            # if portal.domain != domain:
+            #     portal.domain = domain
+            #     portal.save()
         except Exception as e:
             pass
 
