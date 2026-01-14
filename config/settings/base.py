@@ -404,3 +404,6 @@ SPECTACULAR_SETTINGS = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+# Bitrix Temp File TTL (in seconds)
+BITRIX_TEMP_FILE_TTL = env.int("BITRIX_TEMP_FILE_TTL", default=1800)

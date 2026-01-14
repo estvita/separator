@@ -1,6 +1,5 @@
 import json
 import hmac
-import base64
 import redis
 import logging
 import hashlib
@@ -80,23 +79,12 @@ def get_file(media_url, filename, appinstance, waba, external=True):
         download_file = call_api(file_url=media_url, waba=waba)
     except Exception:
         return None
-    fileContent = base64.b64encode(download_file.content).decode("utf-8")
+    
+    # Use centralized logic for temp file handling
+    file_url = bitrix_utils.save_temp_file(download_file.content, filename, appinstance)
+    return file_url
 
-    upload_file = bitrix_utils.upload_file(
-        appinstance, appinstance.storage_id, 
-        fileContent, filename
-    )
-    if upload_file:
-        download_url = upload_file.get("DOWNLOAD_URL")
-        if not external:
-            return download_url
-    file_id = upload_file.get("ID") if download_url else None
-    if file_id:
-        try:
-            file_link = bitrix_tasks.call_api(appinstance.id, "disk.file.getExternalLink", {"id": file_id})
-            return file_link.get("result")
-        except Exception:
-            raise
+
 
 
 def format_contacts(contacts):
@@ -468,7 +456,18 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     text = f"{original_filename} {text}"
                 text = text.strip() if text else None
 
-                file_url = get_file(media_url, filename, appinstance, phone.waba)
+                # For echo (system) messages, we must upload to Bitrix to keep the file durable in chat history
+                try:
+                    downloaded = call_api(file_url=media_url, waba=phone.waba)
+                    if downloaded:
+                        file_url = bitrix_utils.upload_and_get_link(
+                            appinstance, downloaded.content, filename
+                        )
+                    else:
+                        file_url = None
+                except Exception:
+                    file_url = None
+
                 if file_url:
                     attach = [
                         {

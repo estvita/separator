@@ -43,7 +43,9 @@
             "request": "launch",
             "module": "celery",
             "console": "integratedTerminal",
-            "args": ["-A", "config.celery_app", "flower"],
+            "args": ["-A", "config.celery_app", "flower", 
+            "--port=5556"
+        ],
         },
     ]
 }

@@ -11,6 +11,7 @@ from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 
+from separator.bitrix.views import log_and_serve_temp_file
 from django.conf.urls.i18n import i18n_patterns
 
 urlpatterns = [
@@ -23,6 +24,8 @@ urlpatterns = [
     path('waweb/', include('separator.waweb.urls')),
     path('bitbot/', include('separator.bitbot.urls')),
     # ...
+    # Logging temp file access
+    path("media/temp/<path:path>", log_and_serve_temp_file),
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]

@@ -4,8 +4,10 @@ import json
 import logging
 import re
 import uuid
+import os
 import redis
 import requests
+from django.core.signing import TimestampSigner
 from urllib.parse import unquote
 from datetime import timedelta
 from django.db import transaction
@@ -788,3 +790,60 @@ def event_processor(data):
 
     except Exception as e:
         raise
+
+
+def save_temp_file(file_content, filename, app_instance):
+    """
+    Saves file content locally and returns a signed URL for Bitrix to download.
+    file_content: bytes
+    """
+    try:
+        temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        
+        # Ensure unique filename to avoid collisions
+        name, ext = os.path.splitext(filename)
+        unique_filename = f"{name}_{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(temp_dir, unique_filename)
+        
+        with open(file_path, 'wb') as f:
+            f.write(file_content)
+            
+        domain = app_instance.app.site.domain
+        # Ensure domain doesn't have protocol
+        domain = domain.replace("http://", "").replace("https://", "").strip("/")
+        
+        signer = TimestampSigner()
+        signed_path = signer.sign(unique_filename)
+        
+        file_url = f"https://{domain}{settings.MEDIA_URL}temp/{signed_path}"
+        
+        # Schedule deletion after configured TTL
+        ttl = getattr(settings, 'BITRIX_TEMP_FILE_TTL', 1800)
+        bitrix_tasks.delete_temp_file.apply_async(args=[file_path], countdown=ttl)
+        
+        return file_url
+        
+    except Exception as e:
+        logger.error(f"Error handling temp file: {e}")
+        return None
+
+def upload_and_get_link(appinstance, file_content_bytes, filename):
+    """
+    Uploads file to Bitrix Disk and returns a permanent external link.
+    Used for system messages (echoes) that need to persist in chat history.
+    """
+    try:
+        file_b64 = base64.b64encode(file_content_bytes).decode("utf-8")
+        upload_res = upload_file(appinstance, appinstance.storage_id, file_b64, filename)
+        
+        if upload_res:
+            file_id = upload_res.get("ID")
+            if file_id:
+                link_res = bitrix_tasks.call_api(appinstance.id, "disk.file.getExternalLink", {"id": file_id})
+                if link_res and "result" in link_res:
+                    return link_res.get("result")
+    except Exception as e:
+        logger.error(f"Error uploading file to Bitrix Disk: {e}")
+    return None

@@ -122,7 +122,7 @@ def refresh_token(credential: Credential):
         "refresh_token": credential.refresh_token,
     }
     try:
-        response = requests.post(f"{settings.BITRIX_OAUTH_URL}/oauth/token/", data=payload, timeout=15)
+        response = requests.post(f"{settings.BITRIX_OAUTH_URL}/oauth/token/", data=payload, timeout=10)
     except requests.exceptions.RequestException:
         return False
         

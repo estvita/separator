@@ -229,18 +229,12 @@ def event_processor(event_data):
             if profilepic.status_code == 200:
                 profilepic = profilepic.json()
                 profilepic_url = profilepic.get("profilePictureUrl")
-        
-        payload = {
-            'sender': sender,
-            'remoteJid': remote_user,
-            'fromme': fromme,
-        }
 
         msg_type = data.get('messageType')
         fileName = None
 
         if msg_type == 'conversation':
-            payload.update({'content': message.get('conversation')})
+            text = message.get('conversation')
 
         elif msg_type == 'locationMessage':
             location = message.get(msg_type, {})
@@ -250,10 +244,10 @@ def event_processor(event_data):
             body = f"Link: https://www.google.com/maps/place/{latitude},{longitude}"
             if "None" not in description:
                 body = f"Address: {description} \n {body}"
-            payload.update({'content': body})
+            text = body
 
         elif msg_type == 'contactMessage':
-            payload.update({'content': message.get(msg_type, {}).get("vcard")})
+            text = message.get(msg_type, {}).get("vcard")
         
         elif msg_type == 'interactiveResponseMessage':
             interactive = message.get(msg_type, {})
@@ -261,11 +255,11 @@ def event_processor(event_data):
             text = body.get("text")
             response = interactive.get("nativeFlowResponseMessage", {})
             name = response.get("name", "")
-            payload['content'] = f"{name} {text}"
+            text = f"{name} {text}"
 
         elif msg_type == 'reactionMessage':
             reaction = message.get(msg_type, {})
-            payload['content'] = reaction.get("text")
+            text = reaction.get("text")
 
         elif msg_type == 'ephemeralMessage':
             ephemeralMessage = message.get(msg_type, {})
@@ -273,7 +267,7 @@ def event_processor(event_data):
                 ephemeralMessage.get('message', {})
                 .get('extendedTextMessage', {})
             )
-            payload['content'] = extendedTextMessage.get('text')
+            text = extendedTextMessage.get('text')
 
         elif msg_type == 'templateMessage':
             template = message.get(msg_type, {})
@@ -287,10 +281,10 @@ def event_processor(event_data):
             if interactive:
                 title = (interactive.get('header') or {}).get('title', title or '')
                 content = (interactive.get('body') or {}).get('text', content or '')
-            payload['content'] = f"{(title or '').strip()} \n {(content or '').strip()} \n {(footer or '').strip()}"
+            text = f"{(title or '').strip()} \n {(content or '').strip()} \n {(footer or '').strip()}"
 
         elif msg_type in ["imageMessage", "documentMessage", "videoMessage", "audioMessage"]:
-            payload.update({'content': message.get(msg_type, {}).get("caption")})
+            text = message.get(msg_type, {}).get("caption")
             media_url = f"{server.url}/chat/getBase64FromMediaMessage/{sessionid}"
             msg_payload = {"message": {"key": {"id": message_id}}}
             response = requests.post(media_url, json=msg_payload, headers=headers)
@@ -298,48 +292,41 @@ def event_processor(event_data):
                 file_data = response.json()
                 file_body = file_data.get('base64')
                 fileName = file_data.get('fileName')
-                mimetype = file_data.get('mimetype')
                 if file_body:
                     from io import BytesIO
                     import base64
                     file_bytes = base64.b64decode(file_body)
                     file_like = BytesIO(file_bytes)
                     file_like.name = fileName
-                    payload.update({'attachments': (file_like.name, file_like, mimetype)})
         
         try:
             
             # отправка сообщения в битрикс
             if session.line:
                 line = session.line
-                download_url = None
-                text = payload.get("content", None)
-                if file_data:
-                    member_id = line.portal.member_id
-                    chat_key = f'bitrix_chat:{member_id}:{line.line_id}:{remote_user}'
-                    if redis_client.exists(chat_key):
-                        upload_file = bitrix_utils.upload_file(
-                            session.app_instance, session.app_instance.storage_id,
-                            file_body, fileName)
-                        if upload_file:
-                            download_url = upload_file.get("DOWNLOAD_URL")
+                # Prepare file if present
+                file_content_bytes = None
+                if file_data and redis_client.exists(f'bitrix_chat:{line.portal.member_id}:{line.line_id}:{remote_user}'):
+                    import base64
+                    file_content_bytes = base64.b64decode(file_body)
 
                 if group_message and text:
                     text = f"{participant}: {text}"
                 attach = None
+                
                 if fromme:
+                    # Echo message (system message) -> needs permanent storage in Bitrix
                     file_url = None
+                    if file_content_bytes:
+                         file_url = bitrix_utils.upload_and_get_link(
+                             session.app_instance, file_content_bytes, fileName
+                         )
+                    
                     source = data.get("source", "")
                     if source in (None, "unknown"):
                         source = ""
-                    from_app = f"[B]{_('Отправлено из WhatsApp')} {source}[/B][BR]"
-                    file_id = upload_file.get("ID", None) if download_url else None
-                    if file_id:
-                        try:
-                            file_link = bitrix_tasks.call_api(session.app_instance.id, "disk.file.getExternalLink", {"id": file_id})
-                            file_url = file_link.get("result")
-                        except Exception:
-                            pass
+                    from_app = f"[B]{_('From WhatsApp')} {source}[/B][BR]"
+                    
                     if file_url:
                         file_name = fileName[-fileName[::-1].find('.')-5:]
                         text = f"{from_app} [BR] {text}" if text else from_app
@@ -358,6 +345,13 @@ def event_processor(event_data):
                                                     remote_user, text, line.connector.code, attach)
 
                 else:
+                    # Incoming message -> use temporary link for connector ingestion
+                    download_url = None
+                    if file_content_bytes:
+                         download_url = bitrix_utils.save_temp_file(
+                             file_content_bytes, fileName, session.app_instance
+                         )
+
                     if download_url:
                         attach = [
                             {

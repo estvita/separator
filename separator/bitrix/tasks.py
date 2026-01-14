@@ -1,4 +1,5 @@
 import re
+import os
 import redis
 import logging
 from celery import shared_task
@@ -23,7 +24,7 @@ redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 def call_api(self, id, method, payload, b24_user=None):
     try:
         app_instance = AppInstance.objects.get(id=id)
-        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=15)
+        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
         return resp
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
@@ -127,8 +128,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 }
             ],
         }
-
-        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=15)
+        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=10)
 
         result = resp.get("result", {})
         results = result.get("DATA", {}).get("RESULT", [])
@@ -290,3 +290,12 @@ def auto_finish_chat(instance_id, deal_id, init=False):
                 )
     except Exception as e:
         raise
+
+@shared_task(queue='default')
+def delete_temp_file(file_path):
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            logger.info(f"Deleted temp file: {file_path}")
+        except Exception as e:
+            logger.error(f"Error deleting temp file {file_path}: {e}")

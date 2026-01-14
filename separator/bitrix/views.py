@@ -1,3 +1,4 @@
+import os
 import uuid
 import requests
 from datetime import timedelta
@@ -8,7 +9,8 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse, Http404, HttpResponseForbidden
+from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
 
@@ -387,3 +389,23 @@ def portal_detail(request, portal_id):
                       'portal': portal,
                       'open_lines': lines
                       })
+
+
+def log_and_serve_temp_file(request, path):
+    # Verify signature
+    signer = TimestampSigner()
+    ttl = getattr(settings, 'BITRIX_TEMP_FILE_TTL', 1800)
+    try:
+        # Validate signature and check if it's within TTL
+        original_filename = signer.unsign(path, max_age=ttl)
+    except SignatureExpired:
+        return HttpResponseForbidden("Link expired")
+    except BadSignature:
+        return HttpResponseForbidden("Invalid signature")
+
+    file_path = os.path.join(settings.MEDIA_ROOT, 'temp', original_filename)
+    
+    if os.path.exists(file_path):
+        return FileResponse(open(file_path, 'rb'))
+    else:
+        raise Http404("File does not exist")
