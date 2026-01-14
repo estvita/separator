@@ -74,7 +74,7 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
         return {"error": True, "message": str(e)}
 
 
-def get_file(media_url, filename, appinstance, waba, external=True):
+def get_file(media_url, filename, appinstance, waba):
     try:
         download_file = call_api(file_url=media_url, waba=waba)
     except Exception:
@@ -83,8 +83,6 @@ def get_file(media_url, filename, appinstance, waba, external=True):
     # Use centralized logic for temp file handling
     file_url = bitrix_utils.save_temp_file(download_file.content, filename, appinstance)
     return file_url
-
-
 
 
 def format_contacts(contacts):
@@ -259,6 +257,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         try:
             phone = Phone.objects.get(phone_id=phone_number_id, waba=waba)
             appinstance = phone.app_instance
+            appinstance.host = host
             if not appinstance:
                 raise Exception(f"appinstance not connected: {data}")
         except Phone.DoesNotExist:
@@ -348,7 +347,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 # Store mapping media_id -> message_id in Redis (expire 3 months)
                 redis_client.set(f"wamid:{media_id}", message_id, ex=7776000)
 
-                file_url = get_file(media_url, filename, appinstance, phone.waba, external=False)
+                file_url = get_file(media_url, filename, appinstance, phone.waba)
 
             elif message_type == "contacts":
                 contacts = value["messages"][0]["contacts"]
