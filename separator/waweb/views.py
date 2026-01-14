@@ -93,8 +93,26 @@ def wa_sessions(request):
     )
 
 
+def get_available_server():
+    return (
+        Server.objects.annotate(
+            connected_sessions=Count('sessions', filter=Q(sessions__status='open'))
+        )
+        .filter(connected_sessions__lt=F('max_connections'))
+        .order_by('id')
+        .first()
+    )
+
+
 def create_instance(session):
+    if not session.server:
+        session.server = get_available_server()
+        session.save()
+        
     server = session.server
+    if not server:
+        return None
+
     headers = {"apikey": server.api_key}
     
     payload = {
@@ -114,9 +132,10 @@ def create_instance(session):
         session.instanceId = instanceId
         session.save()
         img_data = inst_data.get("qrcode", {}).get("base64", "")
-        img_data = img_data.split(",", 1)[1]
+        if img_data and "," in img_data:
+            img_data = img_data.split(",", 1)[1]
         return img_data
-    except RequestException as e:
+    except (RequestException, Exception) as e:
         print("request error:", e)
         return None
 
@@ -138,14 +157,7 @@ def connect_number(request, session_id=None):
     else:
         new_session = get_object_or_404(Session, session=session_id, owner=request.user)
 
-    server = (
-        Server.objects.annotate(
-            connected_sessions=Count('sessions', filter=Q(sessions__status='open'))
-        )
-        .filter(connected_sessions__lt=F('max_connections'))
-        .order_by('id')
-        .first()
-    )
+    server = get_available_server()
 
     if not server:
         messages.error(request, _("No available servers."))
@@ -169,9 +181,13 @@ def connect_number(request, session_id=None):
 
 def get_gr(request, session):
 
+    if not session.server:
+        session.server = get_available_server()
+        session.save()
+
     server = session.server
     if not server:
-        messages.error(request, "Session is not attached to a server.")
+        messages.error(request, _("No available servers."))
         return
     
     if session.status == "open":
@@ -187,13 +203,15 @@ def get_gr(request, session):
         
         inst_data = response.json()
         img_data = inst_data.get("base64", "")
-        if img_data:
+        if img_data and "," in img_data:
             qr_image = img_data.split(",", 1)[1]
             return qr_image
+        elif img_data:
+             return img_data
         else:
             messages.error(request, f"Failed to restart session. {inst_data}")
             return
-    except RequestException:
+    except (RequestException, Exception):
         messages.error(request, "Failed connect to server")
         return
 
