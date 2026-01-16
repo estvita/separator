@@ -404,7 +404,14 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     if expiration:
                         dt = datetime.fromtimestamp(expiration)
                         expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
-                    text = f"WhatsApp Call for {user_phone} permission changed: {responce} {expiration}"
+                    msg = f"WhatsApp Call for {user_phone} permission changed: {responce} {expiration}"
+                    bitrix_tasks.message_add.delay(
+                        appinstance.id, 
+                        phone.line.line_id,
+                        user_phone, 
+                        msg, 
+                        phone.line.connector.code,
+                    )
             if file_url and user_phone:
                 attach = [
                     {
