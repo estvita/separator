@@ -88,7 +88,6 @@ def upload_media(appinstance, file_content, mime_type, filename, line_id=None, p
 
 
 def send_message(appinstance, message, line_id=None, phone_num=None):
-    print(message)
     phone = None
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()

@@ -336,7 +336,7 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
                 file_url = p[len('file_link:'):]
                 file_headers = None
                 try:
-                    file_headers = requests.head(file_url, allow_redirects=True)
+                    file_headers = requests.head(file_url, allow_redirects=True, timeout=10)
                     file_type = file_headers.headers.get('Content-Type', '')
                 except Exception:
                     file_type = ''
@@ -384,7 +384,7 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
 
             if appinstance and (line_id or phone_num):
                 try:
-                    r = requests.get(file_url)
+                    r = requests.get(file_url, timeout=30)
                     if r.status_code == 200:
                         up_res = waba.upload_media(appinstance, r.content, file_type, filename, line_id=line_id, phone_num=phone_num)
                         if up_res and "id" in up_res:
@@ -691,8 +691,19 @@ def event_processor(data):
                     for file in files:
                         uploaded_id = None
                         try:
-                            f_content = requests.get(file["link"])
-                            if f_content.status_code == 200:
+                            f_content = None
+                            # Simple retry logic for file download
+                            for attempt in range(3):
+                                try:
+                                    f_content = requests.get(file["link"], timeout=(10, 60))
+                                    if f_content.status_code == 200:
+                                        break
+                                except requests.RequestException:
+                                    if attempt == 2:
+                                        raise
+                                    time.sleep(1)
+                            
+                            if f_content and f_content.status_code == 200:
                                 up_res = waba.upload_media(
                                     appinstance, 
                                     f_content.content, 
