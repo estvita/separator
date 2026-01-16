@@ -318,7 +318,7 @@ CALL_REQUEST = {
 }
 
 
-def parse_template_code(code: str) -> dict:
+def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=None) -> dict:
     try:
         parts = code.split("+")
         if len(parts) < 3:
@@ -334,6 +334,7 @@ def parse_template_code(code: str) -> dict:
             p = p.strip()
             if p.startswith('file_link:'):
                 file_url = p[len('file_link:'):]
+                file_headers = None
                 try:
                     file_headers = requests.head(file_url, allow_redirects=True)
                     file_type = file_headers.headers.get('Content-Type', '')
@@ -346,7 +347,7 @@ def parse_template_code(code: str) -> dict:
                 elif file_type == "application/pdf" or file_url.lower().endswith('.pdf'):
                     waba_file_type = "document"
                 else:
-                    raise ValueError("Unsupported file type for header component.")
+                    waba_file_type = "document"
             elif p.startswith('button_param:'):
                 button_param = p[len('button_param:'):]
             elif p:
@@ -364,21 +365,44 @@ def parse_template_code(code: str) -> dict:
         }
         components = []
         if file_url and waba_file_type:
-            file_param = {
-                "type": waba_file_type,
-                waba_file_type: {"link": file_url}
-            }
+            uploaded_id = None
+            filename = "file"
             if waba_file_type == "document":
                 filename = "file.pdf"
-                cd = file_headers.headers.get('Content-Disposition', '')
-                m = re.search(r"filename\*=utf-8''(.+)", cd)
-                if m:
-                    filename = unquote(m.group(1))
-                else:
-                    m = re.search(r'filename="(.+?)"', cd)
+                if file_headers:
+                    cd = file_headers.headers.get('Content-Disposition', '')
+                    m = re.search(r"filename\*=utf-8''(.+)", cd)
                     if m:
-                        filename = m.group(1)
+                        filename = unquote(m.group(1))
+                    else:
+                        m = re.search(r'filename="(.+?)"', cd)
+                        if m:
+                            filename = m.group(1)
+            else:
+                ext = file_type.split('/')[-1] if '/' in file_type else 'bin'
+                filename = f"file.{ext}"
+
+            if appinstance and (line_id or phone_num):
+                try:
+                    r = requests.get(file_url)
+                    if r.status_code == 200:
+                        up_res = waba.upload_media(appinstance, r.content, file_type, filename, line_id=line_id, phone_num=phone_num)
+                        if up_res and "id" in up_res:
+                            uploaded_id = up_res["id"]
+                except Exception as e:
+                    logger.error(f"Template media upload failed: {e}")
+
+            file_param = {
+                "type": waba_file_type
+            }
+            if uploaded_id:
+                file_param[waba_file_type] = {"id": uploaded_id}
+            else:
+                file_param[waba_file_type] = {"link": file_url}
+
+            if waba_file_type == "document":
                 file_param[waba_file_type]["filename"] = filename
+            
             components.append({
                 "type": "header",
                 "parameters": [file_param]
@@ -403,8 +427,8 @@ def parse_template_code(code: str) -> dict:
         if components:
             message["template"]["components"] = components
         return message
-    except ValueError:
-        raise ValueError(f"Invalid template code {code}")
+    except ValueError as e:
+        raise ValueError(f"Invalid template code {code}: {e}")
 
 
 @shared_task(queue='bitrix')
@@ -432,7 +456,7 @@ def sms_processor(data, service):
                 }
             }
             if message_body.startswith("template+"):
-                message.update(parse_template_code(message_body))
+                message.update(parse_template_code(message_body, appinstance=app_instance, phone_num=sender))
             elif message_body == "#call_permission_request":
                 message.update(CALL_REQUEST)
             else:
@@ -654,7 +678,7 @@ def event_processor(data):
                 if "template+" in text:
                     template_start = text.index("template+")
                     template_str = text[template_start:]
-                    message.update(parse_template_code(template_str))
+                    message.update(parse_template_code(template_str, appinstance=appinstance, line_id=line_id))
 
                 elif "#call_permission_request" in text:
                     message.update(CALL_REQUEST)
@@ -665,20 +689,88 @@ def event_processor(data):
                 # Если есть файлы, отправляем сообщение с каждым файлом отдельно
                 if files:
                     for file in files:
+                        uploaded_id = None
+                        try:
+                            f_content = requests.get(file["link"])
+                            if f_content.status_code == 200:
+                                up_res = waba.upload_media(
+                                    appinstance, 
+                                    f_content.content, 
+                                    f_content.headers.get("Content-Type", ""), 
+                                    file["name"], 
+                                    line_id=line_id
+                                )
+                                if up_res and "id" in up_res:
+                                    uploaded_id = up_res["id"]
+                        except Exception as e:
+                            logger.error(f"Upload failed: {e}")
+
                         # Определяем тип файла и добавляем его к сообщению
                         if file["type"] == "image":
                             message["type"] = "image"
-                            message["image"] = {"link": file["link"]}
+                            if uploaded_id:
+                                message["image"] = {"id": uploaded_id}
+                            else:
+                                message["image"] = {"link": file["link"]}
                         elif file["type"] in ["file", "video", "audio"]:
                             message["type"] = "document"
-                            message["document"] = {
-                                "link": file["link"],
-                                "filename": file["name"],
-                            }
+                            if uploaded_id:
+                                message["document"] = {
+                                    "id": uploaded_id,
+                                    "filename": file["name"],
+                                }
+                            else:
+                                message["document"] = {
+                                    "link": file["link"],
+                                    "filename": file["name"],
+                                }
 
-                send_result = waba.send_message(appinstance, message, line_id=line_id)
-                if "error" in send_result:
-                    raise Exception(send_result)
+                        send_result = waba.send_message(appinstance, message, line_id=line_id)
+                        if "error" in send_result:
+                            # Send error message back to chat
+                            error_msg = send_result.get("message", "Unknown error")
+                            try:
+                                import ast
+                                error_data = ast.literal_eval(str(error_msg))
+                                if isinstance(error_data, dict):
+                                    if "error" in error_data:
+                                        adapted_data = {"errors": [error_data["error"]], "recipient_id": "Error"}
+                                        error_msg = waba.error_message(adapted_data)
+                            except Exception:
+                                pass
+                            
+                            bitrix_tasks.message_add.delay(
+                                appinstance.id, 
+                                line_id, 
+                                chat, 
+                                f"[color=#ff0000]{error_msg}[/color]", 
+                                connector.code
+                            )
+                            raise Exception(send_result)
+
+                else:
+                    send_result = waba.send_message(appinstance, message, line_id=line_id)
+                    if "error" in send_result:
+                         # Send error message back to chat
+                        error_msg = send_result.get("message", "Unknown error")
+                        try:
+                            import ast
+                            error_data = ast.literal_eval(str(error_msg))
+                            if isinstance(error_data, dict):
+                                if "error" in error_data:
+                                    adapted_data = {"errors": [error_data["error"]], "recipient_id": "Error"}
+                                    error_msg = waba.error_message(adapted_data)
+                        except Exception:
+                            pass
+
+                        bitrix_tasks.message_add.delay(
+                            appinstance.id, 
+                            line_id, 
+                            chat, 
+                            f"[color=#ff0000]{error_msg}[/color]", 
+                            connector.code
+                        )
+                        raise Exception(send_result)
 
             elif connector.service == "waweb":
                 try:
@@ -803,10 +895,7 @@ def save_temp_file(file_content, filename, app_instance):
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
 
-        # Ensure unique filename to avoid collisions
-        name, ext = os.path.splitext(filename)
-        unique_filename = f"{name}_{uuid.uuid4().hex}{ext}"
-        file_path = os.path.join(temp_dir, unique_filename)
+        file_path = os.path.join(temp_dir, filename)
 
         with open(file_path, 'wb') as f:
             f.write(file_content)
@@ -819,9 +908,9 @@ def save_temp_file(file_content, filename, app_instance):
         domain = domain.replace("http://", "").replace("https://", "").strip("/")
 
         signer = TimestampSigner()
-        signed_path = signer.sign(unique_filename)
+        signed_path = signer.sign(filename)
 
-        file_url = f"https://{domain}{settings.MEDIA_URL}temp/{signed_path}"
+        file_url = f"https://{domain}{settings.MEDIA_URL}temp/?{signed_path}"
 
         # Schedule deletion after configured TTL
         ttl = getattr(settings, 'BITRIX_TEMP_FILE_TTL', 1800)

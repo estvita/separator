@@ -25,7 +25,7 @@ urlpatterns = [
     path('bitbot/', include('separator.bitbot.urls')),
     # ...
     # Logging temp file access
-    path("media/temp/<path:path>", log_and_serve_temp_file),
+    path("media/temp/", log_and_serve_temp_file),
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]

@@ -391,7 +391,11 @@ def portal_detail(request, portal_id):
                       })
 
 
-def log_and_serve_temp_file(request, path):
+def log_and_serve_temp_file(request, path=None):
+    if not path:
+        from urllib.parse import unquote
+        path = unquote(request.META.get('QUERY_STRING', ''))
+
     # Verify signature
     signer = TimestampSigner()
     ttl = getattr(settings, 'BITRIX_TEMP_FILE_TTL', 1800)

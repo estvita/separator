@@ -24,7 +24,7 @@ logger = logging.getLogger("django")
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 
-def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None):
+def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None, files=None, data=None):
     if not app and waba:
         access_token = waba.access_token
         app = waba.app
@@ -40,7 +40,10 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         if method == "get":
             resp = requests.get(f"{base_url}/{endpoint}", params=payload, headers=headers)
         elif method == "post":
-            resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers)
+            if files:
+                resp = requests.post(f"{base_url}/{endpoint}", data=data, files=files, headers=headers)
+            else:
+                resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers)
 
         resp_data = resp.json()
         if "error" in resp_data:
@@ -51,7 +54,41 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         raise
 
 
+def upload_media(appinstance, file_content, mime_type, filename, line_id=None, phone_num=None):
+    phone = None
+    if phone_num:
+        phone = Phone.objects.filter(phone=f"+{phone_num}").first()
+        waba = phone.waba
+    elif line_id:
+        line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
+        waba = Waba.objects.filter(phones__line=line).first() if line else None
+        phone = waba.phones.filter(line=line).first() if waba and line else None
+    else:
+        return {"error": True, "message": "phone not found"}
+
+    if not phone or not waba:
+        return {"error": True, "message": "not phone or not waba"}
+
+    if phone.date_end and timezone.now() > phone.date_end:
+        return {"error": True, "message": "phone tariff expired"}
+
+    if not phone.phone_id:
+        return {"error": True, "message": "not phone phone_id"}
+
+    try:
+        files = {
+            'file': (filename, file_content, mime_type)
+        }
+        data = {
+            'messaging_product': 'whatsapp'
+        }
+        return call_api(waba=waba, endpoint=f"{phone.phone_id}/media", method="post", files=files, data=data)
+    except Exception as e:
+        return {"error": True, "message": str(e)}
+
+
 def send_message(appinstance, message, line_id=None, phone_num=None):
+    print(message)
     phone = None
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()
@@ -155,6 +192,10 @@ def error_message(data):
         code=code,
         defaults={"message": fb_message, "details": fb_details}
     )
+
+    if error_obj.original:
+        return str(data)
+    
     out_message = f"Error for: {data.get('recipient_id')}:\n" \
                 f"{error_obj.message or fb_message}\n" \
                 f"{error_obj.details or fb_details}"
@@ -386,13 +427,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         out_message = error_message(item)
                         user_phone = item.get("recipient_id")
                         if user_phone and appinstance:
-                            line_msg = f"[color=#ff0000]{out_message}[/color]"
-                            bitrix_tasks.send_messages.delay(
+                            bitrix_tasks.message_add.delay(
                                 appinstance.id, 
+                                phone.line.line_id,
                                 user_phone, 
-                                line_msg, 
+                                f"[color=#ff0000]{out_message}[/color]", 
                                 phone.line.connector.code,
-                                phone.line.line_id
                             )
                     except Exception:
                         pass
@@ -464,8 +504,15 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         )
                     else:
                         file_url = None
-                except Exception:
+                except requests.RequestException:
+                    raise
+                except Exception as e:
                     file_url = None
+                    msg = f"file not downloaded: {e}"
+                    if text:
+                        text = f"{text} ({msg})"
+                    else:
+                        text = f"{filename} ({msg})"
 
                 if file_url:
                     attach = [

@@ -118,6 +118,7 @@ class Event(models.Model):
 
 class Error(models.Model):
     code = models.PositiveIntegerField()
+    original = models.BooleanField(default=True)
     details = models.TextField(null=True, blank=True)
     message = models.TextField(null=True, blank=True)
     
