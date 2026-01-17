@@ -97,7 +97,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                   line, sms=False, pushName=None,
                   message_id=None, attachments=None, profilepic_url=None,
                   chat_id=None, chat_url=None, user_id=None):
-    init_message = "System: initiation message."
+    init_message = "Создание чата..."
     if pushName:
         pushName = f"{user_phone} ({pushName})"
     try:
@@ -123,7 +123,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     "message": {
                         "text": init_message if sms else text,
                         "id": message_id,
-                        "files": attachments
+                        "files": attachments if not sms else []
                     }
                 }
             ],
@@ -140,7 +140,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 identity = user_id or user_phone
                 redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id)
                 if sms:
-                    resp = message_add(app_instance_id, line, user_phone, text, connector)
+                    message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
         return resp
 
     except Exception as e:
@@ -162,7 +162,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
         chat_id = redis_client.get(chat_key).decode('utf-8')
         payload = {
             "DIALOG_ID": f"chat{chat_id}",
-            "MESSAGE": text,
+            "MESSAGE": text or " ",
             "SYSTEM": "Y",
             "ATTACH": attach
         }
@@ -196,7 +196,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
                 else:
                     self.retry(exc=e)
     else:
-        return send_messages(app_instance_id, user_phone, text, connector, line_id, True)
+        return send_messages(app_instance_id, user_phone, text, connector, line_id, True, attachments=attach)
 
 
 @shared_task(queue='bitrix')
