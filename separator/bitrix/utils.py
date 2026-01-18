@@ -680,7 +680,7 @@ def event_processor(data):
                     template_str = text[template_start:]
                     message.update(parse_template_code(template_str, appinstance=appinstance, line_id=line_id))
 
-                elif "#call_permission_request" in text:
+                elif text.strip() == "#call_permission_request":
                     message.update(CALL_REQUEST)
                 elif not files and text:
                     message["type"] = "text"
