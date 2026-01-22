@@ -175,6 +175,9 @@ def event_processor(event_data):
              remote_user = remote_jid_raw
 
         pushName = data.get("pushName")
+        if pushName:
+            pushName = re.sub(r'[^\w\s\-\']', '', pushName).strip()
+
         group_message = False
         
         # если g.us значит группа

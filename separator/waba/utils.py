@@ -3,6 +3,7 @@ import hmac
 import redis
 import logging
 import hashlib
+import re
 from datetime import datetime
 
 import requests
@@ -354,7 +355,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         filename = None
         file_url = None
         text = None
-        name = None
+        user_name = None
         chat_url = None
         for message in messages:
             referral = message.get("referral")
@@ -366,7 +367,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             message_id = message["id"]
             contacts = value.get("contacts", [])
             if contacts:
-                name = contacts[0].get("profile", {}).get("name")
+                user_name = contacts[0].get("profile", {}).get("name")
+                if user_name:
+                    user_name = re.sub(r'[^\w\s\-\']', '', user_name).strip()
 
             if message_type == "text":
                 text = message["text"]["body"]
@@ -420,7 +423,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     }
                 ]
                 bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
-                                                phone.line.line_id, False, name, message_id, attach, chat_url=chat_url)
+                                                phone.line.line_id, False, user_name, message_id, attach, chat_url=chat_url)
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -469,7 +472,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                                phone.line.line_id, False, name, message_id, chat_url=chat_url)
+                                                phone.line.line_id, False, user_name, message_id, chat_url=chat_url)
 
     elif field == 'smb_message_echoes':
         text = None
