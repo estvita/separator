@@ -13,6 +13,7 @@ from .models import AppInstance, Credential
 
 from separator.waba.models import Phone
 from separator.waweb.models import Session
+from separator.olx.models import OlxUser
 from separator.users.models import User
 
 logger = logging.getLogger("django")
@@ -201,6 +202,7 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
 
 @shared_task(queue='bitrix')
 def prepare_lead(user_id, lead_title):
+    print(user_id, lead_title)
     user = User.objects.filter(id=user_id).first()
     if not user:
         raise Exception("user not found")
@@ -247,7 +249,7 @@ def prepare_lead(user_id, lead_title):
             "VALUE_TYPE": "MOBILE"
         }]
 
-    call_method(vendor_instance, "crm.lead.add", lead_data)
+    return call_method(vendor_instance, "crm.lead.add", lead_data)
 
 
 @shared_task(queue='chat_finish')
@@ -299,3 +301,55 @@ def delete_temp_file(file_path):
             logger.info(f"Deleted temp file: {file_path}")
         except Exception as e:
             logger.error(f"Error deleting temp file {file_path}: {e}")
+
+
+@shared_task(queue='bitrix')
+def check_tariffs(*days):
+    """
+    Check tariff expiration for WABA, WaWeb, and OLX.
+    Accepts multiple integer arguments.
+    Example: check_tariffs(10, 5, 1)
+    """
+    days_list = [d for d in days if isinstance(d, int)]
+
+    if not days_list:
+        return
+
+    today = timezone.now().date()
+    max_days = max(days_list) if days_list else 1
+    ttl = max_days * 24 * 60 * 60
+
+    mapping = [
+        (Phone, 'date_end', 'phone', 'waba'),
+        (Session, 'date_end', 'phone', 'waweb'),
+        (OlxUser, 'date_end', 'olx_id', 'olx'),
+    ]
+
+    for days in days_list:
+        target_date = today + timedelta(days=days)
+
+        for Model, date_field, id_field, service in mapping:
+            filter_kwargs = {
+                f"{date_field}__year": target_date.year,
+                f"{date_field}__month": target_date.month,
+                f"{date_field}__day": target_date.day,
+            }
+
+            for record in Model.objects.filter(**filter_kwargs):
+                if not record.owner:
+                    continue
+
+                redis_key = f"leads:{service}:{record.id}"
+                if redis_client.get(redis_key):
+                    continue
+
+                identifier = getattr(record, id_field, 'Unknown')
+                expiration_str = record.date_end.strftime('%d.%m.%Y')
+                title = f"Тариф для {service}: {identifier} истекает {expiration_str}"
+
+                try:
+                    resp = prepare_lead(record.owner.id, title)
+                    if resp and isinstance(resp, dict) and 'result' in resp:
+                        redis_client.setex(redis_key, ttl, resp['result'])
+                except Exception as e:
+                    logger.error(f"Error checking tariff for {service} {record.id}: {e}")
