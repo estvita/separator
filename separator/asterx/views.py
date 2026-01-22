@@ -1,6 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.contrib import messages
+from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.decorators import login_required
@@ -74,7 +75,11 @@ def server_list(request):
     # POST "Обновить пользователей"
     if request.method == "POST" and "refresh_users" in request.POST:
         server_id = request.POST.get("server_id")
-        server = Server.objects.filter(id=server_id, owner=request.user).first()
+        server = Server.objects.filter(
+            Q(owner=request.user) |
+            Q(settings__app_instance__portal__users__owner=request.user, settings__app_instance__portal__users__admin=True),
+            id=server_id
+        ).distinct().first()
         if not server or not server.setup_complete:
             messages.error(request, _("Server not found or not yet connected"))
             return redirect('asterx')
@@ -131,7 +136,10 @@ def server_list(request):
 
     #     servers = Server.objects.filter(owner=request.user, settings=portal_settings)
     # else:
-    servers = Server.objects.filter(owner=request.user)
+    servers = Server.objects.filter(
+        Q(owner=request.user) |
+        Q(settings__app_instance__portal__users__owner=request.user, settings__app_instance__portal__users__admin=True)
+    ).distinct()
     user_message(request, "asterx_info")
 
     return render(
@@ -155,7 +163,10 @@ class ServerEditForm(ModelForm):
         super().__init__(*args, **kwargs)
         if user:
             self.fields['settings'].queryset = Settings.objects.filter(
-                app_instance__app__asterx=True, app_instance__owner=user)
+                Q(app_instance__owner=user) |
+                Q(app_instance__portal__users__owner=user, app_instance__portal__users__admin=True),
+                app_instance__app__asterx=True
+            ).distinct()
 
 class ContextTypeForm(ModelForm):
     class Meta:
@@ -166,7 +177,11 @@ class ContextTypeForm(ModelForm):
 @login_required
 def edit_asterx(request, server_id):
     try:
-        server = Server.objects.get(id=server_id, owner=request.user)
+        server = Server.objects.filter(
+            Q(owner=request.user) |
+            Q(settings__app_instance__portal__users__owner=request.user, settings__app_instance__portal__users__admin=True),
+            id=server_id
+        ).distinct().get()
     except Exception:
         return redirect("asterx")
     contexts_qs = Context.objects.filter(server=server)
@@ -253,7 +268,11 @@ def edit_asterx(request, server_id):
 @login_required
 def app_settings(request, id):
     try:
-        settings_instance = Settings.objects.get(id=id, app_instance__owner=request.user)
+        settings_instance = Settings.objects.filter(
+            Q(app_instance__owner=request.user) |
+            Q(app_instance__portal__users__owner=request.user, app_instance__portal__users__admin=True),
+            id=id
+        ).distinct().get()
     except Exception:
         return redirect("asterx")
     

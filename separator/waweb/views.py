@@ -220,7 +220,7 @@ def get_gr(request, session):
 def qr_code_page(request, session_id):
     qr_image = request.session.pop('qr_image', '')
     try:
-        session = Session.objects.get(session=session_id)
+        session = Session.objects.get(session=session_id, owner=request.user)
     except Session.DoesNotExist:
         messages.error(request, "Session not found.")
         return redirect('waweb')

@@ -19,9 +19,9 @@ class ContextInline(admin.TabularInline):
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
-    form = ServerForm
+    # form = ServerForm
     inlines = [ContextInline]
-    autocomplete_fields = ['owner']
+    autocomplete_fields = ['owner', 'settings']
     list_display = ('name', 'date_end', 'settings', 'owner', 'setup_complete')
     search_fields = ("id", 'entity_id', 'pbx_uuid')
     readonly_fields = ('version', 'system', 'entity_id', 'pbx_uuid')
@@ -29,4 +29,6 @@ class ServerAdmin(admin.ModelAdmin):
     list_per_page = 30
 
 
-admin.site.register(Settings)
+@admin.register(Settings)
+class SettingsAdmin(admin.ModelAdmin):
+    search_fields = ['app_instance__portal__domain', 'app_instance__app__name']
