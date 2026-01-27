@@ -5,10 +5,11 @@
 {% if session.status == "disconnected" %}
     <p style="color: red;">{% trans "Session disconnected. Please reconnect the number." %}</p>
 {% else %}
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        {{ form.recipients }}
-        {{ form.message }}
+        <p>{{ form.recipients }}</p>
+        <p>{{ form.message }}</p>
+        <p>{{ form.file }}</p>
         <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
     </form>
 {% endif %}
