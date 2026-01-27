@@ -23,7 +23,7 @@ def send_message(session_id, recipient, content, cont_type="string"):
         if session.date_end and timezone.now() > session.date_end:
             raise Exception({'tariff has expired'})
         server = session.server
-        headers = {"apikey": session.apikey}
+        headers = {"apikey": session.apikey or server.api_key}
         cleaned = re.sub(r'\D', '', recipient)
         if cont_type == "string":
             payload = {
@@ -103,7 +103,7 @@ def event_processor(event_data):
         session.save(update_fields=["apikey"])
 
     server = session.server
-    headers = {"apikey": session.apikey}
+    headers = {"apikey": session.apikey or server.api_key}
     
     if event == "connection.update":
         state = data.get('state')
