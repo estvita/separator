@@ -179,7 +179,10 @@ def event_processor(data):
                 return save_and_return_answer(response.text)
 
             outputs = response_json.get("data", {}).get("outputs", {})
-            answer = "No outputs" if not outputs else "\n".join(
+            if not outputs:
+                return
+
+            answer = "\n".join(
                 f"{k}: {v}" for k, v in outputs.items()
             )
             return save_and_return_answer(answer)

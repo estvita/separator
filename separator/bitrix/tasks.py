@@ -129,7 +129,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 }
             ],
         }
-        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=10)
+        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=30)
 
         result = resp.get("result", {})
         results = result.get("DATA", {}).get("RESULT", [])
@@ -202,7 +202,6 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
 
 @shared_task(queue='bitrix')
 def prepare_lead(user_id, lead_title):
-    print(user_id, lead_title)
     user = User.objects.filter(id=user_id).first()
     if not user:
         raise Exception("user not found")
