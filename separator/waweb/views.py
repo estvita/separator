@@ -1,6 +1,7 @@
 import requests
 import redis
 import uuid
+import base64
 from requests.exceptions import RequestException
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -278,13 +279,32 @@ def send_message_view(request, session_id):
         if session.status == 'close':
             messages.error(request, _("Phone not connected. Reconnection required."))
             return redirect('waweb')
-        form = SendMessageForm(request.POST)
+        form = SendMessageForm(request.POST, request.FILES)
         if form.is_valid():
             recipients_raw = form.cleaned_data['recipients']
-            message = form.cleaned_data['message']
+            message = form.cleaned_data.get('message')
+            file_obj = form.cleaned_data.get('file')
             recipients = [line.strip() for line in recipients_raw.splitlines() if line.strip()]
+
+            file_data = None
+            if file_obj:
+                try:
+                    file_content = file_obj.read()
+                    encoded = base64.b64encode(file_content).decode("utf-8")
+                    file_data = {
+                        "mimetype": file_obj.content_type,
+                        "data": encoded,
+                        "filename": file_obj.name
+                    }
+                except Exception as e:
+                    messages.error(request, f"Error processing file: {e}")
+                    return redirect('waweb')
+
             for recipient in recipients:
-                send_message.delay(session.session, recipient, message)
+                if file_data:
+                    send_message.delay(session.session, recipient, file_data, cont_type="media", caption=message)
+                elif message:
+                    send_message.delay(session.session, recipient, message)
             
             messages.success(request, _("Message sending task created."))
             return redirect('waweb')

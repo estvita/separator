@@ -17,13 +17,13 @@ import separator.bitrix.tasks as bitrix_tasks
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 @shared_task(queue='waweb')
-def send_message(session_id, recipient, content, cont_type="string"):
+def send_message(session_id, recipient, content, cont_type="string", caption=None):
     try:
         session = Session.objects.get(session=session_id)
         if session.date_end and timezone.now() > session.date_end:
             raise Exception({'tariff has expired'})
         server = session.server
-        headers = {"apikey": session.apikey}
+        headers = {"apikey": session.apikey or server.api_key}
         cleaned = re.sub(r'\D', '', recipient)
         if cont_type == "string":
             payload = {
@@ -34,7 +34,9 @@ def send_message(session_id, recipient, content, cont_type="string"):
             url = f"{server.url}/message/sendText/{session_id}"
             resp = requests.post(url, json=payload, headers=headers)
         elif cont_type == "media":
-            content = utils.download_file(content)
+            if "data" not in content:
+                content = utils.download_file(content)
+            
             url = f"{server.url}/message/sendMedia/{session_id}"
             mimetype = content.get("mimetype", "")
             base_type = mimetype.split('/')[0]
@@ -44,7 +46,8 @@ def send_message(session_id, recipient, content, cont_type="string"):
                 "mediatype": mediatype,
                 "mimetype": content.get("mimetype"),
                 "media": content.get("data"),
-                "fileName": content.get("filename")
+                "fileName": content.get("filename"),
+                "caption": caption
             }
             resp = requests.post(url, json=payload, headers=headers)
         else:
@@ -100,10 +103,10 @@ def event_processor(event_data):
     apikey = event_data.get('apikey')
     if apikey and session.apikey != apikey:
         session.apikey = apikey
-        session.save(update_fields=["apikey"])
+        session.save()
 
     server = session.server
-    headers = {"apikey": session.apikey}
+    headers = {"apikey": session.apikey or server.api_key}
     
     if event == "connection.update":
         state = data.get('state')
