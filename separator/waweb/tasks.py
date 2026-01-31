@@ -47,7 +47,7 @@ def send_message(session_id, recipient, content, cont_type="string", caption=Non
                 "mimetype": content.get("mimetype"),
                 "media": content.get("data"),
                 "fileName": content.get("filename"),
-                "caption": caption
+                "caption": caption or ""
             }
             resp = requests.post(url, json=payload, headers=headers)
         else:
