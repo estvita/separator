@@ -5,6 +5,9 @@
 {% endblock title %}
 {% block content %}
 <div class="container">
+  <div class="alert alert-info">
+    <strong>Info:</strong> Phone ID: {{ phone.phone_id }} | WABA ID: {{ phone.waba.waba_id }}
+  </div>
   <h3>{% trans "Send Message via" %} {{ phone.phone }} ({{ phone.type }})</h3>
 
   <!-- Форма рассылки -->
