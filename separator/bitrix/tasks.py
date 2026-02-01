@@ -139,7 +139,10 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 member_id = app_instance.portal.member_id
                 chat_id = chat_session.get("CHAT_ID")
                 identity = user_id or user_phone
-                redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id)
+                try:
+                    redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id)
+                except Exception:
+                    pass
                 if sms:
                     message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
         return resp
@@ -158,9 +161,15 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
 
     member_id = app_instance.portal.member_id
     chat_key = f'bitrix_chat:{member_id}:{line_id}:{user_phone}'
+    
+    chat_id = None
+    try:
+        if redis_client.exists(chat_key):
+            chat_id = redis_client.get(chat_key).decode('utf-8')
+    except Exception:
+        pass
 
-    if redis_client.exists(chat_key):
-        chat_id = redis_client.get(chat_key).decode('utf-8')
+    if chat_id:
         payload = {
             "DIALOG_ID": f"chat{chat_id}",
             "MESSAGE": text or " ",
@@ -177,7 +186,10 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
                 #     logger.warning(f"Failed to start session for chat {chat_id}: {e}")
                 resp = call_method(app_instance, "im.message.add", payload, timeout=10)
                 message_id = resp.get("result")
-                redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
+                try:
+                    redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
+                except Exception:
+                    pass
                 payload_status = {
                     "CONNECTOR": connector,
                     "LINE": line_id,

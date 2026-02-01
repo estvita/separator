@@ -47,7 +47,10 @@ def call_method(appinstance: AppInstance,
                                         allow_redirects=False, verify=verify, timeout=timeout)
                 if appinstance.status != response.status_code:
                     appinstance.status = response.status_code
-                    appinstance.save()
+                    try:
+                        appinstance.save()
+                    except Exception:
+                        pass
             except requests.exceptions.Timeout:
                 # If timeout occurs, we should probably stop trying for this user/portal this time
                 # and let the caller handle the retry (e.g. Celery task)
@@ -64,13 +67,19 @@ def call_method(appinstance: AppInstance,
                 domain = parsed_url.netloc
                 if portal.domain != domain:
                     portal.domain = domain
-                    portal.save()
+                    try:
+                        portal.save()
+                    except Exception:
+                        pass
                 return call_method(appinstance, b24_method, data, attempted_refresh=True)
 
             elif response.status_code == 200:
                 if portal.license_expired:
                     portal.license_expired = False
-                    portal.save()
+                    try:
+                        portal.save()
+                    except Exception:
+                        pass
                 return response.json()
 
             elif response.status_code == 401:
@@ -78,7 +87,10 @@ def call_method(appinstance: AppInstance,
                 error = resp.get("error", "")
                 if error == "ACCESS_DENIED" and not portal.license_expired:
                     portal.license_expired = True
-                    portal.save()
+                    try:
+                        portal.save()
+                    except Exception:
+                        pass
                 elif error == "expired_token" and not refresh_attempted:
                     refreshed = refresh_token(credential)
                     if refreshed:
@@ -89,9 +101,11 @@ def call_method(appinstance: AppInstance,
                         break
                 elif error == "authorization_error":
                     b24_user.active = False
-                    b24_user.save()
-                    last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
-                    break
+                    try:
+                        b24_user.save()
+                    except Exception:
+                        pass
+                
                 last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
                 break
             elif response.status_code == 403:
@@ -102,7 +116,10 @@ def call_method(appinstance: AppInstance,
                 except ValueError:
                     last_exc = Exception(f"Access error: instance {appinstance.id} {response.text}")
                     portal.license_expired = True
-                    portal.save()
+                    try:
+                        portal.save()
+                    except Exception:
+                        pass
                     break
             else:
                 last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
@@ -137,6 +154,9 @@ def refresh_token(credential: Credential):
     credential.access_token = response_data["access_token"]
     credential.refresh_token = response_data["refresh_token"]
     credential.refresh_date = timezone.now()
-    with transaction.atomic():
-        credential.save(update_fields=["access_token", "refresh_token", "refresh_date"])
+    try:
+        with transaction.atomic():
+            credential.save(update_fields=["access_token", "refresh_token", "refresh_date"])
+    except Exception:
+        pass
     return True

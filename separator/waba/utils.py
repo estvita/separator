@@ -22,7 +22,8 @@ from .models import App, Phone, Waba, Template, Event, Error
 API_URL = settings.FACEBOOK_API_URL
 
 logger = logging.getLogger("django")
-redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+# Add timeouts to prevent hanging if Redis is unavailable
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
 
 
 def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None, files=None, data=None):

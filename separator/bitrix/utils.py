@@ -925,7 +925,10 @@ def save_temp_file(file_content, filename, app_instance):
 
         # Schedule deletion after configured TTL
         ttl = getattr(settings, 'BITRIX_TEMP_FILE_TTL', 1800)
-        bitrix_tasks.delete_temp_file.apply_async(args=[file_path], countdown=ttl)
+        try:
+            bitrix_tasks.delete_temp_file.apply_async(args=[file_path], countdown=ttl)
+        except Exception:
+            pass
 
         return file_url
 
