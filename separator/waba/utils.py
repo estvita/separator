@@ -188,18 +188,21 @@ def error_message(data):
     fb_message = error.get("message") or error.get("title") or ""
     fb_details = (error.get("error_data") or {}).get("details", "")
 
-    error_obj, created = Error.objects.get_or_create(
-        code=code,
-        defaults={"message": fb_message, "details": fb_details}
-    )
+    try:
+        error_obj, created = Error.objects.get_or_create(
+            code=code,
+            defaults={"message": fb_message, "details": fb_details}
+        )
 
-    if error_obj.original:
-        return str(data)
-    
-    out_message = f"Error for: {data.get('recipient_id')}:\n" \
-                f"{error_obj.message or fb_message}\n" \
-                f"{error_obj.details or fb_details}"
-    return out_message
+        if error_obj.original:
+            return str(data)
+        
+        out_message = f"Error for: {data.get('recipient_id')}:\n" \
+                    f"{error_obj.message or fb_message}\n" \
+                    f"{error_obj.details or fb_details}"
+        return out_message
+    except Exception:
+        return f"Error for: {data.get('recipient_id')}: {fb_message} {fb_details}"
 
 
 def extract_waba_id(data):
@@ -260,12 +263,16 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
     waba_id = extract_waba_id(data)
     waba = Waba.objects.filter(waba_id=waba_id).first()
-    if waba:
-        if waba.app and waba.app.events:
-            Event.objects.create(waba=waba, content=json.dumps(data, ensure_ascii=False))
-    else:
-        if settings.SAVE_UNBOUND_WABA_EVENTS:
-            Event.objects.create(content=json.dumps(data, ensure_ascii=False))
+    try:
+        if waba:
+            if waba.app and waba.app.events:
+                Event.objects.create(waba=waba, content=json.dumps(data, ensure_ascii=False))
+        else:
+            if settings.SAVE_UNBOUND_WABA_EVENTS:
+                Event.objects.create(content=json.dumps(data, ensure_ascii=False))
+    except Exception as e:
+        pass
+
     entry = data["entry"][0]
     changes = entry["changes"][0]
     field = changes.get('field')
@@ -274,8 +281,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
     if field == 'account_update':
         if event == "PARTNER_APP_UNINSTALLED":
-            if waba:
-                waba.delete()
+            try:
+                if waba:
+                    waba.delete()
+            except Exception as e:
+                logger.warning(f"Failed to delete Waba: {e}")
             return(data)
         elif event == "PHONE_NUMBER_REMOVED":
             try:
@@ -338,9 +348,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             phone = Phone.objects.filter(phone_id=phone_id).first()
             if not phone:
                 raise Exception(f"Phone with id {phone_id} not found")
-            if status and phone.calling != status:
-                phone.calling = status
-                phone.save()
+            try:
+                if status and phone.calling != status:
+                    phone.calling = status
+                    phone.save()
+            except Exception:
+                pass
         else:
             raise Exception(data)
     
@@ -388,7 +401,10 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 caption = caption.strip() if caption else None
                 
                 # Store mapping media_id -> message_id in Redis (expire 3 months)
-                redis_client.set(f"wamid:{media_id}", message_id, ex=7776000)
+                try:
+                    redis_client.set(f"wamid:{media_id}", message_id, ex=7776000)
+                except Exception:
+                    pass
 
                 file_url = get_file(media_url, filename, appinstance, phone.waba)
 
