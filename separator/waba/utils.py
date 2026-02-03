@@ -283,22 +283,24 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if field == 'account_update':
         if event == "PARTNER_APP_UNINSTALLED":
             try:
-                if waba:
+                if waba and settings.WABA_AUTO_DELETE_ENTITIES:
                     waba.delete()
             except Exception as e:
                 logger.warning(f"Failed to delete Waba: {e}")
             return(data)
         elif event == "PHONE_NUMBER_REMOVED":
-            try:
-                phone_number = value.get("phone_number")
-                phone = Phone.objects.filter(phone=f"+{phone_number}", waba=waba).first()
-                if phone:
-                    phone.delete()
-                    return(f"Phone {phone_number} deleted")
-                else:
-                    raise Exception(f"phone_number not found: {data}")
-            except Exception:
-                raise Exception(data)
+            if settings.WABA_AUTO_DELETE_ENTITIES:
+                try:
+                    phone_number = value.get("phone_number")
+                    phone = Phone.objects.filter(phone=f"+{phone_number}", waba=waba).first()
+                    if phone:
+                        phone.delete()
+                        return(f"Phone {phone_number} deleted")
+                    else:
+                        raise Exception(f"phone_number not found: {data}")
+                except Exception:
+                    raise Exception(data)
+            return(data)
         else:
             raise Exception(data)
     
