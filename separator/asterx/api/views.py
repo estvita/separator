@@ -1,6 +1,6 @@
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from django.utils import timezone
 from separator.asterx.models import Server
@@ -8,9 +8,7 @@ from separator.bitrix.crest import refresh_token
 from separator.bitrix.models import Bitrix
 
 class AsterxHandler(GenericViewSet):
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def refresh_token(self, request):
         server_id = request.data.get('server_id')
         member_id = request.data.get('member_id')

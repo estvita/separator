@@ -154,13 +154,13 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             if credential:
                 access_token = credential.access_token
 
-        user_token = None
-        if server.owner:
-            try:
-                user_token, _ = Token.objects.get_or_create(user=server.owner)
-                user_token = user_token.key
-            except Token.DoesNotExist:
-                user_token = None
+        # user_token = None
+        # if server.owner:
+        #     try:
+        #         user_token, _ = Token.objects.get_or_create(user=server.owner)
+        #         user_token = user_token.key
+        #     except Token.DoesNotExist:
+        #         user_token = None
 
         return {
             "event": "setup_complete",
@@ -168,7 +168,7 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             "protocol": getattr(portal, "protocol", None),
             "domain": getattr(portal, "domain", None),
             "access_token": access_token,
-            "user_token": user_token,
+            # "user_token": user_token,
             "show_card": settings.show_card,
             "crm_create": settings.crm_create,
             "vm_send": settings.vm_send,
