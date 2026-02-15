@@ -43,6 +43,15 @@ class User(AbstractUser):
 
         """
         return reverse("users:detail", kwargs={"pk": self.id})
+
+    def has_usable_password(self) -> bool:
+        """
+        Return False if set_unusable_password() has been called for this user
+        or if the password is explicitly empty.
+        """
+        if not self.password:
+            return False
+        return super().has_usable_password()
     
 
 class Message(models.Model):

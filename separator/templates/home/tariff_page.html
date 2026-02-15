@@ -28,13 +28,22 @@
     </style>
 
     <!-- Фильтр по сервисам -->
-    <label for="service-filter">{% trans "Select service:" %}</label>
-    <select id="service-filter">
-        <option value="all">{% trans "All services" %}</option>
-        {% for service in services %}
-            <option value="{{ service.name }}">{{ service.name }}</option>
-        {% endfor %}
-    </select>
+    <div class="d-flex align-items-center mb-3">
+        <label for="service-filter" class="me-2 mb-0">{% trans "Select service:" %}</label>
+        <select id="service-filter" class="form-select w-auto me-3">
+            <option value="all">{% trans "All services" %}</option>
+            {% for service in services %}
+                <option value="{{ service.name }}">{{ service.name }}</option>
+            {% endfor %}
+        </select>
+
+        <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="trial-filter">
+            <label class="form-check-label" for="trial-filter">
+                {% trans "Trial" %}
+            </label>
+        </div>
+    </div>
 
     <table>
         <thead>
@@ -49,7 +58,7 @@
         </thead>
         <tbody id="tariff-table">
             {% for tariff in tariffs %}
-                <tr class="tariff-row" data-service="{{ tariff.service.name }}">
+                <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}">
                     <td>{{ tariff.service.name }}</td>
                     <td>{% if tariff.is_trial %}✅ {% trans "Yes" %} {% else %}❌ {% trans "No" %} {% endif %}</td>
                     <td>{{ tariff.price }}</td>
@@ -74,20 +83,81 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            var filter = document.getElementById("service-filter");
+            var serviceFilter = document.getElementById("service-filter");
+            var trialFilter = document.getElementById("trial-filter");
             var rows = document.querySelectorAll(".tariff-row");
 
-            filter.addEventListener("change", function () {
-                var selectedService = this.value;
+            // Функция для обновления URL без перезагрузки страницы
+            function updateURL(service, isTrial) {
+                var url = new URL(window.location);
+                if (service && service !== "all") {
+                    url.searchParams.set("service", service);
+                } else {
+                    url.searchParams.delete("service");
+                }
+                
+                if (isTrial) {
+                    url.searchParams.set("trial", "true");
+                } else {
+                    url.searchParams.delete("trial");
+                }
+                
+                window.history.replaceState({}, "", url);
+            }
+
+            function updateVisibility() {
+                var selectedService = serviceFilter.value;
+                var showTrialOnly = trialFilter.checked;
 
                 rows.forEach(function (row) {
-                    if (selectedService === "all" || row.getAttribute("data-service") === selectedService) {
+                    var serviceName = row.getAttribute("data-service");
+                    var isTrial = row.getAttribute("data-is-trial") === "true";
+
+                    var matchesService = (selectedService === "all" || serviceName === selectedService);
+                    var matchesTrial = (!showTrialOnly || isTrial);
+
+                    if (matchesService && matchesTrial) {
                         row.style.display = "";
                     } else {
                         row.style.display = "none";
                     }
                 });
-            });
+                
+                // Обновляем URL при изменении фильтров
+                updateURL(selectedService, showTrialOnly);
+            }
+
+            // Инициализация состояния из URL
+            function initFromURL() {
+                var urlParams = new URLSearchParams(window.location.search);
+                var serviceParam = urlParams.get("service"); // используем "service" как более правильное написание
+                // Поддержка "servise" если пользователь ошибся, так как в запросе было "servise"
+                if (!serviceParam) {
+                    serviceParam = urlParams.get("servise"); 
+                }
+                var trialParam = urlParams.get("trial");
+
+                if (serviceParam) {
+                    // Проверяем, есть ли такая опция в select
+                    var optionExists = [...serviceFilter.options].some(o => o.value === serviceParam);
+                    if (optionExists) {
+                        serviceFilter.value = serviceParam;
+                    }
+                }
+
+                if (trialParam === "true") {
+                    trialFilter.checked = true;
+                }
+                
+                // Применяем фильтры сразу после инициализации
+                updateVisibility();
+            }
+
+            serviceFilter.addEventListener("change", updateVisibility);
+            trialFilter.addEventListener("change", updateVisibility);
+            
+            // Запускаем инициализацию
+            initFromURL();
         });
     </script>
 

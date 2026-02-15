@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% load i18n %}
 {% load static %}
 
 {% block title %}
@@ -18,10 +18,15 @@
       <!-- Action buttons -->
       <div class="row">
         <div class="col-sm-12">
-          <a class="btn btn-primary" href="{% url 'users:update' %}" role="button">My Info</a>
+          <a class="btn btn-primary" href="{% url 'users:update' %}" role="button">{% trans "My Info" %}</a>
           <a class="btn btn-primary"
              href="{% url 'account_email' %}"
-             role="button">E-Mail</a>
+             role="button">{% trans "E-Mail" %}</a>
+          {% if object.has_usable_password %}
+            <a class="btn btn-primary" href="{% url 'account_change_password' %}" role="button">{% trans "Password" %}</a>
+          {% else %}
+            <a class="btn btn-primary" href="{% url 'account_set_password' %}" role="button">{% trans "Password" %}</a>
+          {% endif %}
           <a class="btn btn-primary" href="{% url 'mfa_index' %}" role="button">MFA</a>
           <!-- Your Stuff: Custom user template urls -->
         </div>

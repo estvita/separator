@@ -390,6 +390,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             if message_type == "text":
                 text = message["text"]["body"]
 
+            elif message_type == "button":
+                text = message["button"]["text"]
+
             elif message_type in ["image", "video", "audio", "document"]:
                 media_data = value["messages"][0][message_type]
                 media_id = media_data["id"]
