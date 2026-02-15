@@ -320,18 +320,25 @@ CALL_REQUEST = {
 
 def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=None) -> dict:
     try:
-        parts = code.split("+")
+        parts = code.split("+", 3)
         if len(parts) < 3:
             raise ValueError("Invalid message body format")
-        _, template_name, language, *other = parts
+        
+        _, template_name, language = parts[:3]
+        payload = parts[3] if len(parts) > 3 else ""
+
         params = []
         file_url = None
         file_type = None
         waba_file_type = None
         button_param = None
 
-        for p in other:
-            p = p.strip()
+        payload = re.sub(r'\s*[+|]\s*(?=(file_link:|button_param:))', '|', payload)
+
+        # Split by | to get all segments
+        segments = [s.strip() for s in payload.split('|') if s.strip()]
+
+        for p in segments:
             if p.startswith('file_link:'):
                 file_url = p[len('file_link:'):]
                 file_headers = None
@@ -350,11 +357,9 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
                     waba_file_type = "document"
             elif p.startswith('button_param:'):
                 button_param = p[len('button_param:'):]
-            elif p:
-                if "|" in p:
-                    params.extend([x.strip() for x in p.split("|") if x.strip()])
-                else:
-                    params.append(p)
+            else:
+                # Regular numbered parameter
+                params.append(p)
 
         message = {
             "type": "template",
