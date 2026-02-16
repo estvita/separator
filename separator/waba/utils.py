@@ -437,6 +437,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         msg, 
                         phone.line.connector.code,
                     )
+
+            elif message_type == "reaction":
+                 reaction = message.get("reaction")
+                 text = reaction.get("emoji")
+
             if file_url and user_phone:
                 attach = [
                     {
@@ -554,6 +559,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             }
                         }
                     ]
+            
+            elif message_type == "reaction":
+                 reaction = message.get("reaction")
+                 text = reaction.get("emoji")
+
             if text or attach:
                 bitrix_tasks.message_add.delay(appinstance.id, phone.line.line_id, user_phone, text, phone.line.connector.code, attach)
     else:

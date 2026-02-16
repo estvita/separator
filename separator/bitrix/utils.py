@@ -333,7 +333,15 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
         waba_file_type = None
         button_param = None
 
+        # Normalize separators for file_link and button_param to |
+        # This handles cases like: param1|param2+file_link:http...
+        # The + before file_link becomes |
         payload = re.sub(r'\s*[+|]\s*(?=(file_link:|button_param:))', '|', payload)
+
+        # Handle case where file_link is followed by + and text (legacy format)
+        # e.g. file_link:http://url + text -> file_link:http://url|text
+        # We assume URLs don't contain spaces.
+        payload = re.sub(r'(file_link:\S+)\s*\+\s*', r'\1|', payload)
 
         # Split by | to get all segments
         segments = [s.strip() for s in payload.split('|') if s.strip()]
