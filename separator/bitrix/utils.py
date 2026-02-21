@@ -341,10 +341,24 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
         # Handle case where file_link is followed by + and text (legacy format)
         # e.g. file_link:http://url + text -> file_link:http://url|text
         # We assume URLs don't contain spaces.
-        payload = re.sub(r'(file_link:\S+)\s*\+\s*', r'\1|', payload)
+        payload = re.sub(r'(file_link:[^+\s]+)\s*\+\s*', r'\1|', payload)
 
-        # Split by | to get all segments
-        segments = [s.strip() for s in payload.split('|') if s.strip()]
+        # Handle case where button_param is followed by + and text (legacy format)
+        # e.g. button_param:code=123+text -> button_param:code=123|text
+        # We assume button params don't contain spaces or + as part of the value in this context.
+        # Use simple greedy match until + since valid button params are usually alphanumeric/symbols without +.
+        payload = re.sub(r'(button_param:[^+\s]+)\s*\+\s*', r'\1|', payload)
+
+        # Split by | to get all segments, keeping empty ones to preserve parameter count
+        raw_segments = payload.split('|')
+        segments = []
+        for s in raw_segments:
+            s_stripped = s.strip()
+            # If segment is empty, use a placeholder to avoid "parameter count mismatch" error.
+            if not s_stripped:
+                segments.append("-")
+            else:
+                segments.append(s_stripped)
 
         for p in segments:
             if p.startswith('file_link:'):
@@ -366,7 +380,10 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
             elif p.startswith('button_param:'):
                 button_param = p[len('button_param:'):]
             else:
-                # Regular numbered parameter
+                # Regular numbered parameter. Clean it for WhatsApp API constraints.
+                # Remove newlines/tabs and limit spaces to max 3 consecutive.
+                p = re.sub(r'[\r\n\t]+', ' ', p)
+                p = re.sub(r'\s{4,}', '   ', p)
                 params.append(p)
 
         message = {
