@@ -1,6 +1,5 @@
 import base64
 import time
-import json
 import logging
 import re
 import uuid
@@ -8,14 +7,13 @@ import os
 import redis
 import requests
 from django.core.signing import TimestampSigner
-from urllib.parse import unquote
+from urllib.parse import unquote, urljoin
 from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 from django.contrib import messages
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse
 
 from celery import shared_task
 
@@ -29,7 +27,6 @@ from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector,
 from .models import User as B24_user
 
 import separator.bitrix.tasks as bitrix_tasks
-
 import separator.bitbot.router as bitbot_router
 
 if settings.ASTERX_SERVER:
@@ -221,7 +218,7 @@ def register_connector(appinstance: AppInstance, connector):
             "ICON": {
                 "DATA_IMAGE": connector_logo,
             },
-            "PLACEMENT_HANDLER": f"https://{url}/app-settings/?inst={appinstance.id}",
+            "PLACEMENT_HANDLER": f"https://{url}/placement/?inst={appinstance.id}",
         }
 
         bitrix_tasks.call_api.delay(appinstance.id, "imconnector.register", payload)
@@ -230,6 +227,40 @@ def register_connector(appinstance: AppInstance, connector):
         return None
     except Exception as e:
         return None
+
+
+def register_placements(appinstance: AppInstance):
+    app = appinstance.app
+    if not app or not app.site:
+        return
+
+    site_domain = str(app.site).strip().strip('/')
+    base_url = f"https://{site_domain}/"
+
+    for placement_obj in app.placements.all():
+        raw_handler = (placement_obj.handler or "").strip()
+        raw_placements = (placement_obj.placement or "").strip()
+
+        if not raw_handler or not raw_placements:
+            continue
+
+        if raw_handler.startswith(("http://", "https://")):
+            handler_url = raw_handler
+        else:
+            handler_url = urljoin(base_url, raw_handler.lstrip('/'))
+
+        for placement_code in [p.strip() for p in raw_placements.splitlines() if p.strip()]:
+            payload = {
+                "PLACEMENT": placement_code,
+                "HANDLER": handler_url,
+                "OPTIONS": {
+                    "useBuiltInInterface": "Y" if placement_obj.useBuiltInInterface else "N",
+                },
+            }
+            if placement_obj.title:
+                payload["TITLE"] = placement_obj.title
+
+            bitrix_tasks.call_api.delay(appinstance.id, "placement.bind", payload)
 
 
 def extract_files(data):
@@ -272,39 +303,6 @@ def upload_file(appinstance, storage_id, fileContent, filename):
         return None
 
 
-def process_placement(request):
-    try:
-        data = request.POST
-        placement_options = data.get("PLACEMENT_OPTIONS")
-        instance_id = request.GET.get("inst")
-        domain = request.GET.get("DOMAIN")
-
-        placement_options = json.loads(placement_options)
-        line_id = placement_options.get("LINE")
-        connector_code = placement_options.get("CONNECTOR")
-
-        app_instance = AppInstance.objects.filter(id=instance_id).first()
-        if not app_instance:
-            return HttpResponse("app not found")
-        portal = Bitrix.objects.filter(domain=domain).first()
-        if not portal:
-            return HttpResponse("bitrix not found")
-        connector = Connector.objects.filter(code=connector_code).first()
-        if not connector:
-            return HttpResponse("connector not found")
-        line, created = Line.objects.get_or_create(
-            line_id=line_id,
-            portal=portal,
-            connector=connector,
-            app_instance=app_instance,
-            owner=app_instance.owner
-        )
-        return HttpResponse(
-            f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/"
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return HttpResponse({"An unexpected error occurred"})
 
 CALL_REQUEST = {
     "type": "interactive",
@@ -566,86 +564,82 @@ def event_processor(data):
         refresh_token = data.get("auth[refresh_token]")
         application_token = data.get("auth[application_token]")
         member_id = data.get("auth[member_id]")
-        # Проверка наличия установки
-        try:
-            appinstance = AppInstance.objects.get(application_token=application_token)
+        scope = scope or ""
+        appinstance = None
 
-        except AppInstance.DoesNotExist:
-            if event == "ONAPPINSTALL":                
-                # Получение приложения по токену
-                try:
-                    app = get_app(access_token)
-                except Exception:
-                    raise
-                portal, created = Bitrix.objects.get_or_create(
-                    member_id=member_id,
-                    defaults={
-                        "domain": domain,
-                    }
-                )
+        if event == "ONAPPINSTALL":
+            app = get_app(access_token)
+            portal, _ = Bitrix.objects.get_or_create(
+                member_id=member_id,
+                defaults={
+                    "domain": domain,
+                }
+            )
 
-                appinstance_data = {
+            if domain and portal.domain != domain:
+                portal.domain = domain
+                portal.save(update_fields=["domain"])
+
+            appinstance, _ = AppInstance.objects.update_or_create(
+                application_token=application_token,
+                defaults={
                     "app": app,
                     "portal": portal,
                     "auth_status": auth_status,
-                    "application_token": application_token,
                     "owner": portal.owner,
                 }
+            )
 
-                appinstance = AppInstance.objects.create(**appinstance_data)
+            try:
+                b24_user = get_b24_user(app, portal, access_token, refresh_token)
+                if portal.owner and not b24_user.owner:
+                    b24_user.owner = portal.owner
+                    b24_user.save(update_fields=["owner"])
+            except Exception:
+                pass
 
-                try:
-                    b24_user = get_b24_user(app, portal, access_token, refresh_token)
-                    if portal.owner and not b24_user.owner:
-                        b24_user.owner = portal.owner
-                        b24_user.save()
-                except Exception as e:
-                    pass
+            if "disk" in scope:
+                storage_data = bitrix_tasks.call_api(appinstance.id, "disk.storage.getforapp", {})
+                if "result" in storage_data:
+                    storage_id = storage_data["result"]["ID"]
+                    appinstance.storage_id = storage_id
+                    appinstance.save(update_fields=["storage_id"])
 
-                # Получаем storage_id и сохраняем его
-                if "disk" in scope:
-                    storage_data = bitrix_tasks.call_api(appinstance.id, "disk.storage.getforapp", {})
-                    if "result" in storage_data:
-                        storage_id = storage_data["result"]["ID"]
-                        appinstance.storage_id = storage_id
-                        appinstance.save()
+            def register_events_and_connectors():
+                events_bind(appinstance)
+                register_placements(appinstance)
+                if app.connectors.exists():
+                    for connector in app.connectors.all():
+                        register_connector(appinstance, connector)
 
-                # Регистрация коннектора/ подписка на события
-                def register_events_and_connectors():
-                    events_bind(appinstance)
-                    if app.connectors.exists():
-                        for connector in app.connectors.all():
-                            register_connector(appinstance, connector)
+            transaction.on_commit(register_events_and_connectors)
 
-                transaction.on_commit(register_events_and_connectors)
+            if settings.ASTERX_SERVER and app.asterx:
+                from separator.asterx.views import get_portal_settings
+                get_portal_settings(member_id)
 
-                if settings.ASTERX_SERVER and app.asterx:
-                    from separator.asterx.views import get_portal_settings
-                    get_portal_settings(member_id)
+            if portal.owner:
+                return "App successfully created/updated and linked"
 
-                # Если портал уже прявязан
-                if portal.owner:
-                    return "App successfully created and linked"
-                
-                verify_code = VerificationCode.objects.filter(portal=portal).first()
+            verify_code = VerificationCode.objects.filter(portal=portal).first()
 
-                if verify_code:
-                    code = verify_code.code
-                else:
-                    code = uuid.uuid4()
-                    VerificationCode.objects.create(
-                        portal=portal,
-                        code=code,
-                        expires_at=timezone.now() + timedelta(days=1),
-                    )
-
-                payload = {
-                    "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
-                    "USER_ID": user_id,
-                }
-                bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
+            if verify_code:
+                code = verify_code.code
             else:
-                raise
+                code = uuid.uuid4()
+                VerificationCode.objects.create(
+                    portal=portal,
+                    code=code,
+                    expires_at=timezone.now() + timedelta(days=1),
+                )
+
+            payload = {
+                "message": f"Для привязки портала перейдите по ссылке https://{appinstance.app.site}/portals/?code={code}",
+                "USER_ID": user_id,
+            }
+            bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
+        else:
+            appinstance = AppInstance.objects.get(application_token=application_token)
 
         if event == "ONIMCONNECTORMESSAGEADD":
             connector_code = data.get("data[CONNECTOR]")

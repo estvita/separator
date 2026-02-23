@@ -16,8 +16,9 @@ from django.utils.translation import gettext as _
 
 from .crest import call_method
 from .tasks import call_api, prepare_lead
-from .utils import process_placement, get_b24_user, get_instances, get_app
+from .utils import get_b24_user, get_instances, get_app
 from .forms import BitrixPortalForm, VerificationCodeForm
+import separator.bitrix.placements as placements
 from .models import AppInstance, Bitrix, VerificationCode, Line
 from .models import User as B24_user
 
@@ -25,6 +26,7 @@ from separator.decorators import login_message_required
 
 from django.contrib.auth import get_user_model, login, logout
 User = get_user_model()
+
 
 
 def link_ojects(portal: Bitrix, user):
@@ -205,6 +207,31 @@ def get_owner(request):
 
     return owner_user
 
+@csrf_exempt
+def process_placement(request):
+    try:
+        data = request.POST
+        auth_id = data.get("AUTH_ID")
+        try:
+            app = get_app(auth_id)
+        except Exception as e:
+            messages.error(request, e)
+            return redirect("/")
+        try:
+            user = get_owner(request)
+        except Exception as e:
+            messages.error(request, e)
+            return redirect("/")
+        placement = data.get("PLACEMENT")
+        if placement == "SETTING_CONNECTOR":
+            return placements.settings_connector(request)
+        service = request.GET.get("service")
+        placement_type = request.GET.get("type")
+        if service == "waba":
+            return placements.WabaPlacementModule().handle(placement_type, request)
+
+    except Exception as e:
+        return HttpResponse({"An unexpected error occurred"})
 
 @csrf_exempt
 def app_install(request):
@@ -283,6 +310,7 @@ def app_settings(request):
         placement = data.get("PLACEMENT")
         request.session['b24_data'] = request.POST.dict()
         request.session['page_url'] = app.page_url
+        # legacy support for old placement handler url
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
         

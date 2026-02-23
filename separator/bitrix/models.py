@@ -144,6 +144,16 @@ class Line(models.Model):
         return f"Line {self.line_id} for AppInstance {self.app_instance}"
 
 
+class Plasement(models.Model):
+    app = models.ForeignKey(App, on_delete=models.SET_NULL, related_name="placements", blank=True, null=True)
+    title = models.CharField(max_length=255)
+    placement = models.TextField(blank=True, null=True)
+    handler = models.CharField(max_length=2500, default="/placement/")
+    useBuiltInInterface = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.title} for {self.app.name if self.app else '—'}"
+    
 class VerificationCode(models.Model):
     portal = models.OneToOneField(Bitrix, on_delete=models.SET_NULL, blank=True, null=True)
     code = models.UUIDField(default=uuid.uuid4)

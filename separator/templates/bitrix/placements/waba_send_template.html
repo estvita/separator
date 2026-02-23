@@ -1,0 +1,359 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "WABA Template Sender" %}</title>
+    <script src="https://api.bitrix24.com/api/v1/"></script>
+    {{ sender_phones|json_script:"sender-phones-data" }}
+    {{ templates|json_script:"templates-data" }}
+    {{ recipient_phones|json_script:"recipient-phones-data" }}
+    <style>
+        body { font-family: Arial, sans-serif; margin: 12px; }
+        .row { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 4px; font-size: 13px; }
+        select, textarea, button { width: 100%; box-sizing: border-box; }
+        textarea { min-height: 72px; }
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        #status { margin-bottom: 10px; font-size: 13px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+<div id="status"></div>
+
+<div class="row">
+    <label for="senderPhone">{% trans "Sender number" %}</label>
+    <select id="senderPhone"></select>
+</div>
+<div class="row">
+    <label for="template">{% trans "Template" %}</label>
+    <select id="template"></select>
+</div>
+<div class="row">
+    <label for="recipientPhone">{% trans "Recipient phone" %}</label>
+    <select id="recipientPhone"></select>
+</div>
+<div class="row">
+    <label for="params">{% trans "Parameters" %}</label>
+    <textarea id="params" placeholder="{% trans 'param1|param2' %}"></textarea>
+</div>
+<div class="actions">
+    <button id="sendBtn" type="button">{% trans "Send" %}</button>
+    <button id="closeBtn" type="button">{% trans "Close" %}</button>
+</div>
+
+<script>
+(function () {
+    const senderPhones = JSON.parse(document.getElementById('sender-phones-data').textContent || '[]');
+    const templates = JSON.parse(document.getElementById('templates-data').textContent || '[]');
+    const recipientPhones = JSON.parse(document.getElementById('recipient-phones-data').textContent || '[]');
+
+    const authId = "{{ auth_id|escapejs }}";
+    const refreshId = "{{ refresh_id|escapejs }}";
+    const memberId = "{{ member_id|escapejs }}";
+    const initialSenderId = "{{ initial_sender_phone_id|escapejs }}";
+
+    const statusNode = document.getElementById('status');
+    const senderNode = document.getElementById('senderPhone');
+    const templateNode = document.getElementById('template');
+    const recipientNode = document.getElementById('recipientPhone');
+    const paramsNode = document.getElementById('params');
+    const sendBtn = document.getElementById('sendBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const isBuiltIn = !!(window.BX24 && BX24.placement && BX24.placement.call);
+    const i18n = {
+        selectAndSend: "{% trans 'Select values and click Send.' %}",
+        senderNumber: "{% trans 'Sender number' %}",
+        template: "{% trans 'Template' %}",
+        recipientPhone: "{% trans 'Recipient phone' %}",
+        parameters: "{% trans 'Parameters' %}",
+        paramsPlaceholder: "{% trans 'param1|param2' %}",
+        send: "{% trans 'Send' %}",
+        close: "{% trans 'Close' %}",
+        failedLoadTemplates: "{% trans 'Failed to load templates' %}",
+        sending: "{% trans 'Sending...' %}",
+        sendFailed: "{% trans 'Send failed' %}",
+        messageSent: "{% trans 'Message sent' %}",
+        error: "{% trans 'Error' %}"
+    };
+
+    const state = {
+        senderPhoneId: '',
+        templateId: '',
+        recipientPhone: '',
+        params: '',
+    };
+
+    function setStatus(text, color) {
+        statusNode.textContent = text || '';
+        statusNode.style.color = color || '#333';
+        if (!isBuiltIn) {
+            return;
+        }
+        try {
+            BX24.placement.call('setLayoutItemState', {
+                id: 'info',
+                visible: true,
+                properties: {
+                    value: text || '',
+                    color: color === '#b00020' ? 'danger' : (color === '#1b7f3a' ? 'success' : 'base_70'),
+                    multiline: true,
+                }
+            });
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function valuesMapFromNode(node) {
+        const values = {};
+        Array.from(node.options || []).forEach((option) => {
+            values[option.value] = option.textContent;
+        });
+        return values;
+    }
+
+    function recipientValuesMap() {
+        const values = {};
+        recipientPhones.forEach((item) => {
+            values[item.value] = item.label;
+        });
+        return values;
+    }
+
+    function syncDomFromState() {
+        senderNode.value = state.senderPhoneId || '';
+        templateNode.value = state.templateId || '';
+        recipientNode.value = state.recipientPhone || '';
+        paramsNode.value = state.params || '';
+    }
+
+    function renderBuiltInLayout() {
+        if (!isBuiltIn) {
+            return;
+        }
+        BX24.placement.call('setLayout', {
+            blocks: {
+                info: {
+                    type: 'text',
+                    properties: {
+                        value: i18n.selectAndSend,
+                        color: 'base_70',
+                    },
+                },
+                senderSelect: {
+                    type: 'select',
+                    properties: {
+                        title: i18n.senderNumber,
+                        selectedValue: state.senderPhoneId,
+                        values: valuesMapFromNode(senderNode),
+                    },
+                },
+                templateSelect: {
+                    type: 'select',
+                    properties: {
+                        title: i18n.template,
+                        selectedValue: state.templateId,
+                        values: valuesMapFromNode(templateNode),
+                    },
+                },
+                recipientSelect: {
+                    type: 'select',
+                    properties: {
+                        title: i18n.recipientPhone,
+                        selectedValue: state.recipientPhone,
+                        values: recipientValuesMap(),
+                    },
+                },
+                paramsInput: {
+                    type: 'textarea',
+                    properties: {
+                        title: i18n.parameters,
+                        value: state.params,
+                        placeholder: i18n.paramsPlaceholder,
+                    },
+                },
+            },
+            primaryButton: { title: i18n.send },
+            secondaryButton: { title: i18n.close },
+        });
+    }
+
+    function fillSenders() {
+        senderNode.innerHTML = '';
+        senderPhones.forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.label;
+            senderNode.appendChild(option);
+        });
+        if (initialSenderId) {
+            senderNode.value = initialSenderId;
+        }
+        state.senderPhoneId = senderNode.value || '';
+    }
+
+    function fillTemplates(list) {
+        templateNode.innerHTML = '';
+        (list || []).forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.label;
+            templateNode.appendChild(option);
+        });
+        state.templateId = templateNode.value || '';
+    }
+
+    function fillRecipients() {
+        recipientNode.innerHTML = '';
+        recipientPhones.forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.label;
+            recipientNode.appendChild(option);
+        });
+        state.recipientPhone = recipientNode.value || '';
+    }
+
+    function loadTemplatesBySender(senderId) {
+        if (!senderId) {
+            fillTemplates([]);
+            return Promise.resolve();
+        }
+        const payload = new URLSearchParams();
+        payload.append('action', 'get_templates');
+        payload.append('AUTH_ID', authId);
+        payload.append('REFRESH_ID', refreshId);
+        payload.append('member_id', memberId);
+        payload.append('sender_phone_id', senderId);
+
+        return fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: payload.toString(),
+            credentials: 'same-origin',
+        })
+        .then((response) => response.json())
+        .then((result) => {
+            if (!result.ok) {
+                throw new Error(result.error || i18n.failedLoadTemplates);
+            }
+            fillTemplates(result.templates || []);
+            state.templateId = templateNode.value || '';
+            syncDomFromState();
+            renderBuiltInLayout();
+        });
+    }
+
+    function sendTemplate() {
+        const payload = new URLSearchParams();
+        payload.append('action', 'send');
+        payload.append('AUTH_ID', authId);
+        payload.append('REFRESH_ID', refreshId);
+        payload.append('member_id', memberId);
+        payload.append('sender_phone_id', senderNode.value || '');
+        payload.append('template_id', templateNode.value || '');
+        payload.append('phone', recipientNode.value || '');
+        payload.append('params', paramsNode.value || '');
+        payload.append('entity_id', '{{ entity_id }}');
+        payload.append('entity_type_code', '{{ entity_type_code }}');
+
+        sendBtn.disabled = true;
+        setStatus(i18n.sending, '#8a6d00');
+
+        fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: payload.toString(),
+            credentials: 'same-origin',
+        })
+        .then((response) => response.json())
+        .then((result) => {
+            if (!result.ok) {
+                throw new Error(result.error || i18n.sendFailed);
+            }
+            setStatus(i18n.messageSent, '#1b7f3a');
+        })
+        .catch((error) => {
+            setStatus(error.message || i18n.error, '#b00020');
+        })
+        .finally(() => {
+            sendBtn.disabled = false;
+        });
+    }
+
+    fillSenders();
+    fillTemplates(templates);
+    fillRecipients();
+    syncDomFromState();
+
+    if (senderNode.value) {
+        loadTemplatesBySender(senderNode.value).catch((error) => setStatus(error.message, '#b00020'));
+    }
+
+    senderNode.addEventListener('change', function () {
+        state.senderPhoneId = senderNode.value || '';
+        loadTemplatesBySender(senderNode.value).catch((error) => setStatus(error.message, '#b00020'));
+    });
+
+    templateNode.addEventListener('change', function () {
+        state.templateId = templateNode.value || '';
+    });
+
+    recipientNode.addEventListener('change', function () {
+        state.recipientPhone = recipientNode.value || '';
+    });
+
+    paramsNode.addEventListener('input', function () {
+        state.params = paramsNode.value || '';
+    });
+
+    sendBtn.addEventListener('click', sendTemplate);
+    closeBtn.addEventListener('click', function () {
+        if (window.BX24 && BX24.placement && BX24.placement.call) {
+            BX24.placement.call('finish');
+            return;
+        }
+        window.close();
+    });
+
+    if (isBuiltIn && typeof BX24.init === 'function') {
+        BX24.init(function () {
+            renderBuiltInLayout();
+
+            BX24.placement.call('bindSecondaryButtonClickCallback', null, function () {
+                BX24.placement.call('finish');
+            });
+
+            BX24.placement.call('bindValueChangeCallback', null, function (eventData) {
+                if (!eventData || !eventData.id) {
+                    return;
+                }
+                if (eventData.id === 'senderSelect') {
+                    state.senderPhoneId = eventData.value || '';
+                    syncDomFromState();
+                    loadTemplatesBySender(state.senderPhoneId).catch((error) => setStatus(error.message, '#b00020'));
+                    return;
+                }
+                if (eventData.id === 'templateSelect') {
+                    state.templateId = eventData.value || '';
+                } else if (eventData.id === 'recipientSelect') {
+                    state.recipientPhone = eventData.value || '';
+                } else if (eventData.id === 'paramsInput') {
+                    state.params = eventData.value || '';
+                }
+                syncDomFromState();
+            });
+
+            BX24.placement.call('bindPrimaryButtonClickCallback', null, function () {
+                syncDomFromState();
+                sendTemplate();
+            });
+        });
+    }
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@ from django import forms
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential
+from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Plasement
 import separator.bitrix.tasks as bitrix_tasks
 
 
@@ -103,13 +103,28 @@ class AppAdminForm(forms.ModelForm):
         }
 
 
+class PlasementInline(admin.TabularInline):
+    model = Plasement
+    fields = ('title', 'placement', 'handler')
+    extra = 0
+
+
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     form = AppAdminForm
+    inlines = [PlasementInline]
     list_display = ("name", "client_id", "site", "owner")
     search_fields = ("name", "id", "client_id", "owner__email")
     autocomplete_fields = ['owner']
     list_filter = ('autologin', 'asterx', 'imopenlines_auto_finish')
+    list_per_page = 30
+
+
+@admin.register(Plasement)
+class PlasementAdmin(admin.ModelAdmin):
+    list_display = ('title', 'app')
+    search_fields = ('title', 'placement', 'handler', 'app__name')
+    autocomplete_fields = ['app']
     list_per_page = 30
 
 
