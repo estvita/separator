@@ -348,7 +348,10 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
         payload = re.sub(r'(button_param:[^+\s]+)\s*\+\s*', r'\1|', payload)
 
         # Split by | to get all segments, keeping empty ones to preserve parameter count
-        raw_segments = payload.split('|')
+        if not payload:
+            raw_segments = []
+        else:
+            raw_segments = payload.split('|')
         segments = []
         for s in raw_segments:
             s_stripped = s.strip()

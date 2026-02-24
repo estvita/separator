@@ -44,3 +44,33 @@ In the local application's settings in Bitrix24, in addition to previous steps:
 + In Bitrix in the "Contact Center" section, connectors should appear
 
 ![alt text](img/olx-connector.png)
+
+**### Placements**
+https://apidocs.bitrix24.com/api-reference/widgets/index.html
+
+Required Scope: placement
+
+An integration for sending template messages to WhatsApp Cloud has now been implemented.
+
+#### Setup Widget Handler
++ Go to /bitrix/plasement/ in the Separator admin panel
++ Add a new placement:
+	+ App: Select the Bitrix24 app for WhatsApp Cloud
+	+ Name: WABA Template Sender
+	+ Placement:
+		```
+		CRM_LEAD_DETAIL_ACTIVITY
+		CRM_CONTACT_DETAIL_ACTIVITY
+		CRM_COMPANY_DETAIL_ACTIVITY
+		```
+		Add other placement codes if needed.
+	+ Handler URL: /placement/?service=waba&type=send_template
+    + UseBuiltInInterface: true
+
+After installing the Bitrix24 app on your portal, go to the Lead timeline and select "WABA Template Sender" from the menu.
+
+#### Add New Widget in Code (Short)
++ Add a handler in separator/bitrix/placements.py (new method or a new `type` branch in `handle()`).
++ Make sure separator/bitrix/views.py routes requests to it in `process_placement`.
++ Add the placement in admin (`/bitrix/plasement/`) so `register_placements()` binds it during install/reinstall.
++ In `Handler URL`, you can use a relative path (for internal handler) or an external `https://...` URL; an external URL opens in the Bitrix24 slider.

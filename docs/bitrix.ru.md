@@ -59,3 +59,33 @@ CSRF_COOKIE_NAME=__Secure-csrftoken
 + В битриксе в разделе "контакт-центр" должны появиться коннекторы
 
 ![alt text](img/olx-connector.png)
+
+### Плейсменты
+https://apidocs.bitrix24.com/api-reference/widgets/index.html
+
+Требуемый Scope: placement
+
+Интеграция для отправки шаблонных сообщений в WhatsApp Cloud уже реализована.
+
+#### Настройка обработчика виджета
++ Перейдите в /bitrix/plasement/ в админ-панели Separator
++ Добавьте новый плейсмент:
+	+ App: выберите приложение Bitrix24 для WhatsApp Cloud
+	+ Name: WABA Template Sender
+	+ Placement:
+		```
+		CRM_LEAD_DETAIL_ACTIVITY
+		CRM_CONTACT_DETAIL_ACTIVITY
+		CRM_COMPANY_DETAIL_ACTIVITY
+		```
+		При необходимости добавьте и другие коды плейсментов.
+	+ Handler URL: /placement/?service=waba&type=send_template
+	+ UseBuiltInInterface: true
+
+После установки приложения Bitrix24 на портале откройте, например, таймлайн лида и выберите в меню "WABA Template Sender".
+
+#### Добавление нового виджета в код (кратко)
++ Добавьте обработчик в separator/bitrix/placements.py (новый метод или новая ветка `type` в `handle()`).
++ Убедитесь, что separator/bitrix/views.py маршрутизирует запрос в `process_placement`.
++ Добавьте плейсмент в админке (`/bitrix/plasement/`), чтобы `register_placements()` выполнил привязку при установке/переустановке.
++ В `Handler URL` можно указать внутренний путь или внешний `https://...`; внешний адрес откроется в слайдере Bitrix24.
