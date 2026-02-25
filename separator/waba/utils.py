@@ -46,6 +46,8 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
                 resp = requests.post(f"{base_url}/{endpoint}", data=data, files=files, headers=headers)
             else:
                 resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers)
+        elif method == "delete":
+            resp = requests.delete(f"{base_url}/{endpoint}", params=payload, headers=headers)
 
         resp_data = resp.json()
         if "error" in resp_data:

@@ -107,12 +107,6 @@ def add_waba_phone(request_id, app_id):
                     phone.date_end = get_trial(user, "waba")
                     phone.save()
                         
-            # subscribed_apps
-            try:
-                utils.call_api(app=app, endpoint=f"{waba_id}/subscribed_apps", method="post")
-            except Exception:
-                raise
-
 @shared_task(queue='waba')
 def send_message(template, recipients, id):
     try:
@@ -204,3 +198,13 @@ def call_management(id):
         phone.error = error_text
         phone.save()
         raise Exception(phone.phone_id, e)
+
+
+@shared_task(queue='waba')
+def waba_subscription(waba_id):
+    waba = Waba.objects.select_related("app").filter(id=waba_id).first()
+    if not waba or not waba.app:
+        return
+
+    method = "post" if waba.subscribed else "delete"
+    return utils.call_api(app=waba.app, endpoint=f"{waba.waba_id}/subscribed_apps", method=method)

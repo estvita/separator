@@ -32,6 +32,7 @@ class Waba(models.Model):
     waba_id = models.CharField(max_length=255, editable=True, unique=True)
     access_token = EncryptedCharField(max_length=2000)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    subscribed = models.BooleanField(default=True, help_text="Subscribed to webhook events")
 
     def __str__(self):
         return f"{self.waba_id}"

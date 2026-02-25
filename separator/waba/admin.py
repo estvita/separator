@@ -49,7 +49,8 @@ class PhoneInline(admin.TabularInline):
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
-    list_display = ("waba_id", "owner")
+    list_display = ("waba_id", "owner", "app", "subscribed")
+    list_filter = ("subscribed", "app")
     search_fields = ["waba_id", "owner__email"]
     list_per_page = 30
     inlines = [PhoneInline, TemplateInline]
@@ -65,11 +66,18 @@ class TemplateAdmin(admin.ModelAdmin):
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', 'waba', 'line', 'app_instance', 'sip_extensions']
-    list_display = ("phone_id", "phone", "owner", "date_end", "type", "sms_service")
+    list_display = ("phone_id", "phone", "owner", "waba_link", "date_end", "type")
     search_fields = ("phone", "phone_id", "owner__email")
     list_filter = ("calling", "type")
     readonly_fields = ("error", )
     list_per_page = 30
+
+    def waba_link(self, instance):
+        if not instance.waba_id:
+            return "-"
+        url = reverse("admin:waba_waba_change", args=[instance.waba_id])
+        return format_html('<a href="{}">{}</a>', url, instance.waba.waba_id)
+    waba_link.short_description = "WABA"
 
     def save_model(self, request, obj, form, change):
 
