@@ -651,6 +651,7 @@ def event_processor(data):
             message_id = data.get("data[MESSAGES][0][im][message_id]")
             chat_id = data.get("data[MESSAGES][0][im][chat_id]")
             chat = data.get("data[MESSAGES][0][chat][id]")
+            send_result = None
 
             # Проверяем наличие сообщения в редис (отправлено из других сервисов )
             for _ in range(5):
@@ -818,14 +819,14 @@ def event_processor(data):
                         for file in files:
                             waweb_tasks.send_message(str(wa.session), chat, file, 'media')
                     else:
-                        waweb_tasks.send_message(wa.session, chat, text)
+                        send_result = waweb_tasks.send_message(wa.session, chat, text)
                 except Exception as e:
                     raise
 
             # If OLX connector
             elif connector.service == "olx":
                 try:
-                    olx_tasks.send_message(chat, text, files)
+                    send_result = olx_tasks.send_message(chat, text, files)
                 except Exception:
                     raise
 
@@ -843,6 +844,8 @@ def event_processor(data):
             }
 
             bitrix_tasks.call_api.delay(appinstance.id, "imconnector.send.status.delivery", status_data)
+
+            return send_result
         
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")
