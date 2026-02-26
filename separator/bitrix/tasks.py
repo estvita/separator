@@ -15,6 +15,8 @@ from separator.waba.models import Phone
 from separator.waweb.models import Session
 from separator.olx.models import OlxUser
 from separator.users.models import User
+from separator.bitbot.models import ChatBot
+from separator.asterx.models import Server as AsterxServer
 
 logger = logging.getLogger("django")
 
@@ -317,7 +319,7 @@ def delete_temp_file(file_path):
 @shared_task(queue='bitrix')
 def check_tariffs(*days):
     """
-    Check tariff expiration for WABA, WaWeb, and OLX.
+    Check tariff expiration for WABA, WaWeb, OLX, BitBot, and AsterX.
     Accepts multiple integer arguments.
     Example: check_tariffs(10, 5, 1)
     """
@@ -334,6 +336,8 @@ def check_tariffs(*days):
         (Phone, 'date_end', 'phone', 'waba'),
         (Session, 'date_end', 'phone', 'waweb'),
         (OlxUser, 'date_end', 'olx_id', 'olx'),
+        (ChatBot, 'date_end', 'name', 'bitbot'),
+        (AsterxServer, 'date_end', 'name', 'asterx'),
     ]
 
     for days in days_list:
