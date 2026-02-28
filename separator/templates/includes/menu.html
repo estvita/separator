@@ -1,7 +1,10 @@
-{% load i18n  %}
+{% load i18n wagtailcore_tags %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_available_languages as LANGUAGES %}
+{% get_language_info_list for LANGUAGES as languages %}
 
 <ul class="navbar-nav me-auto">
-  {% if 'wagtail' in INSTALLED_APPS %}
+  {% if DJANGO_SETTINGS_MODULE == "config.settings.vendor" and page and page.pk %}
     {% include "includes/menu_wagtail.html" %}
   {% endif %}
 </ul>
@@ -25,5 +28,49 @@
     {# URL provided by django-allauth/account/urls.py #}
     <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
   </li>
+  {% endif %}
+  {% if DJANGO_SETTINGS_MODULE == "config.settings.vendor" and page and page.pk %}
+    <li class="nav-item dropdown ms-2">
+      <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
+        <option value="{% pageurl page %}" selected>
+          {{ page.locale.language_name_local }}
+        </option>
+        {% for translation in page.get_translations.live %}
+          <option value="{% pageurl translation %}">
+            {{ translation.locale.language_name_local }}
+          </option>
+        {% endfor %}
+      </select>
+    </li>
+  {% else %}
+    <li class="nav-item dropdown ms-2">
+      {% with path=request.path %}
+        {% if path|slice:":4" == "/en/" %}
+          {% with ru_url=path|slice:"3:" en_url=path %}
+            <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
+              {% for lang in languages %}
+                {% if lang.code|lower|slice:":2" == "en" %}
+                  <option value="{{ en_url }}"{% if lang.code == LANGUAGE_CODE %} selected{% endif %}>{{ lang.name_local }}</option>
+                {% else %}
+                  <option value="{{ ru_url }}"{% if lang.code == LANGUAGE_CODE %} selected{% endif %}>{{ lang.name_local }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          {% endwith %}
+        {% else %}
+          {% with ru_url=path en_url="/en"|add:path %}
+            <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
+              {% for lang in languages %}
+                {% if lang.code|lower|slice:":2" == "en" %}
+                  <option value="{{ en_url }}"{% if lang.code == LANGUAGE_CODE %} selected{% endif %}>{{ lang.name_local }}</option>
+                {% else %}
+                  <option value="{{ ru_url }}"{% if lang.code == LANGUAGE_CODE %} selected{% endif %}>{{ lang.name_local }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          {% endwith %}
+        {% endif %}
+      {% endwith %}
+    </li>
   {% endif %}
 </ul>

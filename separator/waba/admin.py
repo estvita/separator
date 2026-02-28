@@ -5,7 +5,18 @@ from django.urls import reverse
 from django import forms
 import separator.bitrix.utils as bitrix_utils
 
-from .models import App, Waba, Phone, Template, Event, Error
+from .models import (
+    App,
+    Waba,
+    Phone,
+    Template,
+    Event,
+    Error,
+    TemplateComponent,
+    TemplateComponentButton,
+    TemplateComponentNamedParam,
+    TemplateComponentPositionalParam,
+)
 from .tasks import call_management
 
 class AppAdminForm(forms.ModelForm):
@@ -62,6 +73,107 @@ class TemplateAdmin(admin.ModelAdmin):
     list_filter = ["status", "lang"]
     search_fields = ["waba__waba_id", "id", "name", "owner__email"]
     list_per_page = 30
+    readonly_fields = ("content",)
+    inlines = []
+
+
+class TemplateComponentInline(admin.TabularInline):
+    model = TemplateComponent
+    extra = 0
+    fields = ("id_link", "type", "format", "text", "index")
+    readonly_fields = ("id_link", "type", "format", "text", "index")
+
+    def id_link(self, instance):
+        if not instance.pk:
+            return "-"
+        url = reverse("admin:waba_templatecomponent_change", args=[instance.pk])
+        return format_html('<a href="{}">{}</a>', url, instance.pk)
+    id_link.short_description = "ID"
+
+
+class TemplateComponentButtonInline(admin.TabularInline):
+    model = TemplateComponentButton
+    extra = 0
+    fields = ("id_link", "component", "type", "text", "url", "phone_number", "example", "index")
+    readonly_fields = ("id_link", "component", "type", "text", "url", "phone_number", "example", "index")
+    autocomplete_fields = ("component",)
+
+    def id_link(self, instance):
+        if not instance.pk:
+            return "-"
+        url = reverse("admin:waba_templatecomponentbutton_change", args=[instance.pk])
+        return format_html('<a href="{}">{}</a>', url, instance.pk)
+    id_link.short_description = "ID"
+
+
+class TemplateComponentNamedParamInline(admin.TabularInline):
+    model = TemplateComponentNamedParam
+    extra = 0
+    fields = ("id_link", "component", "button", "name", "example")
+    readonly_fields = ("id_link", "component", "button", "name", "example")
+    autocomplete_fields = ("component", "button")
+
+    def id_link(self, instance):
+        if not instance.pk:
+            return "-"
+        url = reverse("admin:waba_templatecomponentnamedparam_change", args=[instance.pk])
+        return format_html('<a href="{}">{}</a>', url, instance.pk)
+    id_link.short_description = "ID"
+
+
+class TemplateComponentPositionalParamInline(admin.TabularInline):
+    model = TemplateComponentPositionalParam
+    extra = 0
+    fields = ("id_link", "component", "button", "position", "example")
+    readonly_fields = ("id_link", "component", "button", "position", "example")
+    autocomplete_fields = ("component", "button")
+
+    def id_link(self, instance):
+        if not instance.pk:
+            return "-"
+        url = reverse("admin:waba_templatecomponentpositionalparam_change", args=[instance.pk])
+        return format_html('<a href="{}">{}</a>', url, instance.pk)
+    id_link.short_description = "ID"
+
+
+TemplateAdmin.inlines = [
+    TemplateComponentInline,
+]
+
+
+@admin.register(TemplateComponent)
+class TemplateComponentAdmin(admin.ModelAdmin):
+    list_display = ("id", "template", "type", "format", "index")
+    list_filter = ("type", "format")
+    search_fields = ("template__id", "template__name")
+    autocomplete_fields = ("template",)
+    list_per_page = 50
+    inlines = [TemplateComponentButtonInline, TemplateComponentNamedParamInline, TemplateComponentPositionalParamInline]
+
+
+@admin.register(TemplateComponentButton)
+class TemplateComponentButtonAdmin(admin.ModelAdmin):
+    list_display = ("id", "component", "type", "text", "index")
+    list_filter = ("type",)
+    search_fields = ("component__template__id", "component__template__name", "text")
+    autocomplete_fields = ("component",)
+    list_per_page = 50
+
+
+@admin.register(TemplateComponentNamedParam)
+class TemplateComponentNamedParamAdmin(admin.ModelAdmin):
+    list_display = ("id", "component", "button", "name")
+    search_fields = ("component__template__id", "component__template__name", "name")
+    autocomplete_fields = ("component", "button")
+    list_per_page = 50
+
+
+@admin.register(TemplateComponentPositionalParam)
+class TemplateComponentPositionalParamAdmin(admin.ModelAdmin):
+    list_display = ("id", "component", "button", "position")
+    search_fields = ("component__template__id", "component__template__name")
+    autocomplete_fields = ("component", "button")
+    list_per_page = 50
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):

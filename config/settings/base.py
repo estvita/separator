@@ -239,6 +239,8 @@ TEMPLATES = [
                 "separator.context_processors.footer_links_visibility",
                 "separator.context_processors.installed_apps",
                 "separator.context_processors.site_name",
+                "separator.context_processors.settings_module",
+                "separator.context_processors.default_language_code",
             ],
         },
     },

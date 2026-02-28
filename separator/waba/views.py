@@ -2,6 +2,7 @@ import uuid
 import json
 import redis
 import logging
+from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 
 from django.contrib import messages
@@ -19,7 +20,7 @@ from separator.decorators import login_message_required, user_message
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
 
-from .models import App, Waba, Phone, Template
+from .models import App, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
 
@@ -40,15 +41,64 @@ def phone_details(request, phone_id):
     phone = get_object_or_404(Phone, id=phone_id, owner=request.user)
     templates = Template.objects.filter(waba=phone.waba, status='APPROVED')
 
+    templates_data = []
+    for template in templates:
+        components_data = []
+        for component in template.components.order_by("index", "id"):
+            buttons_data = []
+            for button in component.buttons.order_by("index", "id"):
+                buttons_data.append({
+                    "id": button.id,
+                    "type": button.type,
+                    "index": button.index,
+                    "named_params": [
+                        {"name": p.name} for p in button.named_params.order_by("id")
+                    ],
+                    "positional_params": [
+                        {"position": p.position} for p in button.positional_params.order_by("position", "id")
+                    ],
+                })
+            components_data.append({
+                "id": component.id,
+                "type": component.type,
+                "format": component.format,
+                "index": component.index,
+                "text": component.text,
+                "named_params": [
+                    {"name": p.name} for p in component.named_params.order_by("id")
+                ],
+                "positional_params": [
+                    {"position": p.position} for p in component.positional_params.order_by("position", "id")
+                ],
+                "buttons": buttons_data,
+            })
+        templates_data.append({
+            "id": template.id,
+            "label": f"{template.name} ({template.lang})",
+            "lang": template.lang,
+            "components": components_data,
+        })
+
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'send_message':
             template = request.POST.get('template')
             recipient_phones_raw = request.POST.get('recipient_phone')
             recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
-            waba_tasks.send_message.delay(template, recipients, phone_id)
-            messages.success(request, _('The mailing has been added to the queue.'))
-            return redirect('waba')
+            try:
+                waba_tasks.send_message.delay(template, recipients, phone_id)
+                messages.success(request, _('The mailing has been added to the queue.'))
+                return redirect('waba')
+            except Exception as e:
+                messages.error(request, str(e))
+                return redirect('phone-details', phone_id=phone.id)
+        elif action == 'update_templates':
+            allowed_ids = set(request.POST.getlist('available_templates'))
+            templates.update(availableInB24=False)
+            if allowed_ids:
+                templates.filter(id__in=allowed_ids).update(availableInB24=True)
+            messages.success(request, _('Template availability updated.'))
+            return redirect('phone-details', phone_id=phone.id)
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
             save_required = False
@@ -140,7 +190,218 @@ def phone_details(request, phone_id):
     if phone.date_end and timezone.now() > phone.date_end:
         messages.error(request, _('The tariff has expired ') + str(phone.date_end))
         return redirect("waba")
-    return render(request, 'waba/phone.html', {'phone': phone, 'templates': templates})
+    return render(request, 'waba/phone.html', {
+        'phone': phone,
+        'templates': templates,
+    })
+
+
+@login_required
+def broadcast_page(request):
+    phones = Phone.objects.filter(owner=request.user).select_related("waba")
+    templates_data_by_phone = {}
+    templates_by_phone = {}
+    for phone in phones:
+        tqs = Template.objects.filter(waba=phone.waba, status='APPROVED').prefetch_related(
+            "components__named_params",
+            "components__positional_params",
+            "components__buttons__named_params",
+            "components__buttons__positional_params",
+        )
+        templates_by_phone[phone.id] = tqs
+        tdata = []
+        for template in tqs:
+            components_data = []
+            for component in template.components.order_by("index", "id"):
+                buttons_data = []
+                for button in component.buttons.order_by("index", "id"):
+                    buttons_data.append({
+                        "id": button.id,
+                        "type": button.type,
+                        "index": button.index,
+                        "named_params": [
+                            {"name": p.name} for p in button.named_params.order_by("id")
+                        ],
+                        "positional_params": [
+                            {"position": p.position} for p in button.positional_params.order_by("position", "id")
+                        ],
+                    })
+                components_data.append({
+                    "id": component.id,
+                    "type": component.type,
+                    "format": component.format,
+                    "index": component.index,
+                    "text": component.text,
+                    "named_params": [
+                        {"name": p.name} for p in component.named_params.order_by("id")
+                    ],
+                    "positional_params": [
+                        {"position": p.position} for p in component.positional_params.order_by("position", "id")
+                    ],
+                    "buttons": buttons_data,
+                })
+            tdata.append({
+                "id": template.id,
+                "label": f"{template.name} ({template.lang})",
+                "lang": template.lang,
+                "components": components_data,
+            })
+        templates_data_by_phone[phone.id] = tdata
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'send_message':
+            phone_id = request.POST.get('phone_id')
+            template_id = request.POST.get('template')
+            recipient_phones_raw = request.POST.get('recipient_phone') or ""
+            recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
+            if not recipients:
+                messages.error(request, _("Please provide at least one recipient phone number."))
+                return redirect('broadcast-page')
+            try:
+                phone = phones.filter(id=phone_id).first()
+                if not phone:
+                    messages.error(request, _("Phone not found"))
+                    return redirect('broadcast-page')
+                template_obj = templates_by_phone.get(phone.id, Template.objects.none()).filter(id=template_id).first()
+                if not template_obj:
+                    messages.error(request, _("Template not found"))
+                    return redirect('broadcast-page')
+
+                components_payload = waba_utils.build_template_components_payload(
+                    template_obj, request.POST, request.FILES, phone
+                )
+
+                schedule_raw = (request.POST.get("schedule_at") or "").strip()
+                schedule_date = (request.POST.get("schedule_date") or "").strip()
+                schedule_time = (request.POST.get("schedule_time") or "").strip()
+                scheduled_at = None
+                if schedule_raw:
+                    try:
+                        scheduled_at = datetime.fromisoformat(schedule_raw)
+                        if timezone.is_naive(scheduled_at):
+                            scheduled_at = timezone.make_aware(scheduled_at, timezone.get_current_timezone())
+                    except Exception:
+                        messages.error(request, _("Invalid schedule time"))
+                        return redirect('broadcast-page')
+                elif schedule_date:
+                    try:
+                        time_part = schedule_time or "00:00"
+                        scheduled_at = datetime.fromisoformat(f"{schedule_date}T{time_part}")
+                        if timezone.is_naive(scheduled_at):
+                            scheduled_at = timezone.make_aware(scheduled_at, timezone.get_current_timezone())
+                    except Exception:
+                        messages.error(request, _("Invalid schedule time"))
+                        return redirect('broadcast-page')
+
+                broadcast_name = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                broadcast_text = waba_utils.build_broadcast_text(template_obj, request.POST)
+                broadcast = TemplateBroadcast.objects.create(
+                    template=template_obj,
+                    phone=phone,
+                    owner=request.user,
+                    name=broadcast_name,
+                    text=broadcast_text,
+                    recipients_count=len(recipients),
+                    status="pending",
+                    scheduled_at=scheduled_at,
+                )
+                TemplateBroadcastRecipient.objects.bulk_create([
+                    TemplateBroadcastRecipient(
+                        broadcast=broadcast,
+                        recipient_phone=recipient,
+                        status="pending",
+                    )
+                    for recipient in recipients
+                ])
+                if scheduled_at and scheduled_at > timezone.now():
+                    async_result = waba_tasks.send_message.apply_async(
+                        args=[template_obj.id, recipients, phone.id],
+                        kwargs={"components": components_payload, "broadcast_id": broadcast.id},
+                        eta=scheduled_at,
+                    )
+                    broadcast.scheduled_task_id = async_result.id
+                    broadcast.save(update_fields=["scheduled_task_id"])
+                    messages.success(request, _('The mailing has been scheduled.'))
+                else:
+                    waba_tasks.send_message.delay(
+                        template_obj.id, recipients, phone.id, components=components_payload, broadcast_id=broadcast.id
+                    )
+                    messages.success(request, _('The mailing has been added to the queue.'))
+                return redirect('broadcast-page')
+            except Exception as e:
+                messages.error(request, str(e))
+                return redirect('broadcast-page')
+
+    broadcasts_qs = TemplateBroadcast.objects.filter(owner=request.user).order_by("-created_at")
+    b_from = request.GET.get("broadcast_from")
+    b_to = request.GET.get("broadcast_to")
+    if b_from:
+        broadcasts_qs = broadcasts_qs.filter(created_at__date__gte=b_from)
+    if b_to:
+        broadcasts_qs = broadcasts_qs.filter(created_at__date__lte=b_to)
+    from django.core.paginator import Paginator
+    paginator = Paginator(broadcasts_qs, 20)
+    b_page = request.GET.get("broadcast_page")
+    broadcasts_page = paginator.get_page(b_page)
+
+    return render(request, 'waba/broadcast.html', {
+        'phones': phones,
+        'templates_data_by_phone': templates_data_by_phone,
+        'broadcasts': broadcasts_page,
+        'broadcast_from': b_from or "",
+        'broadcast_to': b_to or "",
+    })
+
+
+@login_required
+def broadcast_details(request, broadcast_id):
+    broadcast = get_object_or_404(
+        TemplateBroadcast, id=broadcast_id, owner=request.user
+    )
+    phone = broadcast.phone
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "cancel_broadcast":
+            if broadcast.status == "pending":
+                if broadcast.scheduled_task_id:
+                    try:
+                        from celery import current_app
+                        current_app.control.revoke(broadcast.scheduled_task_id, terminate=False)
+                    except Exception:
+                        pass
+                broadcast.status = "cancelled"
+                broadcast.save(update_fields=["status"])
+                TemplateBroadcastRecipient.objects.filter(
+                    broadcast=broadcast,
+                    status="pending",
+                ).update(status="cancelled")
+                messages.success(request, _('Broadcast has been cancelled.'))
+            return redirect("broadcast-details", broadcast_id=broadcast.id)
+
+    qs = broadcast.recipients.all().order_by("id")
+    status = request.GET.get("status")
+    query = request.GET.get("q")
+    if status:
+        qs = qs.filter(status=status)
+    if query:
+        qs = qs.filter(
+            Q(recipient_phone__icontains=query) | Q(wamid__icontains=query)
+        )
+
+    from django.core.paginator import Paginator
+    paginator = Paginator(qs, 50)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, "waba/broadcast_detail.html", {
+        "phone": phone,
+        "broadcast": broadcast,
+        "page_obj": page_obj,
+        "status": status or "",
+        "q": query or "",
+    })
 
 
 @login_message_required(code="waba")

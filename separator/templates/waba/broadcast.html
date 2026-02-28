@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}
+  {% trans "Broadcasts" %}
+{% endblock title %}
+{% block content %}
+<div class="container">
+  <div class="d-flex align-items-center justify-content-between">
+    <h3 class="mb-0">{% trans "Send Broadcast" %}</h3>
+  </div>
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="send_message">
+    <div class="row g-4">
+      <div class="col-12 col-lg-6 order-lg-2">
+        <div class="form-group">
+          <label for="template">{% trans "Template" %}</label>
+          <select class="form-control" id="template" name="template" required></select>
+        </div>
+        <div id="template-params"></div>
+      </div>
+      <div class="col-12 col-lg-6 order-lg-1">
+        <div class="form-group">
+          <label>{% trans "Schedule time (optional)" %}</label>
+          <div style="display:flex;gap:8px;">
+            <input class="form-control" type="date" id="schedule_date" name="schedule_date">
+            <input class="form-control" type="time" id="schedule_time" name="schedule_time">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="phone_id">{% trans "Sender number" %}</label>
+          <select class="form-control" id="phone_id" name="phone_id" required>
+            {% for phone in phones %}
+              <option value="{{ phone.id }}">{{ phone.phone }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="recipient_phone">{% trans "Recipient Phones (one per line)" %}</label>
+          <textarea class="form-control" id="recipient_phone" name="recipient_phone"
+          placeholder="{% trans 'Enter recipient phone numbers, one per line' %}" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary mt-3">{% trans "Send" %}</button>
+      </div>
+    </div>
+  </form>
+  
+  {{ templates_data_by_phone|json_script:"templates-data-by-phone" }}
+  
+  <hr>
+  <h3>{% trans "Broadcasts" %}</h3>
+  <form method="get" class="form-inline mb-3" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;">
+    <input type="date" name="broadcast_from" class="form-control" value="{{ broadcast_from }}">
+    <input type="date" name="broadcast_to" class="form-control" value="{{ broadcast_to }}">
+    <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+  </form>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Text" %}</th>
+        <th>{% trans "Recipients" %}</th>
+        <th>{% trans "Delivered" %}</th>
+        <th>{% trans "Status" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for broadcast in broadcasts %}
+      <tr>
+        <td>
+          <a href="{% url 'broadcast-details' broadcast.id %}">{{ broadcast.name }}</a>
+        </td>
+        <td><pre class="mb-0">{{ broadcast.text }}</pre></td>
+        <td>{{ broadcast.recipients_count }}</td>
+        <td>{{ broadcast.delivered_count }}</td>
+        <td>{{ broadcast.status }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6">{% trans "No broadcasts found." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if broadcasts.paginator.num_pages > 1 %}
+  <nav>
+    <ul class="pagination">
+      {% if broadcasts.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?broadcast_page={{ broadcasts.previous_page_number }}&broadcast_from={{ broadcast_from }}&broadcast_to={{ broadcast_to }}">«</a>
+      </li>
+      {% endif %}
+      <li class="page-item disabled">
+        <span class="page-link">{{ broadcasts.number }} / {{ broadcasts.paginator.num_pages }}</span>
+      </li>
+      {% if broadcasts.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?broadcast_page={{ broadcasts.next_page_number }}&broadcast_from={{ broadcast_from }}&broadcast_to={{ broadcast_to }}">»</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+  <a href="{% url 'waba' %}" class="btn btn-secondary">{% trans "Numbers" %}</a>
+</div>
+
+<script>
+  (function () {
+    const dataNode = document.getElementById("templates-data-by-phone");
+    if (!dataNode) return;
+    const templatesByPhone = JSON.parse(dataNode.textContent || "{}");
+    
+    const phoneSelect = document.getElementById("phone_id");
+    const templateSelect = document.getElementById("template");
+    const paramsNode = document.getElementById("template-params");
+    
+    function labelForComponent(comp) {
+      let label = comp.type || "COMPONENT";
+      if (comp.format) {
+        label = label + " " + comp.format;
+      }
+      return label;
+    }
+    
+    function addInput(label, name, type, accept) {
+      const wrap = document.createElement("div");
+      wrap.className = "form-group";
+      
+      const lab = document.createElement("label");
+      lab.setAttribute("for", name);
+      lab.textContent = label;
+      wrap.appendChild(lab);
+      
+      let input;
+      if (type === "textarea") {
+        input = document.createElement("textarea");
+        input.rows = 2;
+      } else {
+        input = document.createElement("input");
+        input.type = type || "text";
+      }
+      input.className = "form-control";
+      input.id = name;
+      input.name = name;
+      input.required = true;
+      if (accept) {
+        input.setAttribute("accept", accept);
+      }
+      wrap.appendChild(input);
+      paramsNode.appendChild(wrap);
+    }
+
+    function templatesForPhone(phoneId) {
+      return templatesByPhone[String(phoneId)] || templatesByPhone[Number(phoneId)] || [];
+    }
+
+    function renderTemplateFields(templateId) {
+      paramsNode.innerHTML = "";
+      const phoneId = phoneSelect.value;
+      const list = templatesForPhone(phoneId);
+      const tpl = list.find((item) => String(item.id) === String(templateId));
+      if (!tpl) {
+        return;
+      }
+
+      (tpl.components || []).forEach((comp) => {
+        const named = comp.named_params || [];
+        const positional = comp.positional_params || [];
+        const hasMedia = comp.type === "HEADER" && ["IMAGE", "VIDEO", "DOCUMENT", "GIF"].includes(comp.format);
+        const hasLocation = comp.type === "HEADER" && comp.format === "LOCATION";
+        let hasButtonParams = false;
+        if (comp.type === "BUTTONS") {
+          (comp.buttons || []).forEach((btn) => {
+            if ((btn.named_params || []).length || (btn.positional_params || []).length) {
+              hasButtonParams = true;
+            }
+          });
+        }
+
+        const hasInputs = named.length || positional.length || hasMedia || hasLocation || hasButtonParams;
+        if (!hasInputs) {
+          return;
+        }
+
+        const title = document.createElement("div");
+        title.className = "mt-3 mb-1 font-weight-bold";
+        title.textContent = labelForComponent(comp);
+        paramsNode.appendChild(title);
+
+        if (comp.type !== "BUTTONS") {
+          named.forEach((p) => {
+            const name = `param__${comp.id}__named__${p.name}`;
+            addInput(p.name, name, "text");
+          });
+
+          positional.forEach((p) => {
+            const name = `param__${comp.id}__pos__${p.position}`;
+            addInput("Param " + p.position, name, "text");
+          });
+        }
+
+        if (hasMedia) {
+          const name = `media__${comp.id}`;
+          let accept = null;
+          if (comp.format === "IMAGE") accept = "image/*";
+          if (comp.format === "VIDEO" || comp.format === "GIF") accept = "video/*";
+          if (comp.format === "DOCUMENT") accept = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf";
+          addInput("Media file", name, "file", accept);
+        }
+
+        if (hasLocation) {
+          addInput("Latitude", `location__${comp.id}__latitude`, "text");
+          addInput("Longitude", `location__${comp.id}__longitude`, "text");
+          addInput("Name", `location__${comp.id}__name`, "text");
+          addInput("Address", `location__${comp.id}__address`, "text");
+        }
+
+        if (comp.type === "BUTTONS") {
+          (comp.buttons || []).forEach((btn) => {
+            (btn.named_params || []).forEach((p) => {
+              const name = `param__btn__${btn.id}__named__${p.name}`;
+              addInput(`Button ${btn.index + 1} ${btn.type} ${p.name}`, name, "text");
+            });
+            (btn.positional_params || []).forEach((p) => {
+              const name = `param__btn__${btn.id}__pos__${p.position}`;
+              addInput(`Button ${btn.index + 1} ${btn.type} Param ${p.position}`, name, "text");
+            });
+          });
+        }
+      });
+    }
+
+    function fillTemplates() {
+      const phoneId = phoneSelect.value;
+      const list = templatesForPhone(phoneId);
+      templateSelect.innerHTML = "";
+      list.forEach((tpl) => {
+        const opt = document.createElement("option");
+        opt.value = tpl.id;
+        opt.textContent = tpl.label;
+        templateSelect.appendChild(opt);
+      });
+      if (list.length) {
+        renderTemplateFields(list[0].id);
+      } else {
+        paramsNode.innerHTML = "";
+      }
+    }
+
+    phoneSelect.addEventListener("change", function () {
+      fillTemplates();
+    });
+    templateSelect.addEventListener("change", function () {
+      renderTemplateFields(templateSelect.value);
+    });
+
+    function validateTemplateParams() {
+      const inputs = paramsNode.querySelectorAll("input, textarea");
+      for (const input of inputs) {
+        if (input.type === "file") {
+          if (!input.files || !input.files.length) {
+            input.focus();
+            return false;
+          }
+        } else if (!input.value || !input.value.trim()) {
+          input.focus();
+          return false;
+        }
+      }
+      return true;
+    }
+
+    const formNode = document.querySelector("form");
+    if (formNode) {
+      formNode.addEventListener("submit", function (e) {
+        if (!validateTemplateParams()) {
+          e.preventDefault();
+          alert("{% trans 'Please заполните параметры шаблона.' %}");
+        }
+      });
+    }
+
+    fillTemplates();
+  })();
+</script>
+{% endblock content %}

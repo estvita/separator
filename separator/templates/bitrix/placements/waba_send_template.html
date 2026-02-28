@@ -6,9 +6,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% trans "WABA Template Sender" %}</title>
-    <script src="https://api.bitrix24.com/api/v1/"></script>
+    <script src="//api.bitrix24.com/api/v1/"></script>
     {{ sender_phones|json_script:"sender-phones-data" }}
-    {{ templates|json_script:"templates-data" }}
+    {{ templates_data_by_phone|json_script:"templates-data-by-phone" }}
     {{ recipient_phones|json_script:"recipient-phones-data" }}
     <style>
         body { font-family: Arial, sans-serif; margin: 12px; }
@@ -23,22 +23,23 @@
 <body>
 <div id="status"></div>
 
-<div class="row">
-    <label for="senderPhone">{% trans "Sender number" %}</label>
-    <select id="senderPhone"></select>
-</div>
-<div class="row">
-    <label for="template">{% trans "Template" %}</label>
-    <select id="template"></select>
-</div>
-<div class="row">
-    <label for="recipientPhone">{% trans "Recipient phone" %}</label>
-    <select id="recipientPhone"></select>
-</div>
-<div class="row">
-    <label for="params">{% trans "Parameters" %}</label>
-    <textarea id="params" placeholder="{% trans 'param1|param2' %}"></textarea>
-</div>
+<form id="sendForm" enctype="multipart/form-data">
+    <div class="row">
+        <label for="senderPhone">{% trans "Sender number" %}</label>
+        <select id="senderPhone" name="sender_phone_id"></select>
+    </div>
+    <div class="row">
+        <label for="template">{% trans "Template" %}</label>
+        <select id="template" name="template_id"></select>
+    </div>
+    <div class="row">
+        <label for="recipientPhone">{% trans "Recipient phone" %}</label>
+        <select id="recipientPhone" name="phone"></select>
+    </div>
+    <div id="template-params"></div>
+    <input type="hidden" name="entity_id" value="{{ entity_id }}">
+    <input type="hidden" name="entity_type_code" value="{{ entity_type_code }}">
+</form>
 <div class="actions">
     <button id="sendBtn" type="button">{% trans "Send" %}</button>
     <button id="closeBtn" type="button">{% trans "Close" %}</button>
@@ -47,7 +48,7 @@
 <script>
 (function () {
     const senderPhones = JSON.parse(document.getElementById('sender-phones-data').textContent || '[]');
-    const templates = JSON.parse(document.getElementById('templates-data').textContent || '[]');
+    const templatesByPhone = JSON.parse(document.getElementById('templates-data-by-phone').textContent || '{}');
     const recipientPhones = JSON.parse(document.getElementById('recipient-phones-data').textContent || '[]');
 
     const authId = "{{ auth_id|escapejs }}";
@@ -59,17 +60,19 @@
     const senderNode = document.getElementById('senderPhone');
     const templateNode = document.getElementById('template');
     const recipientNode = document.getElementById('recipientPhone');
-    const paramsNode = document.getElementById('params');
+    const paramsContainer = document.getElementById('template-params');
+    const formNode = document.getElementById('sendForm');
     const sendBtn = document.getElementById('sendBtn');
     const closeBtn = document.getElementById('closeBtn');
-    const isBuiltIn = !!(window.BX24 && BX24.placement && BX24.placement.call);
+
+    function hasBX24() {
+        return !!(window.BX24 && BX24.placement && BX24.placement.call);
+    }
     const i18n = {
         selectAndSend: "{% trans 'Select values and click Send.' %}",
         senderNumber: "{% trans 'Sender number' %}",
         template: "{% trans 'Template' %}",
         recipientPhone: "{% trans 'Recipient phone' %}",
-        parameters: "{% trans 'Parameters' %}",
-        paramsPlaceholder: "{% trans 'param1|param2' %}",
         send: "{% trans 'Send' %}",
         close: "{% trans 'Close' %}",
         failedLoadTemplates: "{% trans 'Failed to load templates' %}",
@@ -83,13 +86,13 @@
         senderPhoneId: '',
         templateId: '',
         recipientPhone: '',
-        params: '',
+        params: {},
     };
 
     function setStatus(text, color) {
         statusNode.textContent = text || '';
         statusNode.style.color = color || '#333';
-        if (!isBuiltIn) {
+        if (!hasBX24()) {
             return;
         }
         try {
@@ -123,61 +126,29 @@
         return values;
     }
 
+    function ensureHiddenInput(name) {
+        let input = formNode.querySelector('input[name="' + name + '"]');
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            formNode.appendChild(input);
+        }
+        return input;
+    }
+
+    function setParamValue(name, value) {
+        state.params[name] = value || '';
+        const input = ensureHiddenInput(name);
+        input.value = value || '';
+    }
+
     function syncDomFromState() {
         senderNode.value = state.senderPhoneId || '';
         templateNode.value = state.templateId || '';
         recipientNode.value = state.recipientPhone || '';
-        paramsNode.value = state.params || '';
-    }
-
-    function renderBuiltInLayout() {
-        if (!isBuiltIn) {
-            return;
-        }
-        BX24.placement.call('setLayout', {
-            blocks: {
-                info: {
-                    type: 'text',
-                    properties: {
-                        value: i18n.selectAndSend,
-                        color: 'base_70',
-                    },
-                },
-                senderSelect: {
-                    type: 'select',
-                    properties: {
-                        title: i18n.senderNumber,
-                        selectedValue: state.senderPhoneId,
-                        values: valuesMapFromNode(senderNode),
-                    },
-                },
-                templateSelect: {
-                    type: 'select',
-                    properties: {
-                        title: i18n.template,
-                        selectedValue: state.templateId,
-                        values: valuesMapFromNode(templateNode),
-                    },
-                },
-                recipientSelect: {
-                    type: 'select',
-                    properties: {
-                        title: i18n.recipientPhone,
-                        selectedValue: state.recipientPhone,
-                        values: recipientValuesMap(),
-                    },
-                },
-                paramsInput: {
-                    type: 'textarea',
-                    properties: {
-                        title: i18n.parameters,
-                        value: state.params,
-                        placeholder: i18n.paramsPlaceholder,
-                    },
-                },
-            },
-            primaryButton: { title: i18n.send },
-            secondaryButton: { title: i18n.close },
+        Object.keys(state.params || {}).forEach((key) => {
+            setParamValue(key, state.params[key]);
         });
     }
 
@@ -217,9 +188,267 @@
         state.recipientPhone = recipientNode.value || '';
     }
 
+    function labelForComponent(comp) {
+        let label = comp.type || "COMPONENT";
+        if (comp.format) {
+            label = label + " " + comp.format;
+        }
+        return label;
+    }
+
+    function addInput(label, name, type, accept) {
+        const wrap = document.createElement("div");
+        wrap.className = "row";
+
+        const lab = document.createElement("label");
+        lab.setAttribute("for", name);
+        lab.textContent = label;
+        wrap.appendChild(lab);
+
+        let input;
+        if (type === "textarea") {
+            input = document.createElement("textarea");
+            input.rows = 2;
+        } else {
+            input = document.createElement("input");
+            input.type = type || "text";
+        }
+        input.id = name;
+        input.name = name;
+        input.required = true;
+        if (accept) {
+            input.setAttribute("accept", accept);
+        }
+        input.addEventListener('input', function () {
+            setParamValue(name, input.value || '');
+        });
+        wrap.appendChild(input);
+        paramsContainer.appendChild(wrap);
+        return input;
+    }
+
+    function collectTemplateFields(templateId) {
+        const phoneId = senderNode.value;
+        const list = templatesByPhone[phoneId] || [];
+        const tpl = list.find((item) => String(item.id) === String(templateId));
+        if (!tpl) {
+            return [];
+        }
+        const fields = [];
+        (tpl.components || []).forEach((comp) => {
+            const named = comp.named_params || [];
+            const positional = comp.positional_params || [];
+            const hasMedia = comp.type === "HEADER" && ["IMAGE", "VIDEO", "DOCUMENT", "GIF"].includes(comp.format);
+            const hasLocation = comp.type === "HEADER" && comp.format === "LOCATION";
+            let hasButtonParams = false;
+            if (comp.type === "BUTTONS") {
+                (comp.buttons || []).forEach((btn) => {
+                    if ((btn.named_params || []).length || (btn.positional_params || []).length) {
+                        hasButtonParams = true;
+                    }
+                });
+            }
+
+            const hasInputs = named.length || positional.length || hasMedia || hasLocation || hasButtonParams;
+            if (!hasInputs) {
+                return;
+            }
+            fields.push({
+                id: `title__${comp.id}`,
+                label: labelForComponent(comp),
+                type: "title",
+            });
+
+            if (comp.type !== "BUTTONS") {
+                named.forEach((p) => {
+                    fields.push({
+                        id: `param__${comp.id}__named__${p.name}`,
+                        label: p.name,
+                        type: "text",
+                        required: true,
+                    });
+                });
+
+                positional.forEach((p) => {
+                    fields.push({
+                        id: `param__${comp.id}__pos__${p.position}`,
+                        label: "Param " + p.position,
+                        type: "text",
+                        required: true,
+                    });
+                });
+            }
+
+            if (hasMedia) {
+                fields.push({
+                    id: `media__${comp.id}`,
+                    label: "Media URL",
+                    type: "text",
+                    required: true,
+                });
+            }
+
+            if (hasLocation) {
+                fields.push({
+                    id: `location__${comp.id}__latitude`,
+                    label: "Latitude",
+                    type: "text",
+                    required: true,
+                });
+                fields.push({
+                    id: `location__${comp.id}__longitude`,
+                    label: "Longitude",
+                    type: "text",
+                    required: true,
+                });
+                fields.push({
+                    id: `location__${comp.id}__name`,
+                    label: "Name",
+                    type: "text",
+                    required: true,
+                });
+                fields.push({
+                    id: `location__${comp.id}__address`,
+                    label: "Address",
+                    type: "text",
+                    required: true,
+                });
+            }
+
+            if (comp.type === "BUTTONS") {
+                (comp.buttons || []).forEach((btn) => {
+                    (btn.named_params || []).forEach((p) => {
+                        fields.push({
+                            id: `param__btn__${btn.id}__named__${p.name}`,
+                            label: `Button ${btn.index + 1} ${btn.type} ${p.name}`,
+                            type: "text",
+                            required: true,
+                        });
+                    });
+                    (btn.positional_params || []).forEach((p) => {
+                        fields.push({
+                            id: `param__btn__${btn.id}__pos__${p.position}`,
+                            label: `Button ${btn.index + 1} ${btn.type} Param ${p.position}`,
+                            type: "text",
+                            required: true,
+                        });
+                    });
+                });
+            }
+        });
+        return fields;
+    }
+
+    let currentFields = [];
+
+    function renderTemplateFields(templateId) {
+        paramsContainer.innerHTML = "";
+        const fields = collectTemplateFields(templateId);
+        fields.forEach((field) => {
+            if (field.type === "title") {
+                const title = document.createElement("div");
+                title.className = "row";
+                title.innerHTML = "<strong>" + field.label + "</strong>";
+                paramsContainer.appendChild(title);
+                return;
+            }
+            const input = addInput(field.label, field.id, field.type, field.accept);
+            if (field.required && input) {
+                input.required = true;
+            }
+        });
+        currentFields = fields;
+        return fields;
+    }
+
+    let builtInInputType = 'input';
+
+    function renderBuiltInLayout(fields) {
+        if (!hasBX24()) {
+            return;
+        }
+        const blocks = {
+            info: {
+                type: 'text',
+                properties: {
+                    value: i18n.selectAndSend,
+                    color: 'base_70',
+                },
+            },
+            senderSelect: {
+                type: 'select',
+                properties: {
+                    title: i18n.senderNumber,
+                    selectedValue: state.senderPhoneId,
+                    values: valuesMapFromNode(senderNode),
+                },
+            },
+            templateSelect: {
+                type: 'select',
+                properties: {
+                    title: i18n.template,
+                    selectedValue: state.templateId,
+                    values: valuesMapFromNode(templateNode),
+                },
+            },
+            recipientSelect: {
+                type: 'select',
+                properties: {
+                    title: i18n.recipientPhone,
+                    selectedValue: state.recipientPhone,
+                    values: recipientValuesMap(),
+                },
+            },
+        };
+
+        (fields || []).forEach((field) => {
+            if (field.type === 'title') {
+                blocks[field.id] = {
+                    type: 'text',
+                    properties: {
+                        value: field.label,
+                        color: 'base_70',
+                    },
+                };
+                return;
+            }
+            if (field.type === 'file') {
+                blocks[field.id] = {
+                    type: 'file',
+                    properties: {
+                        title: field.label,
+                    },
+                };
+                return;
+            }
+            blocks[field.id] = {
+                type: builtInInputType,
+                properties: {
+                    title: field.label,
+                    value: state.params[field.id] || '',
+                },
+            };
+        });
+
+        BX24.placement.call('setLayout', {
+            blocks: blocks,
+            primaryButton: { title: i18n.send },
+            secondaryButton: { title: i18n.close },
+        });
+    }
+
     function loadTemplatesBySender(senderId) {
         if (!senderId) {
             fillTemplates([]);
+            const fields = renderTemplateFields('');
+            renderBuiltInLayout(fields);
+            return Promise.resolve();
+        }
+        const cached = templatesByPhone[senderId];
+        if (cached && cached.length) {
+            fillTemplates(cached);
+            const fields = renderTemplateFields(templateNode.value);
+            renderBuiltInLayout(fields);
             return Promise.resolve();
         }
         const payload = new URLSearchParams();
@@ -242,31 +471,56 @@
             }
             fillTemplates(result.templates || []);
             state.templateId = templateNode.value || '';
-            syncDomFromState();
-            renderBuiltInLayout();
+            const fields = renderTemplateFields(templateNode.value);
+            renderBuiltInLayout(fields);
         });
     }
 
+    function validateTemplateParams(fields) {
+        const list = fields || [];
+        for (let i = 0; i < list.length; i += 1) {
+            const field = list[i];
+            if (!field.required) {
+                continue;
+            }
+            const value = state.params[field.id];
+            if (!value || !String(value).trim()) {
+                return field.label || i18n.error;
+            }
+        }
+        return null;
+    }
+
     function sendTemplate() {
-        const payload = new URLSearchParams();
+        const fields = currentFields || [];
+        const errorText = validateTemplateParams(fields);
+        if (errorText) {
+            setStatus(errorText, '#b00020');
+            return;
+        }
+        syncDomFromState();
+        const payload = new FormData(formNode);
         payload.append('action', 'send');
         payload.append('AUTH_ID', authId);
         payload.append('REFRESH_ID', refreshId);
         payload.append('member_id', memberId);
-        payload.append('sender_phone_id', senderNode.value || '');
-        payload.append('template_id', templateNode.value || '');
-        payload.append('phone', recipientNode.value || '');
-        payload.append('params', paramsNode.value || '');
-        payload.append('entity_id', '{{ entity_id }}');
-        payload.append('entity_type_code', '{{ entity_type_code }}');
+        if (hasBX24() && typeof BX24.getAuth === 'function') {
+            try {
+                const auth = BX24.getAuth();
+                if (auth && auth.user_id) {
+                    payload.append('bitrix_user_id', auth.user_id);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
 
         sendBtn.disabled = true;
         setStatus(i18n.sending, '#8a6d00');
 
         fetch(window.location.pathname + window.location.search, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-            body: payload.toString(),
+            body: payload,
             credentials: 'same-origin',
         })
         .then((response) => response.json())
@@ -285,13 +539,9 @@
     }
 
     fillSenders();
-    fillTemplates(templates);
+    loadTemplatesBySender(senderNode.value).catch((error) => setStatus(error.message, '#b00020'));
     fillRecipients();
     syncDomFromState();
-
-    if (senderNode.value) {
-        loadTemplatesBySender(senderNode.value).catch((error) => setStatus(error.message, '#b00020'));
-    }
 
     senderNode.addEventListener('change', function () {
         state.senderPhoneId = senderNode.value || '';
@@ -300,33 +550,38 @@
 
     templateNode.addEventListener('change', function () {
         state.templateId = templateNode.value || '';
+        const fields = renderTemplateFields(templateNode.value);
+        renderBuiltInLayout(fields);
     });
 
     recipientNode.addEventListener('change', function () {
         state.recipientPhone = recipientNode.value || '';
     });
 
-    paramsNode.addEventListener('input', function () {
-        state.params = paramsNode.value || '';
-    });
-
     sendBtn.addEventListener('click', sendTemplate);
     closeBtn.addEventListener('click', function () {
-        if (window.BX24 && BX24.placement && BX24.placement.call) {
+        if (hasBX24()) {
             BX24.placement.call('finish');
             return;
         }
         window.close();
     });
 
-    if (isBuiltIn && typeof BX24.init === 'function') {
+    function initBitrixUi() {
+        if (!hasBX24() || typeof BX24.init !== 'function') {
+            return false;
+        }
         BX24.init(function () {
-            renderBuiltInLayout();
+            const fields = renderTemplateFields(templateNode.value);
+            renderBuiltInLayout(fields);
 
             BX24.placement.call('bindSecondaryButtonClickCallback', null, function () {
                 BX24.placement.call('finish');
             });
-
+            BX24.placement.call('bindPrimaryButtonClickCallback', null, function () {
+                syncDomFromState();
+                sendTemplate();
+            });
             BX24.placement.call('bindValueChangeCallback', null, function (eventData) {
                 if (!eventData || !eventData.id) {
                     return;
@@ -339,20 +594,38 @@
                 }
                 if (eventData.id === 'templateSelect') {
                     state.templateId = eventData.value || '';
-                } else if (eventData.id === 'recipientSelect') {
-                    state.recipientPhone = eventData.value || '';
-                } else if (eventData.id === 'paramsInput') {
-                    state.params = eventData.value || '';
+                    syncDomFromState();
+                    const newFields = renderTemplateFields(state.templateId);
+                    renderBuiltInLayout(newFields);
+                    return;
                 }
-                syncDomFromState();
-            });
-
-            BX24.placement.call('bindPrimaryButtonClickCallback', null, function () {
-                syncDomFromState();
-                sendTemplate();
+                if (eventData.id === 'recipientSelect') {
+                    state.recipientPhone = eventData.value || '';
+                    syncDomFromState();
+                    return;
+                }
+                if (eventData.id.indexOf('param__') === 0 || eventData.id.indexOf('location__') === 0 || eventData.id.indexOf('media__') === 0) {
+                    setParamValue(eventData.id, eventData.value || '');
+                    syncDomFromState();
+                }
             });
         });
+        return true;
     }
+
+    function waitForBX24(attemptsLeft) {
+        if (initBitrixUi()) {
+            return;
+        }
+        if (attemptsLeft <= 0) {
+            return;
+        }
+        setTimeout(function () {
+            waitForBX24(attemptsLeft - 1);
+        }, 250);
+    }
+
+    waitForBX24(20);
 })();
 </script>
 </body>

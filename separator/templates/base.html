@@ -59,7 +59,7 @@
               aria-label="Toggle navigation">
               <span class="navbar-toggler-icon"></span>
             </button>
-            <a class="navbar-brand" href="/">{{ SITE_NAME }}</a>
+            <a class="navbar-brand" href="{% if LANGUAGE_CODE != DEFAULT_LANGUAGE_CODE %}/{{ LANGUAGE_CODE }}/{% else %}/{% endif %}">{{ SITE_NAME }}</a>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
               {% include "includes/menu.html" %}
             </div>

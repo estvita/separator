@@ -18,12 +18,24 @@
                 <a href="{% url 'portal_detail' portal.id %}">{{ portal.domain }}</a>
               </td>
               <td>
-                {% for instance in portal.installations.all %}
-                  <a href="{{ instance.app.page_url }}">{{ instance.app.name }}</a> ({{ instance.status }})
-                  {% if not forloop.last %},{% endif %}
-                {% empty %}
-                  {% trans "No App Instances" %}
-                {% endfor %}
+                {% get_current_language as LANGUAGE_CODE %}
+                {% if LANGUAGE_CODE != DEFAULT_LANGUAGE_CODE %}
+                  {% with lang_prefix='/'|add:LANGUAGE_CODE %}
+                    {% for instance in portal.installations.all %}
+                      <a href="{{ lang_prefix }}{{ instance.app.page_url }}">{{ instance.app.name }}</a> ({{ instance.status }})
+                      {% if not forloop.last %},{% endif %}
+                    {% empty %}
+                      {% trans "No App Instances" %}
+                    {% endfor %}
+                  {% endwith %}
+                {% else %}
+                  {% for instance in portal.installations.all %}
+                    <a href="{{ instance.app.page_url }}">{{ instance.app.name }}</a> ({{ instance.status }})
+                    {% if not forloop.last %},{% endif %}
+                  {% empty %}
+                    {% trans "No App Instances" %}
+                  {% endfor %}
+                {% endif %}
               </td>
             </tr>
           {% endfor %}

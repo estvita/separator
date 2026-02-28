@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}
+  {% trans "Broadcast details" %}
+{% endblock title %}
+{% block content %}
+<div class="container">
+  <h3>{% trans "Broadcast" %}: {{ broadcast.name }}</h3>
+  <p class="mb-2">
+    {% trans "Phone" %}: <a href="{% url 'phone-details' broadcast.phone.id %}">{{ broadcast.phone.phone }}</a>,
+    {% trans "Recipients" %}: {{ broadcast.recipients_count }},
+    {% trans "Delivered" %}: {{ broadcast.delivered_count }},
+    {% trans "Status" %}: {{ broadcast.status }}
+  </p>
+  {% if broadcast.status == "pending" and broadcast.scheduled_at %}
+    <form method="post" class="mb-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel_broadcast">
+      <button type="submit" class="btn btn-danger">{% trans "Stop scheduled broadcast" %}</button>
+    </form>
+  {% endif %}
+  <div class="mb-3">
+    <strong>{% trans "Text" %}:</strong>
+    <pre class="mb-0">{{ broadcast.text }}</pre>
+  </div>
+
+  <form method="get" class="form-inline mb-3" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;">
+    <input type="text" name="q" class="form-control" placeholder="{% trans 'Search phone or wamid' %}" value="{{ q }}">
+    <select name="status" class="form-control">
+      <option value="">{% trans "All statuses" %}</option>
+      <option value="pending" {% if status == "pending" %}selected{% endif %}>pending</option>
+      <option value="sent" {% if status == "sent" %}selected{% endif %}>sent</option>
+      <option value="delivered" {% if status == "delivered" %}selected{% endif %}>delivered</option>
+      <option value="failed" {% if status == "failed" %}selected{% endif %}>failed</option>
+    </select>
+    <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+  </form>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>{% trans "Recipient" %}</th>
+        <th>{% trans "WAMID" %}</th>
+        <th>{% trans "Status" %}</th>
+        <th>{% trans "Error JSON" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in page_obj %}
+      <tr>
+        <td>{{ item.recipient_phone }}</td>
+        <td>{{ item.wamid }}</td>
+        <td>{{ item.status }}</td>
+        <td style="max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: top;">
+          {% if item.error_json %}
+            <details>
+              <summary>{% trans "View" %}</summary>
+              <pre class="mb-0" style="white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto;">{{ item.error_json|safe }}</pre>
+            </details>
+          {% else %}
+            <span>-</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4">{% trans "No recipients found." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+    <nav>
+      <ul class="pagination">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status }}">«</a>
+          </li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status }}">»</a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+
+  <a href="{% url 'broadcast-page' %}">{% trans "Back" %}</a>
+</div>
+{% endblock content %}

@@ -48,9 +48,27 @@ def get_app(auth_id):
         raise
     
     try:
-        return App.objects.get(client_id=client_id)
+        app = App.objects.get(client_id=client_id)
     except Exception as e:
         raise
+    try:
+        install = app_data.get("install", {}) if isinstance(app_data, dict) else {}
+        server_version = install.get("version")
+        server_version = int(server_version) if server_version is not None else None
+    except Exception:
+        server_version = None
+
+    try:
+        if not app.autologin:
+            app.autologin = False
+        elif app.min_version == 0:
+            app.autologin = True
+        elif server_version is not None and server_version > app.min_version:
+            app.autologin = False
+    except Exception:
+        pass
+
+    return app
 
 
 def get_instances(request, service=None):
@@ -191,13 +209,48 @@ def connect_line(request, line_id, entity, connector_service):
 # Подписка на события
 def events_bind(appinstance: AppInstance):
     url = appinstance.app.site
-    for event in appinstance.app.events.strip().splitlines():
-        payload = {
-            "event": event,
-            "HANDLER": f"https://{url}/api/bitrix/",
-        }
+    handler_url = f"https://{url}/api/bitrix/"
+    try:
+        existing = bitrix_tasks.call_api(appinstance.id, "event.get", {})
+    except Exception:
+        existing = {}
 
-        bitrix_tasks.call_api.delay(appinstance.id, "event.bind", payload)
+    handlers = existing.get("result")
+    if handlers is None:
+        handlers = existing if isinstance(existing, list) else []
+
+    for event in appinstance.app.events.strip().splitlines():
+        event = event.strip()
+        if not event:
+            continue
+
+        matched_handlers = [h for h in handlers if h.get("event") == event]
+        has_current = any(h.get("handler") == handler_url for h in matched_handlers)
+        for h in matched_handlers:
+            if h.get("handler") and h.get("handler") != handler_url:
+                bitrix_tasks.call_api.delay(
+                    appinstance.id,
+                    "event.unbind",
+                    {"event": event, "HANDLER": h.get("handler")},
+                )
+
+        if not has_current:
+            payload = {
+                "event": event,
+                "HANDLER": handler_url,
+            }
+            bitrix_tasks.call_api.delay(appinstance.id, "event.bind", payload)
+
+
+def register_bizproc_robot(appinstance: AppInstance):
+    url = appinstance.app.site
+    handler_url = f"https://{url}/api/bitrix/bizproc/"
+    payload = {
+        "CODE": "separator_auto_finish_chat",
+        "NAME": "Auto Finish Chat",
+        "HANDLER": handler_url,
+    }
+    bitrix_tasks.call_api.delay(appinstance.id, "bizproc.robot.add", payload)
 
 
 def register_connector(appinstance: AppInstance, connector):
@@ -463,6 +516,24 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
 
 
 @shared_task(queue='bitrix')
+def bizproc_processor(data):
+    access_token = data.get("auth[access_token]")
+    application_token = data.get("auth[application_token]")
+    try:
+        app = get_app(access_token)
+    except Exception as e:
+        raise Exception(f"App not found: {e}")
+    try:
+        appinstance = AppInstance.objects.filter(application_token=application_token).first()
+    except Exception as e:        
+        raise Exception(f"AppInstance not found for token {application_token}: {e}")
+    
+    code = data.get("code")
+    if code == "separator_auto_finish_chat":
+        bitrix_tasks.auto_finish_chat.delay(appinstance.id, data)
+
+
+@shared_task(queue='bitrix')
 def sms_processor(data, service):
     application_token = data.get("auth[application_token]")
     app_instance = AppInstance.objects.filter(application_token=application_token).first()
@@ -571,7 +642,10 @@ def event_processor(data):
         appinstance = None
 
         if event == "ONAPPINSTALL":
-            app = get_app(access_token)
+            try:
+                app = get_app(access_token)
+            except Exception as e:
+                raise Exception(f"App not found for token {application_token}: {e}")
             portal, _ = Bitrix.objects.get_or_create(
                 member_id=member_id,
                 defaults={
@@ -610,7 +684,10 @@ def event_processor(data):
 
             def register_events_and_connectors():
                 events_bind(appinstance)
-                register_placements(appinstance)
+                if "placement" in scope:
+                    register_placements(appinstance)
+                if "bizproc" in scope:
+                    register_bizproc_robot(appinstance)
                 if app.connectors.exists():
                     for connector in app.connectors.all():
                         register_connector(appinstance, connector)
@@ -643,7 +720,7 @@ def event_processor(data):
             bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
         else:
             appinstance = AppInstance.objects.get(application_token=application_token)
-
+        
         if event == "ONIMCONNECTORMESSAGEADD":
             connector_code = data.get("data[CONNECTOR]")
             connector = get_object_or_404(Connector, code=connector_code)

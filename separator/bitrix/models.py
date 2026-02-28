@@ -42,9 +42,9 @@ class App(models.Model):
     name = models.CharField(max_length=255, blank=True, unique=False)
     page_url = models.CharField(max_length=255, blank=True, default="/")
     autologin = models.BooleanField(default=True)
+    min_version = models.PositiveIntegerField(default=0)
     events = models.TextField(blank=True, default="ONAPPUNINSTALL")
     connectors = models.ManyToManyField(Connector, blank=True, related_name='apps')
-    imopenlines_auto_finish = models.BooleanField(default=False, help_text=_("Enable auto finish chat"))
     asterx = models.BooleanField(default=False, help_text=_("Chek for AsterX connector"))
     vendor = models.BooleanField(default=False, help_text=_("Chek for Separator partner App"))
     bitbot = models.BooleanField(default=False, help_text=_("Chek for BitBot App"))
@@ -67,8 +67,6 @@ class Bitrix(models.Model):
     )
     member_id = models.CharField(max_length=255, unique=True, blank=True, null=True)
     license_expired = models.BooleanField(default=False)
-    imopenlines_auto_finish = models.BooleanField(default=False)
-    finish_delay = models.IntegerField(default=0, help_text=_("in minutes"))
 
     def __str__(self):
         return self.domain
@@ -99,6 +97,7 @@ class AppInstance(models.Model):
     )
     exclude = models.CharField(blank=True)
     auth_status = models.CharField(max_length=1)
+    license = models.CharField(max_length=255, blank=True)
     application_token = models.CharField(max_length=255, blank=True)
     storage_id = models.CharField(max_length=255, blank=True)
     status = models.IntegerField(default=0, blank=True)

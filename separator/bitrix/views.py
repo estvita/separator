@@ -224,14 +224,28 @@ def process_placement(request):
             return redirect("/")
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
-            return placements.settings_connector(request)
+            return placements.settings_connector(request, user)
         service = request.GET.get("service")
         placement_type = request.GET.get("type")
         if service == "waba":
+            if placement_type == "send_template" and request.method == "POST":
+                if not data.get("bitrix_user_id"):
+                    try:
+                        _, _, appinstance = placements.WabaPlacementModule._resolve_appinstance(data)
+                        if appinstance:
+                            user_info = call_method(appinstance, "user.current", {})
+                            user_id = (user_info.get("result") or {}).get("ID")
+                            if user_id:
+                                mutable_data = data.copy()
+                                mutable_data["bitrix_user_id"] = str(user_id)
+                                request.POST = mutable_data
+                                data = mutable_data
+                    except Exception:
+                        pass
             return placements.WabaPlacementModule().handle(placement_type, request)
 
     except Exception as e:
-        return HttpResponse({"An unexpected error occurred"})
+        return HttpResponse(str(e))
 
 @csrf_exempt
 def app_install(request):
@@ -338,7 +352,7 @@ def app_settings(request):
                     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception:
                     return redirect(app_url)
-            if installed_app:
+            if installed_app and user:
                 if user.phone_number and not user.integrator:
                     prepare_lead.delay(user.id, f"App installed: {app.name}")
                 else:
@@ -362,9 +376,6 @@ def portal_detail(request, portal_id):
     
     if request.method == 'POST':
         if b24_user and b24_user.admin:
-            imopenlines_auto_finish = request.POST.get('imopenlines_auto_finish') == 'on'
-            portal.finish_delay = int(request.POST.get('finish_delay'))
-            portal.imopenlines_auto_finish = imopenlines_auto_finish
             portal.save()
             for line in lines:
                 if request.POST.get(f"delete_line_{line.id}") == 'on':
@@ -384,28 +395,6 @@ def portal_detail(request, portal_id):
                         }
                         call_api.delay(line.app_instance.id, "imopenlines.config.update", payload)
             
-            if imopenlines_auto_finish:
-                # Если включили автозакрытие - получаем первый подходящий инстанс и отправляем event.bind
-                instance = AppInstance.objects.filter(portal=portal, app__imopenlines_auto_finish=True).first()
-                if instance:
-                    payload = {
-                        "event": "ONCRMDEALUPDATE",
-                        "HANDLER": f"https://{instance.app.site}/api/bitrix/",
-                    }
-                    call_api.delay(instance.id, "event.bind", payload)
-                    messages.success(request, _('Auto-close chats is enabled and the event is binded'))
-                else:
-                    messages.error(request, _("You don't have an app with auto-close chats."))
-            else:
-                # Если отключили автозакрытие - получаем все инстансы и отправляем event.unbind
-                instances = AppInstance.objects.filter(portal=portal, app__imopenlines_auto_finish=True)
-                for instance in instances:
-                    payload = {
-                        "event": "ONCRMDEALUPDATE",
-                        "HANDLER": f"https://{instance.app.site}/api/bitrix/",
-                    }
-                    call_api.delay(instance.id, "event.unbind", payload)
-                messages.success(request, _('Auto-closing of chats is disabled and events are unbind'))
         else:
             messages.error(request, _('Administrator rights are required to edit the portal.'))
         

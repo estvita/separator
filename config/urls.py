@@ -12,17 +12,14 @@ from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 
 from separator.bitrix.views import log_and_serve_temp_file
+from separator.bitrix.api.views import SmsViewSet, BizprocViewSet
+from separator.olx.api.views import OlxAuthorizationAPIView
 from django.conf.urls.i18n import i18n_patterns
 
 urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
-    path("users/", include("separator.users.urls", namespace="users")),
-    path("accounts/", include("allauth.urls")),
-    path("waba/", include("separator.waba.urls")),
-    path('waweb/', include('separator.waweb.urls')),
-    path('bitbot/', include('separator.bitbot.urls')),
     # ...
     # Logging temp file access
     path("media/temp/", log_and_serve_temp_file),
@@ -30,14 +27,29 @@ urlpatterns = [
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]
 
+i18n_app_patterns = [
+    path("users/", include("separator.users.urls", namespace="users")),
+    path("accounts/", include("allauth.urls")),
+    path("waba/", include("separator.waba.urls")),
+    path("waweb/", include("separator.waweb.urls")),
+    path("bitbot/", include("separator.bitbot.urls")),
+]
+
 if settings.ASTERX_SERVER:
-    urlpatterns += [
-        path('asterx/', include('separator.asterx.urls')),
-    ]
+    i18n_app_patterns.append(
+        path("asterx/", include("separator.asterx.urls")),
+    )
 else:
-    urlpatterns += [
-        path('asterx/', TemplateView.as_view(template_name="asterx/disabled.html")),
-    ]
+    i18n_app_patterns.append(
+        path("asterx/", TemplateView.as_view(template_name="asterx/disabled.html")),
+    )
+
+urlpatterns += i18n_patterns(
+    *i18n_app_patterns,
+    path("", include("separator.bitrix.urls")),
+    path("", include("separator.olx.urls")),
+    prefix_default_language=False,
+)
 
 # API URLS
 urlpatterns += [
@@ -51,8 +63,13 @@ urlpatterns += [
         SpectacularSwaggerView.as_view(url_name="api-schema"),
         name="api-docs",
     ),
-    path("", include("separator.bitrix.urls")),
-    path("", include("separator.olx.urls")),
+    path("api/bitrix/sms/", SmsViewSet.as_view({"post": "create"}), name="sms"),
+    path("api/bitrix/bizproc/", BizprocViewSet.as_view({"post": "create"}), name="bizproc"),
+    path(
+        "api/olx/authorization/",
+        OlxAuthorizationAPIView.as_view(),
+        name="olx-authorization",
+    ),
 ]
 
 if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
@@ -74,9 +91,10 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
     )
     
 else:
-    urlpatterns = [
+    urlpatterns = i18n_patterns(
         path("", TemplateView.as_view(template_name="base.html"), name="home"),
-    ] + urlpatterns
+        prefix_default_language=False,
+    ) + urlpatterns
 
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit

@@ -37,10 +37,16 @@
             {% endfor %}
         </select>
 
-        <div class="form-check mb-0">
+        <div class="form-check mb-0 me-3">
             <input class="form-check-input" type="checkbox" id="trial-filter">
             <label class="form-check-label" for="trial-filter">
                 {% trans "Trial" %}
+            </label>
+        </div>
+        <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="self-hosted-filter">
+            <label class="form-check-label" for="self-hosted-filter">
+                {% trans "Self-hosted" %}
             </label>
         </div>
     </div>
@@ -58,7 +64,7 @@
         </thead>
         <tbody id="tariff-table">
             {% for tariff in tariffs %}
-                <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}">
+                <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
                     <td>{{ tariff.service.name }}</td>
                     <td>{% if tariff.is_trial %}✅ {% trans "Yes" %} {% else %}❌ {% trans "No" %} {% endif %}</td>
                     <td>{{ tariff.price }}</td>
@@ -86,9 +92,10 @@
             var serviceFilter = document.getElementById("service-filter");
             var trialFilter = document.getElementById("trial-filter");
             var rows = document.querySelectorAll(".tariff-row");
+            var selfHostedFilter = document.getElementById("self-hosted-filter");
 
             // Функция для обновления URL без перезагрузки страницы
-            function updateURL(service, isTrial) {
+            function updateURL(service, isTrial, isSelfHosted) {
                 var url = new URL(window.location);
                 if (service && service !== "all") {
                     url.searchParams.set("service", service);
@@ -101,6 +108,12 @@
                 } else {
                     url.searchParams.delete("trial");
                 }
+
+                if (isSelfHosted) {
+                    url.searchParams.set("self_hosted", "true");
+                } else {
+                    url.searchParams.delete("self_hosted");
+                }
                 
                 window.history.replaceState({}, "", url);
             }
@@ -108,15 +121,18 @@
             function updateVisibility() {
                 var selectedService = serviceFilter.value;
                 var showTrialOnly = trialFilter.checked;
+                var showSelfHostedOnly = selfHostedFilter.checked;
 
                 rows.forEach(function (row) {
                     var serviceName = row.getAttribute("data-service");
                     var isTrial = row.getAttribute("data-is-trial") === "true";
+                    var isSelfHosted = row.getAttribute("data-self-hosted") === "true";
 
                     var matchesService = (selectedService === "all" || serviceName === selectedService);
                     var matchesTrial = (!showTrialOnly || isTrial);
+                    var matchesSelfHosted = (!showSelfHostedOnly || isSelfHosted);
 
-                    if (matchesService && matchesTrial) {
+                    if (matchesService && matchesTrial && matchesSelfHosted) {
                         row.style.display = "";
                     } else {
                         row.style.display = "none";
@@ -124,7 +140,7 @@
                 });
                 
                 // Обновляем URL при изменении фильтров
-                updateURL(selectedService, showTrialOnly);
+                updateURL(selectedService, showTrialOnly, showSelfHostedOnly);
             }
 
             // Инициализация состояния из URL
@@ -136,6 +152,7 @@
                     serviceParam = urlParams.get("servise"); 
                 }
                 var trialParam = urlParams.get("trial");
+                var selfHostedParam = urlParams.get("self_hosted");
 
                 if (serviceParam) {
                     // Проверяем, есть ли такая опция в select
@@ -148,6 +165,10 @@
                 if (trialParam === "true") {
                     trialFilter.checked = true;
                 }
+
+                if (selfHostedParam === "true") {
+                    selfHostedFilter.checked = true;
+                }
                 
                 // Применяем фильтры сразу после инициализации
                 updateVisibility();
@@ -155,6 +176,7 @@
 
             serviceFilter.addEventListener("change", updateVisibility);
             trialFilter.addEventListener("change", updateVisibility);
+            selfHostedFilter.addEventListener("change", updateVisibility);
             
             // Запускаем инициализацию
             initFromURL();

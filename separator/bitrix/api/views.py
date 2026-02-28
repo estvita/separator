@@ -23,6 +23,7 @@ class PortalViewSet(CreateModelMixin, GenericViewSet):
     def head(self, request, *args, **kwargs):
         return Response(headers={'Allow': 'POST, HEAD'})
     
+    # for redirect service
     def get(self, request, *args, **kwargs):
         url = request.GET.get("url")
         if url:
@@ -49,4 +50,18 @@ class SmsViewSet(GenericViewSet, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         service = request.query_params.get('service')
         utils.sms_processor.delay(request.data, service)
+        return Response("ok")
+
+
+class BizprocViewSet(GenericViewSet, CreateModelMixin):
+    renderer_classes = [JSONRenderer]
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return Bitrix.objects.none()
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        utils.bizproc_processor.delay(data)
         return Response("ok")

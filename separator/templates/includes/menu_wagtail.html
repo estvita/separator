@@ -1,5 +1,6 @@
 {% load wagtailcore_tags navigation_tags i18n %}
 {% get_site_root as site_root %}
+{% with site_root=site_root.localized %}
 
   {% for menuitem in site_root.get_children.live.in_menu %}
   {% with submenu=menuitem.get_children.live.in_menu %}
@@ -23,3 +24,4 @@
   {% endif %}
   {% endwith %}
   {% endfor %}
+{% endwith %}

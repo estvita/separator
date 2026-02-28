@@ -96,6 +96,7 @@
     <p>{% trans "You don't have any connected sessions." %}</p>
   {% endif %}
 
+    <a href="{% url 'broadcast-page' %}" class="btn btn-secondary connect-btn me-2">{% trans "Broadcasts" %}</a>
     <a target="_blank" href="/waba/request?request-id={{ request_id }}" class="btn btn-primary connect-btn">{% trans "Add number" %}</a>
 
 </div>

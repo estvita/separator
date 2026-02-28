@@ -53,7 +53,14 @@ def get_app_info(instance_id=None):
         app_instances = AppInstance.objects.all()
     for app_instance in app_instances:
         if app_instance.portal and not app_instance.portal.license_expired:
-            call_api.delay(app_instance.id, "app.info", {})
+            try:
+                resp = call_method(app_instance, "app.info", {})
+                license_value = (resp.get("result") or {}).get("LICENSE")
+                if license_value is not None and getattr(app_instance, "license", None) != license_value:
+                    app_instance.license = license_value
+                    app_instance.save(update_fields=["license"])
+            except Exception:
+                pass
 
 
 # Регистрация SMS-провайдера
@@ -265,45 +272,31 @@ def prepare_lead(user_id, lead_title):
     return call_method(vendor_instance, "crm.lead.add", lead_data)
 
 
-@shared_task(queue='chat_finish')
-def auto_finish_chat(instance_id, deal_id, init=False):
+@shared_task(queue='bitrix')
+def auto_finish_chat(instance_id, data):
     try:
+        document_id = data.get("document_id[2]")
+        if not document_id or "_" not in document_id:
+            raise ValueError(f"Missing or invalid document_id in bizproc data: {document_id}")
+        entity_type, entity_id = document_id.split("_", 1)
+
+        if not entity_type or not entity_id:
+            raise ValueError(f"Missing entity information in bizproc data: {data}")
+        entity_type = entity_type.upper()
+        if entity_type not in ("DEAL", "LEAD"):
+            raise ValueError(f"Unsupported entity type in bizproc data: {entity_type}")
         app_instance = AppInstance.objects.get(id=instance_id)
         payload = {
-            "filter": {
-                "ID": deal_id
-            },
-            "select": ["CLOSED"]
+            "CRM_ENTITY_TYPE": entity_type,
+            "CRM_ENTITY": entity_id
         }
-        deal_data = call_method(app_instance, "crm.deal.list", payload, admin=True)
-        deal_list = deal_data.get("result", [])
-        deal = next((d for d in deal_list if str(d.get("ID")) == str(deal_id)), None)
-
-        if not deal:
-            raise Exception(f"Deal {deal_id} not found")
-
-        if not init:
-            if deal.get("CLOSED") == "Y":
-                payload = {
-                    "CRM_ENTITY_TYPE": "DEAL",
-                    "CRM_ENTITY": deal_id
-                }
-                chat_data = call_method(app_instance, "imopenlines.crm.chat.getLastId", payload, admin=True)
-                if "result" in chat_data:
-                    chat_id = chat_data.get("result")
-                    return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id}, admin=True)
-                else:
-                    raise Exception(f"chat not found: {chat_data}")
-            else:
-                raise Exception(f"Deal {deal_id} is not closed yet")
+        chat_data = call_method(app_instance, "imopenlines.crm.chat.getLastId", payload, admin=True)
+        if "result" in chat_data:
+            chat_id = chat_data.get("result")
+            return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id}, admin=True)
         else:
-            if deal.get("CLOSED") == "Y":
-                delay_seconds = app_instance.portal.finish_delay * 60
-                auto_finish_chat.apply_async(
-                    args=[app_instance.id, deal_id],
-                    countdown=delay_seconds
-                )
-    except Exception as e:
+            raise Exception(f"chat not found: {chat_data}")
+    except Exception:
         raise
 
 @shared_task(queue='default')

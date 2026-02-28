@@ -5,60 +5,46 @@
 {% endblock title %}
 {% block content %}
 <div class="container">
+  <h3>{% trans "Phone" %}:  {{ phone.phone }} ({{ phone.type }})</h3>
   <div class="alert alert-info">
     <strong>Info:</strong> Phone ID: {{ phone.phone_id }} | WABA ID: {{ phone.waba.waba_id }}
   </div>
-  <h3>{% trans "Send Message via" %} {{ phone.phone }} ({{ phone.type }})</h3>
 
-  <!-- Форма рассылки -->
-  <form style="width: 40%;" method="POST">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="send_message">
-    <div class="form-group">
-      <label for="recipient_phone">{% trans "Recipient Phones (one per line)" %}</label>
-      <textarea class="form-control" id="recipient_phone" name="recipient_phone"
-                placeholder="{% trans 'Enter recipient phone numbers, one per line' %}" rows="4" required></textarea>
-    </div>
-    <div class="form-group">
-      <label for="template">{% trans "Template" %} </label>
-      <select class="form-control" id="template" name="template" {% if not templates %}disabled{% endif %}>
-        {% for template in templates %}
-          <option value="{{ template.id }}">{{ template }}</option>
-        {% endfor %}
-      </select>
-      {% if not templates %}
-        <small class="form-text text-danger">{% trans "Templates not found" %}</small>
-      {% endif %}
-    </div>
-    <button type="submit" class="btn btn-primary mt-3" {% if not templates %}disabled{% endif %}>{% trans "Send" %}</button>
-  </form>
-
-  <hr>
   <!-- Template list -->
   <h3>{% trans "Template list" %} </h3> 
   <a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">{% trans "Add New" %}</a>
-  <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>{% trans "Name" %}</th>
-        <th>{% trans "Language" %}</th>
-        <th>{% trans "Bitrix Code" %}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for template in templates %}
-      <tr>
-        <td>{{ template.name }}</td>
-        <td>{{ template.lang }}</td>
-        <td>template+{{ template.name }}+{{ template.lang }}</td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="3">{% trans "No templates found." %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <form method="POST" class="mb-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_templates">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>{% trans "Name" %}</th>
+          <th>{% trans "Language" %}</th>
+          <th>{% trans "Bitrix Code" %}</th>
+          <th>{% trans "Available in Bitrix24" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for template in templates %}
+        <tr>
+          <td>{{ template.name }}</td>
+          <td>{{ template.lang }}</td>
+          <td>template+{{ template.name }}+{{ template.lang }}</td>
+          <td>
+            <input type="checkbox" name="available_templates" value="{{ template.id }}"
+                   {% if template.availableInB24 %}checked{% endif %}>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4">{% trans "No templates found." %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+  </form>
   <hr>
 
   {% if phone.type == "app" %}

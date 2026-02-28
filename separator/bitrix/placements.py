@@ -6,21 +6,29 @@ from django.shortcuts import render
 from django.utils.translation import gettext as _
 
 from separator.waba.models import Phone, Template
+from separator.olx.models import OlxUser
+from separator.waweb.models import Session
 import separator.waba.utils as waba_utils
 
 from .crest import call_method
-from .utils import get_app, parse_template_code
+from .utils import get_app, parse_template_code, connect_line
 from .models import AppInstance, Bitrix, Line, Connector
 
-def settings_connector(request):
+def settings_connector(request, user):
     data = request.POST
     domain = request.GET.get("DOMAIN")
     placement_options = data.get("PLACEMENT_OPTIONS")
     instance_id = request.GET.get("inst")
 
-    placement_options = json.loads(placement_options)
-    line_id = placement_options.get("LINE")
-    connector_code = placement_options.get("CONNECTOR")
+    placement_data = {}
+    if placement_options:
+        try:
+            placement_data = json.loads(placement_options)
+        except (TypeError, ValueError):
+            placement_data = {}
+
+    line_id = data.get("line_id") or placement_data.get("LINE")
+    connector_code = data.get("connector_code") or placement_data.get("CONNECTOR")
 
     app_instance = AppInstance.objects.filter(id=instance_id).first()
     if not app_instance:
@@ -38,8 +46,54 @@ def settings_connector(request):
         app_instance=app_instance,
         owner=app_instance.owner
     )
+    configs = {
+        "waba": {
+            "queryset": Phone.objects.filter(owner=user, line__isnull=True).order_by("phone"),
+            "id_field": "phone_id",
+            "label": lambda obj: obj.phone,
+            "not_found": _("phone not found"),
+        },
+        "olx": {
+            "queryset": OlxUser.objects.filter(owner=user, line__isnull=True).order_by("name", "olx_id"),
+            "id_field": "olx_id",
+            "label": lambda obj: obj.name or obj.olx_id,
+            "not_found": _("olx user not found"),
+        },
+        "waweb": {
+            "queryset": Session.objects.filter(owner=user, line__isnull=True).order_by("phone", "session"),
+            "id_field": "session_id",
+            "label": lambda obj: obj.phone or obj.session,
+            "not_found": _("session not found"),
+        },
+    }
+
+    config = configs.get(connector.service)
+    if config:
+        items = [{"id": obj.id, "label": config["label"](obj)} for obj in config["queryset"]]
+        selected_id = data.get(config["id_field"])
+        if selected_id:
+            selected = next((obj for obj in config["queryset"] if str(obj.id) == str(selected_id)), None)
+            if not selected:
+                return HttpResponse(config["not_found"], status=404)
+            if not line_id:
+                return HttpResponse(_("line not found"), status=404)
+            connect_line(request, line.id, selected, connector.service)
+            return HttpResponse(_("Connected"))
+        return render(
+            request,
+            "bitrix/placements/setting_connector.html",
+            {
+                "items": items,
+                "item_id_field": config["id_field"],
+                "line_id": line_id,
+                "connector_code": connector_code,
+                "auth_id": data.get("AUTH_ID"),
+                "connector_service": connector.service,
+            },
+        )
+
     return HttpResponse(
-        f"Линия изменена, настройте линию https://{app_instance.app.site}/portals/"
+        f"Set Line Settings: https://{app_instance.app.site}/portals/"
     )
 
 
@@ -217,6 +271,52 @@ class WabaPlacementModule:
             waba__isnull=False,
         ).select_related("waba").order_by("phone")
 
+        def serialize_templates(templates_qs):
+            templates_qs = templates_qs.prefetch_related(
+                "components__named_params",
+                "components__positional_params",
+                "components__buttons__named_params",
+                "components__buttons__positional_params",
+            )
+            out = []
+            for template in templates_qs:
+                components_data = []
+                for component in template.components.order_by("index", "id"):
+                    buttons_data = []
+                    for button in component.buttons.order_by("index", "id"):
+                        buttons_data.append({
+                            "id": button.id,
+                            "type": button.type,
+                            "index": button.index,
+                            "named_params": [
+                                {"name": p.name} for p in button.named_params.order_by("id")
+                            ],
+                            "positional_params": [
+                                {"position": p.position} for p in button.positional_params.order_by("position", "id")
+                            ],
+                        })
+                    components_data.append({
+                        "id": component.id,
+                        "type": component.type,
+                        "format": component.format,
+                        "index": component.index,
+                        "text": component.text,
+                        "named_params": [
+                            {"name": p.name} for p in component.named_params.order_by("id")
+                        ],
+                        "positional_params": [
+                            {"position": p.position} for p in component.positional_params.order_by("position", "id")
+                        ],
+                        "buttons": buttons_data,
+                    })
+                out.append({
+                    "id": str(template.id),
+                    "label": f"{template.name} ({template.lang})",
+                    "lang": template.lang,
+                    "components": components_data,
+                })
+            return out
+
         if action == "get_templates":
             sender_phone_id = data.get("sender_phone_id")
             sender_phone = sender_phones.filter(id=sender_phone_id).first()
@@ -226,15 +326,13 @@ class WabaPlacementModule:
             templates = Template.objects.filter(
                 waba=sender_phone.waba,
                 status="APPROVED",
+                availableInB24=True,
             ).order_by("name", "lang")
 
             return JsonResponse(
                 {
                     "ok": True,
-                    "templates": [
-                        {"id": str(item.id), "label": f"{item.name} ({item.lang})"}
-                        for item in templates
-                    ],
+                    "templates": serialize_templates(templates),
                 }
             )
 
@@ -242,15 +340,14 @@ class WabaPlacementModule:
             sender_phone_id = data.get("sender_phone_id")
             template_id = data.get("template_id")
             recipient_phone = re.sub(r"\D", "", data.get("phone", ""))
-            params = (data.get("params") or "").strip()
             entity_id_raw = data.get("entity_id")
             entity_type_code = (data.get("entity_type_code") or "").strip().lower()
-
+            bitrix_user_id = data.get("bitrix_user_id")
             sender_phone = sender_phones.filter(id=sender_phone_id).first()
             if not sender_phone:
                 return JsonResponse({"ok": False, "error": _("sender phone not found")}, status=400)
 
-            template = Template.objects.filter(id=template_id).first()
+            template = Template.objects.filter(id=template_id, availableInB24=True).first()
             if not template:
                 return JsonResponse({"ok": False, "error": _("template not found")}, status=400)
             if template.waba_id and sender_phone.waba_id and template.waba_id != sender_phone.waba_id:
@@ -265,15 +362,22 @@ class WabaPlacementModule:
             if not sender_digits:
                 return JsonResponse({"ok": False, "error": _("selected sender number is invalid")}, status=400)
 
-            template_code = f"template+{template.name}+{template.lang}"
-            if params:
-                template_code = f"{template_code}+{params}"
-
+            components_payload = waba_utils.build_template_components_payload(
+                template, data, request.FILES, sender_phone
+            )
             message = {
                 "messaging_product": "whatsapp",
                 "to": recipient_phone,
+                "type": "template",
+                "template": {
+                    "name": template.name,
+                    "language": {"code": template.lang},
+                },
             }
-            message.update(parse_template_code(template_code, appinstance=appinstance, phone_num=sender_digits))
+            if bitrix_user_id:
+                message["biz_opaque_callback_data"] = {"bitrix_user_id": str(bitrix_user_id)}
+            if components_payload:
+                message["template"]["components"] = components_payload
 
             send_result = waba_utils.send_message(appinstance, message, phone_num=sender_digits)
             if isinstance(send_result, dict) and send_result.get("error"):
@@ -321,19 +425,25 @@ class WabaPlacementModule:
         recipient_phones = self._collect_recipient_phones(appinstance, placement, placement_options)
 
         selected_sender = sender_phones.first()
-        templates = Template.objects.none()
-        if selected_sender and selected_sender.waba_id:
-            templates = Template.objects.filter(
-                waba=selected_sender.waba,
-                status="APPROVED",
-            ).order_by("name", "lang")
+        templates_data_by_phone = {}
+        if sender_phones:
+            for sender in sender_phones:
+                if sender.waba_id:
+                    tqs = Template.objects.filter(
+                        waba=sender.waba,
+                        status="APPROVED",
+                        availableInB24=True,
+                    ).order_by("name", "lang")
+                else:
+                    tqs = Template.objects.none()
+                templates_data_by_phone[str(sender.id)] = serialize_templates(tqs)
 
         context = {
             "auth_id": data.get("AUTH_ID") or "",
             "refresh_id": data.get("REFRESH_ID") or "",
             "member_id": data.get("member_id") or data.get("MEMBER_ID") or "",
             "sender_phones": [{"id": str(item.id), "label": item.phone or str(item.id)} for item in sender_phones],
-            "templates": [{"id": str(item.id), "label": f"{item.name} ({item.lang})"} for item in templates],
+            "templates_data_by_phone": templates_data_by_phone,
             "recipient_phones": [{"value": phone, "label": f"+{phone}"} for phone in recipient_phones],
             "initial_sender_phone_id": str(selected_sender.id) if selected_sender else "",
             "entity_id": entity_id or "",

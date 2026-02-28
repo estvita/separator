@@ -27,22 +27,6 @@
               </p>
             </div>
             
-            <div class="mb-3">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" 
-                       id="imopenlines_auto_finish" name="imopenlines_auto_finish"
-                       {% if portal.imopenlines_auto_finish %}checked{% endif %}>
-                <label class="form-check-label" for="imopenlines_auto_finish">
-                  {% trans "Auto close openlines chats if deal (lead) is completed" %}
-                </label>
-              </div>
-            </div>
-
-          <div class="mb-3 d-flex align-items-center">
-            <input type="number" class="form-control me-2" style="width: 90px; max-width: 120px;" 
-                  name="finish_delay" value="{{ portal.finish_delay }}" maxlength="3" min="0">
-            <span>{% trans "Finish Delay (minutes)" %}</span>
-          </div>
             {% if open_lines %}
             <div class="mb-3">
               <label class="form-label fw-bold">{% trans "Open Lines" %}:</label>

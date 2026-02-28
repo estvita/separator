@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-02 12:39+0500\n"
+"POT-Creation-Date: 2026-02-27 16:59+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -134,6 +134,48 @@ msgid "Chek for BitBot App"
 msgstr ""
 
 msgid "in minutes"
+msgstr ""
+
+msgid "unsupported waba placement type"
+msgstr ""
+
+msgid "appinstance not found"
+msgstr ""
+
+msgid "sender phone not found"
+msgstr ""
+
+msgid "template not found"
+msgstr ""
+
+msgid "template does not belong to selected sender number"
+msgstr ""
+
+msgid "recipient phone is required"
+msgstr ""
+
+msgid "selected sender number is invalid"
+msgstr ""
+
+msgid "send failed"
+msgstr ""
+
+msgid "WABA template sent"
+msgstr ""
+
+msgid "Sender"
+msgstr ""
+
+msgid "Recipient"
+msgstr ""
+
+msgid "Template"
+msgstr ""
+
+msgid "Sent payload"
+msgstr ""
+
+msgid "Facebook response"
 msgstr ""
 
 msgid "Portal not found by code."
@@ -462,6 +504,39 @@ msgstr ""
 msgid "Enable JavaScript for this app to work."
 msgstr ""
 
+msgid "WABA Template Sender"
+msgstr ""
+
+msgid "Sender number"
+msgstr ""
+
+msgid "Recipient phone"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Select values and click Send."
+msgstr ""
+
+msgid "Failed to load templates"
+msgstr ""
+
+msgid "Sending..."
+msgstr ""
+
+msgid "Send failed"
+msgstr ""
+
+msgid "Message sent"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
 msgid "Portal Details"
 msgstr ""
 
@@ -510,9 +585,6 @@ msgstr ""
 msgid "Get code"
 msgstr ""
 
-msgid "Send"
-msgstr ""
-
 msgid "Updated"
 msgstr ""
 
@@ -525,10 +597,10 @@ msgstr ""
 msgid "All services"
 msgstr ""
 
-msgid "Service"
+msgid "Trial"
 msgstr ""
 
-msgid "Trial"
+msgid "Service"
 msgstr ""
 
 msgid "Price"
@@ -588,6 +660,81 @@ msgstr ""
 msgid "Return to application"
 msgstr ""
 
+msgid "My Info"
+msgstr ""
+
+msgid "E-Mail"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Broadcasts"
+msgstr ""
+
+msgid "Send Broadcast"
+msgstr ""
+
+msgid "Schedule time (optional)"
+msgstr ""
+
+msgid "Recipient Phones (one per line)"
+msgstr ""
+
+msgid "Enter recipient phone numbers, one per line"
+msgstr ""
+
+msgid "Filter"
+msgstr ""
+
+msgid "Text"
+msgstr ""
+
+msgid "Recipients"
+msgstr ""
+
+msgid "Delivered"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "No broadcasts found."
+msgstr ""
+
+msgid "Numbers"
+msgstr ""
+
+msgid "Please заполните параметры шаблона."
+msgstr ""
+
+msgid "Broadcast details"
+msgstr ""
+
+msgid "Broadcast"
+msgstr ""
+
+msgid "Stop scheduled broadcast"
+msgstr ""
+
+msgid "Search phone or wamid"
+msgstr ""
+
+msgid "All statuses"
+msgstr ""
+
+msgid "WAMID"
+msgstr ""
+
+msgid "Error JSON"
+msgstr ""
+
+msgid "View"
+msgstr ""
+
+msgid "No recipients found."
+msgstr ""
+
 msgid "Your WhatsApp Cloud numbers"
 msgstr ""
 
@@ -621,19 +768,7 @@ msgstr ""
 msgid "WhatsApp Cloud number settings"
 msgstr ""
 
-msgid "Send Message via"
-msgstr ""
-
-msgid "Recipient Phones (one per line)"
-msgstr ""
-
-msgid "Enter recipient phone numbers, one per line"
-msgstr ""
-
-msgid "Template"
-msgstr ""
-
-msgid "Templates not found"
+msgid "Phone"
 msgstr ""
 
 msgid "Template list"
@@ -645,6 +780,9 @@ msgstr ""
 msgid "Bitrix Code"
 msgstr ""
 
+msgid "Available in Bitrix24"
+msgstr ""
+
 msgid "No templates found."
 msgstr ""
 
@@ -652,9 +790,6 @@ msgid "Calling settings are not available for WhatsApp Business App numbers."
 msgstr ""
 
 msgid "Calling Settings"
-msgstr ""
-
-msgid "Status"
 msgstr ""
 
 msgid "Call destination"
@@ -685,9 +820,6 @@ msgid "Server"
 msgstr ""
 
 msgid "Login"
-msgstr ""
-
-msgid "Password"
 msgstr ""
 
 msgid "No extension assigned"
@@ -760,6 +892,9 @@ msgstr ""
 msgid "The mailing has been added to the queue."
 msgstr ""
 
+msgid "Template availability updated."
+msgstr ""
+
 msgid "FreePBX Server not connected"
 msgstr ""
 
@@ -779,6 +914,21 @@ msgstr ""
 msgid "The tariff has expired "
 msgstr ""
 
+msgid "Phone not found"
+msgstr ""
+
+msgid "Template not found"
+msgstr ""
+
+msgid "Invalid schedule time"
+msgstr ""
+
+msgid "The mailing has been scheduled."
+msgstr ""
+
+msgid "Broadcast has been cancelled."
+msgstr ""
+
 msgid ""
 "The number has been successfully added. It will appear here in a few minutes."
 msgstr ""
@@ -793,6 +943,15 @@ msgid "Enter recipient numbers, one per line"
 msgstr ""
 
 msgid "Enter message text"
+msgstr ""
+
+msgid "Attachment"
+msgstr ""
+
+msgid "You must provide either a message or a file."
+msgstr ""
+
+msgid "From WhatsApp"
 msgstr ""
 
 msgid "You must connect WhatsApp first."

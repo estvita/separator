@@ -4,10 +4,12 @@ import redis
 import logging
 import hashlib
 import re
+import os
+from urllib.parse import urlparse
 from datetime import datetime
 
 import requests
-from django.db import OperationalError
+from django.db import OperationalError, models
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.conf import settings
@@ -17,7 +19,20 @@ from separator.bitrix.models import Line
 import separator.bitrix.tasks as bitrix_tasks
 import separator.bitrix.utils as bitrix_utils
 
-from .models import App, Phone, Waba, Template, Event, Error
+from .models import (
+    App,
+    Phone,
+    Waba,
+    Template,
+    Event,
+    Error,
+    TemplateComponent,
+    TemplateComponentButton,
+    TemplateComponentNamedParam,
+    TemplateComponentPositionalParam,
+    TemplateBroadcastRecipient,
+    TemplateBroadcast,
+)
 
 API_URL = settings.FACEBOOK_API_URL
 
@@ -172,6 +187,7 @@ def message_template_status_update(entry):
                     'status': event
                 }
             )
+            save_template_components(template, components)
 
     elif event == 'PENDING_DELETION':
         try:
@@ -217,6 +233,341 @@ def extract_waba_id(data):
         if "waba_info" in value:
             waba_id = value["waba_info"].get("waba_id", waba_id)
     return waba_id
+
+
+def _normalize_type(value):
+    if not value:
+        return None
+    return str(value).upper()
+
+
+def _normalize_format(value):
+    if not value:
+        return None
+    return str(value).upper()
+
+
+def _extract_named_params(component):
+    example = component.get("example") or {}
+    named = []
+    for key in ("header_text_named_params", "body_text_named_params"):
+        items = example.get(key) or []
+        for item in items:
+            name = item.get("param_name")
+            ex = item.get("example")
+            if name:
+                named.append((name, ex))
+    return named
+
+
+def _extract_positional_params(component):
+    example = component.get("example") or {}
+    values = []
+    for key in ("header_text", "body_text"):
+        item = example.get(key)
+        if not item:
+            continue
+        if isinstance(item, list) and item and isinstance(item[0], list):
+            values.extend(item[0])
+        elif isinstance(item, list):
+            values.extend(item)
+        else:
+            values.append(item)
+    return values
+
+
+def _safe_text(value):
+    if value is None:
+        return None
+    return str(value)
+
+
+def save_template_components(template, components):
+    if components is None:
+        return
+
+    TemplateComponent.objects.filter(template=template).delete()
+
+    for comp_index, comp in enumerate(components):
+        comp_type = _normalize_type(comp.get("type"))
+        comp_format = _normalize_format(comp.get("format"))
+        comp_text = comp.get("text")
+
+        component = TemplateComponent.objects.create(
+            template=template,
+            type=comp_type,
+            format=comp_format,
+            text=comp_text,
+            index=comp_index,
+        )
+
+        for name, ex in _extract_named_params(comp):
+            TemplateComponentNamedParam.objects.create(
+                component=component,
+                name=name,
+                example=_safe_text(ex),
+            )
+
+        for pos_index, ex in enumerate(_extract_positional_params(comp), start=1):
+            TemplateComponentPositionalParam.objects.create(
+                component=component,
+                position=pos_index,
+                example=_safe_text(ex),
+            )
+
+        if comp_type == "BUTTONS":
+            for btn_index, btn in enumerate(comp.get("buttons") or []):
+                btn_type = _normalize_type(btn.get("type"))
+                btn_text = btn.get("text")
+                btn_url = btn.get("url")
+                btn_phone = btn.get("phone_number")
+                btn_example = btn.get("example")
+                if isinstance(btn_example, (list, dict)):
+                    btn_example = json.dumps(btn_example, ensure_ascii=True)
+
+                button = TemplateComponentButton.objects.create(
+                    component=component,
+                    type=btn_type,
+                    text=btn_text,
+                    url=btn_url,
+                    phone_number=btn_phone,
+                    example=_safe_text(btn_example),
+                    index=btn_index,
+                )
+
+                if btn_type == "URL":
+                    ex_list = btn.get("example") or []
+                    if isinstance(ex_list, list) and ex_list:
+                        TemplateComponentPositionalParam.objects.create(
+                            component=component,
+                            button=button,
+                            position=1,
+                            example=_safe_text(ex_list[0]),
+                        )
+
+
+def _media_param_type(fmt):
+    fmt = _normalize_format(fmt)
+    if fmt == "IMAGE":
+        return "image"
+    if fmt == "VIDEO":
+        return "video"
+    if fmt == "DOCUMENT":
+        return "document"
+    if fmt == "GIF":
+        return "video"
+    return None
+
+
+
+
+def build_template_components_payload(template, post_data, files_data, phone):
+    components_payload = []
+    for component in template.components.order_by("index", "id"):
+        comp_type = _normalize_type(component.type)
+        comp_format = _normalize_format(component.format)
+
+        if comp_type in ("BODY", "HEADER"):
+            params = []
+            for p in component.named_params.order_by("id"):
+                key = f"param__{component.id}__named__{p.name}"
+                val = post_data.get(key)
+                if val:
+                    params.append({"type": "text", "parameter_name": p.name, "text": val})
+            for p in component.positional_params.order_by("position", "id"):
+                key = f"param__{component.id}__pos__{p.position}"
+                val = post_data.get(key)
+                if val:
+                    params.append({"type": "text", "text": val})
+
+            if comp_type == "BODY" and params:
+                components_payload.append({"type": "body", "parameters": params})
+            if comp_type == "HEADER" and comp_format == "TEXT" and params:
+                components_payload.append({"type": "header", "parameters": params})
+
+        if comp_type == "HEADER" and comp_format in ("IMAGE", "VIDEO", "DOCUMENT", "GIF"):
+            media_key = f"media__{component.id}"
+            file_obj = files_data.get(media_key)
+            file_url = (post_data.get(media_key) or "").strip()
+            media_content = None
+            media_type = None
+            media_name = None
+
+            if file_obj:
+                media_content = file_obj.read()
+                media_type = file_obj.content_type or "application/octet-stream"
+                media_name = file_obj.name
+            elif file_url:
+                parsed = urlparse(file_url)
+                if parsed.scheme not in ("http", "https"):
+                    raise Exception("Media URL must be http/https")
+                try:
+                    resp = requests.get(file_url, timeout=20, stream=True)
+                    resp.raise_for_status()
+                except Exception as exc:
+                    raise Exception(f"Media download failed: {exc}") from exc
+
+                max_bytes = 25 * 1024 * 1024
+                total = 0
+                chunks = []
+                for chunk in resp.iter_content(chunk_size=1024 * 256):
+                    if not chunk:
+                        continue
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise Exception("Media download превышает лимит 25MB")
+                    chunks.append(chunk)
+                media_content = b"".join(chunks)
+                media_type = resp.headers.get("Content-Type") or "application/octet-stream"
+                path = parsed.path or ""
+                media_name = os.path.basename(path) or "media"
+
+            if media_content:
+                phone_num = (phone.phone or "").lstrip("+")
+                upload = upload_media(
+                    phone.app_instance,
+                    media_content,
+                    media_type,
+                    media_name,
+                    phone_num=phone_num,
+                )
+                if upload.get("error"):
+                    raise Exception(upload.get("message") or "Media upload failed")
+                media_id = upload.get("id")
+                if not media_id:
+                    raise Exception("Media upload failed: missing id")
+                param_type = _media_param_type(comp_format)
+                if param_type:
+                    components_payload.append({
+                        "type": "header",
+                        "parameters": [
+                            {"type": param_type, param_type: {"id": media_id}}
+                        ]
+                    })
+
+        if comp_type == "HEADER" and comp_format == "LOCATION":
+            lat = post_data.get(f"location__{component.id}__latitude")
+            lng = post_data.get(f"location__{component.id}__longitude")
+            name = post_data.get(f"location__{component.id}__name")
+            address = post_data.get(f"location__{component.id}__address")
+            if lat and lng:
+                components_payload.append({
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "location",
+                            "location": {
+                                "latitude": lat,
+                                "longitude": lng,
+                                "name": name or "",
+                                "address": address or "",
+                            },
+                        }
+                    ],
+                })
+
+        if comp_type == "BUTTONS":
+            for button in component.buttons.order_by("index", "id"):
+                btn_params = []
+                for p in button.named_params.order_by("id"):
+                    key = f"param__btn__{button.id}__named__{p.name}"
+                    val = post_data.get(key)
+                    if val:
+                        btn_params.append({"type": "text", "parameter_name": p.name, "text": val})
+                for p in button.positional_params.order_by("position", "id"):
+                    key = f"param__btn__{button.id}__pos__{p.position}"
+                    val = post_data.get(key)
+                    if val:
+                        btn_params.append({"type": "text", "text": val})
+                if btn_params:
+                    components_payload.append({
+                        "type": "button",
+                        "sub_type": (button.type or "").lower(),
+                        "index": str(button.index),
+                        "parameters": btn_params,
+                    })
+
+    return components_payload
+
+
+def build_broadcast_text(template, post_data):
+    def get_named(comp_id, name):
+        return post_data.get(f"param__{comp_id}__named__{name}")
+
+    def get_pos(comp_id, pos):
+        return post_data.get(f"param__{comp_id}__pos__{pos}")
+
+    def get_btn_named(btn_id, name):
+        return post_data.get(f"param__btn__{btn_id}__named__{name}")
+
+    def get_btn_pos(btn_id, pos):
+        return post_data.get(f"param__btn__{btn_id}__pos__{pos}")
+
+    def replace_named(text, comp):
+        for p in comp.named_params.order_by("id"):
+            val = get_named(comp.id, p.name)
+            if val:
+                text = text.replace("{{" + p.name + "}}", val)
+        return text
+
+    def replace_positional(text, comp):
+        for p in comp.positional_params.order_by("position", "id"):
+            val = get_pos(comp.id, p.position)
+            if val:
+                text = text.replace("{{" + str(p.position) + "}}", val)
+        return text
+
+    lines = []
+    for comp in template.components.order_by("index", "id"):
+        ctype = _normalize_type(comp.type)
+        cformat = _normalize_format(comp.format)
+        text = comp.text or ""
+
+        if ctype in ("HEADER", "BODY", "FOOTER") and text:
+            text = replace_named(text, comp)
+            text = replace_positional(text, comp)
+            lines.append(text)
+
+        if ctype == "HEADER" and cformat in ("IMAGE", "VIDEO", "DOCUMENT", "GIF"):
+            lines.append("[HEADER MEDIA]")
+
+        if ctype == "HEADER" and cformat == "LOCATION":
+            lat = post_data.get(f"location__{comp.id}__latitude")
+            lng = post_data.get(f"location__{comp.id}__longitude")
+            name = post_data.get(f"location__{comp.id}__name")
+            address = post_data.get(f"location__{comp.id}__address")
+            parts = [p for p in [name, address, lat, lng] if p]
+            if parts:
+                lines.append("LOCATION: " + ", ".join(parts))
+
+        if ctype == "BUTTONS":
+            for btn in comp.buttons.order_by("index", "id"):
+                btext = btn.text or btn.type or "BUTTON"
+                if btn.url:
+                    url = btn.url
+                    for p in btn.positional_params.order_by("position", "id"):
+                        val = get_btn_pos(btn.id, p.position)
+                        if val:
+                            url = url.replace("{{" + str(p.position) + "}}", val)
+                    for p in btn.named_params.order_by("id"):
+                        val = get_btn_named(btn.id, p.name)
+                        if val:
+                            url = url.replace("{{" + p.name + "}}", val)
+                    btext = f"{btext} {url}"
+                lines.append(f"BUTTON: {btext}")
+
+    return "\n".join([line for line in lines if line])
+
+
+def _status_rank(status):
+    order = {
+        "pending": 0,
+        "sent": 1,
+        "delivered": 2,
+        "failed": 3,
+        "cancelled": 4,
+    }
+    return order.get(status, 0)
 
 
 @shared_task(
@@ -313,9 +664,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         try:
             phone = Phone.objects.get(phone_id=phone_number_id, waba=waba)
             appinstance = phone.app_instance
-            appinstance.host = host
-            if not appinstance:
-                raise Exception(f"appinstance not connected: {data}")
+            if appinstance:
+                appinstance.host = host
         except Phone.DoesNotExist:
             raise Exception(f"phone_number not found: {data}")
         except Exception:
@@ -367,6 +717,26 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             raise Exception(f"phone tariff ended: {data}")
 
         if not phone.line or not phone.waba or not phone.app_instance:
+            statuses = value.get("statuses", [])
+            if statuses:
+                for item in statuses:
+                    fb_status = item.get("status")
+                    wamid = item.get("id")
+                    if wamid and fb_status:
+                        try:
+                            recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
+                            if recipient and recipient.status != fb_status:
+                                update_fields = {"status": fb_status}
+                                if fb_status == "failed":
+                                    update_fields["error_json"] = item
+                                TemplateBroadcastRecipient.objects.filter(id=recipient.id).update(**update_fields)
+                                if fb_status == "delivered":
+                                    TemplateBroadcast.objects.filter(id=recipient.broadcast_id).update(
+                                        delivered_count=models.F("delivered_count") + 1
+                                    )
+                        except Exception:
+                            pass
+                return data
             raise Exception(f"phone not connected to b24: {data}")
 
         messages = value.get("messages", [])
@@ -458,6 +828,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         if statuses:
             for item in statuses:
                 fb_status = item.get("status")
+                wamid = item.get("id")
                 out_message = None
 
                 if fb_status == "failed":
@@ -495,6 +866,28 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                 "STATUS": fb_status
                             }
                             bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
+                    except Exception:
+                        pass
+                if wamid and fb_status:
+                    try:
+                        recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
+                        if recipient:
+                            cur_rank = _status_rank(recipient.status)
+                            new_rank = _status_rank(fb_status)
+                            should_update = new_rank >= cur_rank
+                            if recipient.status == "delivered" and fb_status == "sent":
+                                should_update = False
+                            if recipient.status == "failed" and fb_status != "failed":
+                                should_update = False
+                            if should_update and recipient.status != fb_status:
+                                update_fields = {"status": fb_status}
+                                if fb_status == "failed":
+                                    update_fields["error_json"] = item
+                                TemplateBroadcastRecipient.objects.filter(id=recipient.id).update(**update_fields)
+                                if fb_status == "delivered":
+                                    TemplateBroadcast.objects.filter(id=recipient.broadcast_id).update(
+                                        delivered_count=models.F("delivered_count") + 1
+                                    )
                     except Exception:
                         pass
             return data
@@ -591,7 +984,7 @@ def save_approved_templates(id):
             status = template.get("status")
 
             # Создание или обновление шаблона в базе данных
-            Template.objects.update_or_create(
+            template_obj, _ = Template.objects.update_or_create(
                 id=template_id,
                 defaults={
                     "waba": waba,
@@ -602,5 +995,6 @@ def save_approved_templates(id):
                     "status": status,
                 }
             )
+            save_template_components(template_obj, content)
     except Exception:
         raise

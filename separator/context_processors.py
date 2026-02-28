@@ -32,3 +32,9 @@ def site_name(request):
         except Exception:
             pass
     return {'SITE_NAME': name}
+
+def settings_module(request):
+    return {"DJANGO_SETTINGS_MODULE": os.environ.get("DJANGO_SETTINGS_MODULE")}
+
+def default_language_code(request):
+    return {"DEFAULT_LANGUAGE_CODE": getattr(settings, "LANGUAGE_CODE", "en")}

@@ -116,7 +116,12 @@ class AppAdmin(admin.ModelAdmin):
     list_display = ("name", "client_id", "site", "owner")
     search_fields = ("name", "id", "client_id", "owner__email")
     autocomplete_fields = ['owner']
-    list_filter = ('autologin', 'asterx', 'imopenlines_auto_finish')
+    list_filter = ('autologin', 'asterx')
+    fieldsets = (
+        (None, {"fields": ("name", "client_id", "client_secret", "site", "owner", "page_url")}),
+        ("Auth", {"fields": ("autologin", "min_version")}),
+        ("Options", {"fields": ("events", "connectors", "asterx", "vendor", "bitbot")}),
+    )
     list_per_page = 30
 
 
@@ -141,7 +146,7 @@ class BitrixAdmin(admin.ModelAdmin):
     list_display = ("domain", "owner", "license_expired")
     search_fields = ("domain", "member_id", "owner__email")
     fields = ("protocol", "domain", "owner", "member_id", "license_expired")
-    list_filter = ('license_expired', 'imopenlines_auto_finish')
+    list_filter = ('license_expired',)
     list_per_page = 30
 
 
@@ -149,11 +154,11 @@ class BitrixAdmin(admin.ModelAdmin):
 class AppInstanceAdmin(admin.ModelAdmin):
     inlines = [CredentialInline]
     autocomplete_fields = ['owner']
-    list_display = ("app", "owner", "portal_link", "status")
+    list_display = ("app", "owner", "portal_link", "status", "license")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
     readonly_fields = ("auth_status", "storage_id", "application_token", 
                        "status")
-    list_filter = ("app", "status", "auth_status")
+    list_filter = ("app", "status", "auth_status", "license")
     list_per_page = 30
 
     def portal_link(self, obj):
