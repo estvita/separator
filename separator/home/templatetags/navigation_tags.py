@@ -21,4 +21,5 @@ def get_site_root(context):
     request = context.get("request")
     if not request:
         return ""
-    return Site.find_for_request(request).root_page
+    site = Site.find_for_request(request)
+    return site.root_page if site else ""

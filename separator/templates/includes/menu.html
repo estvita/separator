@@ -4,7 +4,7 @@
 {% get_language_info_list for LANGUAGES as languages %}
 
 <ul class="navbar-nav me-auto">
-  {% if DJANGO_SETTINGS_MODULE == "config.settings.vendor" and page and page.pk %}
+  {% if 'wagtail' in INSTALLED_APPS %}
     {% include "includes/menu_wagtail.html" %}
   {% endif %}
 </ul>
@@ -29,7 +29,7 @@
     <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
   </li>
   {% endif %}
-  {% if DJANGO_SETTINGS_MODULE == "config.settings.vendor" and page and page.pk %}
+  {% if 'wagtail' in INSTALLED_APPS and page and page.pk %}
     <li class="nav-item dropdown ms-2">
       <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
         <option value="{% pageurl page %}" selected>
