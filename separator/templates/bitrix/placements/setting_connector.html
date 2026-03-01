@@ -16,6 +16,9 @@
   </style>
 </head>
 <body>
+  <div class="mb-3">
+    <strong>{% trans "Current User" %}:</strong> {{ user.email|default:"-" }}
+  </div>
   <div class="d-flex align-items-center">
     {% if items %}
     <form method="post" class="d-flex align-items-center">

@@ -39,7 +39,7 @@ def delete_voximplant(phone):
 @login_required
 def phone_details(request, phone_id):
     phone = get_object_or_404(Phone, phone_id=phone_id, owner=request.user)
-    templates = Template.objects.filter(waba=phone.waba, status='APPROVED').prefetch_related(
+    templates = Template.objects.filter(waba=phone.waba).prefetch_related(
         "components__named_params",
         "components__positional_params",
         "components__buttons",
@@ -220,7 +220,7 @@ def broadcast_page(request):
     templates_data_by_phone = {}
     templates_by_phone = {}
     for phone in phones:
-        tqs = Template.objects.filter(waba=phone.waba, status='APPROVED').prefetch_related(
+        tqs = Template.objects.filter(waba=phone.waba).prefetch_related(
             "components__named_params",
             "components__positional_params",
             "components__buttons__named_params",

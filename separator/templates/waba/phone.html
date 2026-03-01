@@ -20,6 +20,7 @@
       <thead>
         <tr>
           <th>{% trans "Name" %}</th>
+          <th>{% trans "Status" %}</th>
           <th>{% trans "Language" %}</th>
           <th>{% trans "Bitrix Code" %}</th>
           <th>{% trans "Available in Bitrix24" %}</th>
@@ -30,6 +31,7 @@
         {% for template in templates %}
         <tr>
           <td>{{ template.name }}</td>
+          <td>{{ template.status }}</td>
           <td>{{ template.lang }}</td>
           <td>{{ template.bitrix_code }}</td>
           <td>
@@ -42,7 +44,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="5">{% trans "No templates found." %}</td>
+          <td colspan="6">{% trans "No templates found." %}</td>
         </tr>
         {% endfor %}
       </tbody>

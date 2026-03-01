@@ -207,6 +207,19 @@ def get_owner(request):
 
     return owner_user
 
+
+def autologin_owner(request, app, user, redirect_url=None):
+    should_login = user and (not request.user.is_authenticated or request.user != user)
+    if should_login and app.autologin:
+        if request.user.is_authenticated:
+            logout(request)
+        try:
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+        except Exception:
+            if redirect_url:
+                return redirect(redirect_url)
+    return None
+
 @csrf_exempt
 def process_placement(request):
     try:
@@ -222,6 +235,11 @@ def process_placement(request):
         except Exception as e:
             messages.error(request, e)
             return redirect("/")
+
+        login_redirect = autologin_owner(request, app, user)
+        if login_redirect:
+            return login_redirect
+
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return placements.settings_connector(request, user)
@@ -343,15 +361,10 @@ def app_settings(request):
             
             if user and portal:
                 link_ojects(portal, user)
-            
-            should_login = not request.user.is_authenticated or request.user != user
-            if should_login and app.autologin:
-                if request.user.is_authenticated:
-                    logout(request)
-                try:
-                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-                except Exception:
-                    return redirect(app_url)
+
+            login_redirect = autologin_owner(request, app, user, redirect_url=app_url)
+            if login_redirect:
+                return login_redirect
             if installed_app and user:
                 if user.phone_number and not user.integrator:
                     prepare_lead.delay(user.id, f"App installed: {app.name}")

@@ -89,6 +89,7 @@ def settings_connector(request, user):
                 "connector_code": connector_code,
                 "auth_id": data.get("AUTH_ID"),
                 "connector_service": connector.service,
+                "user": user,
             },
         )
 
