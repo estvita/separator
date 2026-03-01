@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-27 16:59+0500\n"
+"POT-Creation-Date: 2026-03-01 10:12+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -121,9 +121,6 @@ msgstr ""
 msgid "Код подтверждения"
 msgstr ""
 
-msgid "Enable auto finish chat"
-msgstr ""
-
 msgid "Chek for AsterX connector"
 msgstr ""
 
@@ -133,7 +130,19 @@ msgstr ""
 msgid "Chek for BitBot App"
 msgstr ""
 
-msgid "in minutes"
+msgid "phone not found"
+msgstr ""
+
+msgid "olx user not found"
+msgstr ""
+
+msgid "session not found"
+msgstr ""
+
+msgid "line not found"
+msgstr ""
+
+msgid "Connected"
 msgstr ""
 
 msgid "unsupported waba placement type"
@@ -160,24 +169,6 @@ msgstr ""
 msgid "send failed"
 msgstr ""
 
-msgid "WABA template sent"
-msgstr ""
-
-msgid "Sender"
-msgstr ""
-
-msgid "Recipient"
-msgstr ""
-
-msgid "Template"
-msgstr ""
-
-msgid "Sent payload"
-msgstr ""
-
-msgid "Facebook response"
-msgstr ""
-
 msgid "Portal not found by code."
 msgstr ""
 
@@ -199,15 +190,6 @@ msgid "Код подтверждения отправлен на ваш порт
 msgstr ""
 
 msgid "Портал не найден или уже закреплен за другим пользователем."
-msgstr ""
-
-msgid "Auto-close chats is enabled and the event is binded"
-msgstr ""
-
-msgid "You don't have an app with auto-close chats."
-msgstr ""
-
-msgid "Auto-closing of chats is disabled and events are unbind"
 msgstr ""
 
 msgid "Administrator rights are required to edit the portal."
@@ -504,10 +486,25 @@ msgstr ""
 msgid "Enable JavaScript for this app to work."
 msgstr ""
 
+msgid "Connector settings"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Add number"
+msgstr ""
+
+msgid "New OLX"
+msgstr ""
+
 msgid "WABA Template Sender"
 msgstr ""
 
 msgid "Sender number"
+msgstr ""
+
+msgid "Template"
 msgstr ""
 
 msgid "Recipient phone"
@@ -547,12 +544,6 @@ msgid "Portal Owner"
 msgstr ""
 
 msgid "Not assigned"
-msgstr ""
-
-msgid "Auto close openlines chats if deal (lead) is completed"
-msgstr ""
-
-msgid "Finish Delay (minutes)"
 msgstr ""
 
 msgid "Open Lines"
@@ -600,6 +591,9 @@ msgstr ""
 msgid "Trial"
 msgstr ""
 
+msgid "Self-hosted"
+msgstr ""
+
 msgid "Service"
 msgstr ""
 
@@ -643,9 +637,6 @@ msgid "Select line"
 msgstr ""
 
 msgid "line"
-msgstr ""
-
-msgid "Connect"
 msgstr ""
 
 msgid "Connect OLX account"
@@ -714,6 +705,9 @@ msgstr ""
 msgid "Broadcast"
 msgstr ""
 
+msgid "Phone"
+msgstr ""
+
 msgid "Stop scheduled broadcast"
 msgstr ""
 
@@ -721,6 +715,9 @@ msgid "Search phone or wamid"
 msgstr ""
 
 msgid "All statuses"
+msgstr ""
+
+msgid "Recipient"
 msgstr ""
 
 msgid "WAMID"
@@ -762,13 +759,7 @@ msgstr ""
 msgid "You don't have any connected sessions."
 msgstr ""
 
-msgid "Add number"
-msgstr ""
-
 msgid "WhatsApp Cloud number settings"
-msgstr ""
-
-msgid "Phone"
 msgstr ""
 
 msgid "Template list"
@@ -784,6 +775,9 @@ msgid "Available in Bitrix24"
 msgstr ""
 
 msgid "No templates found."
+msgstr ""
+
+msgid "Delete selected templates from Facebook and local database?"
 msgstr ""
 
 msgid "Calling settings are not available for WhatsApp Business App numbers."
@@ -892,6 +886,10 @@ msgstr ""
 msgid "The mailing has been added to the queue."
 msgstr ""
 
+#, python-format
+msgid "Template deletion queued: %(count)s"
+msgstr ""
+
 msgid "Template availability updated."
 msgstr ""
 
@@ -912,6 +910,9 @@ msgid "Call destination %(dest)s enabled"
 msgstr ""
 
 msgid "The tariff has expired "
+msgstr ""
+
+msgid "Please provide at least one recipient phone number."
 msgstr ""
 
 msgid "Phone not found"
@@ -949,9 +950,6 @@ msgid "Attachment"
 msgstr ""
 
 msgid "You must provide either a message or a file."
-msgstr ""
-
-msgid "From WhatsApp"
 msgstr ""
 
 msgid "You must connect WhatsApp first."

@@ -7,7 +7,7 @@
 <div class="container">
   <h3>{% trans "Broadcast" %}: {{ broadcast.name }}</h3>
   <p class="mb-2">
-    {% trans "Phone" %}: <a href="{% url 'phone-details' broadcast.phone.id %}">{{ broadcast.phone.phone }}</a>,
+    {% trans "Phone" %}: <a href="{% url 'phone-details' broadcast.phone.phone_id %}">{{ broadcast.phone.phone }}</a>,
     {% trans "Recipients" %}: {{ broadcast.recipients_count }},
     {% trans "Delivered" %}: {{ broadcast.delivered_count }},
     {% trans "Status" %}: {{ broadcast.status }}

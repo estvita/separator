@@ -244,3 +244,23 @@ def waba_subscription(waba_id):
 
     method = "post" if waba.subscribed else "delete"
     return utils.call_api(app=waba.app, endpoint=f"{waba.waba_id}/subscribed_apps", method=method)
+
+
+@shared_task(queue='waba')
+def delete_template(template_id, owner_id=None):
+    template = Template.objects.filter(id=template_id).first()
+    if not template:
+        return {
+            "status": "not_found",
+            "template_id": template_id,
+        }
+
+    if owner_id and template.owner_id != owner_id:
+        raise Exception(f"Template {template_id} does not belong to user {owner_id}")
+
+    remote_result = utils.delete_template_remote(template)
+    if isinstance(remote_result, dict) and remote_result.get("error"):
+        raise Exception(str(remote_result))
+
+    template.delete()
+    return remote_result

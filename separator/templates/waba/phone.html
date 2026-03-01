@@ -13,7 +13,7 @@
   <!-- Template list -->
   <h3>{% trans "Template list" %} </h3> 
   <a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">{% trans "Add New" %}</a>
-  <form method="POST" class="mb-3">
+  <form method="POST" class="mb-3" id="templates-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="update_templates">
     <table class="table table-striped">
@@ -23,6 +23,7 @@
           <th>{% trans "Language" %}</th>
           <th>{% trans "Bitrix Code" %}</th>
           <th>{% trans "Available in Bitrix24" %}</th>
+          <th>{% trans "Delete" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -30,21 +31,42 @@
         <tr>
           <td>{{ template.name }}</td>
           <td>{{ template.lang }}</td>
-          <td>template+{{ template.name }}+{{ template.lang }}</td>
+          <td>{{ template.bitrix_code }}</td>
           <td>
             <input type="checkbox" name="available_templates" value="{{ template.id }}"
                    {% if template.availableInB24 %}checked{% endif %}>
           </td>
+          <td>
+            <input type="checkbox" name="delete_templates" value="{{ template.id }}">
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="4">{% trans "No templates found." %}</td>
+          <td colspan="5">{% trans "No templates found." %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
   </form>
+  <script>
+    (function () {
+      var templatesForm = document.getElementById("templates-form");
+      if (!templatesForm) {
+        return;
+      }
+      templatesForm.addEventListener("submit", function (event) {
+        var checkedToDelete = templatesForm.querySelectorAll('input[name="delete_templates"]:checked');
+        if (!checkedToDelete.length) {
+          return;
+        }
+        var confirmed = confirm("{% trans 'Delete selected templates from Facebook and local database?' %}");
+        if (!confirmed) {
+          event.preventDefault();
+        }
+      });
+    })();
+  </script>
   <hr>
 
   {% if phone.type == "app" %}

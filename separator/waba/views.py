@@ -38,8 +38,16 @@ def delete_voximplant(phone):
 
 @login_required
 def phone_details(request, phone_id):
-    phone = get_object_or_404(Phone, id=phone_id, owner=request.user)
-    templates = Template.objects.filter(waba=phone.waba, status='APPROVED')
+    phone = get_object_or_404(Phone, phone_id=phone_id, owner=request.user)
+    templates = Template.objects.filter(waba=phone.waba, status='APPROVED').prefetch_related(
+        "components__named_params",
+        "components__positional_params",
+        "components__buttons",
+        "components__buttons__named_params",
+        "components__buttons__positional_params",
+    )
+    for template in templates:
+        template.bitrix_code = waba_utils.build_bitrix_template_code(template)
 
     templates_data = []
     for template in templates:
@@ -86,19 +94,29 @@ def phone_details(request, phone_id):
             recipient_phones_raw = request.POST.get('recipient_phone')
             recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
             try:
-                waba_tasks.send_message.delay(template, recipients, phone_id)
+                waba_tasks.send_message.delay(template, recipients, phone.id)
                 messages.success(request, _('The mailing has been added to the queue.'))
                 return redirect('waba')
             except Exception as e:
                 messages.error(request, str(e))
-                return redirect('phone-details', phone_id=phone.id)
+                return redirect('phone-details', phone_id=phone.phone_id)
         elif action == 'update_templates':
+            delete_ids = set(request.POST.getlist('delete_templates'))
+            if delete_ids:
+                to_delete_ids = list(templates.filter(id__in=delete_ids).values_list("id", flat=True))
+                for template_id in to_delete_ids:
+                    waba_tasks.delete_template.delay(template_id, request.user.id)
+                if to_delete_ids:
+                    messages.success(request, _("Template deletion queued: %(count)s") % {'count': len(to_delete_ids)})
+
             allowed_ids = set(request.POST.getlist('available_templates'))
+            if delete_ids:
+                allowed_ids -= delete_ids
             templates.update(availableInB24=False)
             if allowed_ids:
                 templates.filter(id__in=allowed_ids).update(availableInB24=True)
             messages.success(request, _('Template availability updated.'))
-            return redirect('phone-details', phone_id=phone.id)
+            return redirect('phone-details', phone_id=phone.phone_id)
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
             save_required = False
@@ -121,7 +139,7 @@ def phone_details(request, phone_id):
                 app = App.objects.filter(site__domain=domain).first()
                 if not app.sip_server:
                     messages.error(request, _("FreePBX Server not connected"))
-                    return redirect('phone-details', phone_id=phone.id)
+                    return redirect('phone-details', phone_id=phone.phone_id)
                 phone.sip_hostname = app.sip_server.domain
                 phone.sip_port = app.sip_server.sip_port
                 save_required = True

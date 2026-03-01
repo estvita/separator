@@ -129,6 +129,28 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
         return {"error": True, "message": str(e)}
 
 
+def delete_template_remote(template):
+    waba = template.waba
+    if not waba:
+        return {"error": True, "message": "waba not found"}
+
+    endpoint = f"{waba.waba_id}/message_templates"
+    attempts = [
+        {"name": template.name},
+        {"name": template.name, "hsm_id": template.id},
+        {"name": template.name, "template_id": template.id},
+    ]
+
+    last_error = None
+    for params in attempts:
+        try:
+            return call_api(waba=waba, endpoint=endpoint, method="delete", payload=params)
+        except Exception as e:
+            last_error = e
+
+    return {"error": True, "message": str(last_error) if last_error else "delete failed"}
+
+
 def get_file(media_url, filename, appinstance, waba):
     try:
         download_file = call_api(file_url=media_url, waba=waba)
@@ -357,6 +379,73 @@ def _media_param_type(fmt):
     if fmt == "GIF":
         return "video"
     return None
+
+
+def _bitrix_param_example(value, default="123"):
+    value = str(value).strip() if value is not None else ""
+    if not value:
+        value = default
+    value = re.sub(r"[\r\n\t]+", " ", value)
+    value = value.replace("|", "/")
+    return value
+
+
+def _bitrix_file_link_example(fmt):
+    fmt = _normalize_format(fmt)
+    if fmt == "IMAGE":
+        return "https://example.com/image.jpg"
+    if fmt == "VIDEO" or fmt == "GIF":
+        return "https://example.com/video.mp4"
+    return "https://example.com/file.pdf"
+
+
+def build_bitrix_template_code(template):
+    base = f"template+{template.name}+{template.lang}"
+    payload_segments = []
+
+    for component in template.components.order_by("index", "id"):
+        comp_type = _normalize_type(component.type)
+        comp_format = _normalize_format(component.format)
+
+        if comp_type in ("HEADER", "BODY"):
+            for named in component.named_params.order_by("id"):
+                payload_segments.append(_bitrix_param_example(named.example))
+            for positional in component.positional_params.order_by("position", "id"):
+                payload_segments.append(_bitrix_param_example(positional.example))
+
+        if comp_type == "HEADER" and comp_format in ("IMAGE", "VIDEO", "DOCUMENT", "GIF"):
+            payload_segments.append(f"file_link:{_bitrix_file_link_example(comp_format)}")
+
+        if comp_type == "BUTTONS":
+            for button in component.buttons.order_by("index", "id"):
+                if _normalize_type(button.type) != "URL":
+                    continue
+
+                has_button_params = (
+                    button.positional_params.exists()
+                    or button.named_params.exists()
+                    or (button.url and "{{" in button.url and "}}" in button.url)
+                )
+                if not has_button_params:
+                    continue
+
+                button_value = None
+                positional = button.positional_params.order_by("position", "id").first()
+                if positional and positional.example:
+                    button_value = positional.example
+                else:
+                    named = button.named_params.order_by("id").first()
+                    if named and named.example:
+                        button_value = named.example
+                    elif button.example:
+                        button_value = button.example
+
+                payload_segments.append(f"button_param:{_bitrix_param_example(button_value)}")
+                break
+
+    if not payload_segments:
+        return base
+    return f"{base}+{'|'.join(payload_segments)}"
 
 
 
