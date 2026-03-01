@@ -180,6 +180,32 @@ def format_contacts(contacts):
     return contact_text
 
 
+def fetch_and_save_template(waba, template_id, template_name, lang, event_status=None, components=None):
+    status = event_status
+    if components is None:
+        try:
+            temp_data = call_api(waba=waba, endpoint=template_id)
+            components = temp_data.get('components')
+            if not status:
+                status = temp_data.get('status')
+        except Exception:
+            pass
+
+    Template.objects.filter(id=template_id).delete()
+
+    template = Template.objects.create(
+        id=template_id,
+        waba=waba,
+        owner=waba.owner,
+        name=template_name,
+        lang=lang,
+        content=components,
+        status=status
+    )
+    save_template_components(template, components)
+    return template
+
+
 def message_template_status_update(entry):
     waba_id = entry.get('id')
     changes = entry.get('changes', [])[0]
@@ -191,25 +217,7 @@ def message_template_status_update(entry):
     if event == "APPROVED":
         waba = Waba.objects.filter(waba_id=waba_id).first()
         if waba:
-            components = None
-            try:
-                temp_data = call_api(waba=waba, endpoint=template_id)
-                components = temp_data.get('components')
-            except Exception:
-                pass
-
-            template, created = Template.objects.update_or_create(
-                owner=waba.owner,
-                id=template_id,
-                defaults={
-                    'waba': waba,
-                    'name': template_name,
-                    'lang': lang,
-                    'content': components,
-                    'status': event
-                }
-            )
-            save_template_components(template, components)
+            fetch_and_save_template(waba, template_id, template_name, lang, event)
 
     elif event == 'PENDING_DELETION':
         try:
@@ -221,6 +229,19 @@ def message_template_status_update(entry):
 
     else:
         raise Exception(entry)
+
+def message_template_components_update(entry):
+    waba_id = entry.get('id')
+    changes = entry.get('changes', [])[0]
+    value = changes.get('value', {})
+    template_id = value.get('message_template_id')
+    template_name = value.get('message_template_name')
+    lang = value.get('message_template_language')
+    
+    waba = Waba.objects.filter(waba_id=waba_id).first()
+    if waba:
+        fetch_and_save_template(waba, template_id, template_name, lang)
+    return True
     
 
 def error_message(data):
@@ -763,6 +784,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if field == 'message_template_status_update':
         return message_template_status_update(entry)    
 
+    elif field == 'message_template_components_update':
+        return message_template_components_update(entry)
+
     elif field == 'phone_number_name_update':
         display_phone_number = value.get('display_phone_number')
         if display_phone_number and waba:
@@ -1072,18 +1096,6 @@ def save_approved_templates(id):
             content = template.get("components")
             status = template.get("status")
 
-            # Создание или обновление шаблона в базе данных
-            template_obj, _ = Template.objects.update_or_create(
-                id=template_id,
-                defaults={
-                    "waba": waba,
-                    "owner": waba.owner,
-                    "name": name,
-                    "lang": lang,
-                    "content": content,
-                    "status": status,
-                }
-            )
-            save_template_components(template_obj, content)
+            fetch_and_save_template(waba, template_id, name, lang, event_status=status, components=content)
     except Exception:
         raise
