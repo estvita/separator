@@ -143,9 +143,9 @@ class ConnectorAdmin(admin.ModelAdmin):
 class BitrixAdmin(admin.ModelAdmin):
     inlines = [UserInline, AppInstanceInline]    
     autocomplete_fields = ['owner']
-    list_display = ("domain", "owner", "license_expired")
+    list_display = ("domain", "owner", "license", "license_expired")
     search_fields = ("domain", "member_id", "owner__email")
-    fields = ("protocol", "domain", "owner", "member_id", "license_expired")
+    fields = ("protocol", "domain", "owner", "member_id", "license", "license_expired")
     list_filter = ('license_expired',)
     list_per_page = 30
 
@@ -154,11 +154,11 @@ class BitrixAdmin(admin.ModelAdmin):
 class AppInstanceAdmin(admin.ModelAdmin):
     inlines = [CredentialInline]
     autocomplete_fields = ['owner']
-    list_display = ("app", "owner", "portal_link", "status", "license")
+    list_display = ("app", "owner", "portal_link", "status")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
     readonly_fields = ("auth_status", "storage_id", "application_token", 
                        "status")
-    list_filter = ("app", "status", "auth_status", "license")
+    list_filter = ("app", "status", "auth_status")
     list_per_page = 30
 
     def portal_link(self, obj):

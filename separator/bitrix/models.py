@@ -66,6 +66,7 @@ class Bitrix(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
     member_id = models.CharField(max_length=255, unique=True, blank=True, null=True)
+    license = models.CharField(max_length=255, blank=True)
     license_expired = models.BooleanField(default=False)
 
     def __str__(self):
@@ -97,7 +98,6 @@ class AppInstance(models.Model):
     )
     exclude = models.CharField(blank=True)
     auth_status = models.CharField(max_length=1)
-    license = models.CharField(max_length=255, blank=True)
     application_token = models.CharField(max_length=255, blank=True)
     storage_id = models.CharField(max_length=255, blank=True)
     status = models.IntegerField(default=0, blank=True)

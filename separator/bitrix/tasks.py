@@ -47,20 +47,21 @@ def upd_refresh_token(period):
 
 @shared_task(queue='bitrix')
 def get_app_info(instance_id=None):
+    app_instances = AppInstance.objects.filter(
+        portal__isnull=False,
+        portal__license_expired=False,
+    )
     if instance_id:
-        app_instances = AppInstance.objects.filter(id=instance_id)
-    else:
-        app_instances = AppInstance.objects.all()
+        app_instances = app_instances.filter(id=instance_id)
     for app_instance in app_instances:
-        if app_instance.portal and not app_instance.portal.license_expired:
-            try:
-                resp = call_method(app_instance, "app.info", {})
-                license_value = (resp.get("result") or {}).get("LICENSE")
-                if license_value is not None and getattr(app_instance, "license", None) != license_value:
-                    app_instance.license = license_value
-                    app_instance.save(update_fields=["license"])
-            except Exception:
-                pass
+        try:
+            resp = call_method(app_instance, "app.info", {})
+            license_value = (resp.get("result") or {}).get("LICENSE")
+            if license_value is not None and app_instance.portal.license != license_value:
+                app_instance.portal.license = license_value
+                app_instance.portal.save(update_fields=["license"])
+        except Exception:
+            pass
 
 
 # Регистрация SMS-провайдера
