@@ -372,6 +372,15 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="none")
+# allauth 65.14.2+ client IP detection hardening (for rate-limits)
+# Use a single-IP trusted header set by reverse proxy (e.g. nginx)
+ALLAUTH_TRUSTED_CLIENT_IP_HEADER = env(
+    "ALLAUTH_TRUSTED_CLIENT_IP_HEADER",
+    default="X-Real-IP",
+)
+# Number of trusted proxies for X-Forwarded-For parsing.
+# Keep 0 unless you intentionally rely on X-Forwarded-For.
+ALLAUTH_TRUSTED_PROXY_COUNT = env.int("ALLAUTH_TRUSTED_PROXY_COUNT", default=0)
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "separator.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
