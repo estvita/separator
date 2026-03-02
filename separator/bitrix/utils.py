@@ -146,14 +146,21 @@ def connect_line(request, line_id, entity, connector_service):
             line_name = entity.olx_id
         else:
             line_name = entity.phone
+
+        params = {
+            "WELCOME_MESSAGE": "N",
+            "CLOSE_RULE": "none",
+            "VOTE_MESSAGE": "N"
+        }
+
+        if connector.default_line_params and isinstance(connector.default_line_params, dict):
+            params.update(connector.default_line_params)
+
+        params["LINE_NAME"] = line_name
+        params["ACTIVE"] = "Y"
+
         create_payload = {
-            "PARAMS": {
-                "LINE_NAME": line_name,
-                "ACTIVE": "Y",
-                "WELCOME_MESSAGE": "N",
-                "CLOSE_RULE": "none",
-                "VOTE_MESSAGE": "N"
-            }
+            "PARAMS": params
         }
         result = bitrix_tasks.call_api(app_instance.id, "imopenlines.config.add", create_payload)
         if result and result.get("result"):

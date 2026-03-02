@@ -26,6 +26,7 @@ class Connector(models.Model):
     service = models.CharField(max_length=255, choices=TYPE_CHOICES, blank=True, null=True)
     name = models.CharField(max_length=255, default="separator.biz", unique=False)
     icon = models.FileField(upload_to='connector_icons/', blank=True, null=True, validators=[validate_svg])
+    default_line_params = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.name
