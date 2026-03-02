@@ -411,6 +411,15 @@ def _bitrix_param_example(value, default="123"):
     return value
 
 
+def _bitrix_param_name(name, default="param"):
+    clean_name = str(name).strip() if name is not None else ""
+    if not clean_name:
+        clean_name = default
+    clean_name = re.sub(r"[\r\n\t]+", " ", clean_name)
+    clean_name = clean_name.replace("|", "_").replace(":", "_")
+    return clean_name
+
+
 def _bitrix_file_link_example(fmt):
     fmt = _normalize_format(fmt)
     if fmt == "IMAGE":
@@ -420,8 +429,25 @@ def _bitrix_file_link_example(fmt):
     return "https://example.com/file.pdf"
 
 
+def _extract_button_dynamic_param(button_url, button_example):
+    url = str(button_url or "")
+    example = str(button_example or "")
+    if not url or not example:
+        return button_example
+
+    placeholder = "{{1}}"
+    if placeholder not in url:
+        return button_example
+
+    prefix, suffix = url.split(placeholder, 1)
+    if example.startswith(prefix) and (not suffix or example.endswith(suffix)):
+        end = len(example) - len(suffix) if suffix else len(example)
+        return example[len(prefix):end]
+    return button_example
+
+
 def build_bitrix_template_code(template):
-    base = f"template+{template.name}+{template.lang}"
+    base = f"template+{template.id}"
     payload_segments = []
 
     for component in template.components.order_by("index", "id"):
@@ -430,7 +456,9 @@ def build_bitrix_template_code(template):
 
         if comp_type in ("HEADER", "BODY"):
             for named in component.named_params.order_by("id"):
-                payload_segments.append(_bitrix_param_example(named.example))
+                payload_segments.append(
+                    f"{_bitrix_param_name(named.name)}:{_bitrix_param_example(named.example)}"
+                )
             for positional in component.positional_params.order_by("position", "id"):
                 payload_segments.append(_bitrix_param_example(positional.example))
 
@@ -461,6 +489,7 @@ def build_bitrix_template_code(template):
                     elif button.example:
                         button_value = button.example
 
+                button_value = _extract_button_dynamic_param(button.url, button_value)
                 payload_segments.append(f"button_param:{_bitrix_param_example(button_value)}")
                 break
 

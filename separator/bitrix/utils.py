@@ -369,19 +369,235 @@ CALL_REQUEST = {
 }
 
 
+def _build_file_header_component(file_url, appinstance=None, line_id=None, phone_num=None):
+    if not file_url:
+        return None
+
+    file_type = ""
+    file_headers = None
+    try:
+        file_headers = requests.head(file_url, allow_redirects=True, timeout=10)
+        file_type = file_headers.headers.get("Content-Type", "")
+    except Exception:
+        file_type = ""
+
+    if file_type.startswith("image/"):
+        waba_file_type = "image"
+    elif file_type.startswith("video/"):
+        waba_file_type = "video"
+    elif file_type == "application/pdf" or file_url.lower().endswith(".pdf"):
+        waba_file_type = "document"
+    else:
+        waba_file_type = "document"
+
+    uploaded_id = None
+    filename = "file"
+    if waba_file_type == "document":
+        filename = "file.pdf"
+        if file_headers:
+            cd = file_headers.headers.get("Content-Disposition", "")
+            m = re.search(r"filename\*=utf-8''(.+)", cd)
+            if m:
+                filename = unquote(m.group(1))
+            else:
+                m = re.search(r'filename="(.+?)"', cd)
+                if m:
+                    filename = m.group(1)
+    else:
+        ext = file_type.split("/")[-1] if file_type and "/" in file_type else "bin"
+        filename = f"file.{ext}"
+
+    if appinstance and (line_id or phone_num):
+        try:
+            r = requests.get(file_url, timeout=30)
+            if r.status_code == 200:
+                up_res = waba.upload_media(
+                    appinstance,
+                    r.content,
+                    file_type,
+                    filename,
+                    line_id=line_id,
+                    phone_num=phone_num,
+                )
+                if up_res and "id" in up_res:
+                    uploaded_id = up_res["id"]
+        except Exception as e:
+            logger.error(f"Template media upload failed: {e}")
+
+    file_param = {"type": waba_file_type}
+    if uploaded_id:
+        file_param[waba_file_type] = {"id": uploaded_id}
+    else:
+        file_param[waba_file_type] = {"link": file_url}
+
+    if waba_file_type == "document":
+        file_param[waba_file_type]["filename"] = filename
+
+    return {
+        "type": "header",
+        "parameters": [file_param],
+    }
+
+
 def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=None) -> dict:
     try:
+        # New shortcode format: template+<template_id>+param1:value1|param2:value2
+        # Lookup template in DB by id and build parameters against saved template schema.
+        new_parts = code.split("+", 2)
+        if len(new_parts) >= 2 and new_parts[0] == "template":
+            template_id = new_parts[1].strip()
+            if template_id:
+                from separator.waba.models import Template  # local import to avoid circular import
+
+                template = (
+                    Template.objects.filter(id=template_id)
+                    .prefetch_related(
+                        "components__named_params",
+                        "components__positional_params",
+                        "components__buttons__named_params",
+                        "components__buttons__positional_params",
+                    )
+                    .first()
+                )
+                if template:
+                    payload = new_parts[2] if len(new_parts) > 2 else ""
+                    raw_segments = payload.split("|") if payload else []
+                    shortcode_pairs = {}
+                    positional_values = []
+                    button_param = None
+                    file_url = None
+                    for segment in raw_segments:
+                        item = segment.strip()
+                        if not item:
+                            continue
+                        if item.startswith("button_param:"):
+                            button_param = item[len("button_param:"):].strip() or "-"
+                        elif item.startswith("file_link:"):
+                            file_url = item[len("file_link:"):].strip()
+                        elif ":" in item:
+                            key, value = item.split(":", 1)
+                            key = key.strip()
+                            if key:
+                                shortcode_pairs[key] = value.strip() or "-"
+                        else:
+                            positional_values.append(item)
+
+                    def _value_for_named(name):
+                        value = shortcode_pairs.get(name)
+                        return value if value else "-"
+
+                    def _value_for_pos(position):
+                        for key in (str(position), f"param{position}", f"p{position}"):
+                            value = shortcode_pairs.get(key)
+                            if value:
+                                return value
+                        if positional_values:
+                            return positional_values.pop(0)
+                        return "-"
+
+                    message = {
+                        "type": "template",
+                        "template": {
+                            "name": template.name,
+                            "language": {"code": template.lang},
+                        },
+                    }
+                    components = []
+
+                    for component in template.components.order_by("index", "id"):
+                        comp_type = (component.type or "").upper()
+                        comp_format = (component.format or "").upper()
+
+                        if comp_type == "HEADER" and comp_format == "TEXT":
+                            header_params = []
+                            for p in component.named_params.order_by("id"):
+                                header_params.append(
+                                    {
+                                        "type": "text",
+                                        "parameter_name": p.name,
+                                        "text": _value_for_named(p.name),
+                                    }
+                                )
+                            for p in component.positional_params.order_by("position", "id"):
+                                header_params.append(
+                                    {
+                                        "type": "text",
+                                        "text": _value_for_pos(p.position),
+                                    }
+                                )
+                            if header_params:
+                                components.append({"type": "header", "parameters": header_params})
+
+                        if comp_type == "BODY":
+                            body_params = []
+                            for p in component.named_params.order_by("id"):
+                                body_params.append(
+                                    {
+                                        "type": "text",
+                                        "parameter_name": p.name,
+                                        "text": _value_for_named(p.name),
+                                    }
+                                )
+                            for p in component.positional_params.order_by("position", "id"):
+                                body_params.append(
+                                    {
+                                        "type": "text",
+                                        "text": _value_for_pos(p.position),
+                                    }
+                                )
+                            if body_params:
+                                components.append({"type": "body", "parameters": body_params})
+
+                        if comp_type == "BUTTONS":
+                            for button in component.buttons.order_by("index", "id"):
+                                if (button.type or "").upper() != "URL":
+                                    continue
+                                button_value = button_param
+                                if not button_value:
+                                    named_button = button.named_params.order_by("id").first()
+                                    if named_button:
+                                        button_value = _value_for_named(named_button.name)
+                                    else:
+                                        positional_button = button.positional_params.order_by("position", "id").first()
+                                        if positional_button:
+                                            button_value = _value_for_pos(positional_button.position)
+                                        else:
+                                            button_value = "-"
+
+                                components.append(
+                                    {
+                                        "type": "button",
+                                        "sub_type": "url",
+                                        "index": str(button.index or 0),
+                                        "parameters": [{"type": "text", "text": button_value or "-"}],
+                                    }
+                                )
+                                break
+
+                    file_component = _build_file_header_component(
+                        file_url,
+                        appinstance=appinstance,
+                        line_id=line_id,
+                        phone_num=phone_num,
+                    )
+                    if file_component:
+                        components.insert(0, file_component)
+
+                    if components:
+                        message["template"]["components"] = components
+                    return message
+
+        # LEGACY shortcode format: template+<template_name>+<lang>+<payload>
+        # Keep existing behavior unchanged for backward compatibility.
         parts = code.split("+", 3)
         if len(parts) < 3:
             raise ValueError("Invalid message body format")
-        
+
         _, template_name, language = parts[:3]
         payload = parts[3] if len(parts) > 3 else ""
 
         params = []
         file_url = None
-        file_type = None
-        waba_file_type = None
         button_param = None
 
         # Normalize separators for file_link and button_param to |
@@ -417,20 +633,6 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
         for p in segments:
             if p.startswith('file_link:'):
                 file_url = p[len('file_link:'):]
-                file_headers = None
-                try:
-                    file_headers = requests.head(file_url, allow_redirects=True, timeout=10)
-                    file_type = file_headers.headers.get('Content-Type', '')
-                except Exception:
-                    file_type = ''
-                if file_type.startswith('image/'):
-                    waba_file_type = "image"
-                elif file_type.startswith('video/'):
-                    waba_file_type = "video"
-                elif file_type == "application/pdf" or file_url.lower().endswith('.pdf'):
-                    waba_file_type = "document"
-                else:
-                    waba_file_type = "document"
             elif p.startswith('button_param:'):
                 button_param = p[len('button_param:'):]
             else:
@@ -448,49 +650,14 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
             },
         }
         components = []
-        if file_url and waba_file_type:
-            uploaded_id = None
-            filename = "file"
-            if waba_file_type == "document":
-                filename = "file.pdf"
-                if file_headers:
-                    cd = file_headers.headers.get('Content-Disposition', '')
-                    m = re.search(r"filename\*=utf-8''(.+)", cd)
-                    if m:
-                        filename = unquote(m.group(1))
-                    else:
-                        m = re.search(r'filename="(.+?)"', cd)
-                        if m:
-                            filename = m.group(1)
-            else:
-                ext = file_type.split('/')[-1] if '/' in file_type else 'bin'
-                filename = f"file.{ext}"
-
-            if appinstance and (line_id or phone_num):
-                try:
-                    r = requests.get(file_url, timeout=30)
-                    if r.status_code == 200:
-                        up_res = waba.upload_media(appinstance, r.content, file_type, filename, line_id=line_id, phone_num=phone_num)
-                        if up_res and "id" in up_res:
-                            uploaded_id = up_res["id"]
-                except Exception as e:
-                    logger.error(f"Template media upload failed: {e}")
-
-            file_param = {
-                "type": waba_file_type
-            }
-            if uploaded_id:
-                file_param[waba_file_type] = {"id": uploaded_id}
-            else:
-                file_param[waba_file_type] = {"link": file_url}
-
-            if waba_file_type == "document":
-                file_param[waba_file_type]["filename"] = filename
-            
-            components.append({
-                "type": "header",
-                "parameters": [file_param]
-            })
+        file_component = _build_file_header_component(
+            file_url,
+            appinstance=appinstance,
+            line_id=line_id,
+            phone_num=phone_num,
+        )
+        if file_component:
+            components.append(file_component)
         body_parameters = []
         for p in params:
             body_parameters.append({"type": "text", "text": p})

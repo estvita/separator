@@ -125,7 +125,7 @@ class TemplateBroadcast(models.Model):
     text = models.TextField(null=True, blank=True)
     recipients_count = models.PositiveIntegerField(default=0)
     delivered_count = models.PositiveIntegerField(default=0)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    status = models.CharField(max_length=128, choices=STATUS_CHOICES, default="pending")
     scheduled_at = models.DateTimeField(null=True, blank=True)
     scheduled_task_id = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -148,9 +148,9 @@ class TemplateBroadcastRecipient(models.Model):
     ]
 
     broadcast = models.ForeignKey(TemplateBroadcast, on_delete=models.CASCADE, related_name="recipients")
-    recipient_phone = models.CharField(max_length=20)
+    recipient_phone = models.CharField(max_length=128)
     wamid = models.CharField(max_length=255, null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    status = models.CharField(max_length=128, choices=STATUS_CHOICES, default="pending")
     error_json = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -179,8 +179,8 @@ class TemplateComponent(models.Model):
     ]
 
     template = models.ForeignKey(Template, on_delete=models.CASCADE, related_name="components")
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    format = models.CharField(max_length=20, choices=FORMAT_CHOICES, null=True, blank=True)
+    type = models.CharField(max_length=128, choices=TYPE_CHOICES)
+    format = models.CharField(max_length=128, choices=FORMAT_CHOICES, null=True, blank=True)
     text = models.TextField(null=True, blank=True)
     index = models.PositiveSmallIntegerField(default=0)
 
@@ -205,7 +205,7 @@ class TemplateComponentButton(models.Model):
     ]
 
     component = models.ForeignKey(TemplateComponent, on_delete=models.CASCADE, related_name="buttons")
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=128, choices=TYPE_CHOICES)
     text = models.CharField(max_length=255, null=True, blank=True)
     url = models.TextField(null=True, blank=True)
     phone_number = models.CharField(max_length=32, null=True, blank=True)
