@@ -559,13 +559,19 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
                             for button in component.buttons.order_by("index", "id"):
                                 if (button.type or "").upper() != "URL":
                                     continue
+
+                                # Static URL buttons do not require parameters and WhatsApp API will reject them
+                                has_params = len(button.named_params.all()) > 0 or len(button.positional_params.all()) > 0
+                                if not has_params:
+                                    break
+
                                 button_value = button_param
                                 if not button_value:
-                                    named_button = button.named_params.order_by("id").first()
+                                    named_button = button.named_params.all()[0] if button.named_params.all() else None
                                     if named_button:
                                         button_value = _value_for_named(named_button.name)
                                     else:
-                                        positional_button = button.positional_params.order_by("position", "id").first()
+                                        positional_button = button.positional_params.all()[0] if button.positional_params.all() else None
                                         if positional_button:
                                             button_value = _value_for_pos(positional_button.position)
                                         else:
@@ -747,8 +753,8 @@ def sms_processor(data, service):
             if message:
                 message['to'] = message_to
                 send_result = waba.send_message(app_instance, message, phone_num=sender)
-                if not "error" in send_result:
-                    pass
+                if isinstance(send_result, dict) and "error" in send_result:
+                    send_result["sent_payload"] = message
         elif service == "waweb":
             try:
                 wa = Session.objects.get(phone=sender)

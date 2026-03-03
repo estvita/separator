@@ -42,8 +42,8 @@ class CredentialInline(admin.TabularInline):
     model = Credential
     fk_name = 'app_instance'
     extra = 0
-    fields = ('credential', 'user')
-    readonly_fields = ('credential', 'user')
+    fields = ('credential', 'user', "refresh_date")
+    readonly_fields = ('credential', 'user', "refresh_date")
     def credential(self, obj):
         if obj.pk:
             url = reverse("admin:bitrix_credential_change", args=[obj.pk])
