@@ -104,6 +104,7 @@ class Template(models.Model):
     content = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=255)
     availableInB24 = models.BooleanField(default=True)
+    default = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.name} ({self.lang})"
@@ -270,6 +271,7 @@ class Event(models.Model):
 class Error(models.Model):
     code = models.PositiveIntegerField()
     original = models.BooleanField(default=True)
+    fallback = models.BooleanField(default=False)
     details = models.TextField(null=True, blank=True)
     message = models.TextField(null=True, blank=True)
     

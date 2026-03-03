@@ -124,7 +124,21 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
     if not phone.phone_id:
         return {"error": True, "message": "not phone phone_id"}
     try:
-        return call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
+        response = call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
+        
+        if message.get("type") != "template":
+            text = ""
+            if message.get("type") == "text":
+                text = message.get("text", {}).get("body", "")
+            
+            if text and response and "messages" in response and len(response["messages"]) > 0:
+                msg_id = response["messages"][0]["id"]
+                try:
+                    redis_client.set(f"wamid:{msg_id}", text, ex=600)
+                except Exception:
+                    pass
+                    
+        return response
     except Exception as e:
         return {"error": True, "message": str(e)}
 
@@ -974,19 +988,66 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 out_message = None
 
                 if fb_status == "failed":
+                    fallback_triggered = False
                     try:
-                        out_message = error_message(item)
-                        user_phone = item.get("recipient_id")
-                        if user_phone and appinstance:
-                            bitrix_tasks.message_add.delay(
-                                appinstance.id, 
-                                phone.line.line_id,
-                                user_phone, 
-                                f"[color=#ff0000]{out_message}[/color]", 
-                                phone.line.connector.code,
-                            )
+                        error_data = (item.get('errors') or [{}])[0]
+                        error_code = error_data.get("code")
+                        error_obj = Error.objects.filter(code=error_code).first()
+                        if error_obj and error_obj.fallback:
+                            saved_text = redis_client.get(f"wamid:{wamid}")
+                            if saved_text:
+                                saved_text = saved_text.decode('utf-8') if isinstance(saved_text, bytes) else saved_text
+                                default_template = Template.objects.filter(waba=phone.waba, default=True).first()
+                                if default_template:
+                                    user_phone = item.get("recipient_id")
+                                    payload = {
+                                        "messaging_product": "whatsapp",
+                                        "type": "template",
+                                        "to": user_phone,
+                                        "template": {
+                                            "name": default_template.name,
+                                            "language": {"code": default_template.lang},
+                                            "components": [
+                                                {
+                                                    "type": "body",
+                                                    "parameters": [
+                                                        {
+                                                            "type": "text",
+                                                            "text": saved_text
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                    call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=payload)
+                                    fallback_triggered = True
+                                    if user_phone and appinstance:
+                                        msg = f"[color=#00ff00]The message was sent using the default template due to error {error_code}[/color]"
+                                        bitrix_tasks.message_add.delay(
+                                            appinstance.id, 
+                                            phone.line.line_id,
+                                            user_phone, 
+                                            msg, 
+                                            phone.line.connector.code,
+                                        )
                     except Exception:
                         pass
+                        
+                    if not fallback_triggered:
+                        try:
+                            out_message = error_message(item)
+                            user_phone = item.get("recipient_id")
+                            if user_phone and appinstance:
+                                bitrix_tasks.message_add.delay(
+                                    appinstance.id, 
+                                    phone.line.line_id,
+                                    user_phone, 
+                                    f"[color=#ff0000]{out_message}[/color]", 
+                                    phone.line.connector.code,
+                                )
+                        except Exception:
+                            pass
 
                 biz_opaque_callback_data = item.get("biz_opaque_callback_data")
                 if biz_opaque_callback_data:

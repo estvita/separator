@@ -36,7 +36,7 @@ class AppAdmin(admin.ModelAdmin):
 class TemplateInline(admin.TabularInline):
     model = Template
     extra = 0
-    fields = ("template_link", "lang", "status")
+    fields = ("template_link", "lang", "status", "default")
     readonly_fields = ("id", "name", "template_link", "content", "lang", "status", "owner")
 
     def template_link(self, instance):
@@ -220,6 +220,6 @@ class EventAdmin(admin.ModelAdmin):
 
 @admin.register(Error)
 class ErrorAdmin(admin.ModelAdmin):
-    list_display = ("code", "original", "message")
+    list_display = ("code", "original", "fallback", "message")
     search_fields = ("code", "details", "message")
-    list_filter = ("original",)
+    list_filter = ("original", "fallback")

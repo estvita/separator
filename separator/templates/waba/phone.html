@@ -20,6 +20,7 @@
       <thead>
         <tr>
           <th>{% trans "Name" %}</th>
+          <th>{% trans "Default" %}</th>
           <th>{% trans "Status" %}</th>
           <th>{% trans "Language" %}</th>
           <th>{% trans "Bitrix Code" %}</th>
@@ -31,6 +32,9 @@
         {% for template in templates %}
         <tr>
           <td>{{ template.name }}</td>
+          <td>
+            <input type="radio" name="default_template" value="{{ template.id }}" {% if template.default %}checked{% endif %}>
+          </td>
           <td>{{ template.status }}</td>
           <td>{{ template.lang }}</td>
           <td>{{ template.bitrix_code }}</td>
@@ -44,7 +48,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6">{% trans "No templates found." %}</td>
+          <td colspan="7">{% trans "No templates found." %}</td>
         </tr>
         {% endfor %}
       </tbody>

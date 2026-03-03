@@ -115,6 +115,13 @@ def phone_details(request, phone_id):
             templates.update(availableInB24=False)
             if allowed_ids:
                 templates.filter(id__in=allowed_ids).update(availableInB24=True)
+
+            # Handle default template selection (only one per WABA)
+            default_id = request.POST.get('default_template')
+            if default_id and default_id not in delete_ids:
+                templates.update(default=False)
+                templates.filter(id=default_id).update(default=True)
+
             messages.success(request, _('Template availability updated.'))
             return redirect('phone-details', phone_id=phone.phone_id)
         elif action == 'update_calling':
