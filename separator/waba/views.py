@@ -142,9 +142,9 @@ def phone_details(request, phone_id):
                 phone.sip_port = request.POST.get('sip_port')
                 save_required = True
             else:  # для всех, кроме pbx
-                domain = request.get_host()
-                app = App.objects.filter(site__domain=domain).first()
-                if not app.sip_server:
+                domain = request.get_host().split(':')[0]
+                app = App.objects.filter(sites__domain__iexact=domain).first()
+                if not app or not app.sip_server:
                     messages.error(request, _("FreePBX Server not connected"))
                     return redirect('phone-details', phone_id=phone.phone_id)
                 phone.sip_hostname = app.sip_server.domain
@@ -505,12 +505,12 @@ def save_request(request):
     request_id = request.GET.get('request-id')
 
     if user_id and request_id:
-        domain = request.get_host()
-        app = App.objects.filter(site__domain=domain).first()
+        domain = request.get_host().split(':')[0]
+        app = App.objects.filter(sites__domain__iexact=domain).first()
         if not app:
             messages.error(request, f"App not found for domain {domain}")
             return redirect("waba")
-        redis_client.json().set(request_id, "$", {'user': user_id, "app": app.client_id})
+        redis_client.json().set(request_id, "$", {'user': user_id, "app": app.client_id, "host": domain})
         redis_client.expire(request_id, 7200)
         extras = {
             "version": "v3",
@@ -520,7 +520,7 @@ def save_request(request):
             'client_id': app.client_id,
             'config_id': app.config_id,
             'response_type': 'code',
-            'redirect_uri': f'https://{app.site}/waba/callback/',
+            'redirect_uri': f'https://{domain}/waba/callback/',
             'state': request_id,
             'extras': json.dumps(extras)
         }

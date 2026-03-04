@@ -10,7 +10,7 @@ from separator.freepbx.models import Server, Extension
 
 class App(models.Model):
     events = models.BooleanField(default=False, help_text="Chek for save inbound events")
-    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="waba_apps", default=1)
+    sites = models.ManyToManyField(Site, related_name="waba_apps", blank=True)
     client_id = models.CharField(max_length=255, editable=True, default='')
     config_id = models.CharField(max_length=255, editable=True, default='')
     client_secret = EncryptedCharField(max_length=500, editable=True, default='')

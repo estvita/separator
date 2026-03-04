@@ -19,12 +19,13 @@ def add_waba_phone(request_id, app_id):
     current_data = redis_client.json().get(request_id, "$")
     current_data = current_data[0]
     app = App.objects.filter(client_id=app_id).first()
+    host = current_data.get("host") or app.sites.values_list("domain", flat=True).first()
 
     payload = {
         "client_id": app.client_id,
         "client_secret": app.client_secret,
         "code": current_data.get('code'),
-        "redirect_uri": f'https://{app.site}/waba/callback/'
+        "redirect_uri": f'https://{host}/waba/callback/'
     }
 
     try:

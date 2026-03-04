@@ -733,7 +733,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             domains = [host]
             if ':' in host:
                 domains.append(host.split(':')[0])
-            apps = App.objects.filter(site__domain__in=domains)
+            apps = App.objects.filter(sites__domain__in=domains)
         else:
             apps = []
 

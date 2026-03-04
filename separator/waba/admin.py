@@ -31,7 +31,7 @@ class AppAdminForm(forms.ModelForm):
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     form = AppAdminForm
-    list_display = ("client_id", "verify_token", "site", "api_version", "sip_server")
+    list_display = ("client_id", "verify_token", "api_version")
 
 class TemplateInline(admin.TabularInline):
     model = Template
