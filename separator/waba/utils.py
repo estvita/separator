@@ -63,12 +63,8 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
                 resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers)
         elif method == "delete":
             resp = requests.delete(f"{base_url}/{endpoint}", params=payload, headers=headers)
-
-        resp_data = resp.json()
-        if "error" in resp_data:
-            raise Exception(resp_data)
-
-        return resp_data
+        
+        return resp.json() if resp.content else {}
     except Exception:
         raise
 
@@ -872,28 +868,28 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         if phone.date_end and timezone.now() > phone.date_end:
             raise Exception(f"phone tariff ended: {data}")
 
-        if not phone.line or not phone.waba or not phone.app_instance:
-            statuses = value.get("statuses", [])
-            if statuses:
-                for item in statuses:
-                    fb_status = item.get("status")
-                    wamid = item.get("id")
-                    if wamid and fb_status:
-                        try:
-                            recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
-                            if recipient and recipient.status != fb_status:
-                                update_fields = {"status": fb_status}
-                                if fb_status == "failed":
-                                    update_fields["error_json"] = item
-                                TemplateBroadcastRecipient.objects.filter(id=recipient.id).update(**update_fields)
-                                if fb_status == "delivered":
-                                    TemplateBroadcast.objects.filter(id=recipient.broadcast_id).update(
-                                        delivered_count=models.F("delivered_count") + 1
-                                    )
-                        except Exception:
-                            pass
-                return data
-            raise Exception(f"phone not connected to b24: {data}")
+        # if not phone.line or not phone.waba or not phone.app_instance:
+        #     statuses = value.get("statuses", [])
+        #     if statuses:
+        #         for item in statuses:
+        #             fb_status = item.get("status")
+        #             wamid = item.get("id")
+        #             if wamid and fb_status:
+        #                 try:
+        #                     recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
+        #                     if recipient and recipient.status != fb_status:
+        #                         update_fields = {"status": fb_status}
+        #                         if fb_status == "failed":
+        #                             update_fields["error_json"] = item
+        #                         TemplateBroadcastRecipient.objects.filter(id=recipient.id).update(**update_fields)
+        #                         if fb_status == "delivered":
+        #                             TemplateBroadcast.objects.filter(id=recipient.broadcast_id).update(
+        #                                 delivered_count=models.F("delivered_count") + 1
+        #                             )
+        #                 except Exception:
+        #                     pass
+        #         return data
+        #     raise Exception(f"phone not connected to b24: {data}")
 
         messages = value.get("messages", [])
         filename = None
@@ -1020,10 +1016,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                             ]
                                         }
                                     }
-                                    call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=payload)
+                                    resp = call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=payload)
                                     fallback_triggered = True
                                     if user_phone and appinstance:
-                                        msg = f"[color=#00ff00]The message was sent using the default template due to error {error_code}[/color]"
+                                        if "error" in resp:
+                                            msg = f"[color=#ff0000]Error occurred: {resp}[/color]"
+                                        else:
+                                            msg = f"[color=#00ff00]The message was sent using the default template due to error {error_code}[/color]"
                                         bitrix_tasks.message_add.delay(
                                             appinstance.id, 
                                             phone.line.line_id,
@@ -1056,7 +1055,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         bitrix_user_id = callback_data.get('bitrix_user_id')
                         sms_message_id = callback_data.get('sms_message_id')
                         
-                        if fb_status == "failed" and bitrix_user_id:
+                        if fb_status == "failed" and bitrix_user_id and not fallback_triggered:
                             if not out_message:
                                 out_message = error_message(item)
                             payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
