@@ -719,6 +719,23 @@ def _status_rank(status):
     return order.get(status, 0)
 
 
+def _sanitize_template_param_text(text):
+    if text is None:
+        return "---"
+    cleaned = str(text).replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    cleaned = re.sub(r" +", " ", cleaned)
+    return cleaned.strip()
+
+
+def _build_fallback_body_parameters(template, text):
+    body = template.components.filter(type="BODY").order_by("index", "id").first()
+    if body:
+        named = body.named_params.order_by("id").first()
+        if named and named.name:
+            return [{"type": "text", "parameter_name": named.name, "text": text}]
+    return [{"type": "text", "text": text}]
+
+
 @shared_task(
     queue='waba',
     autoretry_for=(OperationalError, requests.RequestException),
@@ -993,9 +1010,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             saved_text = redis_client.get(f"wamid:{wamid}")
                             if saved_text:
                                 saved_text = saved_text.decode('utf-8') if isinstance(saved_text, bytes) else saved_text
+                                saved_text = _sanitize_template_param_text(saved_text)
                                 default_template = Template.objects.filter(waba=phone.waba, default=True).first()
-                                if default_template:
+                                if default_template and saved_text:
                                     user_phone = item.get("recipient_id")
+                                    body_parameters = _build_fallback_body_parameters(default_template, saved_text)
                                     payload = {
                                         "messaging_product": "whatsapp",
                                         "type": "template",
@@ -1006,12 +1025,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                             "components": [
                                                 {
                                                     "type": "body",
-                                                    "parameters": [
-                                                        {
-                                                            "type": "text",
-                                                            "text": saved_text
-                                                        }
-                                                    ]
+                                                    "parameters": body_parameters
                                                 }
                                             ]
                                         }
