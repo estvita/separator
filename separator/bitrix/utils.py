@@ -782,10 +782,13 @@ def sms_processor(data, service):
             bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
     if isinstance(send_result, dict) and send_result.get("error"):
         error_msg = send_result.get("message")
+        if not error_msg and isinstance(send_result.get("error"), dict):
+            error_msg = str(send_result.get("error"))
+            
         if service == "waba":
             try:
                 import ast
-                error_data = ast.literal_eval(error_msg)
+                error_data = ast.literal_eval(error_msg) if isinstance(error_msg, str) else send_result.get("error")
                 if isinstance(error_data, dict):
                     if "error" in error_data:
                         adapted_data = {"errors": [error_data["error"]], "recipient_id": message_to}
@@ -793,12 +796,15 @@ def sms_processor(data, service):
                     elif "errors" in error_data:
                         error_data["recipient_id"] = message_to
                         error_msg = waba.error_message(error_data)
+                    else:
+                        adapted_data = {"errors": [error_data], "recipient_id": message_to}
+                        error_msg = waba.error_message(adapted_data)
             except Exception:
                 pass
 
         payload = {
             "USER_ID": user_id,
-            "MESSAGE": error_msg
+            "MESSAGE": str(error_msg) if error_msg else "Unknown error"
         }
         bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
         raise ValueError(send_result)
