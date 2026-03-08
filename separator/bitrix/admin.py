@@ -154,11 +154,11 @@ class BitrixAdmin(admin.ModelAdmin):
 class AppInstanceAdmin(admin.ModelAdmin):
     inlines = [CredentialInline]
     autocomplete_fields = ['owner']
-    list_display = ("app", "owner", "portal_link", "status")
+    list_display = ("app", "owner", "portal_link", "status", "ctwa")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
     readonly_fields = ("auth_status", "storage_id", "application_token", 
                        "status")
-    list_filter = ("app", "status", "auth_status")
+    list_filter = ("app", "status", "auth_status", "ctwa")
     list_per_page = 30
 
     def portal_link(self, obj):

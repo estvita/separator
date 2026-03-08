@@ -1,8 +1,9 @@
+import time
 import redis
 import random
 from celery import shared_task
 
-from .models import App, Waba, Phone, Template, Error
+from .models import App, Waba, Phone, Template, Error, Ctwa
 import separator.waba.utils as utils
 
 from separator.users.models import User
@@ -265,3 +266,61 @@ def delete_template(template_id, owner_id=None):
 
     template.delete()
     return remote_result
+
+# https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
+@shared_task(queue='waba')
+def send_ctwa_conversion(ctwa_id, custom_data=None):
+    try:
+        ctwa = Ctwa.objects.select_related('waba').get(id=ctwa_id)
+    except Ctwa.DoesNotExist:
+        raise Exception(f"Ctwa with id {ctwa_id} does not exist")
+        
+    waba = ctwa.waba
+    
+    if not waba.dataset:
+        try:
+            resp = utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/dataset", method="post", payload={})
+            dataset_id = None
+            if isinstance(resp, dict):
+                if 'data' in resp and isinstance(resp['data'], list) and len(resp['data']) > 0:
+                    dataset_id = resp['data'][0].get('id')
+                elif 'id' in resp:
+                    dataset_id = resp['id']
+            
+            if dataset_id:
+                waba.dataset = int(dataset_id)
+                waba.save(update_fields=['dataset'])
+            else:
+                return
+        except Exception:
+            raise
+
+    if custom_data is None:
+        custom_data = {
+            "currency": "USD",
+            "value": 0,
+        }
+        
+    payload = {
+        "data": [
+            {
+                "event_name": custom_data.pop("event_name", "Purchase"),
+                "event_time": custom_data.pop("event_time", int(time.time())),
+                "action_source": "business_messaging",
+                "messaging_channel": "whatsapp",
+                "user_data": {
+                    "whatsapp_business_account_id": waba.waba_id,
+                    "ctwa_clid": ctwa.clid
+                },
+                "custom_data": custom_data
+            }
+        ],
+        "partner_agent": waba.app.name if waba.app else "separator.biz"
+    }
+    
+    try:
+        resp = utils.call_api(waba=waba, endpoint=f"{waba.dataset}/events", method="post", payload=payload)
+        ctwa.delete()
+        return resp
+    except Exception:
+        raise

@@ -103,11 +103,49 @@ def messageservice_add(app_instance_id, entity_id, service):
         raise
 
 
+@shared_task(queue='bitrix', bind=True)
+def save_ctwa(self, instace_id, ctwa_id, chat_id):
+    try:
+        app_instance = AppInstance.objects.get(id=instace_id)
+        dialog_data = call_method(app_instance, "imopenlines.dialog.get", {"CHAT_ID": chat_id})
+        dialog_data = dialog_data.get("result", {})
+        entity_data_2 = dialog_data.get("entity_data_2", "")
+        
+        # Парсинг строки вида "LEAD|0|COMPANY|0|CONTACT|9014|DEAL|10008"
+        parts = str(entity_data_2).split("|")
+        entity_dict = {}
+        for i in range(0, len(parts) - 1, 2):
+            entity_dict[parts[i]] = parts[i+1]
+            
+        lead_id = entity_dict.get("LEAD")
+        deal_id = entity_dict.get("DEAL")
+        
+        if lead_id and str(lead_id) != "0":
+            call_api.delay(app_instance.id, "crm.lead.update", {
+                "id": lead_id,
+                "fields": {
+                    "UF_CRM_SEPARATOR_CTWA_ID": str(ctwa_id)
+                }
+            })
+            
+        if deal_id and str(deal_id) != "0":
+            call_api.delay(app_instance.id, "crm.deal.update", {
+                "id": deal_id,
+                "fields": {
+                    "UF_CRM_SEPARATOR_CTWA_ID": str(ctwa_id)
+                }
+            })
+        
+    except Exception as e:
+        logger.error(f"Error in save_ctwa: {e}")
+        pass
+
+
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def send_messages(self, app_instance_id, user_phone, text, connector,
                   line, sms=False, pushName=None,
                   message_id=None, attachments=None, profilepic_url=None,
-                  chat_id=None, chat_url=None, user_id=None):
+                  chat_id=None, chat_url=None, user_id=None, ctwa_id=None, manager_id=None):
     init_message = "Создание чата..."
     if pushName:
         pushName = f"{user_phone} ({pushName})"
@@ -134,7 +172,8 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     "message": {
                         "text": init_message if sms else text,
                         "id": message_id,
-                        "files": attachments if not sms else []
+                        "files": attachments if not sms else [],
+                        "user_id": manager_id,
                     }
                 }
             ],
@@ -155,6 +194,10 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     pass
                 if sms:
                     message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
+                
+                # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
+                if app_instance.ctwa and ctwa_id and chat_id:
+                    save_ctwa.delay(app_instance_id, ctwa_id, chat_id)
         return resp
 
     except Exception as e:
@@ -273,7 +316,6 @@ def prepare_lead(user_id, lead_title):
     return call_method(vendor_instance, "crm.lead.add", lead_data)
 
 
-@shared_task(queue='bitrix')
 def auto_finish_chat(instance_id, data):
     try:
         document_id = data.get("document_id[2]")
@@ -362,3 +404,35 @@ def check_tariffs(*days):
                         redis_client.setex(redis_key, ttl, resp['result'])
                 except Exception as e:
                     logger.error(f"Error checking tariff for {service} {record.id}: {e}")
+
+
+@shared_task(queue='bitrix')
+def register_bizproc_robot(appinstance_id, payload=None):
+    try:
+        appinstance = AppInstance.objects.get(id=appinstance_id)
+        url = appinstance.app.site
+        if payload:
+            payload["HANDLER"] = f"https://{url}/api/bitrix/bizproc/"
+            call_api.delay(appinstance.id, "bizproc.robot.add", payload)
+    except Exception:
+        raise
+
+@shared_task(queue='bitrix')
+def delete_ctwa_fields(app_instance_id):
+    try:
+        app_instance = AppInstance.objects.get(id=app_instance_id)
+        
+        for entity_type in ["lead", "deal"]:
+            list_method = f"crm.{entity_type}.userfield.list"
+            fields = call_method(app_instance, list_method, {"filter": {"FIELD_NAME": "UF_CRM_SEPARATOR_CTWA_ID"}})
+            
+            field_id = None
+            if fields and "result" in fields and len(fields["result"]) > 0:
+                field_id = fields["result"][0].get("ID")
+            
+            if field_id:
+                call_api.delay(app_instance_id, f"crm.{entity_type}.userfield.delete", {"id": field_id})
+                
+        call_api.delay(app_instance_id, "bizproc.robot.delete", {"CODE": "separator_ctwa_tracker"})
+    except Exception as e:
+        logger.error(f"Error deleting CTWA fields: {e}")

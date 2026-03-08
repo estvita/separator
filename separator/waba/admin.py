@@ -12,6 +12,7 @@ from .models import (
     Template,
     Event,
     Error,
+    Ctwa,
     TemplateComponent,
     TemplateComponentButton,
     TemplateComponentNamedParam,
@@ -31,7 +32,7 @@ class AppAdminForm(forms.ModelForm):
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     form = AppAdminForm
-    list_display = ("client_id", "verify_token", "api_version")
+    list_display = ("name", "client_id", "verify_token", "api_version")
 
 class TemplateInline(admin.TabularInline):
     model = Template
@@ -223,3 +224,9 @@ class ErrorAdmin(admin.ModelAdmin):
     list_display = ("code", "original", "fallback", "message")
     search_fields = ("code", "details", "message")
     list_filter = ("original", "fallback")
+
+
+@admin.register(Ctwa)
+class CtwaAdmin(admin.ModelAdmin):
+    list_display = ("id", )
+    search_fields = ("id", "clid")

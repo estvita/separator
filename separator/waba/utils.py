@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 from django.conf import settings
 from celery import shared_task
 
+from separator.users.models import Message
 from separator.bitrix.models import Line
 import separator.bitrix.tasks as bitrix_tasks
 import separator.bitrix.utils as bitrix_utils
@@ -26,6 +27,7 @@ from .models import (
     Template,
     Event,
     Error,
+    Ctwa,
     TemplateComponent,
     TemplateComponentButton,
     TemplateComponentNamedParam,
@@ -64,6 +66,16 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         elif method == "delete":
             resp = requests.delete(f"{base_url}/{endpoint}", params=payload, headers=headers)
         
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            error_details = ""
+            try:
+                error_details = resp.json()
+            except Exception:
+                error_details = resp.text
+            raise Exception(f"API Error {resp.status_code}: {error_details}") from e
+            
         return resp.json() if resp.content else {}
     except Exception:
         raise
@@ -798,6 +810,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     field = changes.get('field')
     value = changes.get('value', {})
     event = value.get('event')
+    ctwa_enabled = False
 
     if field == 'account_update':
         if event == "PARTNER_APP_UNINSTALLED":
@@ -816,7 +829,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         phone.delete()
                         return(f"Phone {phone_number} deleted")
                     else:
-                        raise Exception(f"phone_number not found: {data}")
+                        raise Exception(f"phone_number not found {phone_number}")
                 except Exception:
                     raise Exception(data)
             return(data)
@@ -832,8 +845,10 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             appinstance = phone.app_instance
             if appinstance:
                 appinstance.host = host
+                if appinstance.ctwa:
+                    ctwa_enabled = True
         except Phone.DoesNotExist:
-            raise Exception(f"phone_number not found: {data}")
+            raise Exception(f"phone_number not found {phone_number}")
         except Exception:
             raise Exception(data)
 
@@ -914,10 +929,20 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         text = None
         user_name = None
         chat_url = None
+        ctwa_id = None
         for message in messages:
             referral = message.get("referral")
             if referral:
                 chat_url = referral.get("source_url")
+
+                # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
+                ctwa_clid = referral.get("ctwa_clid")
+                if ctwa_enabled and ctwa_clid and waba:
+                    ctwa, created = Ctwa.objects.get_or_create(
+                        clid=ctwa_clid,
+                        defaults={'waba': waba}
+                    )
+                    ctwa_id = ctwa.id
 
             message_type = message.get("type")
             user_phone = message["from"]
@@ -1037,6 +1062,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                             msg = f"[color=#ff0000]Error occurred: {resp}[/color]"
                                         else:
                                             msg = f"[color=#00ff00]The message was sent using the default template due to error {error_code}[/color]"
+                                            message_obj = Message.objects.filter(site__domain=host, code="default_template").first()
+                                            if message_obj:
+                                                msg = f"[color=#00ff00]{message_obj.message} {error_code}[/color]"
                                         bitrix_tasks.message_add.delay(
                                             appinstance.id, 
                                             phone.line.line_id,
@@ -1110,7 +1138,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                                phone.line.line_id, False, user_name, message_id, chat_url=chat_url)
+                                                phone.line.line_id, False, user_name, message_id, chat_url=chat_url, ctwa_id=ctwa_id)
 
     elif field == 'smb_message_echoes':
         text = None

@@ -9,6 +9,7 @@ from separator.bitrix.models import AppInstance, Line
 from separator.freepbx.models import Server, Extension
 
 class App(models.Model):
+    name = models.CharField(max_length=255, default="separator.biz")
     events = models.BooleanField(default=False, help_text="Chek for save inbound events")
     sites = models.ManyToManyField(Site, related_name="waba_apps", blank=True)
     client_id = models.CharField(max_length=255, editable=True, default='')
@@ -25,11 +26,12 @@ class App(models.Model):
     )
     sip_server = models.ForeignKey(Server, on_delete=models.SET_NULL, blank=True, null=True)
     def __str__(self):
-        return f"{self.client_id}"
+        return f"{self.client_id} ({self.name})"
 
 class Waba(models.Model):
     app = models.ForeignKey(App, on_delete=models.SET_NULL, null=True, blank=True)
     waba_id = models.CharField(max_length=255, editable=True, unique=True)
+    dataset = models.PositiveBigIntegerField(default=0)
     access_token = EncryptedCharField(max_length=2000)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     subscribed = models.BooleanField(default=True, help_text="Subscribed to webhook events")
@@ -277,3 +279,12 @@ class Error(models.Model):
     
     def __str__(self):
         return f"{self.code}"
+
+
+class Ctwa(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="ctwas")
+    clid = models.CharField(max_length=2048)
+
+    def __str__(self):
+        return f"{self.id}"

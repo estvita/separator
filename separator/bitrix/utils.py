@@ -19,6 +19,7 @@ from celery import shared_task
 
 import separator.olx.tasks as olx_tasks
 import separator.waba.utils as waba
+from separator.waba.models import Phone
 
 from separator.waweb.models import Session
 import separator.waweb.tasks as waweb_tasks
@@ -87,7 +88,7 @@ def get_instances(request, service=None):
         return portals, lines
 
 
-def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
+def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id=None):
     try:
         profile = requests.post(f"{portal.protocol}://{portal.domain}/rest/profile", json={"auth": auth_id}, timeout=10)
         profile_data = profile.json().get("result")
@@ -116,12 +117,15 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id):
             user=b24_user,
             defaults={
                 "access_token": auth_id,
-                "refresh_token": refresh_id,
+                "refresh_token": refresh_id or " ",
             }
         )
         if not created:
             cred.access_token = auth_id
-            cred.refresh_token = refresh_id
+            update_fields = ["access_token", "refresh_date"]
+            if refresh_id is not None:
+                cred.refresh_token = refresh_id
+                update_fields.append("refresh_token")
             cred.refresh_date = timezone.now()
             cred.save(update_fields=["access_token", "refresh_token", "refresh_date"])
     return b24_user
@@ -147,11 +151,7 @@ def connect_line(request, line_id, entity, connector_service):
         else:
             line_name = entity.phone
 
-        params = {
-            "WELCOME_MESSAGE": "N",
-            "CLOSE_RULE": "none",
-            "VOTE_MESSAGE": "N"
-        }
+        params = {}
 
         if connector.default_line_params and isinstance(connector.default_line_params, dict):
             params.update(connector.default_line_params)
@@ -247,17 +247,6 @@ def events_bind(appinstance: AppInstance):
                 "HANDLER": handler_url,
             }
             bitrix_tasks.call_api.delay(appinstance.id, "event.bind", payload)
-
-
-def register_bizproc_robot(appinstance: AppInstance):
-    url = appinstance.app.site
-    handler_url = f"https://{url}/api/bitrix/bizproc/"
-    payload = {
-        "CODE": "separator_auto_finish_chat",
-        "NAME": "Auto Finish Chat",
-        "HANDLER": handler_url,
-    }
-    bitrix_tasks.call_api.delay(appinstance.id, "bizproc.robot.add", payload)
 
 
 def register_connector(appinstance: AppInstance, connector):
@@ -468,26 +457,64 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
                 )
                 if template:
                     payload = new_parts[2] if len(new_parts) > 2 else ""
-                    raw_segments = payload.split("|") if payload else []
+
+                    expected_names = set()
+                    for comp in template.components.all():
+                        for p in comp.named_params.all():
+                            expected_names.add(p.name.strip())
+                            
+                    search_names = expected_names | {"button_param", "file_link"}
+                    
+                    matches = []
+                    for name in search_names:
+                        token = name + ":"
+                        idx = payload.find(token)
+                        if idx != -1:
+                            matches.append((idx, name, len(token)))
+                            
+                    matches.sort(key=lambda x: x[0])
+
                     shortcode_pairs = {}
                     positional_values = []
                     button_param = None
                     file_url = None
-                    for segment in raw_segments:
-                        item = segment.strip()
-                        if not item:
-                            continue
-                        if item.startswith("button_param:"):
-                            button_param = item[len("button_param:"):].strip() or "-"
-                        elif item.startswith("file_link:"):
-                            file_url = item[len("file_link:"):].strip()
-                        elif ":" in item:
-                            key, value = item.split(":", 1)
-                            key = key.strip()
-                            if key:
-                                shortcode_pairs[key] = value.strip() or "-"
-                        else:
-                            positional_values.append(item)
+                    
+                    if matches:
+                        first_idx = matches[0][0]
+                        prefix = payload[:first_idx].strip()
+                        if prefix.endswith("|"):
+                            prefix = prefix[:-1].strip()
+                        
+                        raw_segments = prefix.split("|") if prefix else []
+                        for segment in raw_segments:
+                            item = segment.strip()
+                            if item:
+                                positional_values.append(item)
+                                
+                        for i in range(len(matches)):
+                            idx, name, t_len = matches[i]
+                            start = idx + t_len
+                            if i + 1 < len(matches):
+                                end = matches[i+1][0]
+                                val = payload[start:end].strip()
+                            else:
+                                val = payload[start:].strip()
+                                
+                            if val.endswith("|"):
+                                val = val[:-1].strip()
+                                
+                            if name == "button_param":
+                                button_param = val or "-"
+                            elif name == "file_link":
+                                file_url = val
+                            else:
+                                shortcode_pairs[name] = val or "-"
+                    else:
+                        raw_segments = payload.split("|") if payload else []
+                        for segment in raw_segments:
+                            item = segment.strip()
+                            if item:
+                                positional_values.append(item)
 
                     def _value_for_named(name):
                         value = shortcode_pairs.get(name)
@@ -710,7 +737,29 @@ def bizproc_processor(data):
     
     code = data.get("code")
     if code == "separator_auto_finish_chat":
-        bitrix_tasks.auto_finish_chat.delay(appinstance.id, data)
+        bitrix_tasks.auto_finish_chat(appinstance.id, data)
+    elif code == "separator_ctwa_tracker":
+        ctwa_id = data.get("properties[ctwa_id]")
+        
+        # Если ID нет, игнорируем выполнение
+        if not ctwa_id or str(ctwa_id).strip().lower() in ("", "null", "none"):
+            return
+            
+        custom_data = {}
+        
+        amount_raw = data.get("properties[amount]")
+        if amount_raw:
+            try:
+                custom_data["value"] = float(amount_raw)
+            except ValueError:
+                pass
+                
+        currency_raw = data.get("properties[currency]")
+        if currency_raw:
+            custom_data["currency"] = str(currency_raw).strip()
+            
+        import separator.waba.tasks as waba_tasks
+        waba_tasks.send_ctwa_conversion.delay(str(ctwa_id).strip(), custom_data)
 
 
 @shared_task(queue='bitrix')
@@ -720,97 +769,61 @@ def sms_processor(data, service):
     if not app_instance:
         raise Exception("app not found")
     message_body = data.get("message_body")
-    user_id = data.get("auth[user_id]")
+    manager_id = data.get("auth[user_id]")
     code = data.get("code", {})
     sender = code.split('_')[-1]
     message_to = re.sub(r'\D', '', data.get("message_to"))
-    message_id = data.get("message_id")
     line = None
-    status = None
     send_result = None
     try:
         if service == "waba":
-            message = {
-                "messaging_product": "whatsapp",
-                "biz_opaque_callback_data": {
-                    "bitrix_user_id": user_id,
-                    "sms_message_id": message_id
-                }
-            }
-            if message_body.startswith("template+"):
-                message.update(parse_template_code(message_body, appinstance=app_instance, phone_num=sender))
-            elif message_body == "#call_permission_request":
-                message.update(CALL_REQUEST)
-            else:
-                message.update(
-                    {
-                        "type": "text",
-                        "text": {
-                            "body": message_body
-                        }
-                    }
-                )
-            if message:
-                message['to'] = message_to
-                send_result = waba.send_message(app_instance, message, phone_num=sender)
-                if isinstance(send_result, dict) and "error" in send_result:
-                    send_result["sent_payload"] = message
+            phone = Phone.objects.filter(phone=f"+{sender}", app_instance=app_instance).first()
+            if phone and phone.line:
+                line = phone.line
+
         elif service == "waweb":
-            try:
-                wa = Session.objects.get(phone=sender)
-                line = wa.line
-                send_result = waweb_tasks.send_message(wa.session, message_to, message_body)
-                status = "delivered"
-            except wa.DoesNotExist:
-                send_result = {"error": True, "message": f"No Session found for phone number: {code}"}
-            except Exception as e:
-                send_result = {"error": True, "message": {e}}
-    except Exception as e:
-        send_result = {"error": True, "message": str(e)}
-    finally:
-        is_waba_success = service == "waba" and send_result and "error" not in send_result
-        
-        if not is_waba_success:
-            status_data = {
-                "CODE": code,
-                "MESSAGE_ID": message_id,
-                "STATUS": status if status else "failed",
-            }
-            bitrix_tasks.call_api.delay(app_instance.id, "messageservice.message.status.update", status_data)
+            wa = Session.objects.get(phone=sender)
+            line = wa.line
+    except Exception:
+        raise
 
-        if line and status:
-            bitrix_tasks.message_add.delay(app_instance.id, line.line_id, message_to, message_body, line.connector.code)
-    if isinstance(send_result, dict) and send_result.get("error"):
-        error_msg = send_result.get("message")
-        if not error_msg and isinstance(send_result.get("error"), dict):
-            error_msg = str(send_result.get("error"))
-            
-        if service == "waba":
-            try:
-                import ast
-                error_data = ast.literal_eval(error_msg) if isinstance(error_msg, str) else send_result.get("error")
-                if isinstance(error_data, dict):
-                    if "error" in error_data:
-                        adapted_data = {"errors": [error_data["error"]], "recipient_id": message_to}
-                        error_msg = waba.error_message(adapted_data)
-                    elif "errors" in error_data:
-                        error_data["recipient_id"] = message_to
-                        error_msg = waba.error_message(error_data)
-                    else:
-                        adapted_data = {"errors": [error_data], "recipient_id": message_to}
-                        error_msg = waba.error_message(adapted_data)
-            except Exception:
-                pass
+    if line and manager_id:
+        send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body, 
+                                                 line.connector.code, line.line_id, manager_id=manager_id)
+        result = send_result.get("result", {})
+        results = result.get("DATA", {}).get("RESULT", [])
+        for result_item in results:
+            chat_session = result_item.get("session", {})
+            if not chat_session:
+                ownert_ype = data.get("bindings[0][OWNER_TYPE_ID]")
+                owner_id = data.get("bindings[0][OWNER_ID]")
+                ownertype_map = {
+                    "1": "LEAD",
+                    "2": "DEAL",
+                    "3": "CONTACT",
+                    "4": "COMPANY",
+                }
+                try:
+                    chat_param = {
+                        "CRM_ENTITY_TYPE": ownertype_map.get(ownert_ype, " "),
+                        "CRM_ENTITY": owner_id,
+                    }
+                    chat_data = bitrix_tasks.call_api(app_instance.id, "imopenlines.crm.chat.getLastId", chat_param)
+                    chat_id  = chat_data.get("result")
+                    if chat_id:
+                        token = data.get("auth[access_token]")
+                        b24_user = get_b24_user(app_instance.app, app_instance.portal, token)
+                        join_result = bitrix_tasks.call_api(app_instance.id, "imopenlines.session.join", {"CHAT_ID": chat_id}, b24_user=b24_user.id)
+                        if join_result.get("result"):
+                            send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body, 
+                                                                    line.connector.code, line.line_id, manager_id=manager_id)
+                except Exception:
+                    raise
 
-        payload = {
-            "USER_ID": user_id,
-            "MESSAGE": str(error_msg) if error_msg else "Unknown error"
-        }
-        bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
+    if "error" in (send_result or {}):
         raise ValueError(send_result)
-    if hasattr(send_result, "json"):
-        return send_result.json()
     return send_result
+
 
 @shared_task(queue='bitrix')
 def event_processor(data):
@@ -873,7 +886,12 @@ def event_processor(data):
                 if "placement" in scope:
                     register_placements(appinstance)
                 if "bizproc" in scope:
-                    register_bizproc_robot(appinstance)
+                    payload = {
+                        "CODE": "separator_auto_finish_chat",
+                        "NAME": "Auto Finish Chat",
+                    }
+                    bitrix_tasks.register_bizproc_robot.delay(appinstance.id, payload)
+                
                 if app.connectors.exists():
                     for connector in app.connectors.all():
                         register_connector(appinstance, connector)

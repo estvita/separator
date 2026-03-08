@@ -103,6 +103,7 @@ class AppInstance(models.Model):
     storage_id = models.CharField(max_length=255, blank=True)
     status = models.IntegerField(default=0, blank=True)
     fileAsUrl = models.BooleanField(default=False, help_text="Send file as URL, not base64")
+    ctwa = models.BooleanField(default=False, help_text="Check for CTWA tracking")
 
     def __str__(self):
         app_name = self.app.name if self.app else "—"
