@@ -5,6 +5,7 @@ import logging
 import hashlib
 import re
 import os
+import mimetypes
 from urllib.parse import urlparse
 from datetime import datetime
 
@@ -124,13 +125,13 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
         waba = Waba.objects.filter(phones__line=line).first() if line else None
         phone = waba.phones.filter(line=line).first() if waba and line else None
     else:
-        return {"error": True, "message": "phone not found"}
+        return {"error": True, "message": f"phone {phone} not found"}
     if not phone or not waba:
         return {"error": True, "message": "not phone or not waba"}
     if phone.date_end and timezone.now() > phone.date_end:
-        return {"error": True, "message": "phone tariff expired"}
+        return {"error": True, "message": f"phone {phone} tariff expired"}
     if not phone.phone_id:
-        return {"error": True, "message": "not phone phone_id"}
+        return {"error": True, "message": f"not {phone} phone_id"}
     try:
         response = call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
         
@@ -182,6 +183,43 @@ def get_file(media_url, filename, appinstance, waba):
     # Use centralized logic for temp file handling
     file_url = bitrix_utils.save_temp_file(download_file.content, filename, appinstance)
     return file_url
+
+
+def _resolve_media_extension(mime_type, original_filename=None):
+    """
+    Resolve a file extension for media files.
+    Priority:
+    1) extension from original filename (if present)
+    2) known MIME mapping
+    3) Python mimetypes
+    4) fallback to subtype part from MIME
+    """
+    if original_filename:
+        ext = os.path.splitext(original_filename)[1].lstrip(".").lower()
+        if ext:
+            return ext
+
+    mime = (mime_type or "").split(";")[0].strip().lower()
+    mime_to_ext = {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+        "application/msword": "doc",
+        "application/vnd.ms-excel": "xls",
+        "application/vnd.ms-powerpoint": "ppt",
+        "application/pdf": "pdf",
+        "image/jpeg": "jpg",
+    }
+    if mime in mime_to_ext:
+        return mime_to_ext[mime]
+
+    guessed = mimetypes.guess_extension(mime, strict=False)
+    if guessed:
+        return guessed.lstrip(".").lower()
+
+    if "/" in mime:
+        return mime.split("/", 1)[1]
+    return "bin"
 
 
 def format_contacts(contacts):
@@ -963,11 +1001,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 media_data = value["messages"][0][message_type]
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
-                extension = media_data["mime_type"].split("/")[1].split(";")[0]
+                original_filename = media_data.get("filename")
+                extension = _resolve_media_extension(media_data.get("mime_type"), original_filename)
                 filename = f"wamid.{media_id}.{extension}"
                            
                 caption = media_data.get("caption") or ""
-                original_filename = media_data.get("filename")
                 if original_filename:
                     caption = f"{original_filename} {caption}"
                 caption = caption.strip() if caption else None
@@ -1161,11 +1199,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     except Exception:
                         pass
 
-                extension = media_data["mime_type"].split("/")[1].split(";")[0]
+                original_filename = media_data.get("filename")
+                extension = _resolve_media_extension(media_data.get("mime_type"), original_filename)
                 filename = f"wamid.{media_id}.{extension}"
                 
                 text = media_data.get("caption") or ""
-                original_filename = media_data.get("filename")
                 if original_filename:
                     text = f"{original_filename} {text}"
                 text = text.strip() if text else None

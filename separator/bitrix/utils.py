@@ -19,7 +19,9 @@ from celery import shared_task
 
 import separator.olx.tasks as olx_tasks
 import separator.waba.utils as waba
+import separator.waba.tasks as waba_tasks
 from separator.waba.models import Phone
+from separator.waba.ctwa_events import CTWA_CONVERSION_EVENTS
 
 from separator.waweb.models import Session
 import separator.waweb.tasks as waweb_tasks
@@ -757,25 +759,103 @@ def bizproc_processor(data):
         currency_raw = data.get("properties[currency]")
         if currency_raw:
             custom_data["currency"] = str(currency_raw).strip()
-            
-        import separator.waba.tasks as waba_tasks
-        waba_tasks.send_ctwa_conversion.delay(str(ctwa_id).strip(), custom_data)
+
+        event_name_raw = data.get("properties[event_name]")
+        event_name = str(event_name_raw).strip() if event_name_raw else ""
+        if event_name in CTWA_CONVERSION_EVENTS:
+            waba_tasks.send_ctwa_conversion.delay(
+                str(ctwa_id).strip(),
+                event=event_name,
+                custom_data=custom_data,
+            )
+
+
+def _extract_crm_entity_for_openlines(data):
+    ownertype_map = {
+        "1": "LEAD",
+        "2": "DEAL",
+        "3": "CONTACT",
+        "4": "COMPANY",
+    }
+
+    # CRM payload format: bindings[N][OWNER_TYPE_ID], bindings[N][OWNER_ID]
+    for i in range(20):
+        owner_type_raw = data.get(f"bindings[{i}][OWNER_TYPE_ID]")
+        owner_id_raw = data.get(f"bindings[{i}][OWNER_ID]")
+        owner_type = str(owner_type_raw or "").strip().upper()
+        owner_id = str(owner_id_raw or "").strip()
+        if not owner_type and not owner_id:
+            continue
+        mapped_type = ownertype_map.get(owner_type, owner_type if owner_type in ownertype_map.values() else "")
+        if mapped_type and owner_id and owner_id != "0":
+            return mapped_type, owner_id
+
+    # Bizproc payload format: document_id[2]=DEAL_10130 or document_type[2]=DEAL
+    document_id = str(data.get("document_id[2]") or "").strip().upper()
+    document_type = str(data.get("document_type[2]") or "").strip().upper()
+
+    doc_owner_type = ""
+    doc_owner_id = ""
+    if "_" in document_id:
+        doc_owner_type, doc_owner_id = document_id.split("_", 1)
+    elif document_id.isdigit():
+        doc_owner_id = document_id
+
+    owner_type = doc_owner_type or document_type
+    owner_id = doc_owner_id
+    mapped_type = ownertype_map.get(owner_type, owner_type if owner_type in ownertype_map.values() else "")
+    if mapped_type and owner_id and owner_id != "0":
+        return mapped_type, owner_id
+
+    return None, None
 
 
 @shared_task(queue='bitrix')
 def sms_processor(data, service):
     application_token = data.get("auth[application_token]")
-    app_instance = AppInstance.objects.filter(application_token=application_token).first()
-    if not app_instance:
-        raise Exception("app not found")
-    message_body = data.get("message_body")
     manager_id = data.get("auth[user_id]")
-    code = data.get("code", {})
-    sender = code.split('_')[-1]
-    message_to = re.sub(r'\D', '', data.get("message_to"))
-    line = None
-    send_result = None
+    message_id = data.get("message_id")
+    app_instance = AppInstance.objects.filter(application_token=application_token).first()
+
+    def _notify_error(error_obj):
+        if not app_instance or not manager_id:
+            return
+        payload = {
+            "USER_ID": manager_id,
+            "message": str(error_obj)
+        }
+        bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
+
+    def _build_waba_message(target, body, line_id=None, phone_num=None):
+        message = {
+            "messaging_product": "whatsapp",
+            "biz_opaque_callback_data": {
+                "bitrix_user_id": manager_id,
+                "sms_message_id": message_id
+            },
+            "to": target,
+        }
+        if "template+" in body:
+            template_start = body.index("template+")
+            template_str = body[template_start:]
+            message.update(parse_template_code(template_str, appinstance=app_instance, line_id=line_id, phone_num=phone_num))
+        else:
+            message["type"] = "text"
+            message["text"] = {"body": body}
+        return message
+
     try:
+        if not app_instance:
+            raise Exception("app not found")
+
+        message_body = data.get("message_body")
+        code = data.get("code", {})
+        sender = code.split('_')[-1]
+        message_to = re.sub(r'\D', '', data.get("message_to"))
+        line = None
+        phone = None
+        send_result = None
+
         if service == "waba":
             phone = Phone.objects.filter(phone=f"+{sender}", app_instance=app_instance).first()
             if phone and phone.line:
@@ -784,45 +864,48 @@ def sms_processor(data, service):
         elif service == "waweb":
             wa = Session.objects.get(phone=sender)
             line = wa.line
-    except Exception:
+
+        if line and manager_id:
+            send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body,
+                                                     line.connector.code, line.line_id, manager_id=manager_id)
+            result = send_result.get("result", {})
+            results = result.get("DATA", {}).get("RESULT", [])
+            for result_item in results:
+                chat_session = result_item.get("session", {})
+                if not chat_session:
+                    owner_type, owner_id = _extract_crm_entity_for_openlines(data)
+                    join_ok = False
+                    if owner_type and owner_id:
+                        try:
+                            chat_param = {
+                                "CRM_ENTITY_TYPE": owner_type,
+                                "CRM_ENTITY": owner_id,
+                            }
+                            chat_data = bitrix_tasks.call_api(app_instance.id, "imopenlines.crm.chat.getLastId", chat_param)
+                            chat_id = chat_data.get("result")
+                            if chat_id:
+                                token = data.get("auth[access_token]")
+                                b24_user = get_b24_user(app_instance.app, app_instance.portal, token)
+                                join_result = bitrix_tasks.call_api(
+                                    app_instance.id, "imopenlines.session.join", {"CHAT_ID": chat_id}, b24_user=b24_user.id
+                                )
+                                if join_result.get("result"):
+                                    send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body,
+                                                                             line.connector.code, line.line_id, manager_id=manager_id)
+                                    join_ok = True
+                        except Exception:
+                            join_ok = False
+
+                    if not join_ok and service == "waba":
+                        message = _build_waba_message(message_to, message_body, line_id=line.line_id)
+                        send_result = waba.send_message(app_instance, message, line_id=line.line_id)
+
+        if "error" in (send_result or {}):
+            raise ValueError(send_result)
+        return send_result
+    except Exception as e:
+        _notify_error(e)
         raise
-
-    if line and manager_id:
-        send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body, 
-                                                 line.connector.code, line.line_id, manager_id=manager_id)
-        result = send_result.get("result", {})
-        results = result.get("DATA", {}).get("RESULT", [])
-        for result_item in results:
-            chat_session = result_item.get("session", {})
-            if not chat_session:
-                ownert_ype = data.get("bindings[0][OWNER_TYPE_ID]")
-                owner_id = data.get("bindings[0][OWNER_ID]")
-                ownertype_map = {
-                    "1": "LEAD",
-                    "2": "DEAL",
-                    "3": "CONTACT",
-                    "4": "COMPANY",
-                }
-                try:
-                    chat_param = {
-                        "CRM_ENTITY_TYPE": ownertype_map.get(ownert_ype, " "),
-                        "CRM_ENTITY": owner_id,
-                    }
-                    chat_data = bitrix_tasks.call_api(app_instance.id, "imopenlines.crm.chat.getLastId", chat_param)
-                    chat_id  = chat_data.get("result")
-                    if chat_id:
-                        token = data.get("auth[access_token]")
-                        b24_user = get_b24_user(app_instance.app, app_instance.portal, token)
-                        join_result = bitrix_tasks.call_api(app_instance.id, "imopenlines.session.join", {"CHAT_ID": chat_id}, b24_user=b24_user.id)
-                        if join_result.get("result"):
-                            send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body, 
-                                                                    line.connector.code, line.line_id, manager_id=manager_id)
-                except Exception:
-                    raise
-
-    if "error" in (send_result or {}):
-        raise ValueError(send_result)
-    return send_result
 
 
 @shared_task(queue='bitrix')

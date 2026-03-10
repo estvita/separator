@@ -2,6 +2,7 @@ from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from .models import AppInstance
 from . import tasks as bitrix_tasks
+from separator.waba.ctwa_events import CTWA_CONVERSION_EVENTS
 
 @receiver(pre_save, sender=AppInstance)
 def track_ctwa_change(sender, instance, **kwargs):
@@ -74,6 +75,17 @@ def create_ctwa_fields_on_save(sender, instance, created, **kwargs):
                         "Required": "N",
                         "Multiple": "N",
                         "Default": "{=Document:CURRENCY_ID}"
+                    },
+                    "event_name": {
+                        "Name": {
+                            "ru": "Событие",
+                            "en": "Event"
+                        },
+                        "Type": "select",
+                        "Required": "N",
+                        "Multiple": "N",
+                        "Default": "Purchase",
+                        "Options": {event: event for event in CTWA_CONVERSION_EVENTS}
                     }
                 },
                 "USE_PLACEMENT": "N"

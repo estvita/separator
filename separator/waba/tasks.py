@@ -3,12 +3,13 @@ import redis
 import random
 from celery import shared_task
 
-from .models import App, Waba, Phone, Template, Error, Ctwa
+from .models import App, Waba, Phone, Template, Error, Ctwa, CtwaEvents
 import separator.waba.utils as utils
 
 from separator.users.models import User
 
 from django.conf import settings
+from django.utils import timezone
 
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
@@ -269,7 +270,7 @@ def delete_template(template_id, owner_id=None):
 
 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
 @shared_task(queue='waba')
-def send_ctwa_conversion(ctwa_id, custom_data=None):
+def send_ctwa_conversion(ctwa_id, event="Purchase", custom_data=None):
     try:
         ctwa = Ctwa.objects.select_related('waba').get(id=ctwa_id)
     except Ctwa.DoesNotExist:
@@ -304,8 +305,8 @@ def send_ctwa_conversion(ctwa_id, custom_data=None):
     payload = {
         "data": [
             {
-                "event_name": custom_data.pop("event_name", "Purchase"),
-                "event_time": custom_data.pop("event_time", int(time.time())),
+                "event_name": event,
+                "event_time": int(time.time()),
                 "action_source": "business_messaging",
                 "messaging_channel": "whatsapp",
                 "user_data": {
@@ -320,7 +321,12 @@ def send_ctwa_conversion(ctwa_id, custom_data=None):
     
     try:
         resp = utils.call_api(waba=waba, endpoint=f"{waba.dataset}/events", method="post", payload=payload)
-        ctwa.delete()
+        CtwaEvents.objects.create(
+            ctwa=ctwa,
+            date=timezone.now(),
+            event=event,
+        )
+        # ctwa.delete()
         return resp
     except Exception:
         raise

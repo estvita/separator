@@ -13,6 +13,7 @@ from .models import (
     Event,
     Error,
     Ctwa,
+    CtwaEvents,
     TemplateComponent,
     TemplateComponentButton,
     TemplateComponentNamedParam,
@@ -228,5 +229,23 @@ class ErrorAdmin(admin.ModelAdmin):
 
 @admin.register(Ctwa)
 class CtwaAdmin(admin.ModelAdmin):
-    list_display = ("id", )
-    search_fields = ("id", "clid")
+    list_display = ("id", "waba_link")
+    search_fields = ("id", "clid", "waba__id", "waba__waba_id")
+    inlines = []
+
+    def waba_link(self, instance):
+        if not instance.waba_id:
+            return "-"
+        url = reverse("admin:waba_waba_change", args=[instance.waba_id])
+        return format_html('<a href="{}">{}</a>', url, instance.waba.waba_id)
+    waba_link.short_description = "WABA"
+
+
+class CtwaEventsInline(admin.TabularInline):
+    model = CtwaEvents
+    extra = 0
+    fields = ("date", "event")
+    readonly_fields = ("date", "event")
+
+
+CtwaAdmin.inlines = [CtwaEventsInline]

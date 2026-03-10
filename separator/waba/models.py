@@ -288,3 +288,12 @@ class Ctwa(models.Model):
 
     def __str__(self):
         return f"{self.id}"
+
+
+class CtwaEvents(models.Model):
+    ctwa = models.ForeignKey(Ctwa, on_delete=models.CASCADE, related_name="events")
+    date = models.DateTimeField()
+    event = models.CharField(max_length=128)
+
+    def __str__(self):
+        return f"{self.date} - {self.event}"

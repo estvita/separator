@@ -1,0 +1,16 @@
+CTWA_CONVERSION_EVENTS = [
+    "Purchase",
+    "LeadSubmitted",
+    "InitiateCheckout",
+    "AddToCart",
+    "ViewContent",
+    "OrderCreated",
+    "OrderShipped",
+    "OrderDelivered",
+    "OrderCanceled",
+    "OrderReturned",
+    "CartAbandoned",
+    "QualifiedLead",
+    "RatingProvided",
+    "ReviewProvided",
+]
