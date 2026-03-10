@@ -1080,6 +1080,7 @@ def event_processor(data):
 
                 # Если есть файлы, отправляем сообщение с каждым файлом отдельно
                 if files:
+                    media_caption = text.strip() if text else ""
                     for file in files:
                         uploaded_id = None
                         try:
@@ -1115,6 +1116,8 @@ def event_processor(data):
                                 message["image"] = {"id": uploaded_id}
                             else:
                                 message["image"] = {"link": file["link"]}
+                            if media_caption:
+                                message["image"]["caption"] = media_caption
                         elif file["type"] in ["file", "video", "audio"]:
                             message["type"] = "document"
                             if uploaded_id:
@@ -1127,6 +1130,8 @@ def event_processor(data):
                                     "link": file["link"],
                                     "filename": file["name"],
                                 }
+                            if media_caption:
+                                message["document"]["caption"] = media_caption
 
                         send_result = waba.send_message(appinstance, message, line_id=line_id)
                         if "error" in send_result:
