@@ -969,6 +969,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         source_url = None
         ctwa_id = None
         source_id = None
+        referral_body = None
         for message in messages:
             referral = message.get("referral")
             if isinstance(referral, dict):
@@ -989,6 +990,10 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 source_url = referral.get("source_url")
                 if source_url is not None:
                     source_url = str(source_url).strip()[:1024] or None
+
+                referral_body = referral.get("body")
+                if referral_body is not None:
+                    referral_body = str(referral_body).strip() or None
 
                 ctwa_clid = referral.get("ctwa_clid")
 
@@ -1200,6 +1205,14 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
                                                 phone.line.line_id, False, user_name, message_id, chat_url=source_url,
                                                 ctwa_id=ctwa_id, source_id=source_id)
+            if referral_body:
+                bitrix_tasks.message_add.delay(
+                    appinstance.id,
+                    phone.line.line_id,
+                    user_phone,
+                    referral_body,
+                    phone.line.connector.code,
+                )
 
     elif field == 'smb_message_echoes':
         text = None
