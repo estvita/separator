@@ -966,21 +966,43 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         file_url = None
         text = None
         user_name = None
-        chat_url = None
+        source_url = None
         ctwa_id = None
+        source_id = None
         for message in messages:
             referral = message.get("referral")
-            if referral:
-                chat_url = referral.get("source_url")
+            if isinstance(referral, dict):
 
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
+                source_type = referral.get("source_type")
+                if source_type is not None:
+                    source_type = str(source_type).strip()[:64] or None
+
+                source_id = referral.get("source_id")
+                try:
+                    source_id = int(source_id)
+                    if source_id < 0:
+                        source_id = 0
+                    source_id = min(source_id, 9223372036854775807)
+                except (TypeError, ValueError):
+                    source_id = 0
+                source_url = referral.get("source_url")
+                if source_url is not None:
+                    source_url = str(source_url).strip()[:1024] or None
+
                 ctwa_clid = referral.get("ctwa_clid")
+
                 if ctwa_enabled and ctwa_clid and waba:
                     ctwa, created = Ctwa.objects.get_or_create(
                         clid=ctwa_clid,
-                        defaults={'waba': waba}
+                        defaults={
+                            'waba': waba,
+                            "source_type": source_type,
+                            "source_id": source_id,
+                            "source_url": source_url
+                        }
                     )
-                    ctwa_id = ctwa.id
+                    ctwa_id = str(ctwa.id)
 
             message_type = message.get("type")
             user_phone = message["from"]
@@ -1054,7 +1076,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     }
                 ]
                 bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
-                                                phone.line.line_id, False, user_name, message_id, attach, chat_url=chat_url)
+                                                phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url)
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -1176,7 +1198,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
         if text and user_phone:
             bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                                phone.line.line_id, False, user_name, message_id, chat_url=chat_url, ctwa_id=ctwa_id)
+                                                phone.line.line_id, False, user_name, message_id, chat_url=source_url,
+                                                ctwa_id=ctwa_id, source_id=source_id)
 
     elif field == 'smb_message_echoes':
         text = None

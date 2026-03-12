@@ -55,6 +55,9 @@ def add_waba_phone(request_id, app_id):
                     'owner': user,
                 }
             )
+            if not created and waba.access_token != access_token:
+                waba.access_token = access_token
+                waba.save(update_fields=["access_token"])
             # get templates
             utils.save_approved_templates.delay(waba.id)
 

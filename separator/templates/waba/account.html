@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}
+  WABA {{ waba.waba_id }}
+{% endblock title %}
+{% block content %}
+<div class="container">
+  <h3>WABA: {{ waba.waba_id }}</h3>
+
+  <div class="alert alert-info">
+    <strong>App:</strong>
+    {% if waba.app %}
+      {{ waba.app.name }} (ID: {{ waba.app.client_id }})
+    {% else %}
+      {% trans "Not connected" %}
+    {% endif %}
+  </div>
+
+  <h4>{% trans "Belonging phone accounts" %}</h4>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>{% trans "Phone" %}</th>
+        <th>{% trans "Phone ID" %}</th>
+        <th>{% trans "Type" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for phone in phones %}
+        <tr>
+          <td>{{ phone.phone }}</td>
+          <td>
+            <a href="{% url 'phone-details' phone.phone_id %}">{{ phone.phone_id }}</a>
+          </td>
+          <td>{{ phone.type }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="3">{% trans "No phones found for this WABA." %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <hr>
+  <h4>{% trans "WABA account status check" %}</h4>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="check_status">
+    <button type="submit" class="btn btn-primary">{% trans "Check status" %}</button>
+  </form>
+
+  {% if status_error %}
+    <div class="alert alert-danger mt-3">
+      <strong>{% trans "Error:" %}</strong> {{ status_error }}
+    </div>
+  {% endif %}
+
+  {% if status_json %}
+    <div class="mt-3">
+      <h5>{% trans "Response" %}</h5>
+      <pre class="p-3 bg-light border rounded">{{ status_json }}</pre>
+    </div>
+  {% endif %}
+
+  <a class="btn btn-link mt-3 p-0" href="{% url 'waba' %}">{% trans "Back" %}</a>
+</div>
+{% endblock content %}

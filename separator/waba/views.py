@@ -29,6 +29,15 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+WABA_STATUS_FIELDS = (
+    "name,timezone_id,message_template_namespace,account_review_status,"
+    "business_verification_status,country,ownership_type,primary_business_location"
+)
+PHONE_STATUS_FIELDS = (
+    "display_phone_number,verified_name,status,quality_rating,country_code,"
+    "country_dial_code,code_verification_status,account_mode,host_platform,"
+    "messaging_limit_tier,is_official_business_account"
+)
 
 
 def delete_voximplant(phone):
@@ -39,6 +48,8 @@ def delete_voximplant(phone):
 @login_required
 def phone_details(request, phone_id):
     phone = get_object_or_404(Phone, phone_id=phone_id, owner=request.user)
+    phone_status_json = ""
+    phone_status_error = ""
     templates = Template.objects.filter(waba=phone.waba).prefetch_related(
         "components__named_params",
         "components__positional_params",
@@ -211,6 +222,19 @@ def phone_details(request, phone_id):
                             return 
                     transaction.on_commit(after_commit)
             return redirect("waba")
+        elif action == "check_phone_status":
+            if not phone.waba or not phone.waba.app:
+                phone_status_error = _("App is not connected to this phone WABA account.")
+            else:
+                try:
+                    status_data = waba_utils.call_api(
+                        waba=phone.waba,
+                        endpoint=phone.phone_id,
+                        payload={"fields": PHONE_STATUS_FIELDS},
+                    )
+                    phone_status_json = json.dumps(status_data, ensure_ascii=False, indent=2)
+                except Exception as e:
+                    phone_status_error = str(e)
     
     if phone.date_end and timezone.now() > phone.date_end:
         messages.error(request, _('The tariff has expired ') + str(phone.date_end))
@@ -218,6 +242,8 @@ def phone_details(request, phone_id):
     return render(request, 'waba/phone.html', {
         'phone': phone,
         'templates': templates,
+        'phone_status_json': phone_status_json,
+        'phone_status_error': phone_status_error,
     })
 
 
@@ -426,6 +452,40 @@ def broadcast_details(request, broadcast_id):
         "page_obj": page_obj,
         "status": status or "",
         "q": query or "",
+    })
+
+
+@login_required
+def waba_account_details(request, waba_id):
+    waba = get_object_or_404(
+        Waba.objects.select_related("app").prefetch_related("phones").filter(
+            Q(owner=request.user) | Q(phones__owner=request.user)
+        ).distinct(),
+        waba_id=waba_id,
+    )
+    phones = waba.phones.filter(owner=request.user).order_by("phone", "id")
+    status_json = ""
+    status_error = ""
+
+    if request.method == "POST" and request.POST.get("action") == "check_status":
+        if not waba.app:
+            status_error = _("App is not connected to this WABA account.")
+        else:
+            try:
+                status_data = waba_utils.call_api(
+                    waba=waba,
+                    endpoint=waba.waba_id,
+                    payload={"fields": WABA_STATUS_FIELDS},
+                )
+                status_json = json.dumps(status_data, ensure_ascii=False, indent=2)
+            except Exception as e:
+                status_error = str(e)
+
+    return render(request, "waba/account.html", {
+        "waba": waba,
+        "phones": phones,
+        "status_json": status_json,
+        "status_error": status_error,
     })
 
 

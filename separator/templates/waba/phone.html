@@ -7,7 +7,12 @@
 <div class="container">
   <h3>{% trans "Phone" %}:  {{ phone.phone }} ({{ phone.type }})</h3>
   <div class="alert alert-info">
-    <strong>Info:</strong> Phone ID: {{ phone.phone_id }} | WABA ID: {{ phone.waba.waba_id }}
+    <strong>Info:</strong> Phone ID: {{ phone.phone_id }} | WABA ID:
+    {% if phone.waba %}
+      <a href="{% url 'waba-account-details' phone.waba.waba_id %}">{{ phone.waba.waba_id }}</a>
+    {% else %}
+      -
+    {% endif %}
   </div>
 
   <!-- Template list -->
@@ -153,26 +158,43 @@
       <strong>{% trans "Last Error:" %}</strong> {{ phone.error }}
     </div>
   {% endif %}
+  <script>
+    function toggleCallingBlocks() {
+      var callDest = document.getElementById("call_dest").value;
+      var serverBlock = document.getElementById("server_block");
+      var extBlock = document.getElementById("extension_block");
+      if (["b24", "disabled"].includes(callDest)) {
+        serverBlock.style.display = "none";
+        extBlock.style.display = "none";
+      } else if (callDest === "ext") {
+        serverBlock.style.display = "none";
+        extBlock.style.display = "";
+      } else {
+        serverBlock.style.display = "";
+        extBlock.style.display = "none";
+      }
+    }
+    document.getElementById("call_dest").addEventListener("change", toggleCallingBlocks);
+    window.addEventListener("DOMContentLoaded", toggleCallingBlocks);
+  </script>
+{% endif %}
+  <hr>
+  <form method="POST" class="mb-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="check_phone_status">
+    <button type="submit" class="btn btn-primary">{% trans "Check phone status" %}</button>
+  </form>
+  {% if phone_status_error %}
+    <div class="alert alert-danger mt-3">
+      <strong>{% trans "Error:" %}</strong> {{ phone_status_error }}
+    </div>
+  {% endif %}
+  {% if phone_status_json %}
+    <div class="mt-3">
+      <h5>{% trans "Response" %}</h5>
+      <pre class="p-3 bg-light border rounded">{{ phone_status_json }}</pre>
+    </div>
+  {% endif %}
 </div>
 <a href="{% url 'waba' %}">{% trans "Back" %}</a>
-<script>
-  function toggleCallingBlocks() {
-    var callDest = document.getElementById("call_dest").value;
-    var serverBlock = document.getElementById("server_block");
-    var extBlock = document.getElementById("extension_block");
-    if (["b24", "disabled"].includes(callDest)) {
-      serverBlock.style.display = "none";
-      extBlock.style.display = "none";
-    } else if (callDest === "ext") {
-      serverBlock.style.display = "none";
-      extBlock.style.display = "";
-    } else {
-      serverBlock.style.display = "";
-      extBlock.style.display = "none";
-    }
-  }
-  document.getElementById("call_dest").addEventListener("change", toggleCallingBlocks);
-  window.addEventListener("DOMContentLoaded", toggleCallingBlocks);
-</script>
-{% endif %}
 {% endblock content %}

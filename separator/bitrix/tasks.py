@@ -104,7 +104,7 @@ def messageservice_add(app_instance_id, entity_id, service):
 
 
 @shared_task(queue='bitrix', bind=True)
-def save_ctwa(self, instace_id, ctwa_id, chat_id):
+def save_ctwa(self, instace_id, ctwa_id, chat_id, source_id=None):
     try:
         app_instance = AppInstance.objects.get(id=instace_id)
         dialog_data = call_method(app_instance, "imopenlines.dialog.get", {"CHAT_ID": chat_id})
@@ -119,21 +119,25 @@ def save_ctwa(self, instace_id, ctwa_id, chat_id):
             
         lead_id = entity_dict.get("LEAD")
         deal_id = entity_dict.get("DEAL")
-        
+
+        fields = {}
+        if ctwa_id:
+            fields["UF_CRM_SEPARATOR_CTWA_ID"] = str(ctwa_id)
+        if source_id is not None:
+            fields["UF_CRM_SEPARATOR_SOURCE_ID"] = str(source_id)
+        if not fields:
+            return
+
         if lead_id and str(lead_id) != "0":
             call_api.delay(app_instance.id, "crm.lead.update", {
                 "id": lead_id,
-                "fields": {
-                    "UF_CRM_SEPARATOR_CTWA_ID": str(ctwa_id)
-                }
+                "fields": fields
             })
             
         if deal_id and str(deal_id) != "0":
             call_api.delay(app_instance.id, "crm.deal.update", {
                 "id": deal_id,
-                "fields": {
-                    "UF_CRM_SEPARATOR_CTWA_ID": str(ctwa_id)
-                }
+                "fields": fields
             })
         
     except Exception as e:
@@ -145,7 +149,7 @@ def save_ctwa(self, instace_id, ctwa_id, chat_id):
 def send_messages(self, app_instance_id, user_phone, text, connector,
                   line, sms=False, pushName=None,
                   message_id=None, attachments=None, profilepic_url=None,
-                  chat_id=None, chat_url=None, user_id=None, ctwa_id=None, manager_id=None):
+                  chat_id=None, chat_url=None, user_id=None, ctwa_id=None, source_id=None, manager_id=None):
     init_message = "Создание чата..."
     if pushName:
         pushName = f"{user_phone} ({pushName})"
@@ -196,8 +200,8 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
                 
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
-                if app_instance.ctwa and ctwa_id and chat_id:
-                    save_ctwa.delay(app_instance_id, ctwa_id, chat_id)
+                if app_instance.ctwa and chat_id and (ctwa_id or source_id is not None):
+                    save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
         return resp
 
     except Exception as e:
@@ -424,14 +428,15 @@ def delete_ctwa_fields(app_instance_id):
         
         for entity_type in ["lead", "deal"]:
             list_method = f"crm.{entity_type}.userfield.list"
-            fields = call_method(app_instance, list_method, {"filter": {"FIELD_NAME": "UF_CRM_SEPARATOR_CTWA_ID"}})
-            
-            field_id = None
-            if fields and "result" in fields and len(fields["result"]) > 0:
-                field_id = fields["result"][0].get("ID")
-            
-            if field_id:
-                call_api.delay(app_instance_id, f"crm.{entity_type}.userfield.delete", {"id": field_id})
+            for field_name in ["UF_CRM_SEPARATOR_CTWA_ID", "UF_CRM_SEPARATOR_SOURCE_ID"]:
+                fields = call_method(app_instance, list_method, {"filter": {"FIELD_NAME": field_name}})
+
+                field_id = None
+                if fields and "result" in fields and len(fields["result"]) > 0:
+                    field_id = fields["result"][0].get("ID")
+
+                if field_id:
+                    call_api.delay(app_instance_id, f"crm.{entity_type}.userfield.delete", {"id": field_id})
                 
         call_api.delay(app_instance_id, "bizproc.robot.delete", {"CODE": "separator_ctwa_tracker"})
     except Exception as e:

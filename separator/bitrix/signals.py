@@ -21,22 +21,26 @@ def create_ctwa_fields_on_save(sender, instance, created, **kwargs):
     
     if instance.ctwa and (created or not old_ctwa):
         try:        
-            field_config = {
-                "FIELD_NAME": "SEPARATOR_CTWA_ID",
-                "EDIT_FORM_LABEL": "CTWA ID",
-                "LIST_COLUMN_LABEL": "CTWA ID",
-                "USER_TYPE_ID": "string",
-                "MULTIPLE": "N",
-            }
-
-            payload = {
-                "fields": field_config
-            }
-            # 1. Добавляем в Лиды
-            bitrix_tasks.call_api.delay(instance.id, "crm.lead.userfield.add", payload)
-
-            # 2. Добавляем в Сделки
-            bitrix_tasks.call_api.delay(instance.id, "crm.deal.userfield.add", payload)
+            field_configs = [
+                {
+                    "FIELD_NAME": "SEPARATOR_CTWA_ID",
+                    "EDIT_FORM_LABEL": "CTWA ID",
+                    "LIST_COLUMN_LABEL": "CTWA ID",
+                    "USER_TYPE_ID": "string",
+                    "MULTIPLE": "N",
+                },
+                {
+                    "FIELD_NAME": "SEPARATOR_SOURCE_ID",
+                    "EDIT_FORM_LABEL": "Source ID",
+                    "LIST_COLUMN_LABEL": "Source ID",
+                    "USER_TYPE_ID": "string",
+                    "MULTIPLE": "N",
+                },
+            ]
+            for field_config in field_configs:
+                payload = {"fields": field_config}
+                bitrix_tasks.call_api.delay(instance.id, "crm.lead.userfield.add", payload)
+                bitrix_tasks.call_api.delay(instance.id, "crm.deal.userfield.add", payload)
 
             robot_data = {
                 "CODE": "separator_ctwa_tracker",

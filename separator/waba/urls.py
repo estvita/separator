@@ -6,6 +6,7 @@ urlpatterns = [
     path('callback/', views.facebook_callback, name='facebook_callback'),
     path('request/', views.save_request, name='save_request'),
     path('phone/<str:phone_id>/', views.phone_details, name='phone-details'),
+    path('account/<str:waba_id>/', views.waba_account_details, name='waba-account-details'),
     path('broadcast/', views.broadcast_page, name='broadcast-page'),
     path('broadcast/<int:broadcast_id>/', views.broadcast_details, name='broadcast-details'),
 ]

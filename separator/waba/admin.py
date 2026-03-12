@@ -3,6 +3,7 @@ from django.db import transaction
 from django.utils.html import format_html
 from django.urls import reverse
 from django import forms
+from urllib.parse import urlencode
 import separator.bitrix.utils as bitrix_utils
 
 from .models import (
@@ -65,8 +66,17 @@ class WabaAdmin(admin.ModelAdmin):
     list_display = ("waba_id", "owner", "app", "subscribed")
     list_filter = ("subscribed", "app")
     search_fields = ["waba_id", "owner__email"]
+    readonly_fields = ("ctwa_records_link",)
     list_per_page = 30
     inlines = [PhoneInline, TemplateInline]
+
+    def ctwa_records_link(self, instance):
+        if not instance.pk:
+            return "-"
+        base_url = reverse("admin:waba_ctwa_changelist")
+        query = urlencode({"q": instance.waba_id})
+        return format_html('<a href="{}?{}">CTWA records</a>', base_url, query)
+    ctwa_records_link.short_description = "CTWA"
 
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):
