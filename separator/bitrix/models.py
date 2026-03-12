@@ -132,6 +132,17 @@ class ImNotify(models.Model):
         return self.message
 
 
+class ApiCall(models.Model):
+    app_instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE, related_name='apicalls',
+                                     null=True, blank=True)
+    admin = models.BooleanField(default=False)
+    method = models.CharField(max_length=512)
+    payload = models.JSONField(blank=True, null=True)
+
+    def __str__(self):
+        return self.method
+
+
 class Line(models.Model):
     line_id = models.CharField(max_length=50)
     owner = models.ForeignKey(

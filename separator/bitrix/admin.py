@@ -1,9 +1,12 @@
-from django.contrib import admin
+import json
+
+from django.contrib import admin, messages
 from django import forms
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Plasement
+from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Plasement, ApiCall
+from .crest import call_method
 import separator.bitrix.tasks as bitrix_tasks
 
 
@@ -207,3 +210,34 @@ class CredentialAdmin(admin.ModelAdmin):
     form = CredentialAdminForm
     list_display = ("id", "app_instance", "user", "refresh_date")
     list_per_page = 30
+
+
+@admin.register(ApiCall)
+class ApiCallAdmin(admin.ModelAdmin):
+    autocomplete_fields = ["app_instance"]
+    fields = ("app_instance", "admin", "method", "payload")
+    list_display = ("id", "app_instance", "admin", "method")
+    search_fields = ("method", "app_instance__id", "app_instance__portal__domain")
+    list_per_page = 30
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        payload = obj.payload or {}
+        try:
+            if not obj.app_instance:
+                raise ValueError("app_instance is required")
+            if not obj.method:
+                raise ValueError("method is required")
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be a JSON object")
+
+            call_kwargs = {"admin": True} if obj.admin else {}
+            result = call_method(obj.app_instance, obj.method, payload, **call_kwargs)
+            result_json = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+            self.message_user(
+                request,
+                format_html("<pre style='white-space:pre-wrap'>{}</pre>", result_json),
+                level=messages.SUCCESS,
+            )
+        except Exception as e:
+            self.message_user(request, f"Bitrix API error: {e}", level=messages.ERROR)
