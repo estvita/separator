@@ -14,7 +14,7 @@ from django.db import OperationalError, models
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.conf import settings
-from celery import shared_task
+from celery import shared_task, chain
 
 from separator.users.models import Message
 from separator.bitrix.models import Line
@@ -1202,16 +1202,26 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             return data
 
         if text and user_phone:
-            bitrix_tasks.send_messages.delay(appinstance.id, user_phone, text, phone.line.connector.code,
-                                                phone.line.line_id, False, user_name, message_id, chat_url=source_url,
-                                                ctwa_id=ctwa_id, source_id=source_id)
             if referral_body:
-                bitrix_tasks.message_add.delay(
-                    appinstance.id,
-                    phone.line.line_id,
-                    user_phone,
-                    referral_body,
-                    phone.line.connector.code,
+                chain(
+                    bitrix_tasks.send_messages.s(
+                        appinstance.id, user_phone, text, phone.line.connector.code,
+                        phone.line.line_id, False, user_name, message_id, chat_url=source_url,
+                        ctwa_id=ctwa_id, source_id=source_id
+                    ),
+                    bitrix_tasks.message_add.si(
+                        appinstance.id,
+                        phone.line.line_id,
+                        user_phone,
+                        referral_body,
+                        phone.line.connector.code,
+                    ),
+                ).delay()
+            else:
+                bitrix_tasks.send_messages.delay(
+                    appinstance.id, user_phone, text, phone.line.connector.code,
+                    phone.line.line_id, False, user_name, message_id, chat_url=source_url,
+                    ctwa_id=ctwa_id, source_id=source_id
                 )
 
     elif field == 'smb_message_echoes':
