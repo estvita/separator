@@ -186,6 +186,12 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
 
         result = resp.get("result", {})
         results = result.get("DATA", {}).get("RESULT", [])
+        retried_without_session = False
+        if results and not any(result_item.get("session", {}) for result_item in results) and not retried_without_session:
+            retried_without_session = True
+            resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=30)
+            result = resp.get("result", {})
+            results = result.get("DATA", {}).get("RESULT", [])
         for result_item in results:
             chat_session = result_item.get("session", {})
             if chat_session:
@@ -200,9 +206,9 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
                 
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
-                if app_instance.ctwa and chat_id and (ctwa_id or source_id is not None):
+                if app_instance.ctwa and chat_id and ctwa_id:
                     save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
-        return resp
+        return results
 
     except Exception as e:
         raise self.retry(exc=e)

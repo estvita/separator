@@ -65,7 +65,7 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
             else:
                 resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers)
         elif method == "delete":
-            resp = requests.delete(f"{base_url}/{endpoint}", params=payload, headers=headers)
+            resp = requests.delete(f"{base_url}/{endpoint}", json=payload, headers=headers)
         
         try:
             resp.raise_for_status()

@@ -724,6 +724,46 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
         raise ValueError(f"Invalid template code {code}: {e}")
 
 
+def parse_block_command(command: str, phone, chat, appinstance_id=None, chat_id=None) -> dict:
+    if not phone or not phone.waba or not phone.phone_id:
+        raise Exception("phone not found")
+
+    endpoint = f"{phone.phone_id}/block_users"
+    payload = {
+        "messaging_product": "whatsapp",
+        "block_users": [
+            {
+                "user": re.sub(r'\D', '', str(chat or "")),
+            }
+        ],
+    }
+    method = "post" if command == "#wa_block" else "delete"
+    result = waba.call_api(waba=phone.waba, endpoint=endpoint, method=method, payload=payload)
+    if appinstance_id and chat_id:
+        bitrix_tasks.call_api.delay(appinstance_id, "im.message.add", {
+            "DIALOG_ID": f"chat{chat_id}",
+            "MESSAGE": str(result),
+            "SYSTEM": "Y",
+        })
+    return result
+
+
+def send_delivery_status(appinstance_id, connector_code, line_id, chat_id, message_id):
+    status_data = {
+        "CONNECTOR": connector_code,
+        "LINE": line_id,
+        "MESSAGES": [
+            {
+                "im": {
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                },
+            },
+        ],
+    }
+    bitrix_tasks.call_api.delay(appinstance_id, "imconnector.send.status.delivery", status_data)
+
+
 @shared_task(queue='bitrix')
 def bizproc_processor(data):
     access_token = data.get("auth[access_token]")
@@ -839,6 +879,8 @@ def sms_processor(data, service):
             template_start = body.index("template+")
             template_str = body[template_start:]
             message.update(parse_template_code(template_str, appinstance=app_instance, line_id=line_id, phone_num=phone_num))
+        elif body.strip() == "#call_permission_request":
+            message.update(CALL_REQUEST)
         else:
             message["type"] = "text"
             message["text"] = {"body": body}
@@ -865,11 +907,19 @@ def sms_processor(data, service):
             wa = Session.objects.get(phone=sender)
             line = wa.line
 
+        command = str(message_body or "").strip().lower()
+        if service == "waba" and line and command in ["#wa_block", "#wa_unblock"]:
+            try:
+                send_result = parse_block_command(command, phone, message_to)
+            except Exception as e:
+                return {"error": True, "message": str(e)}
+            return send_result
+
+
         if line and manager_id:
             send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body,
                                                      line.connector.code, line.line_id, manager_id=manager_id)
-            result = send_result.get("result", {})
-            results = result.get("DATA", {}).get("RESULT", [])
+            results = send_result or []
             for result_item in results:
                 chat_session = result_item.get("session", {})
                 if not chat_session:
@@ -1025,6 +1075,7 @@ def event_processor(data):
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
             text = data.get("data[MESSAGES][0][message][text]", "")
+            command_text = ""
             
             quoted_msg_id = None
             if text:
@@ -1046,6 +1097,9 @@ def event_processor(data):
                     raise Exception("message filtered")
                 text = text.replace("[br]", "\n")
                 text = re.sub(r"\[/?[a-zA-Z*][a-zA-Z0-9*]*\]|\[[a-zA-Z0-9\s]+=[^\]]+\]", "", text)
+                command_lines = [line.strip() for line in text.splitlines() if line.strip()]
+                if command_lines:
+                    command_text = command_lines[-1].lower()
 
             files = []
             if file_type:
@@ -1057,6 +1111,16 @@ def event_processor(data):
             
             # If WABA connector
             if connector.service == "waba":
+                if not files and command_text in ["#wa_block", "#wa_unblock"]:
+                    try:
+                        phone = Phone.objects.filter(line__line_id=line_id, app_instance=appinstance).first()
+                        send_result = parse_block_command(command_text, phone, chat, appinstance.id, chat_id)
+                    except Exception as e:
+                        return {"error": True, "message": str(e)}
+                    if "error" not in (send_result or {}):
+                        send_delivery_status(appinstance.id, connector_code, line_id, chat_id, message_id)
+                    return send_result
+
                 message = {
                     "messaging_product": "whatsapp",
                     "biz_opaque_callback_data": {"bitrix_user_id": user_id},
@@ -1072,7 +1136,7 @@ def event_processor(data):
                     template_str = text[template_start:]
                     message.update(parse_template_code(template_str, appinstance=appinstance, line_id=line_id))
 
-                elif text.strip() == "#call_permission_request":
+                elif command_text == "#call_permission_request":
                     message.update(CALL_REQUEST)
                 elif not files and text:
                     message["type"] = "text"
@@ -1199,20 +1263,7 @@ def event_processor(data):
                 except Exception:
                     raise
 
-            status_data = {
-                "CONNECTOR": connector_code,
-                "LINE": line_id,
-                "MESSAGES": [
-                    {
-                        "im": {
-                            "chat_id": chat_id,
-                            "message_id": message_id,
-                        },
-                    },
-                ],
-            }
-
-            bitrix_tasks.call_api.delay(appinstance.id, "imconnector.send.status.delivery", status_data)
+            send_delivery_status(appinstance.id, connector_code, line_id, chat_id, message_id)
 
             return send_result
         
