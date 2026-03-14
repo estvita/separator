@@ -1,7 +1,5 @@
 # waba/views.py
 import logging
-import hmac
-import hashlib
 
 from django.http import HttpResponse
 from rest_framework.mixins import CreateModelMixin
