@@ -206,7 +206,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
                 
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
-                if app_instance.ctwa and chat_id and ctwa_id:
+                if app_instance.ctwa and chat_id and (ctwa_id or source_id is not None):
                     save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
         return results
 
