@@ -51,12 +51,13 @@ def send_command_answer(chatbot, command_id, message_id, text):
             "MESSAGE": text,
         })
 
-def send_message(chatbot, bot_id, dialog_id, text):
+def send_message(chatbot, bot_id, dialog_id, text, system="N"):
     if chatbot and bot_id and dialog_id:
         return call_method(chatbot.app_instance, "imbot.message.add", {
             "BOT_ID": bot_id,
             "DIALOG_ID": dialog_id,
             "MESSAGE": text,
+            "SYSTEM": system
         })
 
 @shared_task(queue='bitbot')
@@ -244,5 +245,5 @@ def event_processor(data):
     except Exception as e:
         error_msg = f"[B]Error[/B]: {str(e)}"
         send_command_answer(chatbot, command_id, message_id, error_msg)
-        send_message(chatbot, bot_id, dialog_id, error_msg)
+        send_message(chatbot, bot_id, dialog_id, error_msg, system="Y")
         raise
