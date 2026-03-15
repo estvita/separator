@@ -4,6 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 from separator.bitrix.crest import call_method
 from dify_client import ChatClient, WorkflowClient
+from dify_client.exceptions import DifyClientError, ValidationError
 from django.conf import settings
 
 from .models import ChatBot
@@ -14,6 +15,9 @@ redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 def extract_values(data, keys):
     result = {}
     for search_key in keys:
+        if search_key in data:
+            result[search_key] = data[search_key]
+            continue
         for key in data:
             if key.endswith(f'[{search_key}]'):
                 result[search_key] = data[key]
@@ -70,6 +74,7 @@ def event_processor(data):
     try:
         member_id = data.get("auth[member_id]")
         application_token = data.get("auth[application_token]")
+        auth_access_token = data.get("auth[access_token]")
         
         # First extract BOT_ID to get bot-specific auth
         bot_id = data.get("data[PARAMS][BOT_ID]")
@@ -86,7 +91,8 @@ def event_processor(data):
             bot_access_token = data.get(f"data[BOT][{bot_id}][AUTH][access_token]")
         
         inputs = extract_values(data, [
-            'scope', 'client_endpoint', 'DIALOG_ID', 'AUTHOR_ID',
+            'event', 'scope', 'client_endpoint', 'DIALOG_ID', 'AUTHOR_ID',
+            'USER_ID', 'CHAT_AUTHOR_ID', 'IS_BOT', 'IS_CONNECTOR', 'IS_NETWORK', 'IS_EXTRANET',
             'MESSAGE_ID', 'MESSAGE', 'COMMAND_ID', 'COMMAND', 'COMMAND_PARAMS', 'CHAT_TITLE',
             'LANGUAGE', 'CHAT_ENTITY_DATA_1', 'CHAT_ENTITY_DATA_2', 'CHAT_ENTITY_ID',
             'FIRST_NAME', 'LAST_NAME', 'BOT_ID', 'CHAT_ID',
@@ -99,12 +105,13 @@ def event_processor(data):
             if 'viewerType' in files[0]:
                 inputs['file_type'] = files[0]['viewerType']
 
+        event = inputs.get("event")
         dialog_id = inputs.get("DIALOG_ID")
-        user_id = inputs.get("AUTHOR_ID")
+        user_id = inputs.get("AUTHOR_ID") or inputs.get("USER_ID") or inputs.get("CHAT_AUTHOR_ID")
         command_id = inputs.get("COMMAND_ID")
         command = inputs.get("COMMAND")
         message_id = inputs.get("MESSAGE_ID")
-        query = inputs.get("MESSAGE")
+        query = inputs.get("MESSAGE") or event
 
         if not bot_id or not application_token:
             raise ValueError("Missing ID or token")
@@ -125,6 +132,9 @@ def event_processor(data):
         
         if credential:
             inputs['user_access_token'] = credential.access_token
+
+        if auth_access_token:
+            inputs['access_token'] = auth_access_token
 
         if bot_access_token:
             inputs['bot_access_token'] = bot_access_token
@@ -148,6 +158,21 @@ def event_processor(data):
         # DIFy Chatflow
         if provider.type == "dify_chatflow":
             chat_client = ChatClient(connector.key, base_url)
+
+            def raise_chat_error(exc, response_text=None):
+                message = f"{exc}. query={query!r}. inputs={inputs}"
+                if response_text:
+                    message = f"{message}. response={response_text}"
+                if isinstance(exc, ValidationError):
+                    raise ValidationError(message) from exc
+                if isinstance(exc, DifyClientError):
+                    raise DifyClientError(
+                        message,
+                        getattr(exc, "status_code", None),
+                        getattr(exc, "response", None),
+                    ) from exc
+                raise requests.HTTPError(message) from exc
+
             # If message is empty but file is present, send file name as message
             if not query and inputs.get('file_id'):
                 files = extract_files(data)
@@ -155,16 +180,40 @@ def event_processor(data):
                     file_name = files[0].get('name', 'File')
                     query = f"File sent: {file_name}"
             kwargs = dict(inputs=inputs, query=query, user=user_id)
+            used_existing_session = False
             if session_id:
                 kwargs["conversation_id"] = session_id.decode()
-            chat_response = chat_client.create_chat_message(**kwargs)
-            chat_response.raise_for_status()
+                used_existing_session = True
+            try:
+                chat_response = chat_client.create_chat_message(**kwargs)
+                chat_response.raise_for_status()
+            except ValidationError as exc:
+                raise_chat_error(exc)
+            except DifyClientError as exc:
+                if used_existing_session and "Conversation Not Exists" in str(exc):
+                    redis_client.delete(redis_key)
+                    retry_kwargs = dict(kwargs)
+                    retry_kwargs.pop("conversation_id", None)
+                    try:
+                        chat_response = chat_client.create_chat_message(**retry_kwargs)
+                        chat_response.raise_for_status()
+                        used_existing_session = False
+                    except ValidationError as retry_exc:
+                        raise_chat_error(retry_exc)
+                    except DifyClientError as retry_exc:
+                        raise_chat_error(retry_exc)
+                    except requests.HTTPError as retry_exc:
+                        raise_chat_error(retry_exc, chat_response.text)
+                else:
+                    raise_chat_error(exc)
+            except requests.HTTPError as exc:
+                raise_chat_error(exc, chat_response.text)
             result = chat_response.json()
             answer = result.get("answer")
             conversation_id = result.get("conversation_id")
             return save_and_return_answer(
                 answer,
-                conversation_id if not session_id else None,
+                conversation_id if not used_existing_session else None,
             )
 
         # DIFy Workflow
@@ -177,7 +226,7 @@ def event_processor(data):
             try:
                 response_json = response.json()
             except ValueError:
-                return save_and_return_answer(response.text)
+                return save_and_return_answer(f"{response.text} {inputs}")
 
             outputs = response_json.get("data", {}).get("outputs", {})
             if not outputs:

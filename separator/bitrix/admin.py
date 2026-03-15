@@ -5,7 +5,7 @@ from django import forms
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Plasement, ApiCall
+from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Plasement, ApiCall, Events
 from .crest import call_method
 import separator.bitrix.tasks as bitrix_tasks
 
@@ -121,7 +121,7 @@ class AppAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
     list_filter = ('autologin', 'asterx')
     fieldsets = (
-        (None, {"fields": ("name", "client_id", "client_secret", "site", "owner", "page_url")}),
+        (None, {"fields": ("name", "save_events", "client_id", "client_secret", "site", "owner", "page_url")}),
         ("Auth", {"fields": ("autologin", "min_version")}),
         ("Options", {"fields": ("events", "connectors", "asterx", "vendor", "bitbot")}),
     )
@@ -241,3 +241,11 @@ class ApiCallAdmin(admin.ModelAdmin):
             )
         except Exception as e:
             self.message_user(request, f"Bitrix API error: {e}", level=messages.ERROR)
+
+
+@admin.register(Events)
+class EventsAdmin(admin.ModelAdmin):
+    list_display = ("id", "portal", "app")
+    search_fields = ("portal__domain", "content")
+    autocomplete_fields = ["portal", "app"]
+    list_per_page = 30

@@ -34,6 +34,7 @@ class Connector(models.Model):
 
 class App(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    save_events = models.BooleanField(default=False, help_text="Chek for save inbound events")
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
     )
@@ -173,3 +174,17 @@ class VerificationCode(models.Model):
 
     def is_valid(self):
         return self.expires_at > timezone.now()
+
+
+class Events(models.Model):
+    app = models.ForeignKey(
+        App,
+        on_delete=models.SET_NULL,
+        related_name="event_records",
+        blank=True,
+        null=True,
+    )
+    portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="events", blank=True, null=True)
+    content = models.TextField(null=True, blank=True)
+    def __str__(self):
+        return f"{self.id}"

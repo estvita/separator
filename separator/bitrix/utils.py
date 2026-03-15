@@ -1,4 +1,5 @@
 import base64
+import json
 import time
 import logging
 import re
@@ -26,7 +27,7 @@ from separator.waba.ctwa_events import CTWA_CONVERSION_EVENTS
 from separator.waweb.models import Session
 import separator.waweb.tasks as waweb_tasks
 
-from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector, Credential
+from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector, Credential, Events
 from .models import User as B24_user
 
 import separator.bitrix.tasks as bitrix_tasks
@@ -1057,6 +1058,13 @@ def event_processor(data):
             bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
         else:
             appinstance = AppInstance.objects.get(application_token=application_token)
+
+        if appinstance and appinstance.app and appinstance.app.save_events:
+            Events.objects.create(
+                app=appinstance.app,
+                portal=appinstance.portal,
+                content=json.dumps(data, ensure_ascii=False, default=str),
+            )
         
         if event == "ONIMCONNECTORMESSAGEADD":
             connector_code = data.get("data[CONNECTOR]")
@@ -1326,13 +1334,7 @@ def event_processor(data):
                 raise
 
         # BitBot
-        elif event in ["ONIMBOTMESSAGEADD", "ONIMCOMMANDADD"]:
-            # from pprint import pprint
-            # from datetime import datetime
-            # filename = f'logs/{str(datetime.now().timestamp())}.json'
-            # with open(filename, 'w', encoding='utf-8') as f:
-            #     pprint(data, stream=f)
-            # pass
+        elif event in ["ONIMBOTMESSAGEADD", "ONIMCOMMANDADD", "ONIMBOTJOINCHAT"]:
             bitbot_router.event_processor.delay(data)
 
         elif event == "ONAPPUNINSTALL":

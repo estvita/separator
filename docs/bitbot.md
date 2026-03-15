@@ -57,10 +57,13 @@ The following variables from Bitrix24 events are passed to Dify / Typebot.
 Create corresponding input variables in your bot with the **same names**:
 
 ```text
-user_access_token: XXX
-bot_access_token: YYY
+event: ONIMBOTMESSAGEADD
 scope: task,entity,im,user_basic,log,calendar,disk,imbot,booking,documentgenerator
 client_endpoint: https://b24-2zjuyu.bitrix24.kz/rest/
+
+access_token: eyJ0eXAiOiJKV1QiLCJhbGciOi...
+user_access_token: XXX
+bot_access_token: YYY
 
 BOT_ID: 55
 DIALOG_ID: chat7
@@ -68,8 +71,15 @@ CHAT_ID: 7
 MESSAGE_ID: 456
 MESSAGE: text
 AUTHOR_ID: 2
+USER_ID: 2
+CHAT_AUTHOR_ID: 2
 FIRST_NAME: John
-LAST_NAME: Dou
+LAST_NAME: Doe
+
+IS_BOT: N
+IS_CONNECTOR: N
+IS_NETWORK: N
+IS_EXTRANET: N
 
 COMMAND_ID: 12
 COMMAND: help
@@ -80,20 +90,25 @@ LANGUAGE: en
 CHAT_ENTITY_DATA_1: Y|DEAL|1|N|N|17|1765971491|0|0|0
 CHAT_ENTITY_DATA_2: LEAD|0|COMPANY|0|CONTACT|1|DEAL|1
 CHAT_ENTITY_ID: separator|3|7778889966|13
+
 file_id: 48
-file_type
+file_type: audio
 ```
 
 Notes:
 
 - In Dify, string variables are limited to 48 characters by default.  
-  Increase the max length of variables such as `access_token`, `COMMAND_PARAMS`, `CHAT_ENTITY_DATA_*`, otherwise you may get:  
+  Increase the max length of variables such as `access_token`, `user_access_token`, `bot_access_token`, `COMMAND_PARAMS`, `CHAT_ENTITY_DATA_*`, otherwise you may get:  
   `access_token in input form must be less than 48 characters`.
 
-- You can use `access_token`, `client_endpoint` and other values in your flow to call Bitrix24 REST API.
+- `user_access_token` is taken from the first available app credential (admin credential is preferred).
+- `access_token` is the token from the current incoming Bitrix24 event (`auth[access_token]`).
+- `bot_access_token` is the bot-specific token from `data[BOT][{BOT_ID}][AUTH][access_token]`.
+- You can use `access_token`, `user_access_token`, `bot_access_token`, `client_endpoint` and other values in your flow to call Bitrix24 REST API.
 
 - **File handling**: If a file is attached to the message in Bitrix24, the `file_id` variable will be passed to the bot.  
-  You can use this ID to download the file via Bitrix24 REST API method `disk.file.get` 
+  `file_type` is also passed when Bitrix24 provides `viewerType` for the file.  
+  You can use this ID to download the file via Bitrix24 REST API method `disk.file.get`.  
   If the message is empty but a file is attached, the bot will receive the message `"File sent: {filename}"` automatically.
 
 ---

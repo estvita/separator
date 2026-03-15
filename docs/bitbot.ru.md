@@ -55,10 +55,13 @@ BitBot подключает ботов из Dify (Chatflow / Workflow) и Typebo
 Из события Битрикс24 в ваш бот (Dify или Typebot) передаются переменные:
 
 ```text
-user_access_token: XXX
-bot_access_token: YYY
+event: ONIMBOTMESSAGEADD
 scope: task,entity,im,user_basic,log,calendar,disk,imbot,booking,documentgenerator
 client_endpoint: https://b24-2zjuyu.bitrix24.kz/rest/
+
+access_token: eyJ0eXAiOiJKV1QiLCJhbGciOi...
+user_access_token: XXX
+bot_access_token: YYY
 
 BOT_ID: 55
 DIALOG_ID: chat7
@@ -66,8 +69,15 @@ CHAT_ID: 7
 MESSAGE_ID: 456
 MESSAGE: text
 AUTHOR_ID: 2
+USER_ID: 2
+CHAT_AUTHOR_ID: 2
 FIRST_NAME: Джон
 LAST_NAME: Доу
+
+IS_BOT: N
+IS_CONNECTOR: N
+IS_NETWORK: N
+IS_EXTRANET: N
 
 COMMAND_ID: 12
 COMMAND: help
@@ -78,8 +88,9 @@ LANGUAGE: en
 CHAT_ENTITY_DATA_1: Y|DEAL|1|N|N|17|1765971491|0|0|0
 CHAT_ENTITY_DATA_2: LEAD|0|COMPANY|0|CONTACT|1|DEAL|1
 CHAT_ENTITY_ID: separator|3|7778889966|13
+
 file_id: 48
-file_type
+file_type: document
 ```
 
 Добавьте в вашем боте входные переменные с такими же именами.
@@ -87,13 +98,17 @@ file_type
 Особенности:
 
 - В Dify строковые поля по умолчанию ограничены 48 символами.  
-  Увеличьте длину для полей вроде `access_token`, `COMMAND_PARAMS`, `CHAT_ENTITY_DATA_*`, иначе возможна ошибка:  
+  Увеличьте длину для полей вроде `access_token`, `user_access_token`, `bot_access_token`, `COMMAND_PARAMS`, `CHAT_ENTITY_DATA_*`, иначе возможна ошибка:  
   `access_token in input form must be less than 48 characters`.
 
+- `user_access_token` берётся из первых доступных credentials приложения, приоритет у админского пользователя.
+- `access_token` — это токен из текущего входящего события Битрикс24 (`auth[access_token]`).
+- `bot_access_token` — токен конкретного бота из `data[BOT][{BOT_ID}][AUTH][access_token]`.
 - Эти переменные можно использовать в логике бота для запросов к Битрикс24:
   чтение/запись данных, вызов REST‑методов и т.п.
 
 - **Обработка файлов**: Если к сообщению в Битрикс24 прикреплён файл, переменная `file_id` будет передана боту с ID этого файла.  
+  Если Битрикс24 передаёт `viewerType`, дополнительно будет передана переменная `file_type`.  
   Вы можете использовать этот ID для скачивания файла через REST‑методы Битрикс24 (`disk.file.get`).  
   Если сообщение пусто, но к нему прикреплён файл, боту автоматически будет передано сообщение `"File sent: {имя_файла}"`.
 
