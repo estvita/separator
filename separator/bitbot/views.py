@@ -126,10 +126,13 @@ class BotEditView(LoginRequiredMixin, View):
                 bot.save()
                 if bot.bot_id == 0:
                     domain = bot.app_instance.app.site.domain
+                    event_handler = f"https://{domain}/api/bitrix/"
+                    if bot.connector.provider and bot.connector.provider.type == "custom" and bot.connector.url:
+                        event_handler = bot.connector.url
                     payload = {
                         "CODE": f"bitbot_{bot.id}",
                         "TYPE": bot.bot_type,
-                        "EVENT_HANDLER": f"https://{domain}/api/bitrix/",
+                        "EVENT_HANDLER": event_handler,
                         "PROPERTIES": {
                             "NAME": bot.name,
                         },

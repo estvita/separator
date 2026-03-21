@@ -1075,11 +1075,11 @@ def event_processor(data):
             chat = data.get("data[MESSAGES][0][chat][id]")
             send_result = None
 
-            # Проверяем наличие сообщения в редис (отправлено из других сервисов )
-            for _ in range(5):
-                if redis_client.exists(f'bitrix:{member_id}:{message_id}'):
-                    raise Exception('loop message')
-                time.sleep(1)
+            # # Проверяем наличие сообщения в редис (отправлено из других сервисов )
+            # for _ in range(5):
+            #     if redis_client.exists(f'bitrix:{member_id}:{message_id}'):
+            #         raise Exception('loop message')
+            #     time.sleep(1)
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
             text = data.get("data[MESSAGES][0][message][text]", "")

@@ -8,6 +8,17 @@ class ConnectorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['url'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        provider = cleaned_data.get("provider")
+        url = cleaned_data.get("url")
+
+        if provider and provider.type == "custom" and not url:
+            self.add_error("url", _("Webhook URL is required for Custom API provider."))
+
+        return cleaned_data
+
     class Meta:
         model = Connector
         fields = ['provider', 'key', 'url']
@@ -24,12 +35,13 @@ class ChatBotForm(forms.ModelForm):
     )
     class Meta:
         model = ChatBot
-        fields = ['name', 'bot_type', 'app_instance', 'connector']
+        fields = ['name', 'bot_type', 'app_instance', 'connector', 'batch_delay']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'bot_type': forms.Select(choices=[("O", "Open Lines"), ("B", "Chat Bot"), ("S", "Supervisor")],
+            'bot_type': forms.Select(choices=[("O", _("Open Lines")), ("B", _("Chat Bot")), ("S", _("Supervisor"))],
                                      attrs={'class': 'form-control'}),
             'connector': forms.Select(attrs={'class': 'form-control'}),
+            'batch_delay': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
         }
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user")
@@ -61,6 +73,6 @@ class CommandLangForm(forms.ModelForm):
         fields = ['language', 'title', 'params']
         widgets = {
             'language': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ru'}),
-            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Title'}),
-            'params': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'optional'}),
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Title')}),
+            'params': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Optional')}),
         }

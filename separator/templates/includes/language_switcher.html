@@ -1,0 +1,14 @@
+{% load wagtailcore_tags %}
+
+<li class="nav-item dropdown ms-2">
+  <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
+    <option value="{% pageurl page %}" selected>
+      {{ page.locale.language_name_local }}
+    </option>
+    {% for translation in page.get_translations.live %}
+      <option value="{% pageurl translation %}">
+        {{ translation.locale.language_name_local }}
+      </option>
+    {% endfor %}
+  </select>
+</li>

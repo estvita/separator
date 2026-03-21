@@ -31,7 +31,7 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
             app_id=app_id, 
             host=host
         )
-        return HttpResponse("ok")
+        return HttpResponse("Mark, call me!")
 
     def list(self, request, *args, **kwargs):
         hub_mode = request.query_params.get("hub.mode")

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-01 10:12+0500\n"
+"POT-Creation-Date: 2026-03-20 12:23+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -90,8 +90,36 @@ msgstr "Необязательно"
 msgid "Bitrix24"
 msgstr "Битрикс24"
 
+msgid "Open Lines"
+msgstr "Открытые линии"
+
+msgid "Chat Bot"
+msgstr "Чат бот"
+
+msgid "Supervisor"
+msgstr "Супервизор"
+
 msgid "help"
 msgstr "help"
+
+msgid "Title"
+msgstr "Заголовок"
+
+msgid "B, O or S"
+msgstr ""
+
+msgid "Batch delay"
+msgstr "Пакетная отправка (секунды)"
+
+msgid ""
+"Delay in seconds before sending accumulated messages. 0 disables batching."
+msgstr ""
+
+msgid "Y or N"
+msgstr ""
+
+msgid "en, ru, de.."
+msgstr ""
 
 msgid "Connector saved."
 msgstr "Коннектор сохранен."
@@ -401,6 +429,9 @@ msgstr ""
 msgid "No connectors"
 msgstr "Нет коннекторов"
 
+msgid "0 for disable"
+msgstr "0 для отключения"
+
 msgid "Delete bot?"
 msgstr "Удалить бота?"
 
@@ -443,9 +474,6 @@ msgstr "Добавить перевод"
 msgid "Language"
 msgstr "Язык"
 
-msgid "Title"
-msgstr "Заголовок"
-
 msgid "Params"
 msgstr "Параметры"
 
@@ -455,10 +483,8 @@ msgstr "Ваши BitBot'ы"
 msgid "Connectors"
 msgstr "Коннекторы"
 
-#, fuzzy
-#| msgid "Portal"
 msgid "All Portals"
-msgstr "Портал"
+msgstr "Все порталы"
 
 msgid "Apply"
 msgstr "Применить"
@@ -517,6 +543,11 @@ msgstr "Включите JavaScript для работы приложения."
 msgid "Connector settings"
 msgstr "Настройки коннектора"
 
+#, fuzzy
+#| msgid "Currency"
+msgid "Current User"
+msgstr "Валюта"
+
 msgid "Connect"
 msgstr "Подключить"
 
@@ -573,9 +604,6 @@ msgstr "Владелец портала"
 
 msgid "Not assigned"
 msgstr "Не привязан"
-
-msgid "Open Lines"
-msgstr "Открытые линии"
 
 msgid "Line ID"
 msgstr "ID линии"
@@ -690,6 +718,33 @@ msgstr ""
 msgid "Password"
 msgstr "Пароль"
 
+msgid "Not connected"
+msgstr "Не подключён"
+
+msgid "Belonging phone accounts"
+msgstr "Привязанные номера"
+
+msgid "Phone"
+msgstr "Телефон"
+
+msgid "Phone ID"
+msgstr "ID номера"
+
+msgid "No phones found for this WABA."
+msgstr "Нет номеров для этого аккаунта WABA"
+
+msgid "WABA account status check"
+msgstr "Проверить статус WABA"
+
+msgid "Check status"
+msgstr "Проверить статус"
+
+msgid "Error:"
+msgstr "Ошибка"
+
+msgid "Response"
+msgstr "Ответ"
+
 msgid "Broadcasts"
 msgstr "Рассылки"
 
@@ -734,9 +789,6 @@ msgstr "Подробности рассылки"
 
 msgid "Broadcast"
 msgstr "Рассылка"
-
-msgid "Phone"
-msgstr "Телефон"
 
 msgid "Stop scheduled broadcast"
 msgstr "Отменить рассылку"
@@ -798,11 +850,14 @@ msgstr "Список шаблонов"
 msgid "Add New"
 msgstr "Добавить новый"
 
+msgid "Default"
+msgstr "по умолчанию"
+
 msgid "Bitrix Code"
 msgstr "Код для Bitrix24"
 
 msgid "Available in Bitrix24"
-msgstr ""
+msgstr "Доступен а Б24"
 
 msgid "No templates found."
 msgstr "Нет доступных шаблонов"
@@ -851,6 +906,9 @@ msgstr "Нет привязанных SIP аккаунтов"
 
 msgid "Last Error:"
 msgstr "Ошибка"
+
+msgid "Check phone status"
+msgstr "Проверить статус номера"
 
 msgid "Scan the QR code"
 msgstr "Сканируйте QR-код"
@@ -939,11 +997,14 @@ msgstr "Голосовые вызовы отключены"
 msgid "Call destination %(dest)s enabled"
 msgstr "Направление звонка активировано: %(dest)s"
 
+msgid "App is not connected to this phone WABA account."
+msgstr ""
+
 msgid "The tariff has expired "
 msgstr "Срок действия тарифа истёк "
 
 msgid "Please provide at least one recipient phone number."
-msgstr ""
+msgstr "Укажите номера получателей"
 
 msgid "Phone not found"
 msgstr "Телефон не найден"
@@ -961,6 +1022,9 @@ msgstr "Рассылка добавлена в очередь"
 
 msgid "Broadcast has been cancelled."
 msgstr "Рассылка отменена"
+
+msgid "App is not connected to this WABA account."
+msgstr ""
 
 msgid ""
 "The number has been successfully added. It will appear here in a few minutes."

@@ -1,3 +1,5 @@
+import json
+
 import redis
 import requests
 from celery import shared_task
@@ -64,8 +66,171 @@ def send_message(chatbot, bot_id, dialog_id, text, system="N"):
             "SYSTEM": system
         })
 
+
+def get_bot_id(data):
+    bot_id = data.get("data[PARAMS][BOT_ID]")
+    if bot_id:
+        return bot_id
+    for key, value in data.items():
+        if key.endswith("[BOT_ID]"):
+            return value
+    return None
+
+
+def get_application_token(data):
+    return data.get("auth[application_token]")
+
+
+def get_chatbot(data, bot_id=None, application_token=None):
+    bot_id = bot_id or get_bot_id(data)
+    application_token = application_token or get_application_token(data)
+    if not bot_id or not application_token:
+        return None
+    return ChatBot.objects.filter(
+        bot_id=bot_id,
+        app_instance__application_token=application_token,
+    ).first()
+
+
+def get_batch_delay(data):
+    chatbot = get_chatbot(data)
+    if not chatbot:
+        return 0
+    return max(chatbot.batch_delay or 0, 0)
+
+
+def set_event_value(data, key_name, value):
+    for key in list(data.keys()):
+        if key == key_name or key.endswith(f"[{key_name}]"):
+            data[key] = value
+            return
+    data[key_name] = value
+
+
+def get_buffer_prefix(data):
+    member_id = data.get("auth[member_id]")
+    dialog_id = extract_values(data, ["DIALOG_ID"]).get("DIALOG_ID")
+    bot_id = get_bot_id(data)
+    if not member_id or not bot_id or not dialog_id:
+        return None
+    return f"bitbot:buffer:{member_id}:{bot_id}:{dialog_id}"
+
+
+def should_buffer_event(data, batch_delay=0):
+    inputs = extract_values(data, ["event", "COMMAND_ID", "MESSAGE"])
+    if inputs.get("event") != "ONIMBOTMESSAGEADD":
+        return False
+    if inputs.get("COMMAND_ID"):
+        return False
+    if extract_files(data):
+        return False
+    if not inputs.get("MESSAGE"):
+        return False
+    if batch_delay <= 0:
+        return False
+    return bool(get_buffer_prefix(data))
+
+
+def merge_buffered_events(events):
+    if not events:
+        return None
+
+    base_event = dict(events[-1])
+    message_batch = []
+    messages = []
+
+    for item in events:
+        values = extract_values(item, ["MESSAGE", "MESSAGE_ID", "AUTHOR_ID", "USER_ID"])
+        text = values.get("MESSAGE")
+        if text:
+            messages.append(text)
+        message_batch.append({
+            "message": text or "",
+            "message_id": values.get("MESSAGE_ID"),
+            "author_id": values.get("AUTHOR_ID") or values.get("USER_ID"),
+        })
+
+    combined_message = "\n".join(messages).strip()
+    set_event_value(base_event, "MESSAGE", combined_message)
+    set_event_value(base_event, "MESSAGE_ID", message_batch[-1].get("message_id"))
+    base_event["MESSAGE_BATCH"] = json.dumps(message_batch, ensure_ascii=False)
+    base_event["MESSAGE_BATCH_SIZE"] = str(len(events))
+    return base_event
+
+
+def enqueue_buffered_event(data, batch_delay):
+    buffer_prefix = get_buffer_prefix(data)
+    if not buffer_prefix:
+        return process_event_payload(data)
+
+    messages_key = f"{buffer_prefix}:messages"
+    version_key = f"{buffer_prefix}:version"
+    buffer_ttl = max(batch_delay * 6, 60)
+    version = redis_client.incr(version_key)
+
+    pipe = redis_client.pipeline()
+    pipe.rpush(messages_key, json.dumps(data, ensure_ascii=False))
+    pipe.expire(messages_key, buffer_ttl)
+    pipe.expire(version_key, buffer_ttl)
+    pipe.execute()
+
+    flush_buffered_events.apply_async(
+        args=[buffer_prefix, version],
+        countdown=batch_delay,
+        queue="bitbot",
+    )
+    return {"status": "buffered", "version": int(version)}
+
+
+def pop_buffered_events(buffer_prefix, expected_version):
+    messages_key = f"{buffer_prefix}:messages"
+    version_key = f"{buffer_prefix}:version"
+
+    with redis_client.pipeline() as pipe:
+        while True:
+            try:
+                pipe.watch(version_key, messages_key)
+                current_version = pipe.get(version_key)
+                if not current_version or int(current_version) != int(expected_version):
+                    pipe.unwatch()
+                    return []
+                raw_events = pipe.lrange(messages_key, 0, -1)
+                pipe.multi()
+                pipe.delete(messages_key)
+                pipe.delete(version_key)
+                pipe.execute()
+                return raw_events
+            except redis.WatchError:
+                continue
+
+
+@shared_task(queue="bitbot")
+def flush_buffered_events(buffer_prefix, version):
+    raw_events = pop_buffered_events(buffer_prefix, version)
+    if not raw_events:
+        return None
+
+    events = []
+    for raw_event in raw_events:
+        if isinstance(raw_event, bytes):
+            raw_event = raw_event.decode("utf-8")
+        events.append(json.loads(raw_event))
+
+    combined_event = merge_buffered_events(events)
+    if not combined_event:
+        return None
+    return process_event_payload(combined_event)
+
+
 @shared_task(queue='bitbot')
 def event_processor(data):
+    batch_delay = get_batch_delay(data)
+    if batch_delay > 0 and should_buffer_event(data, batch_delay=batch_delay):
+        return enqueue_buffered_event(data, batch_delay)
+    return process_event_payload(data)
+
+
+def process_event_payload(data):
     command_id = None
     message_id = None
     bot_id = None
@@ -73,17 +238,10 @@ def event_processor(data):
     chatbot = None
     try:
         member_id = data.get("auth[member_id]")
-        application_token = data.get("auth[application_token]")
+        application_token = get_application_token(data)
         auth_access_token = data.get("auth[access_token]")
         
-        # First extract BOT_ID to get bot-specific auth
-        bot_id = data.get("data[PARAMS][BOT_ID]")
-        if not bot_id:
-            # Try alternative extraction method
-            for key in data:
-                if key.endswith('[BOT_ID]'):
-                    bot_id = data[key]
-                    break
+        bot_id = get_bot_id(data)
         
         # Extract bot-specific auth credentials
         bot_access_token = None
@@ -95,7 +253,7 @@ def event_processor(data):
             'USER_ID', 'CHAT_AUTHOR_ID', 'IS_BOT', 'IS_CONNECTOR', 'IS_NETWORK', 'IS_EXTRANET',
             'MESSAGE_ID', 'MESSAGE', 'COMMAND_ID', 'COMMAND', 'COMMAND_PARAMS', 'CHAT_TITLE',
             'LANGUAGE', 'CHAT_ENTITY_DATA_1', 'CHAT_ENTITY_DATA_2', 'CHAT_ENTITY_ID',
-            'FIRST_NAME', 'LAST_NAME', 'BOT_ID', 'CHAT_ID',
+            'FIRST_NAME', 'LAST_NAME', 'BOT_ID', 'CHAT_ID', 'MESSAGE_BATCH', 'MESSAGE_BATCH_SIZE',
         ])
         
         files = extract_files(data)
@@ -107,7 +265,6 @@ def event_processor(data):
 
         event = inputs.get("event")
         dialog_id = inputs.get("DIALOG_ID")
-        user_id = inputs.get("AUTHOR_ID") or inputs.get("USER_ID") or inputs.get("CHAT_AUTHOR_ID")
         command_id = inputs.get("COMMAND_ID")
         command = inputs.get("COMMAND")
         message_id = inputs.get("MESSAGE_ID")
@@ -116,10 +273,7 @@ def event_processor(data):
         if not bot_id or not application_token:
             raise ValueError("Missing ID or token")
 
-        chatbot = ChatBot.objects.filter(
-            bot_id=bot_id,
-            app_instance__application_token=application_token
-        ).first()
+        chatbot = get_chatbot(data, bot_id=bot_id, application_token=application_token)
         if not chatbot:
             raise LookupError(f"Bot {bot_id} not found")
         if chatbot.date_end and timezone.now() > chatbot.date_end:
@@ -148,9 +302,9 @@ def event_processor(data):
 
         def save_and_return_answer(answer, new_session_id=None):
             if new_session_id:
-                redis_client.set(redis_key, new_session_id, ex=86400)
+                redis_client.set(redis_key, new_session_id, ex=259200)
             if not answer:
-                raise Exception("Bot no answer")
+                return None
             if command:
                 return send_command_answer(chatbot, command_id, message_id, answer)
             return send_message(chatbot, bot_id, dialog_id, answer)
@@ -179,7 +333,12 @@ def event_processor(data):
                 if files:
                     file_name = files[0].get('name', 'File')
                     query = f"File sent: {file_name}"
-            kwargs = dict(inputs=inputs, query=query, user=user_id)
+            kwargs = dict(
+                inputs=inputs,
+                query=query,
+                user=dialog_id,
+                response_mode="streaming",
+            )
             used_existing_session = False
             if session_id:
                 kwargs["conversation_id"] = session_id.decode()
@@ -208,9 +367,40 @@ def event_processor(data):
                     raise_chat_error(exc)
             except requests.HTTPError as exc:
                 raise_chat_error(exc, chat_response.text)
-            result = chat_response.json()
-            answer = result.get("answer")
-            conversation_id = result.get("conversation_id")
+            answer_parts = []
+            outputs = {}
+            conversation_id = kwargs.get("conversation_id")
+            for line in chat_response.iter_lines():
+                if isinstance(line, bytes):
+                    line = line.decode("utf-8", "replace")
+                if not line or not line.startswith("data:"):
+                    continue
+                event_data = line[5:].strip()
+                if event_data == "[DONE]":
+                    continue
+                try:
+                    event = json.loads(event_data)
+                except ValueError:
+                    continue
+                if event.get("conversation_id"):
+                    conversation_id = event["conversation_id"]
+                if event.get("event") in {"message", "agent_message", "message_replace"}:
+                    text = event.get("answer") or event.get("data", {}).get("text")
+                    if text:
+                        if event.get("event") == "message_replace":
+                            answer_parts = [text]
+                        else:
+                            answer_parts.append(text)
+                if event.get("event") in {"node_finished", "workflow_finished"}:
+                    event_outputs = event.get("data", {}).get("outputs")
+                    if isinstance(event_outputs, dict):
+                        outputs = event_outputs
+            answer = "".join(answer_parts).strip()
+            if not answer and outputs:
+                answer = "\n".join(
+                    f"{k}: {v}" for k, v in outputs.items()
+                    if v not in (None, "", [], {})
+                )
             return save_and_return_answer(
                 answer,
                 conversation_id if not used_existing_session else None,
@@ -220,7 +410,7 @@ def event_processor(data):
         if provider.type == "dify_workflow":
             workflow_client = WorkflowClient(connector.key, base_url)
             response = workflow_client.run(
-                inputs=inputs, user=user_id, response_mode="blocking"
+                inputs=inputs, user=dialog_id, response_mode="blocking"
             )
             response.raise_for_status()
             try:

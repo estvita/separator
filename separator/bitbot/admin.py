@@ -49,7 +49,7 @@ class ConnectorAdmin(admin.ModelAdmin):
 
 @admin.register(ChatBot)
 class ChatBotAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'owner', 'connector', 'bot_id', 'bot_type']
+    list_display = ['id', 'name', 'owner', 'connector', 'bot_id', 'bot_type', 'batch_delay']
     search_fields = ['id', 'name', 'owner__email', 'connector__url', 'bot_id']
     inlines = [CommandInline]
     autocomplete_fields = ['owner', 'connector', 'app_instance']

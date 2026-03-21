@@ -151,6 +151,8 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                   message_id=None, attachments=None, profilepic_url=None,
                   chat_id=None, chat_url=None, user_id=None, ctwa_id=None, source_id=None, manager_id=None):
     init_message = "Создание чата..."
+    if user_phone and not user_phone.startswith("+"):
+        user_phone = f"+{user_phone}"
     if pushName:
         pushName = f"{user_phone} ({pushName})"
     try:
@@ -199,7 +201,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 chat_id = chat_session.get("CHAT_ID")
                 identity = user_id or user_phone
                 try:
-                    redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id)
+                    redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id, ex=2592000)
                 except Exception:
                     pass
                 if sms:
@@ -223,12 +225,17 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
         raise
 
     member_id = app_instance.portal.member_id
-    chat_key = f'bitrix_chat:{member_id}:{line_id}:{user_phone}'
+    chat_keys = [f'bitrix_chat:{member_id}:{line_id}:{user_phone}']
+    if user_phone and not str(user_phone).startswith("+"):
+        normalized_phone = f"+{user_phone}"
+        chat_keys.append(f'bitrix_chat:{member_id}:{line_id}:{normalized_phone}')
     
     chat_id = None
     try:
-        if redis_client.exists(chat_key):
-            chat_id = redis_client.get(chat_key).decode('utf-8')
+        for chat_key in chat_keys:
+            if redis_client.exists(chat_key):
+                chat_id = redis_client.get(chat_key).decode('utf-8')
+                break
     except Exception:
         pass
 
@@ -248,21 +255,21 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
                 # except Exception as e:
                 #     logger.warning(f"Failed to start session for chat {chat_id}: {e}")
                 resp = call_method(app_instance, "im.message.add", payload, timeout=10)
-                message_id = resp.get("result")
-                try:
-                    redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
-                except Exception:
-                    pass
-                payload_status = {
-                    "CONNECTOR": connector,
-                    "LINE": line_id,
-                    "MESSAGES": [{
-                        "im": {
-                            "chat_id": chat_id,
-                            "message_id": message_id
-                        }
-                    }]
-                }
+                # message_id = resp.get("result")
+                # try:
+                #     redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
+                # except Exception:
+                #     pass
+                # payload_status = {
+                #     "CONNECTOR": connector,
+                #     "LINE": line_id,
+                #     "MESSAGES": [{
+                #         "im": {
+                #             "chat_id": chat_id,
+                #             "message_id": message_id
+                #         }
+                #     }]
+                # }
                 # call_api.delay(app_instance.id, "imconnector.send.status.delivery", payload_status)
                 return resp
             except Exception as e:
