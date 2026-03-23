@@ -1,15 +1,15 @@
+import re
+import os
 import json
 import hmac
 import redis
 import logging
 import hashlib
-import re
-import os
+import requests
 import mimetypes
 from urllib.parse import urlparse
 from datetime import datetime
 
-import requests
 from django.db import OperationalError, models
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -21,6 +21,8 @@ from separator.bitrix.models import Line
 import separator.bitrix.tasks as bitrix_tasks
 import separator.bitrix.utils as bitrix_utils
 
+from separator.waba.bot import bot_processor
+
 from .models import (
     App,
     Phone,
@@ -29,6 +31,7 @@ from .models import (
     Event,
     Error,
     Ctwa,
+    Bot,
     TemplateComponent,
     TemplateComponentButton,
     TemplateComponentNamedParam,
@@ -796,37 +799,38 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if not raw_body:
         raise Exception("No data provided")
 
-    if not signature:
-        raise Exception("Missing X-Hub-Signature-256")
+    if settings.WABA_VERIFY_SIGNATURE:
+        if not signature:
+            raise Exception("Missing X-Hub-Signature-256")
 
-    if app_id:
-        apps = App.objects.filter(client_id=app_id)
-    elif host:
-        domains = [host]
-        if ':' in host:
-            domains.append(host.split(':')[0])
-        apps = App.objects.filter(sites__domain__in=domains)
-    else:
-        apps = []
+        if app_id:
+            apps = App.objects.filter(client_id=app_id)
+        elif host:
+            domains = [host]
+            if ':' in host:
+                domains.append(host.split(':')[0])
+            apps = App.objects.filter(sites__domain__in=domains)
+        else:
+            apps = []
 
-    verified = False
-    payload = raw_body.encode('utf-8')
-    signature = signature[7:] if signature.startswith("sha256=") else signature
-    for app in apps:
-        if not app.client_secret:
-            continue
-        try:
-            secret = app.client_secret.encode('utf-8')
-            expected = hmac.new(secret, payload, hashlib.sha256).hexdigest()
-            if hmac.compare_digest(signature, expected):
-                verified = True
-                break
-        except Exception as e:
-            logger.error(f"Error verifying signature for app {app.id}: {e}")
+        verified = False
+        payload = raw_body.encode('utf-8')
+        signature = signature[7:] if signature.startswith("sha256=") else signature
+        for app in apps:
+            if not app.client_secret:
+                continue
+            try:
+                secret = app.client_secret.encode('utf-8')
+                expected = hmac.new(secret, payload, hashlib.sha256).hexdigest()
+                if hmac.compare_digest(signature, expected):
+                    verified = True
+                    break
+            except Exception as e:
+                logger.error(f"Error verifying signature for app {app.id}: {e}")
 
-    if not verified:
-        logger.warning(f"Signature verification failed. Signature: {signature}")
-        raise Exception(f"Invalid signature: {signature}")
+        if not verified:
+            logger.warning(f"Signature verification failed. Signature: {signature}")
+            raise Exception(f"Invalid signature: {signature}")
 
     try:
         data = json.loads(raw_body)
@@ -882,7 +886,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         phone_number = metadata.get('display_phone_number')
         phone_number_id = metadata.get('phone_number_id')
         try:
-            phone = Phone.objects.get(phone_id=phone_number_id, waba=waba)
+            phone = Phone.objects.filter(phone_id=phone_number_id, waba=waba).first()
             appinstance = phone.app_instance
             if appinstance:
                 appinstance.host = host
@@ -892,8 +896,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             raise Exception(f"phone_number not found {phone_number}")
         except Exception:
             raise Exception(data)
+        
+    bot = Bot.objects.filter(phone=phone).first()
+    if bot and field == 'messages':
+        bot_processor.delay(data, bot.id)
 
-    if field == 'message_template_status_update':
+    elif field == 'message_template_status_update':
         return message_template_status_update(entry)    
 
     elif field == 'message_template_components_update':
@@ -974,46 +982,33 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         source_id = None
         referral_body = None
         for message in messages:
+            user_phone = message["from"]
             referral = message.get("referral")
             if isinstance(referral, dict):
 
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
                 source_type = referral.get("source_type")
-                if source_type is not None:
-                    source_type = str(source_type).strip()[:64] or None
-
                 source_id = referral.get("source_id")
-                try:
-                    source_id = int(source_id)
-                    if source_id < 0:
-                        source_id = 0
-                    source_id = min(source_id, 9223372036854775807)
-                except (TypeError, ValueError):
-                    source_id = 0
                 source_url = referral.get("source_url")
-                if source_url is not None:
-                    source_url = str(source_url).strip()[:1024] or None
-
                 referral_body = referral.get("body")
-                if referral_body is not None:
-                    referral_body = str(referral_body).strip() or None
-
                 ctwa_clid = referral.get("ctwa_clid")
 
-                if ctwa_enabled and ctwa_clid and waba:
+                if ctwa_clid and waba:
                     ctwa, created = Ctwa.objects.get_or_create(
                         clid=ctwa_clid,
                         defaults={
-                            'waba': waba,
+                            "waba": waba,
+                            "waba_phone": phone,
+                            "phone": user_phone,
                             "source_type": source_type,
                             "source_id": source_id,
                             "source_url": source_url
                         }
                     )
-                    ctwa_id = str(ctwa.id)
+                    if ctwa_enabled:
+                        ctwa_id = str(ctwa.id)
 
             message_type = message.get("type")
-            user_phone = message["from"]
             message_id = message["id"]
             contacts = value.get("contacts", [])
             if contacts:
@@ -1208,6 +1203,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             return data
 
         if text and user_phone:
+            if not ctwa_enabled:
+                ctwa_id = None
+                source_id = None
             if referral_body:
                 chain(
                     bitrix_tasks.send_messages.s(

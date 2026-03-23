@@ -15,6 +15,7 @@ from .models import (
     Error,
     Ctwa,
     CtwaEvents,
+    Bot,
     TemplateComponent,
     TemplateComponentButton,
     TemplateComponentNamedParam,
@@ -67,7 +68,6 @@ class WabaAdmin(admin.ModelAdmin):
     list_filter = ("subscribed", "app")
     search_fields = ["waba_id", "owner__email"]
     readonly_fields = ("ctwa_records_link",)
-    list_per_page = 30
     inlines = [PhoneInline, TemplateInline]
 
     def ctwa_records_link(self, instance):
@@ -84,7 +84,6 @@ class TemplateAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "lang", "owner", "waba", "status")
     list_filter = ["status", "lang"]
     search_fields = ["waba__waba_id", "id", "name", "owner__email"]
-    list_per_page = 30
     readonly_fields = ("content",)
     inlines = []
 
@@ -159,7 +158,6 @@ class TemplateComponentAdmin(admin.ModelAdmin):
     list_filter = ("type", "format")
     search_fields = ("template__id", "template__name")
     autocomplete_fields = ("template",)
-    list_per_page = 50
     inlines = [TemplateComponentButtonInline, TemplateComponentNamedParamInline, TemplateComponentPositionalParamInline]
 
 
@@ -169,7 +167,6 @@ class TemplateComponentButtonAdmin(admin.ModelAdmin):
     list_filter = ("type",)
     search_fields = ("component__template__id", "component__template__name", "text")
     autocomplete_fields = ("component",)
-    list_per_page = 50
 
 
 @admin.register(TemplateComponentNamedParam)
@@ -177,7 +174,6 @@ class TemplateComponentNamedParamAdmin(admin.ModelAdmin):
     list_display = ("id", "component", "button", "name")
     search_fields = ("component__template__id", "component__template__name", "name")
     autocomplete_fields = ("component", "button")
-    list_per_page = 50
 
 
 @admin.register(TemplateComponentPositionalParam)
@@ -185,7 +181,6 @@ class TemplateComponentPositionalParamAdmin(admin.ModelAdmin):
     list_display = ("id", "component", "button", "position")
     search_fields = ("component__template__id", "component__template__name")
     autocomplete_fields = ("component", "button")
-    list_per_page = 50
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
@@ -194,7 +189,6 @@ class PhoneAdmin(admin.ModelAdmin):
     search_fields = ("phone", "phone_id", "owner__email")
     list_filter = ("calling", "type")
     readonly_fields = ("error", )
-    list_per_page = 30
 
     def waba_link(self, instance):
         if not instance.waba_id:
@@ -226,7 +220,6 @@ class PhoneAdmin(admin.ModelAdmin):
 class EventAdmin(admin.ModelAdmin):
     list_display = ("id", "date", "waba")
     search_fields = ["waba__waba_id", "waba__app__client_id", "content"]
-    list_per_page = 30
     list_filter = ("date",)
 
 
@@ -259,3 +252,9 @@ class CtwaEventsInline(admin.TabularInline):
 
 
 CtwaAdmin.inlines = [CtwaEventsInline]
+
+@admin.register(Bot)
+class BotAdmin(admin.ModelAdmin):
+    list_display = ['id', 'phone__phone']
+    autocomplete_fields = ['phone']
+    search_fields = ['phone__phone']

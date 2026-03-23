@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-20 12:23+0500\n"
+"POT-Creation-Date: 2026-03-23 21:19+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -77,6 +77,9 @@ msgid "User update started."
 msgstr ""
 
 msgid "You already have an unconnected server!"
+msgstr ""
+
+msgid "Webhook URL is required for Custom API provider."
 msgstr ""
 
 msgid "Optional"
@@ -195,6 +198,24 @@ msgid "selected sender number is invalid"
 msgstr ""
 
 msgid "send failed"
+msgstr ""
+
+msgid "WABA template sent"
+msgstr ""
+
+msgid "Sender"
+msgstr ""
+
+msgid "Recipient"
+msgstr ""
+
+msgid "Template"
+msgstr ""
+
+msgid "Sent payload"
+msgstr ""
+
+msgid "Facebook response"
 msgstr ""
 
 msgid "Portal not found by code."
@@ -535,9 +556,6 @@ msgstr ""
 msgid "Sender number"
 msgstr ""
 
-msgid "Template"
-msgstr ""
-
 msgid "Recipient phone"
 msgstr ""
 
@@ -769,9 +787,6 @@ msgstr ""
 msgid "All statuses"
 msgstr ""
 
-msgid "Recipient"
-msgstr ""
-
 msgid "WAMID"
 msgstr ""
 
@@ -833,6 +848,36 @@ msgid "No templates found."
 msgstr ""
 
 msgid "Delete selected templates from Facebook and local database?"
+msgstr ""
+
+msgid "CTWA list"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Search by ID, phone, or source ID"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Source type"
+msgstr ""
+
+msgid "Source ID"
+msgstr ""
+
+msgid "Source URL"
+msgstr ""
+
+msgid "Last event"
+msgstr ""
+
+msgid "No CTWA records found."
+msgstr ""
+
+msgid "CTWA pagination"
 msgstr ""
 
 msgid "Calling settings are not available for WhatsApp Business App numbers."
@@ -1014,6 +1059,9 @@ msgid "Attachment"
 msgstr ""
 
 msgid "You must provide either a message or a file."
+msgstr ""
+
+msgid "From WhatsApp"
 msgstr ""
 
 msgid "You must connect WhatsApp first."

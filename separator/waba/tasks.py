@@ -295,7 +295,7 @@ def send_ctwa_conversion(ctwa_id, event="Purchase", custom_data=None):
                 waba.dataset = int(dataset_id)
                 waba.save(update_fields=['dataset'])
             else:
-                return
+                raise Exception(f"Dataset for WABA {waba.waba_id} was not returned by Facebook")
         except Exception:
             raise
 

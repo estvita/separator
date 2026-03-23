@@ -7,12 +7,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, OuterRef, Subquery, CharField
+from django.core.paginator import Paginator
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, HttpResponseServerError
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.db.models.functions import Cast
 
 from urllib.parse import urlencode
 from separator.decorators import login_message_required, user_message
@@ -20,7 +22,7 @@ from separator.decorators import login_message_required, user_message
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
 
-from .models import App, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient
+from .models import App, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
 
@@ -50,6 +52,7 @@ def phone_details(request, phone_id):
     phone = get_object_or_404(Phone, phone_id=phone_id, owner=request.user)
     phone_status_json = ""
     phone_status_error = ""
+    ctwa_query = request.GET.get("ctwa_q", "").strip()
     templates = Template.objects.filter(waba=phone.waba).prefetch_related(
         "components__named_params",
         "components__positional_params",
@@ -97,6 +100,23 @@ def phone_details(request, phone_id):
             "lang": template.lang,
             "components": components_data,
         })
+
+    latest_event_subquery = CtwaEvents.objects.filter(
+        ctwa_id=OuterRef("pk")
+    ).order_by("-date", "-id")
+    ctwa_qs = phone.ctwas.annotate(
+        id_text=Cast("id", output_field=CharField()),
+        phone_text=Cast("phone", output_field=CharField()),
+        source_id_text=Cast("source_id", output_field=CharField()),
+        last_event=Subquery(latest_event_subquery.values("event")[:1]),
+    ).order_by("-id")
+    if ctwa_query:
+        ctwa_qs = ctwa_qs.filter(
+            Q(id_text__icontains=ctwa_query)
+            | Q(phone_text__icontains=ctwa_query)
+            | Q(source_id_text__icontains=ctwa_query)
+        )
+    ctwa_page_obj = Paginator(ctwa_qs, 50).get_page(request.GET.get("ctwa_page"))
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -244,6 +264,8 @@ def phone_details(request, phone_id):
         'templates': templates,
         'phone_status_json': phone_status_json,
         'phone_status_error': phone_status_error,
+        'ctwa_page_obj': ctwa_page_obj,
+        'ctwa_q': ctwa_query,
     })
 
 
