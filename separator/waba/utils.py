@@ -856,6 +856,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     value = changes.get('value', {})
     event = value.get('event')
     ctwa_enabled = False
+    phone = None
+    appinstance = None
 
     if field == 'account_update':
         if event == "PARTNER_APP_UNINSTALLED":
@@ -880,6 +882,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             return(data)
         else:
             raise Exception(data)
+
+    if field == 'message_template_status_update':
+        return message_template_status_update(entry)
+
+    if field == 'message_template_components_update':
+        return message_template_components_update(entry)
     
     metadata = value.get("metadata", {})
     if metadata:    
@@ -900,12 +908,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     bot = Bot.objects.filter(phone=phone).first()
     if bot and field == 'messages':
         bot_processor.delay(data, bot.id)
-
-    elif field == 'message_template_status_update':
-        return message_template_status_update(entry)    
-
-    elif field == 'message_template_components_update':
-        return message_template_components_update(entry)
 
     elif field == 'phone_number_name_update':
         display_phone_number = value.get('display_phone_number')
