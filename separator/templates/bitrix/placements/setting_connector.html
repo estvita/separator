@@ -24,6 +24,7 @@
     <form method="post" class="d-flex align-items-center">
       {% csrf_token %}
       <input type="hidden" name="AUTH_ID" value="{{ auth_id }}">
+      <input type="hidden" name="member_id" value="{{ member_id }}">
       <input type="hidden" name="PLACEMENT" value="SETTING_CONNECTOR">
       <input type="hidden" name="line_id" value="{{ line_id }}">
       <input type="hidden" name="connector_code" value="{{ connector_code }}">

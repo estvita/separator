@@ -29,6 +29,7 @@ def settings_connector(request, user):
 
     line_id = data.get("line_id") or placement_data.get("LINE")
     connector_code = data.get("connector_code") or placement_data.get("CONNECTOR")
+    member_id = data.get("member_id")
 
     app_instance = AppInstance.objects.filter(id=instance_id).first()
     if not app_instance:
@@ -88,6 +89,7 @@ def settings_connector(request, user):
                 "line_id": line_id,
                 "connector_code": connector_code,
                 "auth_id": data.get("AUTH_ID"),
+                "member_id": member_id,
                 "connector_service": connector.service,
                 "user": user,
             },
@@ -148,7 +150,7 @@ class WabaPlacementModule:
     @staticmethod
     def _resolve_appinstance(data):
         auth_id = data.get("AUTH_ID")
-        member_id = data.get("member_id") or data.get("MEMBER_ID")
+        member_id = data.get("member_id")
         app = get_app(auth_id)
         portal = Bitrix.objects.filter(member_id=member_id).first()
         if not portal:
@@ -442,7 +444,7 @@ class WabaPlacementModule:
         context = {
             "auth_id": data.get("AUTH_ID") or "",
             "refresh_id": data.get("REFRESH_ID") or "",
-            "member_id": data.get("member_id") or data.get("MEMBER_ID") or "",
+            "member_id": data.get("member_id") or "",
             "sender_phones": [{"id": str(item.id), "label": item.phone or str(item.id)} for item in sender_phones],
             "templates_data_by_phone": templates_data_by_phone,
             "recipient_phones": [{"value": phone, "label": f"+{phone}"} for phone in recipient_phones],
