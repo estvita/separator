@@ -125,7 +125,6 @@ class AppAdmin(admin.ModelAdmin):
         ("Auth", {"fields": ("autologin", "min_version")}),
         ("Options", {"fields": ("events", "connectors", "asterx", "vendor", "bitbot")}),
     )
-    list_per_page = 30
 
 
 @admin.register(Plasement)
@@ -133,13 +132,11 @@ class PlasementAdmin(admin.ModelAdmin):
     list_display = ('title', 'app')
     search_fields = ('title', 'placement', 'handler', 'app__name')
     autocomplete_fields = ['app']
-    list_per_page = 30
 
 
 @admin.register(Connector)
 class ConnectorAdmin(admin.ModelAdmin):
     list_display = ("name", "code", "service")
-    list_per_page = 30
 
 
 @admin.register(Bitrix)
@@ -150,19 +147,15 @@ class BitrixAdmin(admin.ModelAdmin):
     search_fields = ("domain", "member_id", "owner__email")
     fields = ("protocol", "domain", "owner", "member_id", "license", "license_expired")
     list_filter = ('license_expired', "license")
-    list_per_page = 30
 
 
 @admin.register(AppInstance)
 class AppInstanceAdmin(admin.ModelAdmin):
     inlines = [CredentialInline]
-    autocomplete_fields = ['owner']
+    autocomplete_fields = ['owner', "portal"]
     list_display = ("app", "owner", "portal_link", "status", "ctwa")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
-    readonly_fields = ("auth_status", "storage_id", "application_token", 
-                       "status")
     list_filter = ("app", "status", "auth_status", "ctwa")
-    list_per_page = 30
 
     def portal_link(self, obj):
         if obj.portal:
@@ -177,7 +170,6 @@ class LineAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
     list_display = ("line_id", "app_instance", "owner")
     search_fields = ("line_id", "portal__domain")
-    list_per_page = 30
 
 
 @admin.register(User)
@@ -185,7 +177,7 @@ class UserAdmin(admin.ModelAdmin):
     inlines = [CredentialUserInline]
     list_display = ("id", "portal_link", "user_id", "admin", "active", "owner")
     list_filter = ("admin", "active")
-    list_per_page = 30
+    search_fields = ['user_id']
 
     def portal_link(self, obj):
         if obj.bitrix:
@@ -208,8 +200,8 @@ class CredentialAdminForm(forms.ModelForm):
 @admin.register(Credential)
 class CredentialAdmin(admin.ModelAdmin):
     form = CredentialAdminForm
+    autocomplete_fields = ['user', 'app_instance']
     list_display = ("id", "app_instance", "user", "refresh_date")
-    list_per_page = 30
 
 
 @admin.register(ApiCall)
@@ -218,7 +210,6 @@ class ApiCallAdmin(admin.ModelAdmin):
     fields = ("app_instance", "admin", "method", "payload")
     list_display = ("id", "app_instance", "admin", "method")
     search_fields = ("method", "app_instance__id", "app_instance__portal__domain")
-    list_per_page = 30
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -248,4 +239,3 @@ class EventsAdmin(admin.ModelAdmin):
     list_display = ("id", "portal", "app")
     search_fields = ("portal__domain", "content")
     autocomplete_fields = ["portal", "app"]
-    list_per_page = 30

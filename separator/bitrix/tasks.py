@@ -8,13 +8,13 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 
-from .crest import call_method, refresh_token
+from .crest import BitrixAccessDeniedError, call_method, refresh_token
 from .models import AppInstance, Credential
 
 from separator.waba.models import Phone
 from separator.waweb.models import Session
 from separator.olx.models import OlxUser
-from separator.users.models import User
+from separator.users.models import Message, User
 from separator.bitbot.models import ChatBot
 from separator.asterx.models import Server as AsterxServer
 
@@ -23,12 +23,23 @@ logger = logging.getLogger("django")
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 
+def build_lead_title(site, code, fallback, **context):
+    template = Message.objects.filter(site=site, code=code).first() if site else None
+    text = template.message if template and template.message else fallback
+    try:
+        return text.format(**context)
+    except Exception:
+        return fallback.format(**context)
+
+
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def call_api(self, id, method, payload, b24_user=None):
     try:
         app_instance = AppInstance.objects.get(id=id)
         resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
         return resp
+    except BitrixAccessDeniedError:
+        raise
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
 
@@ -47,21 +58,43 @@ def upd_refresh_token(period):
 
 @shared_task(queue='bitrix')
 def get_app_info(instance_id=None):
-    app_instances = AppInstance.objects.filter(
+    if instance_id is None:
+        app_instance_ids = AppInstance.objects.filter(
+            portal__isnull=False,
+            portal__license_expired=False,
+        ).values_list("id", flat=True)
+        for app_instance_id in app_instance_ids:
+            get_app_info.delay(app_instance_id)
+        return
+
+    app_instance = AppInstance.objects.filter(
         portal__isnull=False,
         portal__license_expired=False,
-    )
-    if instance_id:
-        app_instances = app_instances.filter(id=instance_id)
-    for app_instance in app_instances:
-        try:
-            resp = call_method(app_instance, "app.info", {})
-            license_value = (resp.get("result") or {}).get("LICENSE")
-            if license_value is not None and app_instance.portal.license != license_value:
-                app_instance.portal.license = license_value
-                app_instance.portal.save(update_fields=["license"])
-        except Exception:
-            pass
+        id=instance_id,
+    ).first()
+    if not app_instance:
+        return None
+
+    try:
+        resp = call_method(app_instance, "app.info", {})
+        license_value = (resp.get("result") or {}).get("LICENSE")
+        if license_value is not None and app_instance.portal.license != license_value:
+            app_instance.portal.license = license_value
+            app_instance.portal.save(update_fields=["license"])
+        return resp
+    except BitrixAccessDeniedError:
+        if app_instance.owner_id:
+            lead_title = build_lead_title(
+                app_instance.owner.site if app_instance.owner_id else None,
+                "bitrix_license_title",
+                "License expired for portal {portal}",
+                portal=app_instance.portal.domain,
+            )
+            try:
+                prepare_lead.delay(app_instance.owner_id, lead_title)
+            except Exception:
+                pass
+        raise
 
 
 # Регистрация SMS-провайдера
@@ -413,14 +446,21 @@ def check_tariffs(*days):
 
                 identifier = getattr(record, id_field, 'Unknown')
                 expiration_str = record.date_end.strftime('%d.%m.%Y')
-                title = f"Тариф для {service}: {identifier} истекает {expiration_str}"
+                title = build_lead_title(
+                    record.owner.site if record.owner else None,
+                    "service_subscription_title",
+                    "Subscription for {service}: {identifier} expires on {expiration_date}",
+                    service=service,
+                    identifier=identifier,
+                    expiration_date=expiration_str,
+                )
 
                 try:
                     resp = prepare_lead(record.owner.id, title)
                     if resp and isinstance(resp, dict) and 'result' in resp:
                         redis_client.setex(redis_key, ttl, resp['result'])
                 except Exception as e:
-                    logger.error(f"Error checking tariff for {service} {record.id}: {e}")
+                    print(e)
 
 
 @shared_task(queue='bitrix')

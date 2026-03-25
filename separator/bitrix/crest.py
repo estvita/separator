@@ -11,6 +11,10 @@ from .models import AppInstance, Credential, User
 logger = logging.getLogger("django")
 
 
+class BitrixAccessDeniedError(Exception):
+    pass
+
+
 def call_method(appinstance: AppInstance, 
                 b24_method: str, 
                 data: dict=None, 
@@ -85,12 +89,14 @@ def call_method(appinstance: AppInstance,
             elif response.status_code == 401:
                 resp = response.json()
                 error = resp.get("error", "")
-                if error == "ACCESS_DENIED" and not portal.license_expired:
-                    portal.license_expired = True
-                    try:
-                        portal.save()
-                    except Exception:
-                        pass
+                if error == "ACCESS_DENIED":
+                    if not portal.license_expired:
+                        portal.license_expired = True
+                        try:
+                            portal.save()
+                        except Exception:
+                            pass
+                    raise BitrixAccessDeniedError()
                 elif error == "expired_token" and not refresh_attempted:
                     refreshed = refresh_token(credential)
                     if refreshed:
@@ -111,16 +117,23 @@ def call_method(appinstance: AppInstance,
             elif response.status_code == 403:
                 try:
                     resp_data = response.json()
+                    if resp_data.get("error") == "ACCESS_DENIED":
+                        if not portal.license_expired:
+                            portal.license_expired = True
+                            try:
+                                portal.save()
+                            except Exception:
+                                pass
+                        raise BitrixAccessDeniedError()
                     last_exc = Exception(f"Access error: instance {appinstance.id} {resp_data}")
                     break
                 except ValueError:
-                    last_exc = Exception(f"Access error: instance {appinstance.id} {response.text}")
                     portal.license_expired = True
                     try:
                         portal.save()
                     except Exception:
                         pass
-                    break
+                    raise BitrixAccessDeniedError()
             else:
                 last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
                                 f"status {response.status_code}, response: {response.text}")

@@ -28,6 +28,14 @@
 }
 
 @media (max-width: 600px) {
+  .container img,
+  .container picture img,
+  .container figure img {
+    max-width: 100%;
+    width: auto;
+    height: auto;
+  }
+
   img.left,
   img.right {
     float: none;
@@ -52,9 +60,8 @@ img.right {
 
 img.full-width {
   display: block;
-  /* width: 100%; */
+  height: auto;
   max-width: 100%;
-  /* margin: 0 auto; */
 }
 
 
