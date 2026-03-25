@@ -25,10 +25,33 @@
         .hidden {
             display: none;
         }
+        .tariff-filters {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .tariff-filters .form-check {
+            min-width: 0;
+        }
+        @media (max-width: 600px) {
+            .tariff-filters {
+                align-items: flex-start !important;
+            }
+            .tariff-filters label[for="service-filter"] {
+                width: 100%;
+                margin-right: 0 !important;
+            }
+            .tariff-filters #service-filter {
+                width: 100% !important;
+                margin-right: 0 !important;
+            }
+            .tariff-filters .form-check {
+                margin-right: 0 !important;
+            }
+        }
     </style>
 
     <!-- Фильтр по сервисам -->
-    <div class="d-flex align-items-center mb-3">
+    <div class="d-flex align-items-center mb-3 tariff-filters">
         <label for="service-filter" class="me-2 mb-0">{% trans "Select service:" %}</label>
         <select id="service-filter" class="form-select w-auto me-3">
             <option value="all">{% trans "All services" %}</option>

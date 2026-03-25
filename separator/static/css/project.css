@@ -36,6 +36,14 @@
     height: auto;
   }
 
+  .container table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   img.left,
   img.right {
     float: none;
@@ -105,6 +113,40 @@ body {
 
 .footer-item a:hover {
   color: #10a7d0;
+}
+
+.footer-item img,
+.footer-item figure img {
+  max-width: 100%;
+  height: auto;
+}
+
+.footer-item table {
+  width: 100%;
+  max-width: 100%;
+}
+
+.footer-item {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .footer-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .footer-item {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .footer-item table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .navbar {
