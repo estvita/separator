@@ -243,6 +243,48 @@ def format_contacts(contacts):
     return contact_text
 
 
+def _format_flow_field(value):
+    if isinstance(value, list):
+        return ", ".join(_format_flow_field(item) for item in value if item not in [None, ""])
+
+    text = str(value or "").strip()
+    text = re.sub(r"^\d+_", "", text)
+    text = text.replace("_", " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _format_nfm_reply(interactive):
+    reply = interactive.get("nfm_reply", {})
+    response_json = reply.get("response_json")
+    if not response_json:
+        return reply.get("body") or reply.get("name")
+
+    try:
+        data = json.loads(response_json)
+    except Exception:
+        return response_json
+
+    def _screen_sort_key(item):
+        key = str(item[0])
+        match = re.search(r"screen_(\d+)", key)
+        return (int(match.group(1)) if match else 10**9, key)
+
+    lines = []
+    for key, value in sorted(data.items(), key=_screen_sort_key):
+        if key == "flow_token":
+            continue
+
+        formatted_key = _format_flow_field(key) or key
+        formatted_value = _format_flow_field(value)
+        if formatted_value:
+            lines.append(f"{formatted_key}: {formatted_value}")
+
+    if lines:
+        return "\n".join(lines)
+
+    return reply.get("body") or reply.get("name") or response_json
+
+
 def fetch_and_save_template(waba, template_id, template_name, lang, event_status=None, components=None):
     status = event_status
     if components is None:
@@ -1068,6 +1110,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         msg, 
                         phone.line.connector.code,
                     )
+                elif interactive_type == "nfm_reply":
+                    text = _format_nfm_reply(interactive)
 
             elif message_type == "reaction":
                  reaction = message.get("reaction")

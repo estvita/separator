@@ -53,6 +53,7 @@ def phone_details(request, phone_id):
     phone_status_json = ""
     phone_status_error = ""
     ctwa_query = request.GET.get("ctwa_q", "").strip()
+    ctwa_status = request.GET.get("ctwa_status", "").strip()
     templates = Template.objects.filter(waba=phone.waba).prefetch_related(
         "components__named_params",
         "components__positional_params",
@@ -110,13 +111,33 @@ def phone_details(request, phone_id):
         source_id_text=Cast("source_id", output_field=CharField()),
         last_event=Subquery(latest_event_subquery.values("event")[:1]),
     ).order_by("-id")
+    ctwa_status_options = [
+        status
+        for status in phone.ctwas.annotate(
+            last_event=Subquery(latest_event_subquery.values("event")[:1]),
+        ).order_by("last_event").values_list("last_event", flat=True).distinct()
+        if status
+    ]
+    ctwa_has_empty_status = phone.ctwas.annotate(
+        last_event=Subquery(latest_event_subquery.values("event")[:1]),
+    ).filter(last_event__isnull=True).exists()
     if ctwa_query:
         ctwa_qs = ctwa_qs.filter(
             Q(id_text__icontains=ctwa_query)
             | Q(phone_text__icontains=ctwa_query)
             | Q(source_id_text__icontains=ctwa_query)
         )
+    if ctwa_status == "__empty__":
+        ctwa_qs = ctwa_qs.filter(last_event__isnull=True)
+    elif ctwa_status:
+        ctwa_qs = ctwa_qs.filter(last_event=ctwa_status)
     ctwa_page_obj = Paginator(ctwa_qs, 50).get_page(request.GET.get("ctwa_page"))
+    active_tab = request.POST.get("tab") or request.GET.get("tab") or "templates"
+    if active_tab not in {"templates", "ctwa", "calls", "status"}:
+        active_tab = "templates"
+
+    def redirect_to_phone_tab(tab_name):
+        return redirect(f"{reverse('phone-details', kwargs={'phone_id': phone.phone_id})}?tab={tab_name}")
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -130,7 +151,7 @@ def phone_details(request, phone_id):
                 return redirect('waba')
             except Exception as e:
                 messages.error(request, str(e))
-                return redirect('phone-details', phone_id=phone.phone_id)
+                return redirect_to_phone_tab("templates")
         elif action == 'update_templates':
             delete_ids = set(request.POST.getlist('delete_templates'))
             if delete_ids:
@@ -154,7 +175,7 @@ def phone_details(request, phone_id):
                 templates.filter(id=default_id).update(default=True)
 
             messages.success(request, _('Template availability updated.'))
-            return redirect('phone-details', phone_id=phone.phone_id)
+            return redirect_to_phone_tab("templates")
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
             save_required = False
@@ -177,7 +198,7 @@ def phone_details(request, phone_id):
                 app = App.objects.filter(sites__domain__iexact=domain).first()
                 if not app or not app.sip_server:
                     messages.error(request, _("FreePBX Server not connected"))
-                    return redirect('phone-details', phone_id=phone.phone_id)
+                    return redirect_to_phone_tab("calls")
                 phone.sip_hostname = app.sip_server.domain
                 phone.sip_port = app.sip_server.sip_port
                 save_required = True
@@ -241,7 +262,7 @@ def phone_details(request, phone_id):
                             messages.error(request, str(e))
                             return 
                     transaction.on_commit(after_commit)
-            return redirect("waba")
+            return redirect_to_phone_tab("calls")
         elif action == "check_phone_status":
             if not phone.waba or not phone.waba.app:
                 phone_status_error = _("App is not connected to this phone WABA account.")
@@ -266,6 +287,10 @@ def phone_details(request, phone_id):
         'phone_status_error': phone_status_error,
         'ctwa_page_obj': ctwa_page_obj,
         'ctwa_q': ctwa_query,
+        'ctwa_status': ctwa_status,
+        'ctwa_status_options': ctwa_status_options,
+        'ctwa_has_empty_status': ctwa_has_empty_status,
+        'active_tab': active_tab,
     })
 
 

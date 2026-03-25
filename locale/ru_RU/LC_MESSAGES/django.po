@@ -920,10 +920,10 @@ msgid "Calling settings are not available for WhatsApp Business App numbers."
 msgstr "Настройки звонков недоступны для номеров приложения WhatsApp Business."
 
 msgid "Calling Settings"
-msgstr "Настройки звонков:"
+msgstr "Настройки звонков"
 
 msgid "Call destination"
-msgstr "Направление звонка:"
+msgstr "Направление звонка"
 
 msgid "To Bitrix24"
 msgstr "В Битрикс24"
