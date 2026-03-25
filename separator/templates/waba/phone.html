@@ -79,6 +79,14 @@
     })();
   </script>
   <hr>
+
+    <style>
+      .ctwa-id-cell {
+        white-space: nowrap;
+        word-break: normal;
+        overflow-wrap: normal;
+      }
+    </style>
   
     <h3>{% trans "CTWA list" %}</h3>
     <form method="get" class="row g-2 align-items-end mb-3">
@@ -117,7 +125,7 @@
         <tbody>
           {% for ctwa in ctwa_page_obj %}
             <tr>
-              <td class="text-break">{{ ctwa.id }}</td>
+              <td class="ctwa-id-cell">{{ ctwa.id }}</td>
               <td>{{ ctwa.phone }}</td>
               <td>{{ ctwa.source_type|default:"-" }}</td>
               <td>{{ ctwa.source_id }}</td>
