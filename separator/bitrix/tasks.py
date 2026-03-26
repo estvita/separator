@@ -33,10 +33,10 @@ def build_lead_title(site, code, fallback, **context):
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
-def call_api(self, id, method, payload, b24_user=None):
+def call_api(self, id, method, payload, b24_user=None, admin=None):
     try:
         app_instance = AppInstance.objects.get(id=id)
-        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
+        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, admin=admin, timeout=10)
         return resp
     except BitrixAccessDeniedError:
         raise
@@ -165,13 +165,17 @@ def save_ctwa(self, instace_id, ctwa_id, chat_id, source_id=None):
             call_api.delay(app_instance.id, "crm.lead.update", {
                 "id": lead_id,
                 "fields": fields
-            })
+            },
+            admin=True
+            )
             
         if deal_id and str(deal_id) != "0":
             call_api.delay(app_instance.id, "crm.deal.update", {
                 "id": deal_id,
                 "fields": fields
-            })
+            },
+            admin=True
+            )
         
     except Exception as e:
         logger.error(f"Error in save_ctwa: {e}")
