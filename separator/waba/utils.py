@@ -285,6 +285,24 @@ def _format_nfm_reply(interactive):
     return reply.get("body") or reply.get("name") or response_json
 
 
+def _build_nfm_reply_attachment(appinstance, interactive, message_timestamp):
+    reply = interactive.get("nfm_reply", {})
+    response_json = reply.get("response_json")
+    if not response_json or not appinstance:
+        return None
+
+    filename = f"{message_timestamp or int(datetime.now().timestamp())}.json"
+    file_url = bitrix_utils.save_temp_file(
+        response_json.encode("utf-8"),
+        filename,
+        appinstance,
+    )
+    if not file_url:
+        return None
+
+    return [{"url": file_url, "name": filename}]
+
+
 def fetch_and_save_template(waba, template_id, template_name, lang, event_status=None, components=None):
     status = event_status
     if components is None:
@@ -1020,12 +1038,14 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         filename = None
         file_url = None
         text = None
+        attach = None
         user_name = None
         source_url = None
         ctwa_id = None
         source_id = None
         referral_body = None
         for message in messages:
+            attach = None
             user_phone = message["from"]
             referral = message.get("referral")
             if isinstance(referral, dict):
@@ -1054,6 +1074,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
             message_type = message.get("type")
             message_id = message["id"]
+            message_timestamp = message.get("timestamp")
             contacts = value.get("contacts", [])
             if contacts:
                 user_name = contacts[0].get("profile", {}).get("name")
@@ -1112,6 +1133,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     )
                 elif interactive_type == "nfm_reply":
                     text = _format_nfm_reply(interactive)
+                    attach = _build_nfm_reply_attachment(appinstance, interactive, message_timestamp)
 
             elif message_type == "reaction":
                  reaction = message.get("reaction")
@@ -1256,7 +1278,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 chain(
                     bitrix_tasks.send_messages.s(
                         appinstance.id, user_phone, text, phone.line.connector.code,
-                        phone.line.line_id, False, user_name, message_id, chat_url=source_url,
+                        phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url,
                         ctwa_id=ctwa_id, source_id=source_id
                     ),
                     bitrix_tasks.message_add.si(
@@ -1270,7 +1292,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             else:
                 bitrix_tasks.send_messages.delay(
                     appinstance.id, user_phone, text, phone.line.connector.code,
-                    phone.line.line_id, False, user_name, message_id, chat_url=source_url,
+                    phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url,
                     ctwa_id=ctwa_id, source_id=source_id
                 )
 
