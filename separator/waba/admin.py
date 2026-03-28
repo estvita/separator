@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import admin, messages
 from django.db import transaction
 from django.utils.html import format_html
@@ -5,9 +7,11 @@ from django.urls import reverse
 from django import forms
 from urllib.parse import urlencode
 import separator.bitrix.utils as bitrix_utils
+import separator.waba.utils as waba_utils
 
 from .models import (
     App,
+    ApiCall,
     Waba,
     Phone,
     Template,
@@ -258,3 +262,53 @@ class BotAdmin(admin.ModelAdmin):
     list_display = ['id', 'phone__phone']
     autocomplete_fields = ['phone']
     search_fields = ['phone__phone']
+
+
+@admin.register(ApiCall)
+class ApiCallAdmin(admin.ModelAdmin):
+    autocomplete_fields = ["waba", "phone"]
+    fields = ("waba", "phone", "method", "endpoint", "payload")
+    list_display = ("id", "waba", "phone", "method", "endpoint")
+    search_fields = ("endpoint", "waba__waba_id", "phone__phone", "phone__phone_id")
+    list_filter = ("method",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        payload = obj.payload or {}
+        waba = obj.phone.waba if obj.phone_id else obj.waba
+        endpoint = (obj.endpoint or "").strip().strip("/")
+        base_endpoint = ""
+
+        if obj.phone_id:
+            base_endpoint = obj.phone.phone_id
+        elif obj.waba_id:
+            base_endpoint = obj.waba.waba_id
+
+        if base_endpoint and endpoint:
+            endpoint = f"{base_endpoint}/{endpoint}"
+        elif base_endpoint:
+            endpoint = base_endpoint
+
+        try:
+            if not waba:
+                raise ValueError("waba or phone with linked waba is required")
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be a JSON object")
+            if not endpoint:
+                raise ValueError("endpoint, phone or waba is required")
+
+            result = waba_utils.call_api(
+                waba=waba,
+                endpoint=endpoint,
+                method=obj.method,
+                payload=payload,
+            )
+            result_json = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+            self.message_user(
+                request,
+                format_html("<pre style='white-space:pre-wrap'>{}</pre>", result_json),
+                level=messages.SUCCESS,
+            )
+        except Exception as e:
+            self.message_user(request, f"WABA API error: {e}", level=messages.ERROR)

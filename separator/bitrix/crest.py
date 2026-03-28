@@ -20,7 +20,7 @@ def call_method(appinstance: AppInstance,
                 data: dict=None, 
                 attempted_refresh=False, 
                 verify=True,
-                admin=None,
+                admin=True,
                 b24_user_id=None,
                 timeout=30):
     if data is None:
@@ -31,10 +31,7 @@ def call_method(appinstance: AppInstance,
         b24_user = User.objects.get(id=b24_user_id)
         b24_users = [b24_user]
     else:
-        if admin is None:
-            b24_users = portal.users.filter(active=True)
-        else:
-            b24_users = portal.users.filter(admin=admin, active=True)
+        b24_users = portal.users.filter(admin=admin, active=True)
 
     last_exc = None
     for b24_user in b24_users:
@@ -61,7 +58,16 @@ def call_method(appinstance: AppInstance,
                 raise
             except requests.exceptions.SSLError:
                 if verify:
-                    return call_method(appinstance, b24_method, data, attempted_refresh, verify=False, timeout=timeout)
+                    return call_method(
+                        appinstance,
+                        b24_method,
+                        data,
+                        attempted_refresh,
+                        verify=False,
+                        admin=admin,
+                        b24_user_id=b24_user_id,
+                        timeout=timeout,
+                    )
                 else:
                     raise
 
@@ -75,7 +81,16 @@ def call_method(appinstance: AppInstance,
                         portal.save()
                     except Exception:
                         pass
-                return call_method(appinstance, b24_method, data, attempted_refresh=True)
+                return call_method(
+                    appinstance,
+                    b24_method,
+                    data,
+                    attempted_refresh=True,
+                    verify=verify,
+                    admin=admin,
+                    b24_user_id=b24_user_id,
+                    timeout=timeout,
+                )
 
             elif response.status_code == 200:
                 if portal.license_expired:

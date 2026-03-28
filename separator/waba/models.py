@@ -306,3 +306,16 @@ class CtwaEvents(models.Model):
 
 class Bot(models.Model):
     phone = models.ForeignKey(Phone, on_delete=models.CASCADE, related_name="bots")
+
+
+class ApiCall(models.Model):
+    METHOD_CHOICES = [
+        ("get", "get"),
+        ("post", "post"),
+        ("delete", "delete")
+    ]
+    waba = models.ForeignKey(Waba, on_delete=models.CASCADE, null=True, blank=True)
+    phone = models.ForeignKey(Phone, on_delete=models.CASCADE, null=True, blank=True)
+    method = models.CharField(max_length=16, choices=METHOD_CHOICES)
+    endpoint = models.CharField(max_length=1024, null=True, blank=True)
+    payload = models.JSONField(blank=True, null=True)
