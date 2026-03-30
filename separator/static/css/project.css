@@ -27,6 +27,18 @@
   height: 100%;
 }
 
+.table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+  width: max-content;
+  min-width: 100%;
+}
+
 @media (max-width: 600px) {
   .container img,
   .container picture img,

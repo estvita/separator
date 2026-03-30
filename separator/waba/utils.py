@@ -372,6 +372,7 @@ def error_message(data):
     code = error.get("code")
     fb_message = error.get("message") or error.get("title") or ""
     fb_details = (error.get("error_data") or {}).get("details", "")
+    recipient = data.get('recipient_id') or data.get('from')
 
     try:
         error_obj, created = Error.objects.get_or_create(
@@ -382,12 +383,13 @@ def error_message(data):
         if error_obj.original:
             return str(data)
         
-        out_message = f"Error for: {data.get('recipient_id')}:\n" \
+        out_message = f"Error for: {recipient}:\n" \
                     f"{error_obj.message or fb_message}\n" \
                     f"{error_obj.details or fb_details}"
         return out_message
     except Exception:
-        return f"Error for: {data.get('recipient_id')}: {fb_message} {fb_details}"
+        return f"Error for: {recipient}: {fb_message} {fb_details}"
+
 
 
 def extract_waba_id(data):
@@ -1140,7 +1142,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                  text = reaction.get("emoji")
 
             elif message_type == "unsupported":
-                text = json.dumps(messages, ensure_ascii=False)
+                text = f"[color=#ff0000]{error_message(message)}[/color]"
 
             if file_url and user_phone:
                 attach = [
@@ -1360,7 +1362,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                  text = reaction.get("emoji")
 
             elif message_type == "unsupported":
-                text = json.dumps(messages, ensure_ascii=False)
+                text = f"[color=#ff0000]{error_message(message)}[/color]"
 
             if text or attach:
                 bitrix_tasks.message_add.delay(appinstance.id, phone.line.line_id, user_phone, text, phone.line.connector.code, attach)

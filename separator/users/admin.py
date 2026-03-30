@@ -11,6 +11,7 @@ from .models import User, Message, SiteProfile
 import os
 from django.urls import reverse
 from django.utils.html import format_html
+from rest_framework.authtoken.models import Token
 
 from separator.bitrix.models import Bitrix, AppInstance
 from separator.waweb.models import Session
@@ -98,14 +99,23 @@ class BitrixInline(admin.TabularInline):
         return ""
 
 
+@admin.register(Token)
+class TokenAdmin(admin.ModelAdmin):
+    list_display = ("key", "user", "created")
+    search_fields = ("key", "user__email", "user__name")
+    autocomplete_fields = ("user",)
+    readonly_fields = ("key", "created")
+
+
 @admin.register(User)
 class UserAdmin(*bases):
     inlines = [BitrixInline, AppInstanceInline, WaWebInline, PhoneInline, OlxUserInline]
     form = UserAdminChangeForm
     add_form = UserAdminCreationForm
+    readonly_fields = getattr(auth_admin.UserAdmin, "readonly_fields", ()) + ("token_link",)
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        (_("Personal info"), {"fields": ("site", "name", "phone_number", "integrator")}),
+        (_("Personal info"), {"fields": ("site", "name", "phone_number", "integrator", "token_link")}),
         (
             _("Permissions"),
             {
@@ -135,6 +145,22 @@ class UserAdmin(*bases):
             },
         ),
     )
+
+    def token_link(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+
+        token = Token.objects.filter(user=obj).first()
+        if not token:
+            return "Token not created"
+
+        url = reverse(
+            f"admin:{Token._meta.app_label}_{Token._meta.model_name}_change",
+            args=[token.pk],
+        )
+        return format_html('<a href="{}">{}</a>', url, token.key)
+
+    token_link.short_description = "Token"
 
 
 @admin.register(Message)
