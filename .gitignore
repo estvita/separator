@@ -282,3 +282,4 @@ separator/media/
 test.py
 docker-compose.vendor.yml
 .vscode/settings.json
+.codex

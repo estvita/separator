@@ -314,6 +314,10 @@ def fetch_and_save_template(waba, template_id, template_name, lang, event_status
         except Exception:
             pass
 
+    existing_template = Template.objects.filter(id=template_id).only("default", "availableInB24").first()
+    is_default = existing_template.default if existing_template else False
+    is_available_in_b24 = existing_template.availableInB24 if existing_template else True
+
     Template.objects.filter(id=template_id).delete()
 
     template = Template.objects.create(
@@ -323,7 +327,9 @@ def fetch_and_save_template(waba, template_id, template_name, lang, event_status
         name=template_name,
         lang=lang,
         content=components,
-        status=status
+        status=status,
+        availableInB24=is_available_in_b24,
+        default=is_default,
     )
     save_template_components(template, components)
     return template
