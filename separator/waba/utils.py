@@ -930,11 +930,29 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if field == 'account_update':
         if event == "PARTNER_APP_UNINSTALLED":
             try:
-                if waba and settings.WABA_AUTO_DELETE_ENTITIES:
-                    waba.delete()
+                if waba:
+                    if waba.owner_id:
+                        numbers = list(
+                            waba.phones.exclude(phone__isnull=True)
+                            .exclude(phone="")
+                            .order_by("phone", "id")
+                            .values_list("phone", flat=True)
+                        )
+                        numbers_text = ", ".join(dict.fromkeys(numbers)) or "no linked numbers"
+                        lead_title = bitrix_tasks.build_lead_title(
+                            waba.owner.site if waba.owner_id else None,
+                            "partner_app_uninstalled",
+                            "WABA {waba_id} uninstalled with numbers {numbers}",
+                            id=waba.waba_id,
+                            waba_id=waba.waba_id,
+                            numbers=numbers_text,
+                        )
+                        bitrix_tasks.prepare_lead.delay(waba.owner_id, lead_title)
+
+                    if settings.WABA_AUTO_DELETE_ENTITIES:
+                        waba.delete()
             except Exception as e:
-                logger.warning(f"Failed to delete Waba: {e}")
-            return(data)
+                raise e
         elif event == "PHONE_NUMBER_REMOVED":
             if settings.WABA_AUTO_DELETE_ENTITIES:
                 try:
@@ -947,7 +965,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         raise Exception(f"phone_number not found {phone_number}")
                 except Exception:
                     raise Exception(data)
-            return(data)
         else:
             raise Exception(data)
 
@@ -971,7 +988,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         except Phone.DoesNotExist:
             raise Exception(f"phone_number not found {phone_number}")
         except Exception:
-            raise Exception(data)
+            raise
         
     bot = Bot.objects.filter(phone=phone).first()
     if bot and field == 'messages':
@@ -1013,11 +1030,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             except Exception:
                 pass
         else:
-            raise Exception(data)
+            raise
     
     elif field == 'messages':
         if phone.date_end and timezone.now() > phone.date_end:
-            raise Exception(f"phone tariff ended: {data}")
+            raise Exception(f"subscription ended: {data}")
 
         # if not phone.line or not phone.waba or not phone.app_instance:
         #     statuses = value.get("statuses", [])
@@ -1276,7 +1293,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                     )
                     except Exception:
                         pass
-            return data
 
         if text and user_phone:
             if not ctwa_enabled:
