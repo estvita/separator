@@ -8,10 +8,8 @@ from django.shortcuts import redirect
 from django.conf import settings
 from rest_framework.views import APIView
 
-from django_celery_beat.models import PeriodicTask
-from django.utils import timezone
-
 from separator.olx.models import OlxApp, OlxUser
+from separator.olx.utils import activate_task
 
 from .serializers import OlxAuthorizationSerializer
 
@@ -77,7 +75,7 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                     if olx_user.owner != request.user:
                         messages.error(
                             request,
-                            f"You do not have permission to update this OLX account ({olx_user.email})",
+                            "This number is linked to another user",
                         )
                         return redirect("olx-accounts")
 
@@ -87,17 +85,7 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                     olx_user.save()
                     messages.success(request, "OLX Tokens successfully updated")
 
-                    # Активация периодической задачи если она отключена 
-                    task_name = f"Pull threads {olx_id}"
-                    try:
-                        periodic_task = PeriodicTask.objects.get(name=task_name)
-                        if not periodic_task.enabled:
-                            periodic_task.enabled = True
-                            periodic_task.last_run_at = timezone.now()
-                            periodic_task.save()
-                            messages.success(request, f"Periodic task '{task_name}' activated.")
-                    except PeriodicTask.DoesNotExist:
-                        logger.warning(f"Task '{task_name}' does not exist and cannot be activated.")
+                    activate_task(olx_user)
 
                 else:
                     # Создание нового пользователя с указанием владельца

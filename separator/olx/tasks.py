@@ -1,13 +1,11 @@
 import logging
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from django.core.mail import send_mail
 from django.conf import settings
 import requests
 import redis
 from celery import shared_task
 
-import separator.bitrix.crest as bitrix
 import separator.bitrix.tasks as bitrix_tasks
 
 from .models import OlxUser
@@ -30,7 +28,6 @@ def refresh_token(olx_user_id):
     }
 
     get_token = requests.post(api_url, json=payload)
-    get_token.raise_for_status()
     if user.status != get_token.status_code:
         user.status = get_token.status_code
 
@@ -44,7 +41,11 @@ def refresh_token(olx_user_id):
         user.attempts += 1
         user.save()
         deactivate_task(user.olx_id)
-    return get_token
+        raise Exception(
+            f"OLX refresh token failed for user {olx_user_id}: "
+            f"{get_token.status_code} {get_token.text}"
+        )
+    return get_token.status_code
 
 
 @shared_task(queue='olx')
@@ -76,7 +77,9 @@ def send_message(chat_id, text, files=None):
 
     response = requests.post(api_url, headers=headers, json=payload)
 
-    if response.status_code == 401 and refresh_token(olx_user_id):
+    if response.status_code == 401:
+        refresh_token(olx_user_id)
+        user.refresh_from_db(fields=["access_token"])
         headers["Authorization"] = f"Bearer {user.access_token}"
         response = requests.post(api_url, headers=headers, json=payload)
 
@@ -100,11 +103,13 @@ def get_threads(olx_user_id):
             connector_code = line.connector.code
         if not line:
             deactivate_task(olx_user_id)
-            raise
+            logger.info(f"OLX task deactivated for user {olx_user_id}: line is not connected.")
+            return
 
         if user.date_end and timezone.now() > user.date_end:
             deactivate_task(olx_user_id)
-            raise
+            logger.info(f"OLX task deactivated for user {olx_user_id}: tariff expired.")
+            return
 
         olx_app = user.olxapp
         BASE_URL = f"https://www.{olx_app.client_domain}"
@@ -177,17 +182,7 @@ def get_threads(olx_user_id):
                 resp = requests.post(commands_url, headers=headers, json={"command": "mark-as-read"})
         
         elif response.status_code == 401:
-            resp = refresh_token(olx_user_id)
-            if resp.status_code != 200:
-                if user.line:
-
-                    send_mail(
-                        subject=_("OLX disabled due to a problem"),
-                        message=message,
-                        from_email=settings.EMAIL_HOST_USER,
-                        recipient_list=[user.owner],
-                        fail_silently=False,
-                    )
+            refresh_token(olx_user_id)
 
         else:
             raise Exception(f"Failed to retrieve threads {user.olx_id}. Response status: {response.status_code}")

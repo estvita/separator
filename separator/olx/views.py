@@ -53,6 +53,9 @@ def olx_accounts(request):
             olx_id = request.POST.get("olx_id")
             line_id = request.POST.get("line_id")
             olx_user = get_object_or_404(OlxUser, id=olx_id)
+            if olx_user.owner_id and olx_user.owner_id != request.user.id:
+                messages.error(request, "This number is linked to another user")
+                return redirect("olx-accounts")
             try:
                 bitrix_utils.connect_line(request, line_id, olx_user, connector_service)
             except Exception as e:

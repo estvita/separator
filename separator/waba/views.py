@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from django.urls import reverse
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseBadRequest, HttpResponseServerError
+from django.http import Http404, HttpResponseBadRequest, HttpResponseServerError
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.db.models.functions import Cast
@@ -50,7 +50,21 @@ def delete_voximplant(phone):
 
 @login_required
 def phone_details(request, phone_id):
-    phone = get_object_or_404(Phone, phone_id=phone_id, owner=request.user)
+    phone = Phone.objects.select_related("owner", "line__portal", "waba").filter(phone_id=phone_id).first()
+    if not phone:
+        raise Http404
+    if phone.owner_id != request.user.id:
+        portals, _, _ = bitrix_utils.get_instances(request, "waba")
+        if (
+            phone.owner_id
+            and phone.line_id
+            and phone.line
+            and phone.line.portal_id
+            and portals.filter(id=phone.line.portal_id).exists()
+        ):
+            messages.error(request, _("This number is linked to another user."))
+            return redirect("waba")
+        raise Http404
     phone_status_json = ""
     phone_status_error = ""
     ctwa_query = request.GET.get("ctwa_q", "").strip()
