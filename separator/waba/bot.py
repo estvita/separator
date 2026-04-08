@@ -45,15 +45,22 @@ def bot_processor(data, bot_id):
     changes = entry["changes"][0]
     value = changes.get('value', {})
     messages = value.get("messages", [])
+    value_contacts = value.get("contacts", [])
     responses = []
 
     for message in messages:
-        user_phone = message.get("from")
+        user_wa_id = None
+        user_id = None
+        if value_contacts:
+            user_wa_id = value_contacts[0].get("wa_id")
+            user_id = value_contacts[0].get("user_id")
+
+        user_phone = user_wa_id or user_id
         if not user_phone:
             continue
 
         message_type = message.get("type")
-        client_phone = Phone.objects.filter(phone=f"+{user_phone}").first()
+        client_phone = Phone.objects.filter(phone=user_wa_id).first() if user_wa_id else None
 
         if not client_phone:
             responses.append(_send_template_text(

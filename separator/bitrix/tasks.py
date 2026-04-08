@@ -184,10 +184,6 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                   message_id=None, attachments=None, profilepic_url=None,
                   chat_id=None, chat_url=None, user_id=None, ctwa_id=None, source_id=None, manager_id=None):
     init_message = "Создание чата..."
-    if user_phone and not user_phone.startswith("+"):
-        user_phone = f"+{user_phone}"
-    if pushName:
-        pushName = f"{user_phone} ({pushName})"
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
         bitrix_msg = {
@@ -206,7 +202,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     },
                     "chat": {
                         "id": chat_id or user_phone,
-                        "url": chat_url
+                        "url": chat_url,
                     },
                     "message": {
                         "text": init_message if sms else text,
@@ -259,9 +255,6 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
 
     member_id = app_instance.portal.member_id
     chat_keys = [f'bitrix_chat:{member_id}:{line_id}:{user_phone}']
-    if user_phone and not str(user_phone).startswith("+"):
-        normalized_phone = f"+{user_phone}"
-        chat_keys.append(f'bitrix_chat:{member_id}:{line_id}:{normalized_phone}')
     
     chat_id = None
     try:

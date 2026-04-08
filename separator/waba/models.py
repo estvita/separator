@@ -285,7 +285,7 @@ class Ctwa(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="ctwas")
     waba_phone = models.ForeignKey(Phone, on_delete=models.CASCADE, related_name="ctwas", null=True, blank=True)
-    phone = models.PositiveBigIntegerField(default=0)
+    phone = models.CharField(max_length=128, null=True, blank=True)
     clid = models.CharField(max_length=2048)
     source_type = models.CharField(max_length=64, null=True, blank=True)
     source_id = models.PositiveBigIntegerField(default=0)

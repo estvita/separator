@@ -856,6 +856,7 @@ def sms_processor(data, service):
     application_token = data.get("auth[application_token]")
     manager_id = data.get("auth[user_id]")
     message_id = data.get("message_id")
+    module_id = str(data.get("module_id") or "").strip().lower()
     app_instance = AppInstance.objects.filter(application_token=application_token).first()
 
     def _notify_error(error_obj):
@@ -914,6 +915,13 @@ def sms_processor(data, service):
                 send_result = parse_block_command(command, phone, message_to)
             except Exception as e:
                 return {"error": True, "message": str(e)}
+            return send_result
+
+        if service == "waba" and module_id == "sender":
+            message = _build_waba_message(message_to, message_body, phone_num=sender)
+            send_result = waba.send_message(app_instance, message, phone_num=sender)
+            if "error" in (send_result or {}):
+                raise ValueError(send_result)
             return send_result
 
 

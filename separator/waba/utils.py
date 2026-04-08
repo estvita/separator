@@ -120,9 +120,10 @@ def upload_media(appinstance, file_content, mime_type, filename, line_id=None, p
 
 def send_message(appinstance, message, line_id=None, phone_num=None):
     phone = None
+    waba = None
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()
-        waba = phone.waba
+        waba = phone.waba if phone else None
     elif line_id:
         line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
         waba = Waba.objects.filter(phones__line=line).first() if line else None
@@ -432,6 +433,21 @@ def _extract_named_params(component):
             if name:
                 named.append((name, ex))
     return named
+
+
+def _extract_text_placeholders(text):
+    if not text:
+        return []
+
+    placeholders = []
+    seen = set()
+    for match in re.finditer(r"{{\s*([^{}]+?)\s*}}", str(text)):
+        name = match.group(1).strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        placeholders.append(name)
+    return placeholders
 
 
 def _extract_positional_params(component):
@@ -851,9 +867,9 @@ def _sanitize_template_param_text(text):
 def _build_fallback_body_parameters(template, text):
     body = template.components.filter(type="BODY").order_by("index", "id").first()
     if body:
-        named = body.named_params.order_by("id").first()
-        if named and named.name:
-            return [{"type": "text", "parameter_name": named.name, "text": text}]
+        for placeholder in _extract_text_placeholders(body.text):
+            if not placeholder.isdigit():
+                return [{"type": "text", "parameter_name": placeholder, "text": text}]
     return [{"type": "text", "text": text}]
 
 
@@ -990,6 +1006,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         except Exception:
             raise
         
+    # ctwa bot
     bot = Bot.objects.filter(phone=phone).first()
     if bot and field == 'messages':
         bot_processor.delay(data, bot.id)
@@ -1069,9 +1086,18 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         ctwa_id = None
         source_id = None
         referral_body = None
+        user_identy = None
         for message in messages:
             attach = None
-            user_phone = message["from"]
+            contacts = value.get("contacts", [])
+            if contacts:
+                wa_id = contacts[0].get("wa_id")
+                if wa_id and not str(wa_id).startswith("+"):
+                    wa_id = f"+{wa_id}"
+                user_identy = wa_id or contacts[0].get("user_id")
+                user_name = contacts[0].get("profile", {}).get("name")
+                if user_name:
+                    user_name = re.sub(r'[^\w\s\-\']', '', user_name).strip()
             referral = message.get("referral")
             if isinstance(referral, dict):
 
@@ -1088,7 +1114,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         defaults={
                             "waba": waba,
                             "waba_phone": phone,
-                            "phone": user_phone,
+                            "phone": user_identy,
                             "source_type": source_type,
                             "source_id": source_id,
                             "source_url": source_url
@@ -1100,11 +1126,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             message_type = message.get("type")
             message_id = message["id"]
             message_timestamp = message.get("timestamp")
-            contacts = value.get("contacts", [])
-            if contacts:
-                user_name = contacts[0].get("profile", {}).get("name")
-                if user_name:
-                    user_name = re.sub(r'[^\w\s\-\']', '', user_name).strip()
 
             if message_type == "text":
                 text = message["text"]["body"]
@@ -1148,11 +1169,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     if expiration:
                         dt = datetime.fromtimestamp(expiration)
                         expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
-                    msg = f"WhatsApp Call for {user_phone} permission changed: {responce} {expiration}"
+                    msg = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
                     bitrix_tasks.message_add.delay(
                         appinstance.id, 
                         phone.line.line_id,
-                        user_phone, 
+                        user_identy, 
                         msg, 
                         phone.line.connector.code,
                     )
@@ -1167,14 +1188,14 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type == "unsupported":
                 text = f"[color=#ff0000]{error_message(message)}[/color]"
 
-            if file_url and user_phone:
+            if file_url and user_identy:
                 attach = [
                     {
                         "url": file_url,
                         "name": filename
                     }
                 ]
-                bitrix_tasks.send_messages.delay(appinstance.id, user_phone, caption, phone.line.connector.code,
+                bitrix_tasks.send_messages.delay(appinstance.id, user_identy, caption, phone.line.connector.code,
                                                 phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url)
 
         statuses = value.get("statuses", [])
@@ -1197,12 +1218,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                 saved_text = _sanitize_template_param_text(saved_text)
                                 default_template = Template.objects.filter(waba=phone.waba, default=True).first()
                                 if default_template and saved_text:
-                                    user_phone = item.get("recipient_id")
+                                    user_identy = item.get("recipient_id")
                                     body_parameters = _build_fallback_body_parameters(default_template, saved_text)
                                     payload = {
                                         "messaging_product": "whatsapp",
                                         "type": "template",
-                                        "to": user_phone,
+                                        "to": user_identy,
                                         "template": {
                                             "name": default_template.name,
                                             "language": {"code": default_template.lang},
@@ -1216,7 +1237,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                     }
                                     resp = call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=payload)
                                     fallback_triggered = True
-                                    if user_phone and appinstance:
+                                    if user_identy and appinstance:
                                         if "error" in resp:
                                             msg = f"[color=#ff0000]Error occurred: {resp}[/color]"
                                         else:
@@ -1227,7 +1248,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                         bitrix_tasks.message_add.delay(
                                             appinstance.id, 
                                             phone.line.line_id,
-                                            user_phone, 
+                                            user_identy, 
                                             msg, 
                                             phone.line.connector.code,
                                         )
@@ -1237,12 +1258,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     if not fallback_triggered:
                         try:
                             out_message = error_message(item)
-                            user_phone = item.get("recipient_id")
-                            if user_phone and appinstance:
+                            user_identy = item.get("recipient_id")
+                            if user_identy and appinstance:
                                 bitrix_tasks.message_add.delay(
                                     appinstance.id, 
                                     phone.line.line_id,
-                                    user_phone, 
+                                    user_identy, 
                                     f"[color=#ff0000]{out_message}[/color]", 
                                     phone.line.connector.code,
                                 )
@@ -1294,28 +1315,28 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     except Exception:
                         pass
 
-        if text and user_phone:
+        if text and user_identy:
             if not ctwa_enabled:
                 ctwa_id = None
                 source_id = None
             if referral_body:
                 chain(
                     bitrix_tasks.send_messages.s(
-                        appinstance.id, user_phone, text, phone.line.connector.code,
+                        appinstance.id, user_identy, text, phone.line.connector.code,
                         phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url,
                         ctwa_id=ctwa_id, source_id=source_id
                     ),
                     bitrix_tasks.message_add.si(
                         appinstance.id,
                         phone.line.line_id,
-                        user_phone,
+                        user_identy,
                         referral_body,
                         phone.line.connector.code,
                     ),
                 ).delay()
             else:
                 bitrix_tasks.send_messages.delay(
-                    appinstance.id, user_phone, text, phone.line.connector.code,
+                    appinstance.id, user_identy, text, phone.line.connector.code,
                     phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url,
                     ctwa_id=ctwa_id, source_id=source_id
                 )
@@ -1325,7 +1346,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         attach= None
         message_echoes = value.get("message_echoes", {})
         for message in message_echoes:
-            user_phone = message.get("to")
+            user_identy = message.get("to")
             message_type = message.get("type")
             if message_type == "text":
                 text = message.get("text", {}).get("body")
@@ -1387,7 +1408,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 text = f"[color=#ff0000]{error_message(message)}[/color]"
 
             if text or attach:
-                bitrix_tasks.message_add.delay(appinstance.id, phone.line.line_id, user_phone, text, phone.line.connector.code, attach)
+                bitrix_tasks.message_add.delay(appinstance.id, phone.line.line_id, user_identy, text, phone.line.connector.code, attach)
     else:
         raise Exception(f"this event is not handled: {data}")
 
