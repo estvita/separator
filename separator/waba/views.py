@@ -54,7 +54,7 @@ def phone_details(request, phone_id):
     if not phone:
         raise Http404
     if phone.owner_id != request.user.id:
-        portals, _, _ = bitrix_utils.get_instances(request, "waba")
+        portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
         if (
             phone.owner_id
             and phone.line_id

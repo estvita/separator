@@ -895,7 +895,7 @@ def sms_processor(data, service):
         message_body = data.get("message_body")
         code = data.get("code", {})
         sender = code.split('_')[-1]
-        message_to = re.sub(r'\D', '', data.get("message_to"))
+        message_to = data.get("message_to")
         line = None
         phone = None
         send_result = None
