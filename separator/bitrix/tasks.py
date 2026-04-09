@@ -186,6 +186,9 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
     init_message = "Создание чата..."
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
+        # BSUIDs from WhatsApp usernames include dots (for example, US.xxx), phone numbers do not.
+        if user_phone and not str(user_phone).startswith("+") and "." not in str(user_phone):
+            user_phone = f"+{user_phone}"
         bitrix_msg = {
             "CONNECTOR": connector,
             "LINE": line,
@@ -252,6 +255,10 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
     except AppInstance.DoesNotExist:
         logger.error(f"AppInstance {app_instance_id} does not exist")
         raise
+
+    # BSUIDs from WhatsApp usernames include dots (for example, US.xxx), phone numbers do not.
+    if user_phone and not str(user_phone).startswith("+") and "." not in str(user_phone):
+        user_phone = f"+{user_phone}"
 
     member_id = app_instance.portal.member_id
     chat_keys = [f'bitrix_chat:{member_id}:{line_id}:{user_phone}']

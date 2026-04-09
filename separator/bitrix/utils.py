@@ -778,6 +778,13 @@ def bizproc_processor(data):
     except Exception as e:        
         raise Exception(f"AppInstance not found for token {application_token}: {e}")
     
+    if appinstance and appinstance.app and appinstance.app.save_events:
+        Events.objects.create(
+            app=appinstance.app,
+            portal=appinstance.portal,
+            content=json.dumps(data, ensure_ascii=False, default=str),
+        )
+    
     code = data.get("code")
     if code == "separator_auto_finish_chat":
         bitrix_tasks.auto_finish_chat(appinstance.id, data)
@@ -858,6 +865,13 @@ def sms_processor(data, service):
     message_id = data.get("message_id")
     module_id = str(data.get("module_id") or "").strip().lower()
     app_instance = AppInstance.objects.filter(application_token=application_token).first()
+
+    if app_instance and app_instance.app and app_instance.app.save_events:
+        Events.objects.create(
+            app=app_instance.app,
+            portal=app_instance.portal,
+            content=json.dumps(data, ensure_ascii=False, default=str),
+        )
 
     def _notify_error(error_obj):
         if not app_instance or not manager_id:
