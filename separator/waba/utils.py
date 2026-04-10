@@ -844,18 +844,6 @@ def build_broadcast_text(template, post_data):
 
     return "\n".join([line for line in lines if line])
 
-
-def _status_rank(status):
-    order = {
-        "pending": 0,
-        "sent": 1,
-        "delivered": 2,
-        "failed": 3,
-        "cancelled": 4,
-    }
-    return order.get(status, 0)
-
-
 def _sanitize_template_param_text(text):
     if text is None:
         return "---"
@@ -1053,29 +1041,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         if phone.date_end and timezone.now() > phone.date_end:
             raise Exception(f"subscription ended: {data}")
 
-        # if not phone.line or not phone.waba or not phone.app_instance:
-        #     statuses = value.get("statuses", [])
-        #     if statuses:
-        #         for item in statuses:
-        #             fb_status = item.get("status")
-        #             wamid = item.get("id")
-        #             if wamid and fb_status:
-        #                 try:
-        #                     recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
-        #                     if recipient and recipient.status != fb_status:
-        #                         update_fields = {"status": fb_status}
-        #                         if fb_status == "failed":
-        #                             update_fields["error_json"] = item
-        #                         TemplateBroadcastRecipient.objects.filter(id=recipient.id).update(**update_fields)
-        #                         if fb_status == "delivered":
-        #                             TemplateBroadcast.objects.filter(id=recipient.broadcast_id).update(
-        #                                 delivered_count=models.F("delivered_count") + 1
-        #                             )
-        #                 except Exception:
-        #                     pass
-        #         return data
-        #     raise Exception(f"phone not connected to b24: {data}")
-
         messages = value.get("messages", [])
         filename = None
         file_url = None
@@ -1204,6 +1169,27 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 fb_status = item.get("status")
                 wamid = item.get("id")
                 out_message = None
+                broadcast_recipient = None
+
+                if wamid and fb_status:
+                    try:
+                        broadcast_recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
+                        if broadcast_recipient:
+                            previous_status = broadcast_recipient.status
+                            if previous_status != fb_status:
+                                update_fields = {"status": fb_status}
+                                if fb_status == "failed":
+                                    update_fields["error_json"] = item
+                                TemplateBroadcastRecipient.objects.filter(id=broadcast_recipient.id).update(**update_fields)
+                                if fb_status == "delivered" and previous_status != "delivered":
+                                    TemplateBroadcast.objects.filter(id=broadcast_recipient.broadcast_id).update(
+                                        delivered_count=models.F("delivered_count") + 1
+                                    )
+                    except Exception:
+                        pass
+
+                if broadcast_recipient:
+                    continue
 
                 if fb_status == "failed":
                     fallback_triggered = False
@@ -1290,28 +1276,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                 "STATUS": fb_status
                             }
                             bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
-                    except Exception:
-                        pass
-                if wamid and fb_status:
-                    try:
-                        recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
-                        if recipient:
-                            cur_rank = _status_rank(recipient.status)
-                            new_rank = _status_rank(fb_status)
-                            should_update = new_rank >= cur_rank
-                            if recipient.status == "delivered" and fb_status == "sent":
-                                should_update = False
-                            if recipient.status == "failed" and fb_status != "failed":
-                                should_update = False
-                            if should_update and recipient.status != fb_status:
-                                update_fields = {"status": fb_status}
-                                if fb_status == "failed":
-                                    update_fields["error_json"] = item
-                                TemplateBroadcastRecipient.objects.filter(id=recipient.id).update(**update_fields)
-                                if fb_status == "delivered":
-                                    TemplateBroadcast.objects.filter(id=recipient.broadcast_id).update(
-                                        delivered_count=models.F("delivered_count") + 1
-                                    )
                     except Exception:
                         pass
 

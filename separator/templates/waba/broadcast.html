@@ -54,14 +54,14 @@
     <input type="date" name="broadcast_to" class="form-control" value="{{ broadcast_to }}">
     <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
   </form>
-  <table class="table table-striped">
+  <table class="table table-striped" style="table-layout:fixed;width:100%;">
     <thead>
       <tr>
-        <th>{% trans "Name" %}</th>
-        <th>{% trans "Text" %}</th>
-        <th>{% trans "Recipients" %}</th>
-        <th>{% trans "Delivered" %}</th>
-        <th>{% trans "Status" %}</th>
+        <th style="width:20%;">{% trans "Name" %}</th>
+        <th style="width:50%;">{% trans "Text" %}</th>
+        <th style="width:10%;">{% trans "Recipients" %}</th>
+        <th style="width:10%;">{% trans "Delivered" %}</th>
+        <th style="width:10%;">{% trans "Status" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -70,7 +70,7 @@
         <td>
           <a href="{% url 'broadcast-details' broadcast.id %}">{{ broadcast.name }}</a>
         </td>
-        <td><pre class="mb-0">{{ broadcast.text }}</pre></td>
+        <td><pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;max-height:120px;overflow-y:auto;">{{ broadcast.text }}</pre></td>
         <td>{{ broadcast.recipients_count }}</td>
         <td>{{ broadcast.delivered_count }}</td>
         <td>{{ broadcast.status }}</td>

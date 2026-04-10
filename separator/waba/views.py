@@ -311,7 +311,9 @@ def phone_details(request, phone_id):
 
 @login_required
 def broadcast_page(request):
-    phones = Phone.objects.filter(owner=request.user).select_related("waba")
+    now = timezone.now()
+    active_phone_filter = Q(date_end__isnull=True) | Q(date_end__gt=now)
+    phones = Phone.objects.filter(owner=request.user).filter(active_phone_filter).select_related("waba")
     templates_data_by_phone = {}
     templates_by_phone = {}
     for phone in phones:
@@ -372,9 +374,12 @@ def broadcast_page(request):
                 messages.error(request, _("Please provide at least one recipient phone number."))
                 return redirect('broadcast-page')
             try:
-                phone = phones.filter(id=phone_id).first()
+                phone = Phone.objects.filter(owner=request.user, id=phone_id).select_related("waba").first()
                 if not phone:
                     messages.error(request, _("Phone not found"))
+                    return redirect('broadcast-page')
+                if phone.date_end and phone.date_end <= now:
+                    messages.error(request, _('The tariff has expired ') + str(phone.date_end))
                     return redirect('broadcast-page')
                 template_obj = templates_by_phone.get(phone.id, Template.objects.none()).filter(id=template_id).first()
                 if not template_obj:
