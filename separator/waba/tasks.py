@@ -114,7 +114,7 @@ def add_waba_phone(request_id, app_id):
                     phone.save()
                         
 @shared_task(queue='waba')
-def send_message(template, recipients, id, components=None, broadcast_id=None):
+def send_single_message(template, recipient, id, components=None, broadcast_id=None, marketing_message=False):
     try:
         phone = Phone.objects.get(id=id)
         tmp = Template.objects.get(id=template)
@@ -122,51 +122,74 @@ def send_message(template, recipients, id, components=None, broadcast_id=None):
             from .models import TemplateBroadcast
             broadcast = TemplateBroadcast.objects.filter(id=broadcast_id).first()
             if broadcast and broadcast.status == "cancelled":
-                return
-        for recipient in recipients:
-            payload = {
-                "messaging_product": "whatsapp",
-                "type": "template",
-                "to": recipient,
-                "template": {
-                    "name": tmp.name,
-                    "language": {"code": tmp.lang},
-                }
+                return None
+        payload = {
+            "messaging_product": "whatsapp",
+            "type": "template",
+            "to": recipient,
+            "template": {
+                "name": tmp.name,
+                "language": {"code": tmp.lang},
             }
-            if components:
-                payload["template"]["components"] = components
-            try:
-                resp = utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=payload)
-                message_id = None
-                messages = resp.get("messages") or []
-                if messages:
-                    message_id = messages[0].get("id")
-                if broadcast_id:
-                    from .models import TemplateBroadcastRecipient, TemplateBroadcast
-                    TemplateBroadcastRecipient.objects.filter(
-                        broadcast_id=broadcast_id,
-                        recipient_phone=recipient,
-                    ).update(
-                        wamid=message_id,
-                        status="sent" if message_id else "failed",
-                        error_json=None,
-                    )
-                    TemplateBroadcast.objects.filter(id=broadcast_id).update(status="sent")
-            except Exception as e:
-                if broadcast_id:
-                    from .models import TemplateBroadcastRecipient, TemplateBroadcast
-                    err = None
-                    if e.args and isinstance(e.args[0], dict):
-                        err = e.args[0]
-                    TemplateBroadcastRecipient.objects.filter(
-                        broadcast_id=broadcast_id,
-                        recipient_phone=recipient,
-                    ).update(status="failed", error_json=err or {"error": str(e)})
-                    TemplateBroadcast.objects.filter(id=broadcast_id).update(status="failed")
-                else:
-                    raise
+        }
+        if components:
+            payload["template"]["components"] = components
+        try:
+            endpoint = f"{phone.phone_id}/marketing_messages" if marketing_message else f"{phone.phone_id}/messages"
+            resp = utils.call_api(waba=phone.waba, endpoint=endpoint, method="post", payload=payload)
+            message_id = None
+            messages = resp.get("messages") or []
+            if messages:
+                message_id = messages[0].get("id")
+            if broadcast_id:
+                from .models import TemplateBroadcastRecipient, TemplateBroadcast
+                TemplateBroadcastRecipient.objects.filter(
+                    broadcast_id=broadcast_id,
+                    recipient_phone=recipient,
+                ).update(
+                    wamid=message_id,
+                    status="sent" if message_id else "failed",
+                    error_json=None,
+                )
+                TemplateBroadcast.objects.filter(id=broadcast_id).update(status="sent")
+            return resp
+        except Exception as e:
+            err = None
+            if e.args and isinstance(e.args[0], dict):
+                err = e.args[0]
+            if broadcast_id:
+                from .models import TemplateBroadcastRecipient, TemplateBroadcast
+                TemplateBroadcastRecipient.objects.filter(
+                    broadcast_id=broadcast_id,
+                    recipient_phone=recipient,
+                ).update(status="failed", error_json=err or {"error": str(e)})
+                TemplateBroadcast.objects.filter(id=broadcast_id).update(status="failed")
+                return err or {"error": str(e)}
+            raise
     except Exception:
         raise
+
+
+@shared_task(queue='waba')
+def send_message(template, recipients, id, components=None, broadcast_id=None, marketing_message=False):
+    task_ids = []
+    for recipient in recipients:
+        task = send_single_message.delay(
+            template,
+            recipient,
+            id,
+            components=components,
+            broadcast_id=broadcast_id,
+            marketing_message=marketing_message,
+        )
+        task_ids.append({
+            "recipient": recipient,
+            "task_id": task.id,
+        })
+    return {
+        "scheduled": len(task_ids),
+        "tasks": task_ids,
+    }
 
 @shared_task(queue='waba')
 def call_management(id):

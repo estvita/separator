@@ -368,6 +368,7 @@ def broadcast_page(request):
         if action == 'send_message':
             phone_id = request.POST.get('phone_id')
             template_id = request.POST.get('template')
+            marketing_message = request.POST.get("marketing_message") == "on"
             recipient_phones_raw = request.POST.get('recipient_phone') or ""
             recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
             if not recipients:
@@ -435,7 +436,11 @@ def broadcast_page(request):
                 if scheduled_at and scheduled_at > timezone.now():
                     async_result = waba_tasks.send_message.apply_async(
                         args=[template_obj.id, recipients, phone.id],
-                        kwargs={"components": components_payload, "broadcast_id": broadcast.id},
+                        kwargs={
+                            "components": components_payload,
+                            "broadcast_id": broadcast.id,
+                            "marketing_message": marketing_message,
+                        },
                         eta=scheduled_at,
                     )
                     broadcast.scheduled_task_id = async_result.id
@@ -443,7 +448,12 @@ def broadcast_page(request):
                     messages.success(request, _('The mailing has been scheduled.'))
                 else:
                     waba_tasks.send_message.delay(
-                        template_obj.id, recipients, phone.id, components=components_payload, broadcast_id=broadcast.id
+                        template_obj.id,
+                        recipients,
+                        phone.id,
+                        components=components_payload,
+                        broadcast_id=broadcast.id,
+                        marketing_message=marketing_message,
                     )
                     messages.success(request, _('The mailing has been added to the queue.'))
                 return redirect('broadcast-page')
@@ -498,6 +508,9 @@ def broadcast_details(request, broadcast_id):
                 messages.success(request, _('Broadcast has been cancelled.'))
             return redirect("broadcast-details", broadcast_id=broadcast.id)
 
+    status_options = list(
+        broadcast.recipients.order_by("status").values_list("status", flat=True).distinct()
+    )
     qs = broadcast.recipients.all().order_by("id")
     status = request.GET.get("status")
     query = request.GET.get("q")
@@ -517,6 +530,7 @@ def broadcast_details(request, broadcast_id):
         "phone": phone,
         "broadcast": broadcast,
         "page_obj": page_obj,
+        "status_options": status_options,
         "status": status or "",
         "q": query or "",
     })

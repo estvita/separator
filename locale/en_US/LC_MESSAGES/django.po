@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 21:19+0500\n"
+"POT-Creation-Date: 2026-04-11 09:54+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -200,24 +200,6 @@ msgstr ""
 msgid "send failed"
 msgstr ""
 
-msgid "WABA template sent"
-msgstr ""
-
-msgid "Sender"
-msgstr ""
-
-msgid "Recipient"
-msgstr ""
-
-msgid "Template"
-msgstr ""
-
-msgid "Sent payload"
-msgstr ""
-
-msgid "Facebook response"
-msgstr ""
-
 msgid "Portal not found by code."
 msgstr ""
 
@@ -242,9 +224,6 @@ msgid "Портал не найден или уже закреплен за др
 msgstr ""
 
 msgid "Administrator rights are required to edit the portal."
-msgstr ""
-
-msgid "OLX disabled due to a problem"
 msgstr ""
 
 msgid "Day"
@@ -556,6 +535,9 @@ msgstr ""
 msgid "Sender number"
 msgstr ""
 
+msgid "Template"
+msgstr ""
+
 msgid "Recipient phone"
 msgstr ""
 
@@ -739,6 +721,9 @@ msgstr ""
 msgid "Send Broadcast"
 msgstr ""
 
+msgid "Marketing message"
+msgstr ""
+
 msgid "Schedule time (optional)"
 msgstr ""
 
@@ -787,6 +772,9 @@ msgstr ""
 msgid "All statuses"
 msgstr ""
 
+msgid "Recipient"
+msgstr ""
+
 msgid "WAMID"
 msgstr ""
 
@@ -832,6 +820,9 @@ msgstr ""
 msgid "Template list"
 msgstr ""
 
+msgid "Calling Settings"
+msgstr ""
+
 msgid "Add New"
 msgstr ""
 
@@ -847,9 +838,6 @@ msgstr ""
 msgid "No templates found."
 msgstr ""
 
-msgid "Delete selected templates from Facebook and local database?"
-msgstr ""
-
 msgid "CTWA list"
 msgstr ""
 
@@ -857,6 +845,9 @@ msgid "Search"
 msgstr ""
 
 msgid "Search by ID, phone, or source ID"
+msgstr ""
+
+msgid "Without statuses"
 msgstr ""
 
 msgid "Reset"
@@ -881,9 +872,6 @@ msgid "CTWA pagination"
 msgstr ""
 
 msgid "Calling settings are not available for WhatsApp Business App numbers."
-msgstr ""
-
-msgid "Calling Settings"
 msgstr ""
 
 msgid "Call destination"
@@ -923,6 +911,26 @@ msgid "Last Error:"
 msgstr ""
 
 msgid "Check phone status"
+msgstr ""
+
+msgid "Delete selected templates from Facebook and local database?"
+msgstr ""
+
+#, python-format
+msgid "Create a page in %(title)s"
+msgstr ""
+
+msgid "Create a page in"
+msgstr ""
+
+msgid "Choose which type of page you'd like to create."
+msgstr ""
+
+msgid "Sorry, you cannot create a page at this location."
+msgstr ""
+
+#, python-format
+msgid "Pages using %(page_type)s"
 msgstr ""
 
 msgid "Scan the QR code"
@@ -984,6 +992,9 @@ msgid "Information successfully updated"
 msgstr ""
 
 msgid "Присланы контакты:\n"
+msgstr ""
+
+msgid "This number is linked to another user."
 msgstr ""
 
 msgid "The mailing has been added to the queue."
@@ -1059,9 +1070,6 @@ msgid "Attachment"
 msgstr ""
 
 msgid "You must provide either a message or a file."
-msgstr ""
-
-msgid "From WhatsApp"
 msgstr ""
 
 msgid "You must connect WhatsApp first."

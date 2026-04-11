@@ -28,10 +28,9 @@
     <input type="text" name="q" class="form-control" placeholder="{% trans 'Search phone or wamid' %}" value="{{ q }}">
     <select name="status" class="form-control">
       <option value="">{% trans "All statuses" %}</option>
-      <option value="pending" {% if status == "pending" %}selected{% endif %}>pending</option>
-      <option value="sent" {% if status == "sent" %}selected{% endif %}>sent</option>
-      <option value="delivered" {% if status == "delivered" %}selected{% endif %}>delivered</option>
-      <option value="failed" {% if status == "failed" %}selected{% endif %}>failed</option>
+      {% for item_status in status_options %}
+        <option value="{{ item_status }}" {% if status == item_status %}selected{% endif %}>{{ item_status }}</option>
+      {% endfor %}
     </select>
     <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
   </form>
