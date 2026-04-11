@@ -114,10 +114,11 @@ def add_waba_phone(request_id, app_id):
                     phone.save()
                         
 @shared_task(queue='waba')
-def send_single_message(template, recipient, id, components=None, broadcast_id=None, marketing_message=False):
+def send_single_message(template, recipient, id, components=None, broadcast_id=None):
     try:
         phone = Phone.objects.get(id=id)
         tmp = Template.objects.get(id=template)
+        is_marketing_template = (tmp.category or "").upper() == "MARKETING"
         if broadcast_id:
             from .models import TemplateBroadcast
             broadcast = TemplateBroadcast.objects.filter(id=broadcast_id).first()
@@ -135,7 +136,7 @@ def send_single_message(template, recipient, id, components=None, broadcast_id=N
         if components:
             payload["template"]["components"] = components
         try:
-            endpoint = f"{phone.phone_id}/marketing_messages" if marketing_message else f"{phone.phone_id}/messages"
+            endpoint = f"{phone.phone_id}/marketing_messages" if is_marketing_template else f"{phone.phone_id}/messages"
             resp = utils.call_api(waba=phone.waba, endpoint=endpoint, method="post", payload=payload)
             message_id = None
             messages = resp.get("messages") or []
@@ -171,7 +172,7 @@ def send_single_message(template, recipient, id, components=None, broadcast_id=N
 
 
 @shared_task(queue='waba')
-def send_message(template, recipients, id, components=None, broadcast_id=None, marketing_message=False):
+def send_message(template, recipients, id, components=None, broadcast_id=None):
     task_ids = []
     for recipient in recipients:
         task = send_single_message.delay(
@@ -180,7 +181,6 @@ def send_message(template, recipients, id, components=None, broadcast_id=None, m
             id,
             components=components,
             broadcast_id=broadcast_id,
-            marketing_message=marketing_message,
         )
         task_ids.append({
             "recipient": recipient,

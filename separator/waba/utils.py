@@ -137,7 +137,20 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
     if not phone.phone_id:
         return {"error": True, "message": f"not {phone} phone_id"}
     try:
-        response = call_api(waba=waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=message)
+        endpoint = f"{phone.phone_id}/messages"
+        if message.get("type") == "template":
+            template_data = message.get("template") or {}
+            template_name = template_data.get("name")
+            template_lang = (template_data.get("language") or {}).get("code")
+            template_obj = Template.objects.filter(
+                waba=waba,
+                name=template_name,
+                lang=template_lang,
+            ).first()
+            if template_obj and (template_obj.category or "").upper() == "MARKETING":
+                endpoint = f"{phone.phone_id}/marketing_messages"
+
+        response = call_api(waba=waba, endpoint=endpoint, method="post", payload=message)
         
         if message.get("type") != "template":
             text = ""
@@ -304,7 +317,7 @@ def _build_nfm_reply_attachment(appinstance, interactive, message_timestamp):
     return [{"url": file_url, "name": filename}]
 
 
-def fetch_and_save_template(waba, template_id, template_name, lang, event_status=None, components=None):
+def fetch_and_save_template(waba, template_id, template_name, lang, event_status=None, components=None, category=None):
     status = event_status
     if components is None:
         try:
@@ -325,6 +338,7 @@ def fetch_and_save_template(waba, template_id, template_name, lang, event_status
         id=template_id,
         waba=waba,
         owner=waba.owner,
+        category=category or "MARKETING",
         name=template_name,
         lang=lang,
         content=components,
@@ -344,10 +358,11 @@ def message_template_status_update(entry):
     template_id = value.get('message_template_id')
     template_name = value.get('message_template_name')
     lang = value.get('message_template_language')
+    category = value.get('message_template_category')
     if event == "APPROVED":
         waba = Waba.objects.filter(waba_id=waba_id).first()
         if waba:
-            fetch_and_save_template(waba, template_id, template_name, lang, event)
+            fetch_and_save_template(waba, template_id, template_name, lang, event, category=category)
 
     elif event == 'PENDING_DELETION':
         try:
@@ -371,6 +386,18 @@ def message_template_components_update(entry):
     waba = Waba.objects.filter(waba_id=waba_id).first()
     if waba:
         fetch_and_save_template(waba, template_id, template_name, lang)
+    return True
+
+
+def template_category_update(entry):
+    waba_id = entry.get('id')
+    changes = entry.get('changes', [])[0]
+    value = changes.get('value', {})
+    template_id = value.get('message_template_id')
+    new_category = value.get('new_category')
+
+    if template_id and new_category:
+        Template.objects.filter(id=template_id, waba__waba_id=waba_id).update(category=new_category)
     return True
     
 
@@ -977,6 +1004,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
     if field == 'message_template_components_update':
         return message_template_components_update(entry)
+
+    if field == 'template_category_update':
+        return template_category_update(entry)
     
     metadata = value.get("metadata", {})
     if metadata:    
@@ -1394,7 +1424,16 @@ def save_approved_templates(id):
             lang = template.get("language")
             content = template.get("components")
             status = template.get("status")
+            category = template.get("category")
 
-            fetch_and_save_template(waba, template_id, name, lang, event_status=status, components=content)
+            fetch_and_save_template(
+                waba,
+                template_id,
+                name,
+                lang,
+                event_status=status,
+                components=content,
+                category=category,
+            )
     except Exception:
         raise

@@ -101,6 +101,7 @@ class Template(models.Model):
     id = models.CharField(primary_key=True, max_length=255)
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="templates", null=True, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.CharField(max_length=64, default="MARKETING")
     name = models.CharField(max_length=255)
     lang = models.CharField(max_length=10)
     content = models.TextField(null=True, blank=True)

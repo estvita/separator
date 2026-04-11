@@ -34,7 +34,8 @@ logger = logging.getLogger(__name__)
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 WABA_STATUS_FIELDS = (
     "name,timezone_id,message_template_namespace,account_review_status,"
-    "business_verification_status,country,ownership_type,primary_business_location"
+    "business_verification_status,country,ownership_type,primary_business_location,"
+    "marketing_messages_onboarding_status,owner_business_info"
 )
 PHONE_STATUS_FIELDS = (
     "display_phone_number,verified_name,status,quality_rating,country_code,"
@@ -368,7 +369,6 @@ def broadcast_page(request):
         if action == 'send_message':
             phone_id = request.POST.get('phone_id')
             template_id = request.POST.get('template')
-            marketing_message = request.POST.get("marketing_message") == "on"
             recipient_phones_raw = request.POST.get('recipient_phone') or ""
             recipients = [p.strip() for p in recipient_phones_raw.strip().splitlines() if p.strip()]
             if not recipients:
@@ -439,7 +439,6 @@ def broadcast_page(request):
                         kwargs={
                             "components": components_payload,
                             "broadcast_id": broadcast.id,
-                            "marketing_message": marketing_message,
                         },
                         eta=scheduled_at,
                     )
@@ -453,7 +452,6 @@ def broadcast_page(request):
                         phone.id,
                         components=components_payload,
                         broadcast_id=broadcast.id,
-                        marketing_message=marketing_message,
                     )
                     messages.success(request, _('The mailing has been added to the queue.'))
                 return redirect('broadcast-page')
