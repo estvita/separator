@@ -1,4 +1,5 @@
 import base64
+import ast
 import json
 import time
 import logging
@@ -38,6 +39,34 @@ if settings.ASTERX_SERVER:
     from separator.asterx.utils import send_call_info
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+
+
+def format_waba_error(send_result):
+    if not isinstance(send_result, dict) or "error" not in send_result:
+        return ""
+
+    error_msg = send_result.get("message", "Unknown error")
+    error_data = error_msg if isinstance(error_msg, dict) else None
+
+    if error_data is None and isinstance(error_msg, str):
+        for candidate in [error_msg, error_msg.split(": ", 1)[1] if ": " in error_msg else ""]:
+            if not candidate:
+                continue
+            try:
+                parsed = ast.literal_eval(candidate)
+            except Exception:
+                continue
+            if isinstance(parsed, dict):
+                error_data = parsed
+                break
+
+    if isinstance(error_data, dict):
+        if error_data.get("error"):
+            return waba.error_message({"errors": [error_data["error"]], "recipient_id": "Error"})
+        if error_data.get("errors"):
+            return waba.error_message({"errors": error_data["errors"], "recipient_id": "Error"})
+
+    return str(error_msg)
 
 
 logger = logging.getLogger("django")
@@ -1229,18 +1258,7 @@ def event_processor(data):
 
                         send_result = waba.send_message(appinstance, message, line_id=line_id)
                         if "error" in send_result:
-                            # Send error message back to chat
-                            error_msg = send_result.get("message", "Unknown error")
-                            try:
-                                import ast
-                                error_data = ast.literal_eval(str(error_msg))
-                                if isinstance(error_data, dict):
-                                    if "error" in error_data:
-                                        adapted_data = {"errors": [error_data["error"]], "recipient_id": "Error"}
-                                        error_msg = waba.error_message(adapted_data)
-                            except Exception:
-                                pass
-                            
+                            error_msg = format_waba_error(send_result)
                             bitrix_tasks.message_add.delay(
                                 appinstance.id, 
                                 line_id, 
@@ -1253,18 +1271,7 @@ def event_processor(data):
                 else:
                     send_result = waba.send_message(appinstance, message, line_id=line_id)
                     if "error" in send_result:
-                         # Send error message back to chat
-                        error_msg = send_result.get("message", "Unknown error")
-                        try:
-                            import ast
-                            error_data = ast.literal_eval(str(error_msg))
-                            if isinstance(error_data, dict):
-                                if "error" in error_data:
-                                    adapted_data = {"errors": [error_data["error"]], "recipient_id": "Error"}
-                                    error_msg = waba.error_message(adapted_data)
-                        except Exception:
-                            pass
-
+                        error_msg = format_waba_error(send_result)
                         bitrix_tasks.message_add.delay(
                             appinstance.id, 
                             line_id, 

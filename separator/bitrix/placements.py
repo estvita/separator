@@ -11,7 +11,7 @@ from separator.waweb.models import Session
 import separator.waba.utils as waba_utils
 
 from .crest import call_method
-from .utils import get_app, parse_template_code, connect_line
+from .utils import get_app, parse_template_code, connect_line, format_waba_error
 from .models import AppInstance, Bitrix, Line, Connector
 
 def settings_connector(request, user):
@@ -384,7 +384,10 @@ class WabaPlacementModule:
 
             send_result = waba_utils.send_message(appinstance, message, phone_num=sender_digits)
             if isinstance(send_result, dict) and send_result.get("error"):
-                return JsonResponse({"ok": False, "error": send_result.get("message") or _("send failed")}, status=400)
+                return JsonResponse(
+                    {"ok": False, "error": format_waba_error(send_result) or _("send failed")},
+                    status=400,
+                )
 
             entity_id = None
             try:

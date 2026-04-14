@@ -889,6 +889,16 @@ def _build_fallback_body_parameters(template, text):
 
 
 @shared_task(
+    queue='waba_messages',
+    autoretry_for=(OperationalError, requests.RequestException),
+    default_retry_delay=5,
+    max_retries=5
+)
+def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
+    event_processing(raw_body, signature, app_id, host)
+
+
+@shared_task(
     queue='waba',
     autoretry_for=(OperationalError, requests.RequestException),
     default_retry_delay=5,

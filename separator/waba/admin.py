@@ -36,6 +36,14 @@ class AppAdminForm(forms.ModelForm):
             'access_token': forms.PasswordInput(render_value=True),
         }
 
+
+class ApiCallAdminForm(forms.ModelForm):
+    app = forms.ModelChoiceField(queryset=App.objects.all(), required=False)
+
+    class Meta:
+        model = ApiCall
+        fields = "__all__"
+
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     form = AppAdminForm
@@ -44,8 +52,8 @@ class AppAdmin(admin.ModelAdmin):
 class TemplateInline(admin.TabularInline):
     model = Template
     extra = 0
-    fields = ("template_link", "lang", "status", "default")
-    readonly_fields = ("id", "name", "template_link", "content", "lang", "status", "owner")
+    fields = ("template_link", "category", "lang", "status", "default")
+    readonly_fields = ("id", "category", "name", "template_link", "content", "lang", "status", "owner")
 
     def template_link(self, instance):
         if not instance.pk:
@@ -85,8 +93,8 @@ class WabaAdmin(admin.ModelAdmin):
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
-    list_display = ("id", "name", "lang", "owner", "waba", "status")
-    list_filter = ["status", "lang"]
+    list_display = ("id", "name", "lang", "owner", "waba", "status", "category")
+    list_filter = ["category", "status", "lang"]
     search_fields = ["waba__waba_id", "id", "name", "owner__email"]
     readonly_fields = ("content",)
     inlines = []
@@ -154,37 +162,6 @@ class TemplateComponentPositionalParamInline(admin.TabularInline):
 TemplateAdmin.inlines = [
     TemplateComponentInline,
 ]
-
-
-@admin.register(TemplateComponent)
-class TemplateComponentAdmin(admin.ModelAdmin):
-    list_display = ("id", "template", "type", "format", "index")
-    list_filter = ("type", "format")
-    search_fields = ("template__id", "template__name")
-    autocomplete_fields = ("template",)
-    inlines = [TemplateComponentButtonInline, TemplateComponentNamedParamInline, TemplateComponentPositionalParamInline]
-
-
-@admin.register(TemplateComponentButton)
-class TemplateComponentButtonAdmin(admin.ModelAdmin):
-    list_display = ("id", "component", "type", "text", "index")
-    list_filter = ("type",)
-    search_fields = ("component__template__id", "component__template__name", "text")
-    autocomplete_fields = ("component",)
-
-
-@admin.register(TemplateComponentNamedParam)
-class TemplateComponentNamedParamAdmin(admin.ModelAdmin):
-    list_display = ("id", "component", "button", "name")
-    search_fields = ("component__template__id", "component__template__name", "name")
-    autocomplete_fields = ("component", "button")
-
-
-@admin.register(TemplateComponentPositionalParam)
-class TemplateComponentPositionalParamAdmin(admin.ModelAdmin):
-    list_display = ("id", "component", "button", "position")
-    search_fields = ("component__template__id", "component__template__name")
-    autocomplete_fields = ("component", "button")
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
@@ -266,8 +243,9 @@ class BotAdmin(admin.ModelAdmin):
 
 @admin.register(ApiCall)
 class ApiCallAdmin(admin.ModelAdmin):
+    form = ApiCallAdminForm
     autocomplete_fields = ["waba", "phone"]
-    fields = ("waba", "phone", "method", "endpoint", "payload")
+    fields = ("app", "waba", "phone", "method", "endpoint", "payload")
     list_display = ("id", "waba", "phone", "method", "endpoint")
     search_fields = ("endpoint", "waba__waba_id", "phone__phone", "phone__phone_id")
     list_filter = ("method",)
@@ -277,6 +255,7 @@ class ApiCallAdmin(admin.ModelAdmin):
 
         payload = obj.payload or {}
         waba = obj.phone.waba if obj.phone_id else obj.waba
+        app = waba.app if waba else form.cleaned_data.get("app")
         endpoint = (obj.endpoint or "").strip().strip("/")
         base_endpoint = ""
 
@@ -291,14 +270,15 @@ class ApiCallAdmin(admin.ModelAdmin):
             endpoint = base_endpoint
 
         try:
-            if not waba:
-                raise ValueError("waba or phone with linked waba is required")
             if not isinstance(payload, dict):
                 raise ValueError("payload must be a JSON object")
             if not endpoint:
                 raise ValueError("endpoint, phone or waba is required")
+            if not app:
+                raise ValueError("app is required")
 
             result = waba_utils.call_api(
+                app=app,
                 waba=waba,
                 endpoint=endpoint,
                 method=obj.method,

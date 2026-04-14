@@ -1,13 +1,15 @@
 # waba/views.py
 import logging
+import json
 
+from django.conf import settings
 from django.http import HttpResponse
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.permissions import AllowAny
 
 from separator.waba.models import App, Waba, Phone
-from separator.waba.utils import event_processing
+from separator.waba.utils import event_processing, messages_processing
 
 logger = logging.getLogger("waba")
 
@@ -24,8 +26,23 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
         
         # Pass raw body for signature verification in the task
         raw_body = request.body.decode('utf-8')
-        
-        event_processing.delay(
+
+        task = event_processing
+        if settings.WABA_EVENTS_SEPARATOR:
+            try:
+                data = json.loads(raw_body)
+                entry = data.get("entry", [{}])[0]
+                changes = entry.get("changes", [{}])
+                if changes:
+                    change = changes[0]
+                    field = change.get("field")
+                    value = change.get("value", {})
+                    if (field == "messages" and value.get("messages")) or field == "smb_message_echoes":
+                        task = messages_processing
+            except Exception:
+                pass
+
+        task.delay(
             raw_body=raw_body, 
             signature=signature, 
             app_id=app_id, 

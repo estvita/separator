@@ -20,6 +20,7 @@ FACEBOOK_API_URL = env("FACEBOOK_API_URL", default="https://graph.facebook.com")
 SAVE_UNBOUND_WABA_EVENTS = env.bool("SAVE_UNBOUND_WABA_EVENTS", default=False)
 WABA_AUTO_DELETE_ENTITIES = env.bool("WABA_AUTO_DELETE_ENTITIES", default=False)
 WABA_VERIFY_SIGNATURE = env.bool("WABA_VERIFY_SIGNATURE", default=True)
+WABA_EVENTS_SEPARATOR = env.bool("WABA_EVENTS_SEPARATOR", default=False)
 
 BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
 
