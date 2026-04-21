@@ -23,7 +23,10 @@ def get_portal_settings(member_id):
     ).first()
     if not app_instance:
         return None
-    settings, _ = Settings.objects.get_or_create(app_instance=app_instance)
+    try:
+        settings, _ = Settings.objects.get_or_create(app_instance=app_instance)
+    except Settings.MultipleObjectsReturned:
+        settings = Settings.objects.filter(app_instance=app_instance).order_by('id').first()
     return settings
 
 SHOW_CARD_CHOICES = [

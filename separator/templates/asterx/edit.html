@@ -7,7 +7,7 @@
 <!-- Readonly info -->
 <table class="table table-bordered mb-4">
     <tr><th>{% trans "ID" %}</th><td>{{ readonly_fields.id }}</td></tr>
-    <tr><th>{% trans "Version" %}</th><td>{{ readonly_fields.version }}</td></tr>
+    <tr><th>{% trans "Asterisk" %}</th><td>{{ readonly_fields.version }}</td></tr>
     <tr><th>{% trans "System" %}</th><td>{{ readonly_fields.system }}</td></tr>
     <tr><th>{% trans "Expiry Date" %}</th><td>
         {% if readonly_fields.date_end %}
@@ -19,7 +19,14 @@
 </table>
 <form method="post">
     {% csrf_token %}
-    {{ form.as_p }}
+    <p>
+        {{ form.name.label_tag }}
+        {{ form.name }}
+    </p>
+    <p>
+        <label for="{{ form.settings.id_for_label }}">{% trans "Bitrix" %}</label>
+        {{ form.settings }}
+    </p>
     <h5>{% trans "Contexts" %}</h5>
     <table class="table table-bordered">
         <thead>

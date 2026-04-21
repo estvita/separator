@@ -73,6 +73,7 @@ def add_waba_phone(request_id, app_id):
                 phone_id = phone.get('id')
                 pin = f"{random.randint(0, 999999):06d}"
                 phone_number = phone.get('display_phone_number')
+                normalized_phone_number = '+' + ''.join(filter(str.isdigit, phone_number or ''))
                 # https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users
                 try:
                     biz_data = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
@@ -92,21 +93,27 @@ def add_waba_phone(request_id, app_id):
                     except Exception:
                         raise
 
-                phone, created = Phone.objects.get_or_create(
-                    phone_id=phone_id,
-                    defaults={
-                        "waba": waba,
-                        "owner": user,
-                        "phone": phone_number,
-                        "pin": pin,
-                        "type": phone_type,
-                    }
-                )
+                phone = Phone.objects.filter(phone=normalized_phone_number).first()
+                if phone and (phone.phone_id != phone_id or phone.waba_id != waba.id):
+                    phone.phone_id = phone_id
+                    phone.waba = waba
+                    phone.save(update_fields=["phone_id", "waba"])
+                    created = False
+                else:
+                    phone, created = Phone.objects.get_or_create(
+                        phone_id=phone_id,
+                        defaults={
+                            "waba": waba,
+                            "owner": user,
+                            "phone": normalized_phone_number,
+                            "pin": pin,
+                            "type": phone_type,
+                        }
+                    )
 
                 # create lead in b24
-                if not user.integrator:
-                    from separator.bitrix.tasks import prepare_lead
-                    prepare_lead.delay(user.id, f'New WhatsApp Cloud: {phone_number}')
+                from separator.bitrix.tasks import prepare_lead
+                prepare_lead.delay(user.id, f'New WhatsApp Cloud: {phone_number}')
 
                 if "separator.tariff" in settings.INSTALLED_APPS and not phone.date_end:
                     from separator.tariff.utils import get_trial

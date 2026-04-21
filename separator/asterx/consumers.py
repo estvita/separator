@@ -1,4 +1,6 @@
 import json
+import logging
+from pathlib import Path
 from django.utils import timezone
 from django.conf import settings
 from channels.db import database_sync_to_async
@@ -6,6 +8,18 @@ from rest_framework.authtoken.models import Token
 from channels.generic.websocket import AsyncWebsocketConsumer
 from .models import Server, Context
 from separator.bitrix.models import User as BitrixUser, Credential
+
+receive_logger = logging.getLogger("asterx.receive")
+if not receive_logger.handlers:
+    log_dir = Path(settings.BASE_DIR) / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    file_handler = logging.FileHandler(log_dir / "asterx_receive.log")
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    )
+    receive_logger.addHandler(file_handler)
+    receive_logger.setLevel(logging.INFO)
+    receive_logger.propagate = False
 
 class ServerAuthConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -40,6 +54,12 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
         # ОЖИДАЕМ данные от клиента — переключаемся на receive()
 
     async def receive(self, text_data=None, bytes_data=None):
+        receive_logger.info(
+            "server_id=%s text_data=%s bytes_data=%s",
+            getattr(self, "server_id", None),
+            text_data,
+            bytes_data,
+        )
         try:
             data = json.loads(text_data)
             contexts = data.get("contexts")

@@ -1079,7 +1079,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     
     elif field == 'messages':
         if phone.date_end and timezone.now() > phone.date_end:
-            raise Exception(f"subscription ended: {data}")
+            raise Exception(f"subscription ended")
 
         messages = value.get("messages", [])
         filename = None
@@ -1303,11 +1303,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         bitrix_user_id = callback_data.get('bitrix_user_id')
                         sms_message_id = callback_data.get('sms_message_id')
                         
-                        if fb_status == "failed" and bitrix_user_id and not fallback_triggered:
-                            if not out_message:
-                                out_message = error_message(item)
-                            payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
-                            bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
+                        # if fb_status == "failed" and bitrix_user_id and not fallback_triggered:
+                        #     if not out_message:
+                        #         out_message = error_message(item)
+                        #     payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
+                        #     bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
                         
                         if sms_message_id and fb_status in ["delivered", "failed"]:
                             status_data = {

@@ -35,7 +35,6 @@ def link_ojects(portal: Bitrix, user):
         portal.save()
     AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=user)
     Line.objects.filter(portal=portal, owner__isnull=True).update(owner=user)
-    B24_user.objects.filter(bitrix=portal, owner__isnull=True).update(owner=user)
 
 
 def link_portal(request, code):

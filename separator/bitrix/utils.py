@@ -497,56 +497,35 @@ def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=Non
                             
                     search_names = expected_names | {"button_param", "file_link"}
                     
-                    matches = []
-                    for name in search_names:
-                        token = name + ":"
-                        idx = payload.find(token)
-                        if idx != -1:
-                            matches.append((idx, name, len(token)))
-                            
-                    matches.sort(key=lambda x: x[0])
-
                     shortcode_pairs = {}
                     positional_values = []
                     button_param = None
                     file_url = None
-                    
-                    if matches:
-                        first_idx = matches[0][0]
-                        prefix = payload[:first_idx].strip()
-                        if prefix.endswith("|"):
-                            prefix = prefix[:-1].strip()
-                        
-                        raw_segments = prefix.split("|") if prefix else []
-                        for segment in raw_segments:
-                            item = segment.strip()
-                            if item:
-                                positional_values.append(item)
-                                
-                        for i in range(len(matches)):
-                            idx, name, t_len = matches[i]
-                            start = idx + t_len
-                            if i + 1 < len(matches):
-                                end = matches[i+1][0]
-                                val = payload[start:end].strip()
-                            else:
-                                val = payload[start:].strip()
-                                
-                            if val.endswith("|"):
-                                val = val[:-1].strip()
-                                
-                            if name == "button_param":
-                                button_param = val or "-"
-                            elif name == "file_link":
-                                file_url = val
-                            else:
-                                shortcode_pairs[name] = val or "-"
-                    else:
-                        raw_segments = payload.split("|") if payload else []
-                        for segment in raw_segments:
-                            item = segment.strip()
-                            if item:
-                                positional_values.append(item)
+
+                    raw_segments = payload.split("|") if payload else []
+                    for segment in raw_segments:
+                        item = segment.strip()
+                        if not item:
+                            continue
+
+                        matched_name = None
+                        for name in search_names:
+                            token = name + ":"
+                            if item.startswith(token):
+                                matched_name = name
+                                value = item[len(token):].strip()
+                                break
+
+                        if not matched_name:
+                            positional_values.append(item)
+                            continue
+
+                        if matched_name == "button_param":
+                            button_param = value or "-"
+                        elif matched_name == "file_link":
+                            file_url = value
+                        else:
+                            shortcode_pairs[matched_name] = value or "-"
 
                     def _value_for_named(name):
                         value = shortcode_pairs.get(name)
