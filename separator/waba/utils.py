@@ -1309,13 +1309,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         #     payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
                         #     bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
                         
-                        if sms_message_id and fb_status in ["delivered", "failed"]:
+                        if sms_message_id and fb_status in ["failed"]:
                             status_data = {
                                 "CODE": phone.line.connector.code,
                                 "MESSAGE_ID": sms_message_id,
                                 "STATUS": fb_status
                             }
-                            bitrix_tasks.call_api.delay(appinstance.id, "messageservice.message.status.update", status_data)
+                            bitrix_tasks.call_api(appinstance.id, "messageservice.message.status.update", status_data)
                     except Exception:
                         pass
 

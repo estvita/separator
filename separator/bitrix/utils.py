@@ -910,6 +910,10 @@ def sms_processor(data, service):
             message["text"] = {"body": body}
         return message
 
+    def _send_waba_direct(target, body):
+        message = _build_waba_message(target, body, phone_num=sender)
+        return waba.send_message(app_instance, message, phone_num=sender)
+
     try:
         if not app_instance:
             raise Exception("app not found")
@@ -940,14 +944,17 @@ def sms_processor(data, service):
             return send_result
 
         if service == "waba" and module_id == "sender":
-            message = _build_waba_message(message_to, message_body, phone_num=sender)
-            send_result = waba.send_message(app_instance, message, phone_num=sender)
+            send_result = _send_waba_direct(message_to, message_body)
             if "error" in (send_result or {}):
                 raise ValueError(send_result)
             return send_result
 
+        send_via_openlines = bool(line and manager_id and (service != "waba" or phone.ChatFromSms))
 
-        if line and manager_id:
+        if service == "waba" and not send_via_openlines:
+            send_result = _send_waba_direct(message_to, message_body)
+
+        if send_via_openlines:
             send_result = bitrix_tasks.send_messages(app_instance.id, message_to, message_body,
                                                      line.connector.code, line.line_id, manager_id=manager_id)
             results = send_result or []
@@ -978,8 +985,7 @@ def sms_processor(data, service):
                             join_ok = False
 
                     if not join_ok and service == "waba":
-                        message = _build_waba_message(message_to, message_body, line_id=line.line_id)
-                        send_result = waba.send_message(app_instance, message, line_id=line.line_id)
+                        send_result = _send_waba_direct(message_to, message_body)
 
         if "error" in (send_result or {}):
             raise ValueError(send_result)

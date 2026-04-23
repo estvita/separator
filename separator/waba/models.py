@@ -50,6 +50,7 @@ class Phone(models.Model):
     pin = models.CharField(max_length=6, default="000000")
     phone_id = models.CharField(max_length=50, unique=True)
     sms_service = models.BooleanField(default=True)
+    ChatFromSms = models.BooleanField(default=False)
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="phones", null=True, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     app_instance = models.ForeignKey(AppInstance, on_delete=models.SET_NULL, related_name="phones", null=True, blank=True)

@@ -54,6 +54,20 @@
     </li>
     <li class="nav-item" role="presentation">
       <button
+        class="nav-link {% if active_tab == 'bitrix' %}active{% endif %}"
+        id="bitrix-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#bitrix-pane"
+        type="button"
+        role="tab"
+        aria-controls="bitrix-pane"
+        aria-selected="{% if active_tab == 'bitrix' %}true{% else %}false{% endif %}"
+      >
+        {% trans "Bitrix" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
         class="nav-link {% if active_tab == 'calls' %}active{% endif %}"
         id="calls-tab"
         data-bs-toggle="tab"
@@ -238,6 +252,40 @@
           </ul>
         </nav>
       {% endif %}
+    </div>
+
+    <div
+      class="tab-pane fade {% if active_tab == 'bitrix' %}show active{% endif %}"
+      id="bitrix-pane"
+      role="tabpanel"
+      aria-labelledby="bitrix-tab"
+      tabindex="0"
+    >
+      <h3>{% trans "Bitrix" %}</h3>
+      <form method="POST" class="mb-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_bitrix">
+        <input type="hidden" name="tab" value="bitrix">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="sms_service" name="sms_service" {% if phone.sms_service %}checked{% endif %}>
+          <label class="form-check-label" for="sms_service">
+            `sms_service`
+          </label>
+          <div class="form-text">
+            {% trans "Enable SMS provider in Bitrix." %}
+          </div>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="ChatFromSms" name="ChatFromSms" {% if phone.ChatFromSms %}checked{% endif %}>
+          <label class="form-check-label" for="ChatFromSms">
+            `ChatFromSms`
+          </label>
+          <div class="form-text">
+            {% trans "Send SMS through Bitrix open lines." %}
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+      </form>
     </div>
 
     <div

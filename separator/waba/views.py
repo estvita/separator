@@ -149,7 +149,7 @@ def phone_details(request, phone_id):
         ctwa_qs = ctwa_qs.filter(last_event=ctwa_status)
     ctwa_page_obj = Paginator(ctwa_qs, 50).get_page(request.GET.get("ctwa_page"))
     active_tab = request.POST.get("tab") or request.GET.get("tab") or "templates"
-    if active_tab not in {"templates", "ctwa", "calls", "status"}:
+    if active_tab not in {"templates", "ctwa", "bitrix", "calls", "status"}:
         active_tab = "templates"
 
     def redirect_to_phone_tab(tab_name):
@@ -279,6 +279,39 @@ def phone_details(request, phone_id):
                             return 
                     transaction.on_commit(after_commit)
             return redirect_to_phone_tab("calls")
+        elif action == "update_bitrix":
+            sms_service = request.POST.get("sms_service") == "on"
+            chat_from_sms = request.POST.get("ChatFromSms") == "on"
+            sms_service_changed = phone.sms_service != sms_service
+            chat_from_sms_changed = phone.ChatFromSms != chat_from_sms
+
+            if sms_service_changed or chat_from_sms_changed:
+                phone.sms_service = sms_service
+                phone.ChatFromSms = chat_from_sms
+                update_fields = []
+                if sms_service_changed:
+                    update_fields.append("sms_service")
+                if chat_from_sms_changed:
+                    update_fields.append("ChatFromSms")
+                phone.save(update_fields=update_fields)
+
+                if sms_service_changed:
+                    if phone.app_instance_id:
+                        transaction.on_commit(
+                            lambda: bitrix_tasks.messageservice_add.delay(
+                                phone.app_instance_id, phone.id, "waba"
+                            )
+                        )
+                    else:
+                        messages.warning(
+                            request,
+                            _("Bitrix portal is not connected for this phone, SMS provider sync was skipped."),
+                        )
+
+                messages.success(request, _("Bitrix settings updated."))
+            else:
+                messages.info(request, _("No Bitrix settings were changed."))
+            return redirect_to_phone_tab("bitrix")
         elif action == "check_phone_status":
             if not phone.waba or not phone.waba.app:
                 phone_status_error = _("App is not connected to this phone WABA account.")
