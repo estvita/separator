@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-11 09:54+0500\n"
+"POT-Creation-Date: 2026-04-23 09:23+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -301,7 +301,7 @@ msgstr ""
 msgid "ID"
 msgstr ""
 
-msgid "Version"
+msgid "Asterisk"
 msgstr ""
 
 msgid "System"
@@ -311,6 +311,9 @@ msgid "Expiry Date"
 msgstr ""
 
 msgid "Not Set"
+msgstr ""
+
+msgid "Bitrix"
 msgstr ""
 
 msgid "Contexts"
@@ -362,9 +365,6 @@ msgid "Name"
 msgstr ""
 
 msgid "Installed"
-msgstr ""
-
-msgid "Bitrix24 Line"
 msgstr ""
 
 msgid "Users"
@@ -721,9 +721,6 @@ msgstr ""
 msgid "Send Broadcast"
 msgstr ""
 
-msgid "Marketing message"
-msgstr ""
-
 msgid "Schedule time (optional)"
 msgstr ""
 
@@ -799,6 +796,9 @@ msgstr ""
 msgid "Calls"
 msgstr ""
 
+msgid "Bitrix24 Line"
+msgstr ""
+
 msgid "Messages"
 msgstr ""
 
@@ -869,6 +869,12 @@ msgid "No CTWA records found."
 msgstr ""
 
 msgid "CTWA pagination"
+msgstr ""
+
+msgid "Enable SMS provider in Bitrix."
+msgstr ""
+
+msgid "Send SMS through Bitrix open lines."
 msgstr ""
 
 msgid "Calling settings are not available for WhatsApp Business App numbers."
@@ -1021,6 +1027,16 @@ msgstr ""
 
 #, python-format
 msgid "Call destination %(dest)s enabled"
+msgstr ""
+
+msgid ""
+"Bitrix portal is not connected for this phone, SMS provider sync was skipped."
+msgstr ""
+
+msgid "Bitrix settings updated."
+msgstr ""
+
+msgid "No Bitrix settings were changed."
 msgstr ""
 
 msgid "App is not connected to this phone WABA account."

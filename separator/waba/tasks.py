@@ -107,6 +107,8 @@ def add_waba_phone(request_id, app_id):
                             "owner": user,
                             "phone": normalized_phone_number,
                             "pin": pin,
+                            "sms_service": True,
+                            "ChatFromSms": False,
                             "type": phone_type,
                         }
                     )

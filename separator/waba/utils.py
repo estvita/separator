@@ -967,6 +967,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     ctwa_enabled = False
     phone = None
     appinstance = None
+    send_result = None
 
     if field == 'account_update':
         if event == "PARTNER_APP_UNINSTALLED":
@@ -1200,8 +1201,29 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         "name": filename
                     }
                 ]
-                bitrix_tasks.send_messages.delay(appinstance.id, user_identy, caption, phone.line.connector.code,
-                                                phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url)
+                send_result = bitrix_tasks.send_messages(
+                    appinstance.id,
+                    user_identy,
+                    caption,
+                    phone.line.connector.code,
+                    phone.line.line_id,
+                    False,
+                    user_name,
+                    message_id,
+                    attach,
+                    chat_url=source_url,
+                )
+                status_data = {
+                    "messaging_product": "whatsapp",
+                    "status": "read",
+                    "message_id": message_id,
+                }
+                call_api(
+                    waba=waba,
+                    endpoint=f"{phone.phone_id}/messages",
+                    method="post",
+                    payload=status_data,
+                )
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -1323,26 +1345,38 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             if not ctwa_enabled:
                 ctwa_id = None
                 source_id = None
+            send_result = bitrix_tasks.send_messages(
+                appinstance.id,
+                user_identy,
+                text,
+                phone.line.connector.code,
+                phone.line.line_id,
+                False,
+                user_name,
+                message_id,
+                attach,
+                chat_url=source_url,
+                ctwa_id=ctwa_id,
+                source_id=source_id,
+            )
+            status_data = {
+                "messaging_product": "whatsapp",
+                "status": "read",
+                "message_id": message_id,
+            }
+            call_api(
+                waba=waba,
+                endpoint=f"{phone.phone_id}/messages",
+                method="post",
+                payload=status_data,
+            )
             if referral_body:
-                chain(
-                    bitrix_tasks.send_messages.s(
-                        appinstance.id, user_identy, text, phone.line.connector.code,
-                        phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url,
-                        ctwa_id=ctwa_id, source_id=source_id
-                    ),
-                    bitrix_tasks.message_add.si(
-                        appinstance.id,
-                        phone.line.line_id,
-                        user_identy,
-                        referral_body,
-                        phone.line.connector.code,
-                    ),
-                ).delay()
-            else:
-                bitrix_tasks.send_messages.delay(
-                    appinstance.id, user_identy, text, phone.line.connector.code,
-                    phone.line.line_id, False, user_name, message_id, attach, chat_url=source_url,
-                    ctwa_id=ctwa_id, source_id=source_id
+                bitrix_tasks.message_add.delay(
+                    appinstance.id,
+                    phone.line.line_id,
+                    user_identy,
+                    referral_body,
+                    phone.line.connector.code,
                 )
 
     elif field == 'smb_message_echoes':
@@ -1414,7 +1448,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             if text or attach:
                 bitrix_tasks.message_add.delay(appinstance.id, phone.line.line_id, user_identy, text, phone.line.connector.code, attach)
     else:
-        raise Exception(f"this event is not handled: {data}")
+        raise Exception(f"this event is not handled")
+
+    return send_result
 
 
 @shared_task(queue='waba')
