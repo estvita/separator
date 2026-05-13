@@ -3,6 +3,7 @@ from allauth.account.forms import SignupForm
 from django.contrib.auth import forms as admin_forms
 from django.forms import EmailField
 from django import forms
+from django_recaptcha.fields import ReCaptchaField
 from django.utils.translation import gettext_lazy as _
 
 from phonenumber_field.formfields import PhoneNumberField
@@ -54,6 +55,10 @@ class UserSignupForm(SignupForm):
         user.phone_number = self.cleaned_data.get("phone_number")
         user.save()
         return user
+
+
+class VendorSignupForm(UserSignupForm):
+    captcha = ReCaptchaField()
 
 
 # class UserSocialSignupForm(SocialSignupForm):

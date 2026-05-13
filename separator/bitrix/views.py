@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 import requests
 from datetime import timedelta
@@ -9,7 +10,7 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.http import HttpResponse, FileResponse, Http404, HttpResponseForbidden
+from django.http import HttpResponse, FileResponse, Http404, HttpResponseForbidden, JsonResponse
 from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
@@ -19,7 +20,7 @@ from .tasks import call_api, prepare_lead
 from .utils import get_b24_user, get_instances, get_app
 from .forms import BitrixPortalForm, VerificationCodeForm
 import separator.bitrix.placements as placements
-from .models import AppInstance, Bitrix, VerificationCode, Line
+from .models import AppInstance, Bitrix, VerificationCode, Line, Events
 from .models import User as B24_user
 
 from separator.decorators import login_message_required
@@ -138,7 +139,7 @@ def portals(request):
     )
 
 
-def get_owner(request):
+def get_owner(request, app=None, portal=None):
     protocol = request.GET.get("PROTOCOL")
     domain = request.GET.get("DOMAIN")
     data = request.POST
@@ -147,19 +148,20 @@ def get_owner(request):
     refresh_id = data.get("REFRESH_ID")
     proto = "https" if protocol == "1" else "http"
     try:
-        app = get_app(auth_id)
+        app = app or get_app(auth_id)
         if not app.autologin:
             return None
     except Exception as e:
         return None
     
-    portal, created = Bitrix.objects.get_or_create(
-        member_id=member_id,
-        defaults={
-            "domain": domain,
-            "protocol": proto,
-        }
-    )
+    if not portal:
+        portal, created = Bitrix.objects.get_or_create(
+            member_id=member_id,
+            defaults={
+                "domain": domain,
+                "protocol": proto,
+            }
+        )
 
     try:
         b24_user = get_b24_user(app, portal, auth_id, refresh_id)
@@ -224,13 +226,34 @@ def process_placement(request):
     try:
         data = request.POST
         auth_id = data.get("AUTH_ID")
+        service = request.GET.get("service")
+        is_waba_action = service == "waba" and bool(data.get("action"))
         try:
             app = get_app(auth_id)
         except Exception as e:
+            if is_waba_action:
+                return JsonResponse({"ok": False, "error": str(e)}, status=200)
             messages.error(request, e)
             return redirect("/")
+
+        if app and app.save_events:
+            portal = Bitrix.objects.filter(member_id=data.get("member_id")).first()
+            Events.objects.create(
+                app=app,
+                portal=portal,
+                content=json.dumps(data, ensure_ascii=False, default=str),
+            )
+        else:
+            portal = Bitrix.objects.filter(member_id=data.get("member_id")).first()
+
+        appinstance = None
+        if portal:
+            appinstance = AppInstance.objects.filter(app=app, portal=portal).first()
+        if is_waba_action:
+            return placements.WabaPlacementModule(app=app, portal=portal, appinstance=appinstance).handle(request)
+
         try:
-            user = get_owner(request)
+            user = get_owner(request, app=app, portal=portal)
         except Exception as e:
             messages.error(request, e)
             return redirect("/")
@@ -239,29 +262,20 @@ def process_placement(request):
         if login_redirect:
             return login_redirect
 
+        if not portal:
+            portal = Bitrix.objects.filter(member_id=data.get("member_id")).first()
+        if portal and not appinstance:
+            appinstance = AppInstance.objects.filter(app=app, portal=portal).first()
+
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return placements.settings_connector(request, user)
-        service = request.GET.get("service")
-        placement_type = request.GET.get("type")
         if service == "waba":
-            if placement_type == "send_template" and request.method == "POST":
-                if not data.get("bitrix_user_id"):
-                    try:
-                        _, _, appinstance = placements.WabaPlacementModule._resolve_appinstance(data)
-                        if appinstance:
-                            user_info = call_method(appinstance, "user.current", {})
-                            user_id = (user_info.get("result") or {}).get("ID")
-                            if user_id:
-                                mutable_data = data.copy()
-                                mutable_data["bitrix_user_id"] = str(user_id)
-                                request.POST = mutable_data
-                                data = mutable_data
-                    except Exception:
-                        pass
-            return placements.WabaPlacementModule().handle(placement_type, request)
+            return placements.WabaPlacementModule(app=app, portal=portal, appinstance=appinstance).handle(request)
 
     except Exception as e:
+        if request.GET.get("service") == "waba" and request.POST.get("action"):
+            return JsonResponse({"ok": False, "error": str(e)}, status=200)
         return HttpResponse(str(e))
 
 @csrf_exempt

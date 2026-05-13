@@ -1,0 +1,1065 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "WABA Widget" %}</title>
+    <script src="//api.bitrix24.com/api/v1/"></script>
+    {{ blocks|json_script:"widget-blocks-data" }}
+    {{ sender_phones|json_script:"sender-phones-data" }}
+    {{ templates_data_by_phone|json_script:"templates-data-by-phone" }}
+    {{ recipient_phones|json_script:"recipient-phones-data" }}
+    <style>
+        body { font-family: Arial, sans-serif; margin: 12px; }
+        .row { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 4px; font-size: 13px; }
+        select, textarea, button, .button { width: 100%; box-sizing: border-box; }
+        textarea { min-height: 72px; }
+        .actions { display: grid; gap: 8px; margin-top: 10px; }
+        .actions.single { grid-template-columns: 1fr; }
+        #status { margin-bottom: 10px; font-size: 13px; white-space: pre-wrap; }
+        .button {
+            display: block;
+            padding: 8px 12px;
+            border: 1px solid #1f74d1;
+            border-radius: 4px;
+            background: #1f74d1;
+            color: #fff;
+            text-align: center;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+{% if no_sender_app_url %}
+<div id="status">{% trans "WhatsApp Cloud numbers were not found." %}</div>
+<div class="actions single">
+    <a id="addNumberBtn" class="button" href="{{ no_sender_app_url }}" target="_blank" rel="noopener">{% trans "Add number" %}</a>
+</div>
+
+<script>
+(function () {
+    const appUrl = "{{ no_sender_app_url|escapejs }}";
+    const addNumberText = "{% trans 'Add number' %}";
+    const closeText = "{% trans 'Close' %}";
+    const statusText = "{% trans 'WhatsApp Cloud numbers were not found.' %}";
+
+    function hasBX24() {
+        return !!(window.BX24 && BX24.placement && BX24.placement.call);
+    }
+
+    function appPath() {
+        try {
+            const url = new URL(appUrl, window.location.href);
+            return url.pathname + url.search + url.hash;
+        } catch (e) {
+            return appUrl;
+        }
+    }
+
+    function openAddNumber() {
+        if (window.BX24 && typeof BX24.openPath === 'function') {
+            BX24.openPath(appPath(), function (result) {
+                if (result && result.result === 'error') {
+                    window.open(appUrl, '_blank', 'noopener');
+                }
+            });
+            return;
+        }
+        window.open(appUrl, '_blank', 'noopener');
+    }
+
+    function initBitrixUi() {
+        if (!hasBX24() || typeof BX24.init !== 'function') {
+            return false;
+        }
+        BX24.init(function () {
+            BX24.placement.call('setLayout', {
+                blocks: {
+                    info: {
+                        type: 'text',
+                        properties: {
+                            value: statusText,
+                            color: 'base_70',
+                        },
+                    },
+                },
+                primaryButton: { title: addNumberText },
+                secondaryButton: { title: closeText },
+            });
+            BX24.placement.call('bindPrimaryButtonClickCallback', null, openAddNumber);
+            BX24.placement.call('bindSecondaryButtonClickCallback', null, function () {
+                BX24.placement.call('finish');
+            });
+        });
+        return true;
+    }
+
+    function waitForBX24(attemptsLeft) {
+        if (initBitrixUi() || attemptsLeft <= 0) {
+            return;
+        }
+        setTimeout(function () {
+            waitForBX24(attemptsLeft - 1);
+        }, 250);
+    }
+
+    waitForBX24(20);
+})();
+</script>
+{% else %}
+<div id="status"></div>
+
+<form id="sendForm" enctype="multipart/form-data">
+    <div class="row">
+        <label for="widgetBlock">{% trans "Operation" %}</label>
+        <select id="widgetBlock" name="widget_block"></select>
+    </div>
+    <div class="row">
+        <label for="outputMode">{% trans "Output mode" %}</label>
+        <select id="outputMode" name="output_mode"></select>
+    </div>
+    <div class="row">
+        <label for="senderPhone">{% trans "Business number" %}</label>
+        <select id="senderPhone" name="sender_phone_id"></select>
+    </div>
+    <div class="row">
+        <label for="recipientPhone">{% trans "Client number" %}</label>
+        <select id="recipientPhone" name="phone"></select>
+    </div>
+    <div id="templateSection">
+        <div class="row">
+            <label for="template">{% trans "Template" %}</label>
+            <select id="template" name="template_id"></select>
+        </div>
+        <div id="template-params"></div>
+    </div>
+    <input type="hidden" name="entity_id" value="{{ entity_id }}">
+    <input type="hidden" name="entity_type_code" value="{{ entity_type_code }}">
+</form>
+
+<div class="actions single" id="templateActions">
+    <button id="sendBtn" type="button">{% trans "Send" %}</button>
+</div>
+<div id="blockActions" style="display:none">
+    <div class="row">
+        <label for="blockAction">{% trans "Action" %}</label>
+        <select id="blockAction" name="block_action"></select>
+    </div>
+    <div class="actions single">
+        <button id="blockApplyBtn" type="button">{% trans "Apply" %}</button>
+    </div>
+</div>
+<div class="actions single">
+    <button id="closeBtn" type="button">{% trans "Close" %}</button>
+</div>
+
+<script>
+(function () {
+    const widgetBlocks = JSON.parse(document.getElementById('widget-blocks-data').textContent || '[]');
+    const senderPhones = JSON.parse(document.getElementById('sender-phones-data').textContent || '[]');
+    const templatesByPhone = JSON.parse(document.getElementById('templates-data-by-phone').textContent || '{}');
+    const recipientPhones = JSON.parse(document.getElementById('recipient-phones-data').textContent || '[]');
+
+    const authId = "{{ auth_id|escapejs }}";
+    const refreshId = "{{ refresh_id|escapejs }}";
+    const memberId = "{{ member_id|escapejs }}";
+    const initialSenderId = "{{ initial_sender_phone_id|escapejs }}";
+
+    const statusNode = document.getElementById('status');
+    const blockNode = document.getElementById('widgetBlock');
+    const outputModeNode = document.getElementById('outputMode');
+    const senderNode = document.getElementById('senderPhone');
+    const templateNode = document.getElementById('template');
+    const recipientNode = document.getElementById('recipientPhone');
+    const templateSectionNode = document.getElementById('templateSection');
+    const paramsContainer = document.getElementById('template-params');
+    const formNode = document.getElementById('sendForm');
+    const templateActionsNode = document.getElementById('templateActions');
+    const blockActionsNode = document.getElementById('blockActions');
+    const blockActionNode = document.getElementById('blockAction');
+    const sendBtn = document.getElementById('sendBtn');
+    const blockApplyBtn = document.getElementById('blockApplyBtn');
+    const closeBtn = document.getElementById('closeBtn');
+
+    function hasBX24() {
+        return !!(window.BX24 && BX24.placement && BX24.placement.call);
+    }
+
+    const i18n = {
+        selectAndSend: "{% trans 'Select values and click Send.' %}",
+        block: "{% trans 'Operation' %}",
+        outputMode: "{% trans 'Output mode' %}",
+        shortOutput: "{% trans 'Short' %}",
+        rawJsonOutput: "{% trans 'Raw JSON' %}",
+        senderNumber: "{% trans 'Business number' %}",
+        template: "{% trans 'Template' %}",
+        recipientPhone: "{% trans 'Client number' %}",
+        send: "{% trans 'Send' %}",
+        action: "{% trans 'Action' %}",
+        status: "{% trans 'Status' %}",
+        blockAction: "{% trans 'Block' %}",
+        unblock: "{% trans 'Unblock' %}",
+        call: "{% trans 'Call' %}",
+        callPermissionAllowed: "{% trans 'user allowed calls' %}",
+        callPermissionNotAllowed: "{% trans 'user did not allow calls' %}",
+        forNumber: "Для номера",
+        apply: "{% trans 'Apply' %}",
+        close: "{% trans 'Close' %}",
+        sending: "{% trans 'Sending...' %}",
+        loading: "{% trans 'Loading...' %}",
+        sendFailed: "{% trans 'Send failed' %}",
+        messageSent: "{% trans 'Message sent' %}",
+        blockActionHint: "{% trans 'Choose an action for the selected user number.' %}",
+        blocked: "{% trans 'blocked' %}",
+        allowed: "{% trans 'allowed' %}",
+        error: "{% trans 'Error' %}"
+    };
+
+    const state = {
+        activeBlock: (widgetBlocks[0] && widgetBlocks[0].id) || 'templates',
+        selectedBlockAction: 'block_status',
+        outputMode: 'short',
+        senderPhoneId: '',
+        templateId: '',
+        recipientPhone: '',
+        params: {},
+    };
+
+    const blockActionOptionsByBlock = {
+        block_users: [
+            { id: 'block_status', label: i18n.status },
+            { id: 'block_add', label: i18n.blockAction },
+            { id: 'block_remove', label: i18n.unblock },
+        ],
+        call_permission: [
+            { id: 'call_start', label: i18n.call },
+            { id: 'call_permission_status', label: i18n.status },
+        ],
+    };
+
+    const outputModeOptions = [
+        { id: 'short', label: i18n.shortOutput },
+        { id: 'raw_json', label: i18n.rawJsonOutput },
+    ];
+
+    function setStatus(text, color) {
+        if (text && typeof text === 'object') {
+            statusNode.textContent = JSON.stringify(text, null, 2);
+        } else {
+            statusNode.textContent = text || '';
+        }
+        statusNode.style.color = color || '#333';
+        if (!hasBX24()) {
+            return;
+        }
+        try {
+            BX24.placement.call('setLayoutItemState', {
+                id: 'info',
+                visible: true,
+                properties: {
+                    value: statusNode.textContent || '',
+                    color: color === '#b00020' ? 'danger' : (color === '#1b7f3a' ? 'success' : 'base_70'),
+                    multiline: true,
+                }
+            });
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function extractShortError(error, fallbackText) {
+        function joinMessageAndDetails(code, message, details) {
+            const base = code ? String(code) + ': ' + message : String(message || '');
+            if (details && details !== message) {
+                return base + ' (' + details + ')';
+            }
+            return base;
+        }
+
+        if (!error || typeof error !== 'object') {
+            return fallbackText || i18n.error;
+        }
+        if (error.error && typeof error.error === 'object') {
+            const topError = error.error;
+            if (topError.error_user_title && topError.error_user_msg) {
+                return topError.error_user_title + ': ' + topError.error_user_msg;
+            }
+            if (topError.error_user_msg) {
+                return topError.error_user_msg;
+            }
+            if (topError.message) {
+                const topDetails = topError.error_data && topError.error_data.details;
+                return joinMessageAndDetails(topError.code, topError.message, topDetails);
+            }
+        }
+        const failedUser = ((((error.block_users || {}).failed_users) || [])[0]) || {};
+        const nestedError = ((failedUser.errors || [])[0]) || {};
+        if (nestedError.message) {
+            const nestedDetails = nestedError.error_data && nestedError.error_data.details;
+            return joinMessageAndDetails(nestedError.code, nestedError.message, nestedDetails);
+        }
+        if (error.errors) {
+            const rootMessage = error.errors.message;
+            if (rootMessage) {
+                const rootDetails = error.errors.error_data && error.errors.error_data.details;
+                return joinMessageAndDetails(error.errors.code, rootMessage, rootDetails);
+            }
+        }
+        if (error.errors) {
+            const rootDetails = error.errors.error_data && error.errors.error_data.details;
+            if (rootDetails) {
+                return error.errors.code ? String(error.errors.code) + ': ' + rootDetails : String(rootDetails);
+            }
+        }
+        if (nestedError.error_data && nestedError.error_data.details) {
+            return nestedError.code ? String(nestedError.code) + ': ' + nestedError.error_data.details : nestedError.error_data.details;
+        }
+        if (error.error) {
+            return String(error.error);
+        }
+        if (error.result && error.result.error) {
+            return String(error.result.error);
+        }
+        if (error.errors) {
+            const rootMessage = error.errors.message || (error.errors.error_data && error.errors.error_data.details);
+            if (rootMessage) {
+                return error.errors.code ? String(error.errors.code) + ': ' + rootMessage : String(rootMessage);
+            }
+        }
+        return fallbackText || i18n.error;
+    }
+
+    function setCommandSuccess(result, shortText, color) {
+        if (state.outputMode === 'raw_json') {
+            setStatus(result || {}, color || '#1b7f3a');
+            return;
+        }
+        setStatus(shortText || 'OK', color || '#1b7f3a');
+    }
+
+    function setCommandError(error, shortText, color) {
+        if (state.outputMode === 'raw_json') {
+            setStatus(error || {}, color || '#b00020');
+            return;
+        }
+        setStatus(extractShortError(error, shortText), color || '#b00020');
+    }
+
+    function startsWithPlus(value) {
+        return String(value || '').trim().indexOf('+') === 0;
+    }
+
+    function normalizePhoneDigits(value) {
+        return String(value || '').replace(/\D/g, '');
+    }
+
+    function getSelectedSenderLabel() {
+        const selected = senderPhones.find((item) => String(item.id) === String(state.senderPhoneId));
+        return (selected && selected.label) || '';
+    }
+
+    function getBlockStatusPresentation(result) {
+        const clientPhone = state.recipientPhone || '';
+        const clientDigits = normalizePhoneDigits(clientPhone);
+        const blockedList = Array.isArray((result || {}).data) ? result.data : [];
+        const isBlocked = blockedList.some((item) => normalizePhoneDigits(item && item.wa_id) === clientDigits);
+        return {
+            text: clientPhone + ' ' + (isBlocked ? i18n.blocked : i18n.allowed),
+            color: isBlocked ? '#b00020' : '#1b7f3a',
+        };
+    }
+
+    function getCallPermissionPresentation(result) {
+        const clientPhone = state.recipientPhone || '';
+        const senderPhone = getSelectedSenderLabel();
+        const permission = (result || {}).permission || {};
+        const permissionStatus = permission.status || 'unknown';
+        const expirationTime = permission.expiration_time;
+        const actions = Array.isArray((result || {}).actions) ? result.actions : [];
+        const startCallAction = actions.find((item) => item && item.action_name === 'start_call');
+        const canCall = !!(startCallAction && startCallAction.can_perform_action);
+        let suffix = ' (' + permissionStatus + ')';
+
+        if (permissionStatus === 'temporary' && expirationTime) {
+            const expiresAt = new Date(Number(expirationTime) * 1000);
+            if (!Number.isNaN(expiresAt.getTime())) {
+                suffix = ' (' + permissionStatus + ', until ' + expiresAt.toLocaleString() + ')';
+            }
+        }
+
+        return {
+            text: clientPhone + ' ' + (canCall ? i18n.callPermissionAllowed : i18n.callPermissionNotAllowed) + suffix + (senderPhone ? ' ' + i18n.forNumber + ' ' + senderPhone : ''),
+            color: canCall ? '#1b7f3a' : '#b00020',
+        };
+    }
+
+    function hasCallPermissionPresentationData(result) {
+        return !!(
+            result &&
+            typeof result === 'object' &&
+            (
+                result.permission ||
+                Array.isArray(result.actions)
+            )
+        );
+    }
+
+    function showCallPermissionPresentation(result) {
+        const permissionPresentation = getCallPermissionPresentation(result || {});
+        setStatus(permissionPresentation.text, permissionPresentation.color);
+    }
+
+    function valuesMapFromNode(node) {
+        const values = {};
+        Array.from(node.options || []).forEach((option) => {
+            values[option.value] = option.textContent;
+        });
+        return values;
+    }
+
+    function blocksValuesMap() {
+        const values = {};
+        widgetBlocks.forEach((item) => {
+            values[item.id] = item.label;
+        });
+        return values;
+    }
+
+    function currentBlockActionOptions() {
+        return blockActionOptionsByBlock[state.activeBlock] || [];
+    }
+
+    function recipientValuesMap() {
+        const values = {};
+        recipientPhones.forEach((item) => {
+            values[item.value] = item.label;
+        });
+        return values;
+    }
+
+    function blockActionsValuesMap() {
+        const values = {};
+        currentBlockActionOptions().forEach((item) => {
+            values[item.id] = item.label;
+        });
+        return values;
+    }
+
+    function fillSelect(node, items, valueKey, labelKey, selectedValue) {
+        node.innerHTML = '';
+        (items || []).forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item[valueKey];
+            option.textContent = item[labelKey];
+            node.appendChild(option);
+        });
+        if (selectedValue) {
+            node.value = selectedValue;
+        }
+    }
+
+    function ensureHiddenInput(name) {
+        let input = formNode.querySelector('input[name="' + name + '"]');
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            formNode.appendChild(input);
+        }
+        return input;
+    }
+
+    function setParamValue(name, value) {
+        state.params[name] = value || '';
+        const input = ensureHiddenInput(name);
+        input.value = value || '';
+    }
+
+    function syncDomFromState() {
+        blockNode.value = state.activeBlock || '';
+        outputModeNode.value = state.outputMode || 'short';
+        blockActionNode.value = state.selectedBlockAction || '';
+        senderNode.value = state.senderPhoneId || '';
+        templateNode.value = state.templateId || '';
+        recipientNode.value = state.recipientPhone || '';
+        Object.keys(state.params || {}).forEach((key) => {
+            setParamValue(key, state.params[key]);
+        });
+    }
+
+    function fillBlocks() {
+        fillSelect(blockNode, widgetBlocks, 'id', 'label', state.activeBlock);
+        state.activeBlock = blockNode.value || state.activeBlock;
+    }
+
+    function fillOutputModes() {
+        fillSelect(outputModeNode, outputModeOptions, 'id', 'label', state.outputMode);
+        state.outputMode = outputModeNode.value || 'short';
+    }
+
+    function fillSenders() {
+        fillSelect(senderNode, senderPhones, 'id', 'label', initialSenderId);
+        state.senderPhoneId = senderNode.value || '';
+    }
+
+    function fillBlockActions() {
+        const options = currentBlockActionOptions();
+        fillSelect(blockActionNode, options, 'id', 'label', state.selectedBlockAction);
+        state.selectedBlockAction = blockActionNode.value || ((options[0] && options[0].id) || '');
+    }
+
+    function fillTemplates(list) {
+        fillSelect(templateNode, list || [], 'id', 'label');
+        state.templateId = templateNode.value || '';
+    }
+
+    function fillRecipients() {
+        fillSelect(recipientNode, recipientPhones, 'value', 'label');
+        state.recipientPhone = recipientNode.value || '';
+    }
+
+    function updateVisibleSections() {
+        const isTemplates = state.activeBlock === 'templates';
+        templateSectionNode.style.display = isTemplates ? '' : 'none';
+        templateActionsNode.style.display = isTemplates ? '' : 'none';
+        blockActionsNode.style.display = isTemplates ? 'none' : '';
+    }
+
+    function labelForComponent(comp) {
+        let label = comp.type || 'COMPONENT';
+        if (comp.format) {
+            label = label + ' ' + comp.format;
+        }
+        return label;
+    }
+
+    function addInput(label, name, type, accept) {
+        const wrap = document.createElement('div');
+        wrap.className = 'row';
+
+        const lab = document.createElement('label');
+        lab.setAttribute('for', name);
+        lab.textContent = label;
+        wrap.appendChild(lab);
+
+        let input;
+        if (type === 'textarea') {
+            input = document.createElement('textarea');
+            input.rows = 2;
+        } else {
+            input = document.createElement('input');
+            input.type = type || 'text';
+        }
+        input.id = name;
+        input.name = name;
+        input.required = true;
+        if (accept) {
+            input.setAttribute('accept', accept);
+        }
+        input.addEventListener('input', function () {
+            setParamValue(name, input.value || '');
+        });
+        wrap.appendChild(input);
+        paramsContainer.appendChild(wrap);
+        return input;
+    }
+
+    function collectTemplateFields(templateId) {
+        const phoneId = senderNode.value;
+        const list = templatesByPhone[phoneId] || [];
+        const tpl = list.find((item) => String(item.id) === String(templateId));
+        if (!tpl) {
+            return [];
+        }
+        const fields = [];
+        (tpl.components || []).forEach((comp) => {
+            const named = comp.named_params || [];
+            const positional = comp.positional_params || [];
+            const hasMedia = comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(comp.format);
+            const hasLocation = comp.type === 'HEADER' && comp.format === 'LOCATION';
+            let hasButtonParams = false;
+            if (comp.type === 'BUTTONS') {
+                (comp.buttons || []).forEach((btn) => {
+                    if ((btn.named_params || []).length || (btn.positional_params || []).length) {
+                        hasButtonParams = true;
+                    }
+                });
+            }
+
+            const hasInputs = named.length || positional.length || hasMedia || hasLocation || hasButtonParams;
+            if (!hasInputs) {
+                return;
+            }
+            fields.push({
+                id: 'title__' + comp.id,
+                label: labelForComponent(comp),
+                type: 'title',
+            });
+
+            if (comp.type !== 'BUTTONS') {
+                named.forEach((p) => {
+                    fields.push({
+                        id: 'param__' + comp.id + '__named__' + p.name,
+                        label: p.name,
+                        type: 'text',
+                        required: true,
+                    });
+                });
+
+                positional.forEach((p) => {
+                    fields.push({
+                        id: 'param__' + comp.id + '__pos__' + p.position,
+                        label: 'Param ' + p.position,
+                        type: 'text',
+                        required: true,
+                    });
+                });
+            }
+
+            if (hasMedia) {
+                fields.push({
+                    id: 'media__' + comp.id,
+                    label: 'Media URL',
+                    type: 'text',
+                    required: true,
+                });
+            }
+
+            if (hasLocation) {
+                fields.push({ id: 'location__' + comp.id + '__latitude', label: 'Latitude', type: 'text', required: true });
+                fields.push({ id: 'location__' + comp.id + '__longitude', label: 'Longitude', type: 'text', required: true });
+                fields.push({ id: 'location__' + comp.id + '__name', label: 'Name', type: 'text', required: true });
+                fields.push({ id: 'location__' + comp.id + '__address', label: 'Address', type: 'text', required: true });
+            }
+
+            if (comp.type === 'BUTTONS') {
+                (comp.buttons || []).forEach((btn) => {
+                    (btn.named_params || []).forEach((p) => {
+                        fields.push({
+                            id: 'param__btn__' + btn.id + '__named__' + p.name,
+                            label: 'Button ' + (btn.index + 1) + ' ' + btn.type + ' ' + p.name,
+                            type: 'text',
+                            required: true,
+                        });
+                    });
+                    (btn.positional_params || []).forEach((p) => {
+                        fields.push({
+                            id: 'param__btn__' + btn.id + '__pos__' + p.position,
+                            label: 'Button ' + (btn.index + 1) + ' ' + btn.type + ' Param ' + p.position,
+                            type: 'text',
+                            required: true,
+                        });
+                    });
+                });
+            }
+        });
+        return fields;
+    }
+
+    let currentFields = [];
+    let builtInInputType = 'input';
+
+    function renderTemplateFields(templateId) {
+        paramsContainer.innerHTML = '';
+        const fields = state.activeBlock === 'templates' ? collectTemplateFields(templateId) : [];
+        fields.forEach((field) => {
+            if (field.type === 'title') {
+                const title = document.createElement('div');
+                title.className = 'row';
+                title.innerHTML = '<strong>' + field.label + '</strong>';
+                paramsContainer.appendChild(title);
+                return;
+            }
+            const input = addInput(field.label, field.id, field.type, field.accept);
+            if (field.required && input) {
+                input.required = true;
+            }
+        });
+        currentFields = fields;
+        return fields;
+    }
+
+    function renderBuiltInLayout(fields) {
+        if (!hasBX24()) {
+            return;
+        }
+        const layoutBlocks = {
+            info: {
+                type: 'text',
+                properties: {
+                    value: state.activeBlock === 'templates' ? i18n.selectAndSend : i18n.blockActionHint,
+                    color: 'base_70',
+                },
+            },
+            widgetBlock: {
+                type: 'select',
+                properties: {
+                    title: i18n.block,
+                    selectedValue: state.activeBlock,
+                    values: blocksValuesMap(),
+                },
+            },
+            outputMode: {
+                type: 'select',
+                properties: {
+                    title: i18n.outputMode,
+                    selectedValue: state.outputMode,
+                    values: (function () {
+                        const values = {};
+                        outputModeOptions.forEach((item) => {
+                            values[item.id] = item.label;
+                        });
+                        return values;
+                    })(),
+                },
+            },
+            senderSelect: {
+                type: 'select',
+                properties: {
+                    title: i18n.senderNumber,
+                    selectedValue: state.senderPhoneId,
+                    values: valuesMapFromNode(senderNode),
+                },
+            },
+            recipientSelect: {
+                type: 'select',
+                properties: {
+                    title: i18n.recipientPhone,
+                    selectedValue: state.recipientPhone,
+                    values: recipientValuesMap(),
+                },
+            },
+        };
+
+        if (state.activeBlock === 'templates') {
+            layoutBlocks.templateSelect = {
+                type: 'select',
+                properties: {
+                    title: i18n.template,
+                    selectedValue: state.templateId,
+                    values: valuesMapFromNode(templateNode),
+                },
+            };
+        } else {
+            layoutBlocks.blockActionSelect = {
+                type: 'select',
+                properties: {
+                    title: i18n.action,
+                    selectedValue: state.selectedBlockAction,
+                    values: blockActionsValuesMap(),
+                },
+            };
+        }
+
+        (fields || []).forEach((field) => {
+            if (field.type === 'title') {
+                layoutBlocks[field.id] = {
+                    type: 'text',
+                    properties: {
+                        value: field.label,
+                        color: 'base_70',
+                    },
+                };
+                return;
+            }
+            if (field.type === 'file') {
+                layoutBlocks[field.id] = {
+                    type: 'file',
+                    properties: {
+                        title: field.label,
+                    },
+                };
+                return;
+            }
+            layoutBlocks[field.id] = {
+                type: builtInInputType,
+                properties: {
+                    title: field.label,
+                    value: state.params[field.id] || '',
+                },
+            };
+        });
+
+        BX24.placement.call('setLayout', {
+            blocks: layoutBlocks,
+            primaryButton: { title: state.activeBlock === 'templates' ? i18n.send : i18n.apply },
+            secondaryButton: { title: i18n.close },
+        });
+    }
+
+    function renderCurrentBlock() {
+        updateVisibleSections();
+        fillBlockActions();
+        const fields = renderTemplateFields(templateNode.value);
+        renderBuiltInLayout(fields);
+    }
+
+    function loadTemplatesBySender(senderId) {
+        fillTemplates(templatesByPhone[String(senderId)] || []);
+        state.templateId = templateNode.value || '';
+        renderCurrentBlock();
+    }
+
+    function validateTemplateParams(fields) {
+        const list = fields || [];
+        for (let i = 0; i < list.length; i += 1) {
+            const field = list[i];
+            if (!field.required) {
+                continue;
+            }
+            const value = state.params[field.id];
+            if (!value || !String(value).trim()) {
+                return field.label || i18n.error;
+            }
+        }
+        return null;
+    }
+
+    function submitAction(payload) {
+        return fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            body: payload,
+            credentials: 'same-origin',
+        })
+        .then((response) => response.json().then((result) => ({ response: response, result: result })))
+        .then((data) => {
+            if (!data.response.ok || !data.result.ok) {
+                throw data.result;
+            }
+            return data.result;
+        });
+    }
+
+    function sendTemplate() {
+        const fields = currentFields || [];
+        const errorText = validateTemplateParams(fields);
+        if (errorText) {
+            setStatus(errorText, '#b00020');
+            return;
+        }
+        syncDomFromState();
+        const payload = new FormData(formNode);
+        payload.append('action', 'send');
+        payload.append('AUTH_ID', authId);
+        payload.append('REFRESH_ID', refreshId);
+        payload.append('member_id', memberId);
+        if (hasBX24() && typeof BX24.getAuth === 'function') {
+            try {
+                const auth = BX24.getAuth();
+                if (auth && auth.user_id) {
+                    payload.append('bitrix_user_id', auth.user_id);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        sendBtn.disabled = true;
+        setStatus(i18n.sending, '#8a6d00');
+
+        submitAction(payload)
+        .then(() => {
+            setCommandSuccess({ ok: true }, i18n.messageSent, '#1b7f3a');
+        })
+        .catch((error) => {
+            setCommandError(error, i18n.sendFailed, '#b00020');
+        })
+        .finally(() => {
+            sendBtn.disabled = false;
+        });
+    }
+
+    function runSelectedAction(buttonNode) {
+        syncDomFromState();
+        if (!startsWithPlus(state.recipientPhone)) {
+            setStatus('Phone must start with +', '#b00020');
+            return;
+        }
+        const payload = new FormData(formNode);
+        const action = state.selectedBlockAction || 'block_status';
+        payload.append('action', action);
+        payload.append('AUTH_ID', authId);
+        payload.append('REFRESH_ID', refreshId);
+        payload.append('member_id', memberId);
+
+        if (buttonNode) {
+            buttonNode.disabled = true;
+        }
+        setStatus(i18n.loading, '#8a6d00');
+
+        submitAction(payload)
+        .then((result) => {
+            if (action === 'block_status' && state.outputMode !== 'raw_json') {
+                const statusPresentation = getBlockStatusPresentation(result.result || {});
+                setStatus(statusPresentation.text, statusPresentation.color);
+                return;
+            }
+            if (action === 'call_permission_status' && state.outputMode !== 'raw_json') {
+                showCallPermissionPresentation(result.result || {});
+                return;
+            }
+            if (action === 'call_start' && state.outputMode !== 'raw_json') {
+                setStatus('OK', '#1b7f3a');
+                return;
+            }
+            setCommandSuccess(result.result || {}, 'OK', '#1b7f3a');
+        })
+        .catch((error) => {
+            const errorResult = (error && error.result) || error || { error: i18n.error };
+            if (
+                (action === 'call_permission_status' || action === 'call_start') &&
+                state.outputMode !== 'raw_json' &&
+                hasCallPermissionPresentationData(errorResult)
+            ) {
+                showCallPermissionPresentation(errorResult);
+                return;
+            }
+            setCommandError(errorResult, i18n.error, '#b00020');
+        })
+        .finally(() => {
+            if (buttonNode) {
+                buttonNode.disabled = false;
+            }
+        });
+    }
+
+    fillBlocks();
+    fillOutputModes();
+    fillBlockActions();
+    fillSenders();
+    fillRecipients();
+    syncDomFromState();
+    updateVisibleSections();
+    loadTemplatesBySender(senderNode.value);
+
+    blockNode.addEventListener('change', function () {
+        state.activeBlock = blockNode.value || 'templates';
+        syncDomFromState();
+        renderCurrentBlock();
+    });
+
+    outputModeNode.addEventListener('change', function () {
+        state.outputMode = outputModeNode.value || 'short';
+        syncDomFromState();
+        renderCurrentBlock();
+    });
+
+    blockActionNode.addEventListener('change', function () {
+        state.selectedBlockAction = blockActionNode.value || 'block_status';
+        syncDomFromState();
+        renderCurrentBlock();
+    });
+
+    senderNode.addEventListener('change', function () {
+        state.senderPhoneId = senderNode.value || '';
+        loadTemplatesBySender(senderNode.value);
+    });
+
+    templateNode.addEventListener('change', function () {
+        state.templateId = templateNode.value || '';
+        renderCurrentBlock();
+    });
+
+    recipientNode.addEventListener('change', function () {
+        state.recipientPhone = recipientNode.value || '';
+    });
+
+    sendBtn.addEventListener('click', sendTemplate);
+    blockApplyBtn.addEventListener('click', function () {
+        runSelectedAction(blockApplyBtn);
+    });
+    closeBtn.addEventListener('click', function () {
+        if (hasBX24()) {
+            BX24.placement.call('finish');
+            return;
+        }
+        window.close();
+    });
+
+    function initBitrixUi() {
+        if (!hasBX24() || typeof BX24.init !== 'function') {
+            return false;
+        }
+        BX24.init(function () {
+            renderCurrentBlock();
+
+            BX24.placement.call('bindSecondaryButtonClickCallback', null, function () {
+                BX24.placement.call('finish');
+            });
+            BX24.placement.call('bindPrimaryButtonClickCallback', null, function () {
+                syncDomFromState();
+                if (state.activeBlock === 'templates') {
+                    sendTemplate();
+                    return;
+                }
+                runSelectedAction();
+            });
+            BX24.placement.call('bindValueChangeCallback', null, function (eventData) {
+                if (!eventData || !eventData.id) {
+                    return;
+                }
+                if (eventData.id === 'widgetBlock') {
+                    state.activeBlock = eventData.value || 'templates';
+                    syncDomFromState();
+                    renderCurrentBlock();
+                    return;
+                }
+                if (eventData.id === 'outputMode') {
+                    state.outputMode = eventData.value || 'short';
+                    syncDomFromState();
+                    renderCurrentBlock();
+                    return;
+                }
+                if (eventData.id === 'senderSelect') {
+                    state.senderPhoneId = eventData.value || '';
+                    syncDomFromState();
+                    loadTemplatesBySender(state.senderPhoneId);
+                    return;
+                }
+                if (eventData.id === 'templateSelect') {
+                    state.templateId = eventData.value || '';
+                    syncDomFromState();
+                    renderCurrentBlock();
+                    return;
+                }
+                if (eventData.id === 'recipientSelect') {
+                    state.recipientPhone = eventData.value || '';
+                    syncDomFromState();
+                    return;
+                }
+                if (eventData.id === 'blockActionSelect') {
+                    state.selectedBlockAction = eventData.value || 'block_status';
+                    syncDomFromState();
+                    renderCurrentBlock();
+                    return;
+                }
+                if (eventData.id.indexOf('param__') === 0 || eventData.id.indexOf('location__') === 0 || eventData.id.indexOf('media__') === 0) {
+                    setParamValue(eventData.id, eventData.value || '');
+                    syncDomFromState();
+                }
+            });
+        });
+        return true;
+    }
+
+    function waitForBX24(attemptsLeft) {
+        if (initBitrixUi()) {
+            return;
+        }
+        if (attemptsLeft <= 0) {
+            return;
+        }
+        setTimeout(function () {
+            waitForBX24(attemptsLeft - 1);
+        }, 250);
+    }
+
+    waitForBX24(20);
+})();
+</script>
+{% endif %}
+</body>
+</html>

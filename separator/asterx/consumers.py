@@ -41,14 +41,14 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        date_end = self.server.date_end
-        if date_end and timezone.now() > date_end:
-            await self.accept()
-            await self.send(text_data=json.dumps({
-                "error": "Server license has expired."
-            }))
-            await self.close()
-            return
+        # date_end = self.server.date_end
+        # if date_end and timezone.now() > date_end:
+        #     await self.accept()
+        #     await self.send(text_data=json.dumps({
+        #         "error": "Server license has expired."
+        #     }))
+        #     await self.close()
+        #     return
 
         await self.accept()
         # ОЖИДАЕМ данные от клиента — переключаемся на receive()

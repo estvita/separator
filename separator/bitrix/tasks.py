@@ -329,13 +329,16 @@ def prepare_lead(user_id, lead_title):
     vendor_instance = AppInstance.objects.filter(owner=owner, app__vendor=True).first()
     if not vendor_instance:
         raise Exception(f"vendor instance for vendor {owner.email} not found")
+    client_filter = {"email": user.email}
+    if user.phone_number:
+        client_filter = {
+            "logic": "OR",
+            "0": {"phone": str(user.phone_number)},
+            "1": {"email": user.email}
+        }
     payload = {
         "filter": {
-            "0": {
-                "logic": "OR",
-                "0": {"phone": str(user.phone_number)},
-                "1": {"email": user.email}
-            }
+            "0": client_filter,
         },
         "entityTypeId": 3, #contacts
     }

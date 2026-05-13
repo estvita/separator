@@ -23,6 +23,7 @@ WABA_VERIFY_SIGNATURE = env.bool("WABA_VERIFY_SIGNATURE", default=True)
 WABA_EVENTS_SEPARATOR = env.bool("WABA_EVENTS_SEPARATOR", default=False)
 
 BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
+BITRIX_TEMP_FILE_BASE_URL = env("BITRIX_TEMP_FILE_BASE_URL", default="")
 
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 CHECK_PHONE_NUMBER = env.bool("CHECK_PHONE_NUMBER", False)
@@ -373,6 +374,7 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="none")
+ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS = env.bool("ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS", False)
 # allauth 65.14.2+ client IP detection hardening (for rate-limits)
 # Use a single-IP trusted header set by reverse proxy (e.g. nginx)
 ALLAUTH_TRUSTED_CLIENT_IP_HEADER = env(

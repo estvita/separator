@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-23 09:23+0500\n"
+"POT-Creation-Date: 2026-05-12 20:39+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -176,28 +176,53 @@ msgstr ""
 msgid "Connected"
 msgstr ""
 
-msgid "unsupported waba placement type"
+msgid "Templates"
 msgstr ""
 
-msgid "appinstance not found"
+msgid "Block users"
+msgstr ""
+
+msgid "Calls"
 msgstr ""
 
 msgid "sender phone not found"
 msgstr ""
 
-msgid "template not found"
+msgid "waba not found"
 msgstr ""
 
-msgid "template does not belong to selected sender number"
+msgid "phone tariff expired"
+msgstr ""
+
+msgid "phone_number_id not found"
 msgstr ""
 
 msgid "recipient phone is required"
 msgstr ""
 
-msgid "selected sender number is invalid"
+msgid "selected sender number"
+msgstr ""
+
+#, python-brace-format
+msgid "{phone} is not connected to Bitrix telephony"
+msgstr ""
+
+msgid "appinstance not found"
+msgstr ""
+
+msgid "user did not allow calls"
+msgstr ""
+
+msgid "template not found"
 msgstr ""
 
 msgid "send failed"
+msgstr ""
+
+msgid "WABA template sent"
+msgstr ""
+
+msgid "unknown action"
 msgstr ""
 
 msgid "Portal not found by code."
@@ -529,37 +554,79 @@ msgstr ""
 msgid "New OLX"
 msgstr ""
 
-msgid "WABA Template Sender"
+msgid "WABA Widget"
 msgstr ""
 
-msgid "Sender number"
-msgstr ""
-
-msgid "Template"
-msgstr ""
-
-msgid "Recipient phone"
-msgstr ""
-
-msgid "Send"
+msgid "WhatsApp Cloud numbers were not found."
 msgstr ""
 
 msgid "Close"
 msgstr ""
 
+msgid "Operation"
+msgstr ""
+
+msgid "Output mode"
+msgstr ""
+
+msgid "Business number"
+msgstr ""
+
+msgid "Client number"
+msgstr ""
+
+msgid "Template"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Action"
+msgstr ""
+
 msgid "Select values and click Send."
 msgstr ""
 
-msgid "Failed to load templates"
+msgid "Short"
+msgstr ""
+
+msgid "Raw JSON"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Block"
+msgstr ""
+
+msgid "Unblock"
+msgstr ""
+
+msgid "Call"
+msgstr ""
+
+msgid "user allowed calls"
 msgstr ""
 
 msgid "Sending..."
+msgstr ""
+
+msgid "Loading..."
 msgstr ""
 
 msgid "Send failed"
 msgstr ""
 
 msgid "Message sent"
+msgstr ""
+
+msgid "Choose an action for the selected user number."
+msgstr ""
+
+msgid "blocked"
+msgstr ""
+
+msgid "allowed"
 msgstr ""
 
 msgid "Error"
@@ -724,6 +791,9 @@ msgstr ""
 msgid "Schedule time (optional)"
 msgstr ""
 
+msgid "Sender number"
+msgstr ""
+
 msgid "Recipient Phones (one per line)"
 msgstr ""
 
@@ -740,9 +810,6 @@ msgid "Recipients"
 msgstr ""
 
 msgid "Delivered"
-msgstr ""
-
-msgid "Status"
 msgstr ""
 
 msgid "No broadcasts found."
@@ -791,9 +858,6 @@ msgid "Expires in (days)"
 msgstr ""
 
 msgid "Number"
-msgstr ""
-
-msgid "Calls"
 msgstr ""
 
 msgid "Bitrix24 Line"
@@ -875,6 +939,12 @@ msgid "Enable SMS provider in Bitrix."
 msgstr ""
 
 msgid "Send SMS through Bitrix open lines."
+msgstr ""
+
+msgid "Show this number in the Bitrix widget."
+msgstr ""
+
+msgid "Allow Bitrix portal admins to access this number."
 msgstr ""
 
 msgid "Calling settings are not available for WhatsApp Business App numbers."
@@ -997,9 +1067,6 @@ msgstr ""
 msgid "Information successfully updated"
 msgstr ""
 
-msgid "Присланы контакты:\n"
-msgstr ""
-
 msgid "This number is linked to another user."
 msgstr ""
 
@@ -1061,6 +1128,9 @@ msgid "The mailing has been scheduled."
 msgstr ""
 
 msgid "Broadcast has been cancelled."
+msgstr ""
+
+msgid "This waba is linked to another user"
 msgstr ""
 
 msgid "App is not connected to this WABA account."

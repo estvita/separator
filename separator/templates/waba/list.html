@@ -7,24 +7,25 @@
 {% block content %}
 <div class="container">
   <h3>{% trans "Your WhatsApp Cloud numbers" %}</h3>
+  <form method="post" class="mb-2">
+      {% csrf_token %}
+      <div class="d-flex align-items-center">
+          <label for="days" class="me-2 mb-0">{% trans "Expires in (days)" %}:</label>
+          <input type="number" id="days" name="days" value="{{ days|default:7 }}" min="1" class="form-control me-3" style="width:100px;">
+
+          <label for="filter_portal_id" class="me-2 mb-0">{% trans "Portal" %}:</label>
+          <select name="filter_portal_id" id="filter_portal_id" class="form-control me-3" style="width:auto;">
+              <option value="all" {% if selected_portal_id == "all" %}selected{% endif %}>{% trans "All" %}</option>
+              <option value="free" {% if selected_portal_id == "free" %}selected{% endif %}>Свободные номера</option>
+              {% for portal in portals %}
+                  <option value="{{ portal.id }}" {% if portal.id|stringformat:"s" == selected_portal_id|stringformat:"s" %}selected{% endif %}>{{ portal.domain }}</option>
+              {% endfor %}
+          </select>
+
+          <button type="submit" class="btn btn-primary btn-sm me-2" name="action" value="apply">{% trans "Apply" %}</button>
+      </div>
+  </form>
   {% if phones %}
-    <form method="post" class="mb-2">
-        {% csrf_token %}
-        <div class="d-flex align-items-center">
-            <label for="days" class="me-2 mb-0">{% trans "Expires in (days)" %}:</label>
-            <input type="number" id="days" name="days" value="{{ days|default:7 }}" min="1" class="form-control me-3" style="width:100px;">
-            
-            <label for="filter_portal_id" class="me-2 mb-0">{% trans "Portal" %}:</label>
-            <select name="filter_portal_id" id="filter_portal_id" class="form-control me-3" style="width:auto;">
-                <option value="all" {% if selected_portal_id == "all" %}selected{% endif %}>{% trans "All" %}</option>
-                {% for portal in portals %}
-                    <option value="{{ portal.id }}" {% if portal.member_id|stringformat:"s" == selected_portal_id|stringformat:"s" %}selected{% endif %}>{{ portal.domain }}</option>
-                {% endfor %}
-            </select>
-            
-            <button type="submit" class="btn btn-primary btn-sm me-2" name="action" value="apply">{% trans "Apply" %}</button>
-        </div>
-    </form>
     <table class="table table-bordered">
       <thead>
         <tr>
@@ -97,7 +98,7 @@
   {% endif %}
 
     <a href="{% url 'broadcast-page' %}" class="btn btn-secondary connect-btn me-2">{% trans "Broadcasts" %}</a>
-    <a target="_blank" href="/waba/request?request-id={{ request_id }}" class="btn btn-primary connect-btn">{% trans "Add number" %}</a>
+    <a target="_blank" href="{% url 'save_request' %}" class="btn btn-primary connect-btn">{% trans "Add number" %}</a>
 
 </div>
 {% endblock content %}

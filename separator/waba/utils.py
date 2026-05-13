@@ -47,6 +47,74 @@ logger = logging.getLogger("django")
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
 
 
+TEMPLATE_COMPONENT_PREFETCHES = (
+    "components__named_params",
+    "components__positional_params",
+    "components__buttons__named_params",
+    "components__buttons__positional_params",
+)
+
+
+def prefetch_template_components(queryset):
+    if hasattr(queryset, "prefetch_related"):
+        existing = set(getattr(queryset, "_prefetch_related_lookups", ()) or ())
+        missing = tuple(item for item in TEMPLATE_COMPONENT_PREFETCHES if item not in existing)
+        return queryset.prefetch_related(*missing) if missing else queryset
+    return queryset
+
+
+def _sort_by(*fields):
+    return lambda item: tuple(getattr(item, field) for field in fields)
+
+
+def serialize_templates_for_frontend(templates, stringify_ids=False):
+    data = []
+    for template in prefetch_template_components(templates):
+        components_data = []
+        components = sorted(template.components.all(), key=_sort_by("index", "id"))
+        for component in components:
+            buttons_data = []
+            buttons = sorted(component.buttons.all(), key=_sort_by("index", "id"))
+            for button in buttons:
+                buttons_data.append({
+                    "id": button.id,
+                    "type": button.type,
+                    "index": button.index,
+                    "named_params": [
+                        {"name": p.name}
+                        for p in sorted(button.named_params.all(), key=_sort_by("id"))
+                    ],
+                    "positional_params": [
+                        {"position": p.position}
+                        for p in sorted(button.positional_params.all(), key=_sort_by("position", "id"))
+                    ],
+                })
+            components_data.append({
+                "id": component.id,
+                "type": component.type,
+                "format": component.format,
+                "index": component.index,
+                "text": component.text,
+                "named_params": [
+                    {"name": p.name}
+                    for p in sorted(component.named_params.all(), key=_sort_by("id"))
+                ],
+                "positional_params": [
+                    {"position": p.position}
+                    for p in sorted(component.positional_params.all(), key=_sort_by("position", "id"))
+                ],
+                "buttons": buttons_data,
+            })
+        template_id = str(template.id) if stringify_ids else template.id
+        data.append({
+            "id": template_id,
+            "label": f"{template.name} ({template.lang})",
+            "lang": template.lang,
+            "components": components_data,
+        })
+    return data
+
+
 def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None, files=None, data=None):
     if not app and waba:
         access_token = waba.access_token
@@ -85,18 +153,8 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         raise
 
 
-def upload_media(appinstance, file_content, mime_type, filename, line_id=None, phone_num=None):
-    phone = None
-    if phone_num:
-        phone = Phone.objects.filter(phone=f"+{phone_num}").first()
-        waba = phone.waba
-    elif line_id:
-        line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
-        waba = Waba.objects.filter(phones__line=line).first() if line else None
-        phone = waba.phones.filter(line=line).first() if waba and line else None
-    else:
-        return {"error": True, "message": "phone not found"}
-
+def upload_media_for_phone(phone, file_content, mime_type, filename):
+    waba = phone.waba if phone else None
     if not phone or not waba:
         return {"error": True, "message": "not phone or not waba"}
 
@@ -118,18 +176,56 @@ def upload_media(appinstance, file_content, mime_type, filename, line_id=None, p
         return {"error": True, "message": str(e)}
 
 
-def send_message(appinstance, message, line_id=None, phone_num=None):
+def upload_media(appinstance, file_content, mime_type, filename, line_id=None, phone_num=None):
     phone = None
-    waba = None
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()
-        waba = phone.waba if phone else None
     elif line_id:
         line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
         waba = Waba.objects.filter(phones__line=line).first() if line else None
         phone = waba.phones.filter(line=line).first() if waba and line else None
     else:
-        return {"error": True, "message": f"phone {phone} not found"}
+        return {"error": True, "message": "phone not found"}
+
+    return upload_media_for_phone(phone, file_content, mime_type, filename)
+
+
+def _template_message_endpoint(phone, message, template=None):
+    endpoint = f"{phone.phone_id}/messages"
+    if message.get("type") != "template":
+        return endpoint
+
+    template_obj = template
+    if not template_obj:
+        template_data = message.get("template") or {}
+        template_name = template_data.get("name")
+        template_lang = (template_data.get("language") or {}).get("code")
+        template_obj = Template.objects.filter(
+            waba=phone.waba,
+            name=template_name,
+            lang=template_lang,
+        ).first()
+
+    if template_obj and (template_obj.category or "").upper() == "MARKETING":
+        return f"{phone.phone_id}/marketing_messages"
+    return endpoint
+
+
+def _cache_outbound_text(message, response):
+    if message.get("type") != "text":
+        return
+    text = message.get("text", {}).get("body", "")
+    if not text or not response or "messages" not in response or not response["messages"]:
+        return
+    msg_id = response["messages"][0]["id"]
+    try:
+        redis_client.set(f"wamid:{msg_id}", text, ex=600)
+    except Exception:
+        pass
+
+
+def send_message_from_phone(phone, message, template=None):
+    waba = phone.waba if phone else None
     if not phone or not waba:
         return {"error": True, "message": "not phone or not waba"}
     if phone.date_end and timezone.now() > phone.date_end:
@@ -137,36 +233,25 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
     if not phone.phone_id:
         return {"error": True, "message": f"not {phone} phone_id"}
     try:
-        endpoint = f"{phone.phone_id}/messages"
-        if message.get("type") == "template":
-            template_data = message.get("template") or {}
-            template_name = template_data.get("name")
-            template_lang = (template_data.get("language") or {}).get("code")
-            template_obj = Template.objects.filter(
-                waba=waba,
-                name=template_name,
-                lang=template_lang,
-            ).first()
-            if template_obj and (template_obj.category or "").upper() == "MARKETING":
-                endpoint = f"{phone.phone_id}/marketing_messages"
-
+        endpoint = _template_message_endpoint(phone, message, template=template)
         response = call_api(waba=waba, endpoint=endpoint, method="post", payload=message)
-        
-        if message.get("type") != "template":
-            text = ""
-            if message.get("type") == "text":
-                text = message.get("text", {}).get("body", "")
-            
-            if text and response and "messages" in response and len(response["messages"]) > 0:
-                msg_id = response["messages"][0]["id"]
-                try:
-                    redis_client.set(f"wamid:{msg_id}", text, ex=600)
-                except Exception:
-                    pass
-                    
+        _cache_outbound_text(message, response)
         return response
     except Exception as e:
         return {"error": True, "message": str(e)}
+
+
+def send_message(appinstance, message, line_id=None, phone_num=None):
+    phone = None
+    if phone_num:
+        phone = Phone.objects.filter(phone=f"+{phone_num}").first()
+    elif line_id:
+        line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
+        waba = Waba.objects.filter(phones__line=line).first() if line else None
+        phone = waba.phones.filter(line=line).first() if waba and line else None
+    else:
+        return {"error": True, "message": f"phone {phone} not found"}
+    return send_message_from_phone(phone, message)
 
 
 def delete_template_remote(template):
@@ -240,21 +325,81 @@ def _resolve_media_extension(mime_type, original_filename=None):
 
 
 def format_contacts(contacts):
-    contact_text = _("Присланы контакты:\n")
-    for i, contact in enumerate(contacts, start=1):
-        name = contact["name"]["formatted_name"]
-        phones = ", ".join([phone["phone"] for phone in contact.get("phones", [])])
-        emails = ", ".join([email["email"] for email in contact.get("emails", [])])
+    def _clean(value):
+        if value in [None, ""]:
+            return None
+        return str(value).strip()
 
-        contact_info = f"{i}. {name}"
-        if phones:
-            contact_info += f", {phones}"
-        if emails:
-            contact_info += f", {emails}"
+    def _join(values, sep=", "):
+        return sep.join([item for item in (_clean(v) for v in values) if item])
 
-        contact_text += contact_info + "\n"
+    def _append(lines, label, value):
+        value = _clean(value)
+        if value:
+            lines.append(f"{label}: {value}")
 
-    return contact_text
+    def _unique_preserve_order(values):
+        seen = set()
+        unique_values = []
+        for value in values:
+            key = _clean(value)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            unique_values.append(key)
+        return unique_values
+
+    contact_lines = []
+    for i, contact in enumerate(contacts or [], start=1):
+        lines = []
+        name = contact.get("name") or {}
+        formatted_name = _clean(name.get("formatted_name"))
+        lines.append(f"{i}. {formatted_name or _('Без имени')}")
+        _append(lines, "Birthday", contact.get("birthday"))
+
+        org = contact.get("org") or {}
+        _append(lines, "Company", org.get("company"))
+        _append(lines, "Department", org.get("department"))
+        _append(lines, "Title", org.get("title"))
+
+        for phone_index, phone in enumerate(contact.get("phones") or [], start=1):
+            phone_value = _clean(phone.get("phone"))
+            wa_id = _clean(phone.get("wa_id"))
+            phone_text = phone_value
+            if wa_id and phone_text:
+                phone_text = f"{phone_text} (WA)"
+            if phone_text:
+                lines.append(f"Phone {phone_index}: {phone_text}")
+
+        email_values = _unique_preserve_order(
+            [email.get("email") for email in (contact.get("emails") or [])]
+        )
+        for email_index, email_value in enumerate(email_values, start=1):
+            lines.append(f"Email {email_index}: {email_value}")
+
+        for url_index, url in enumerate(contact.get("urls") or [], start=1):
+            url_value = _clean(url.get("url"))
+            url_parts = [url_value]
+            url_text = _join(url_parts)
+            if url_text:
+                lines.append(f"URL {url_index}: {url_text}")
+
+        for address_index, address in enumerate(contact.get("addresses") or [], start=1):
+            address_text = _join(
+                [
+                    address.get("street"),
+                    address.get("city"),
+                    address.get("state"),
+                    address.get("country"),
+                    address.get("zip"),
+                ]
+            )
+            if address_text:
+                lines.append(f"Address {address_index}: {address_text}")
+
+        contact_lines.append("\n".join(lines))
+
+    return "\n\n".join(contact_lines)
 
 
 def _format_flow_field(value):
@@ -736,13 +881,11 @@ def build_template_components_payload(template, post_data, files_data, phone):
                 media_name = os.path.basename(path) or "media"
 
             if media_content:
-                phone_num = (phone.phone or "").lstrip("+")
-                upload = upload_media(
-                    phone.app_instance,
+                upload = upload_media_for_phone(
+                    phone,
                     media_content,
                     media_type,
                     media_name,
-                    phone_num=phone_num,
                 )
                 if upload.get("error"):
                     raise Exception(upload.get("message") or "Media upload failed")
@@ -895,7 +1038,7 @@ def _build_fallback_body_parameters(template, text):
     max_retries=5
 )
 def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
-    event_processing(raw_body, signature, app_id, host)
+    return event_processing(raw_body, signature, app_id, host)
 
 
 @shared_task(
@@ -1139,7 +1282,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type == "button":
                 text = message["button"]["text"]
 
-            elif message_type in ["image", "video", "audio", "document"]:
+            elif message_type in ["image", "video", "audio", "document", "sticker"]:
                 media_data = value["messages"][0][message_type]
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
@@ -1160,8 +1303,65 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
                 file_url = get_file(media_url, filename, appinstance, phone.waba)
 
+            elif message_type == "location":
+                location = message.get("location", {})
+                latitude = location.get("latitude")
+                longitude = location.get("longitude")
+                name = location.get("name")
+                address = location.get("address")
+                location_url = location.get("url")
+                lines = []
+                if name:
+                    lines.append(f"Name: {name}")
+                if address:
+                    lines.append(f"Address: {address}")
+                if location_url:
+                    lines.append(f"URL: {location_url}")
+                if latitude is not None and longitude is not None:
+                    maps_url = f"https://www.google.com/maps/place//@{latitude},{longitude},1000m/"
+                    lines.append(f"Map: {maps_url}")
+                text = "\n".join(lines)
+
+            elif message_type == "system":
+                system_data = message.get("system", {})
+                text = system_data.get("body")
+                if not user_identy:
+                    system_wa_id = system_data.get("wa_id") or message.get("from")
+                    if system_wa_id and not str(system_wa_id).startswith("+"):
+                        system_wa_id = f"+{system_wa_id}"
+                    user_identy = system_wa_id
+
+            elif message_type == "order":
+                order = message.get("order", {})
+                catalog_id = order.get("catalog_id")
+                order_text = order.get("text")
+                product_items = order.get("product_items") or []
+                lines = []
+                if order_text:
+                    lines.append(order_text)
+                if catalog_id:
+                    lines.append(f"Catalog ID: {catalog_id}")
+                for item in product_items:
+                    product_id = item.get("product_retailer_id")
+                    quantity = item.get("quantity")
+                    price = item.get("item_price")
+                    currency = item.get("currency")
+                    item_line = f"Product ID: {product_id}"
+                    details = []
+                    if quantity is not None:
+                        details.append(f"qty={quantity}")
+                    if price is not None:
+                        if currency:
+                            details.append(f"price={price} {currency}")
+                        else:
+                            details.append(f"price={price}")
+                    if details:
+                        item_line = f"{item_line} ({', '.join(details)})"
+                    lines.append(item_line)
+                text = "\n".join(lines) if lines else None
+
             elif message_type == "contacts":
-                contacts = value["messages"][0]["contacts"]
+                contacts = message.get("contacts", [])
                 text = format_contacts(contacts)
 
             elif message_type == "interactive":
@@ -1176,7 +1376,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         dt = datetime.fromtimestamp(expiration)
                         expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
                     msg = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
-                    bitrix_tasks.message_add.delay(
+                    return bitrix_tasks.message_add(
                         appinstance.id, 
                         phone.line.line_id,
                         user_identy, 
@@ -1186,6 +1386,41 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 elif interactive_type == "nfm_reply":
                     text = _format_nfm_reply(interactive)
                     attach = _build_nfm_reply_attachment(appinstance, interactive, message_timestamp)
+                elif interactive_type == "button_reply":
+                    reply = interactive.get("button_reply", {})
+                    title = reply.get("title")
+                    reply_id = reply.get("id")
+                    lines = []
+                    if title:
+                        lines.append(title)
+                    if reply_id:
+                        lines.append(f"ID: {reply_id}")
+                    text = "\n".join(lines) if lines else None
+                elif interactive_type == "list_reply":
+                    reply = interactive.get("list_reply", {})
+                    title = reply.get("title")
+                    description = reply.get("description")
+                    reply_id = reply.get("id")
+                    lines = []
+                    if title:
+                        lines.append(title)
+                    if description:
+                        lines.append(description)
+                    if reply_id:
+                        lines.append(f"ID: {reply_id}")
+                    text = "\n".join(lines) if lines else None
+                else:
+                    raise Exception(f"Unsupported interactive_type: {interactive_type}")
+
+            elif message_type == "edit":
+                edit_data = message.get("edit", {})
+                edited_message = edit_data.get("message", {})
+                edited_type = edited_message.get("type")
+                if edited_type == "text":
+                    edited_text = (edited_message.get("text") or {}).get("body")
+                    text = f"Edited: {edited_text}" if edited_text else "Edited:"
+                else:
+                    raise Exception(f"Unsupported edit.message type: {edited_type}")
 
             elif message_type == "reaction":
                  reaction = message.get("reaction")
@@ -1193,6 +1428,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
             elif message_type == "unsupported":
                 text = f"[color=#ff0000]{error_message(message)}[/color]"
+
+            else:
+                raise Exception(f"Unsupported message type")
 
             if file_url and user_identy:
                 attach = [
@@ -1218,12 +1456,15 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     "status": "read",
                     "message_id": message_id,
                 }
-                call_api(
-                    waba=waba,
-                    endpoint=f"{phone.phone_id}/messages",
-                    method="post",
-                    payload=status_data,
-                )
+                try:
+                    call_api(
+                        waba=waba,
+                        endpoint=f"{phone.phone_id}/messages",
+                        method="post",
+                        payload=status_data,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send read status for message {message_id}: {e}")
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -1359,17 +1600,21 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 ctwa_id=ctwa_id,
                 source_id=source_id,
             )
-            status_data = {
-                "messaging_product": "whatsapp",
-                "status": "read",
-                "message_id": message_id,
-            }
-            call_api(
-                waba=waba,
-                endpoint=f"{phone.phone_id}/messages",
-                method="post",
-                payload=status_data,
-            )
+            if message_type not in ["unsupported", "system"]:
+                status_data = {
+                    "messaging_product": "whatsapp",
+                    "status": "read",
+                    "message_id": message_id,
+                }
+                try:
+                    call_api(
+                        waba=waba,
+                        endpoint=f"{phone.phone_id}/messages",
+                        method="post",
+                        payload=status_data,
+                    )
+                except Exception as e:
+                    pass
             if referral_body:
                 bitrix_tasks.message_add.delay(
                     appinstance.id,
@@ -1389,7 +1634,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             if message_type == "text":
                 text = message.get("text", {}).get("body")
 
-            elif message_type in ["image", "video", "audio", "document"]:
+            elif message_type in ["image", "video", "audio", "document", "sticker"]:
                 media_data = message.get(message_type)
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
@@ -1445,8 +1690,11 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type == "unsupported":
                 text = f"[color=#ff0000]{error_message(message)}[/color]"
 
+            else:
+                raise Exception(f"Unsupported smb_message_echoes message_type: {message_type}")
+
             if text or attach:
-                bitrix_tasks.message_add.delay(appinstance.id, phone.line.line_id, user_identy, text, phone.line.connector.code, attach)
+                return bitrix_tasks.message_add(appinstance.id, phone.line.line_id, user_identy, text, phone.line.connector.code, attach)
     else:
         raise Exception(f"this event is not handled")
 

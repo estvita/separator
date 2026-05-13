@@ -37,9 +37,9 @@
     </form>
     {% endif %}
     {% if connector_service == "waba" %}
-      <a href="/waba/" target="_blank" class="btn btn-secondary connect-btn">{% trans "Add number" %}</a>
+      <a href="{{ add_number_url }}" target="_blank" class="btn btn-secondary connect-btn" rel="noopener">{% trans "Add number" %}</a>
     {% elif connector_service == "waweb" %}
-      <a href="/waweb/" target="_blank" class="btn btn-secondary connect-btn">{% trans "Add number" %}</a>
+      <a href="{{ add_number_url }}" target="_blank" class="btn btn-secondary connect-btn" rel="noopener">{% trans "Add number" %}</a>
     {% elif connector_service == "olx" %}
       <a href="/olx/accounts/" target="_blank" class="btn btn-secondary connect-btn">{% trans "New OLX" %}</a>
     {% endif %}

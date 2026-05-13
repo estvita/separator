@@ -6,6 +6,7 @@ INSTALLED_APPS = [
     "wagtail.contrib.redirects",
     "wagtail.contrib.simple_translation",
     "django.contrib.sitemaps",
+    "django_recaptcha",
     "wagtail.embeds",
     "wagtail.sites",
     "wagtail.users",
@@ -30,6 +31,14 @@ MIDDLEWARE = MIDDLEWARE + [
     "separator.home.middleware.FlexibleRedirectMiddleware",
     "hijack.middleware.HijackUserMiddleware",
 ]
+
+ACCOUNT_FORMS = {
+    **ACCOUNT_FORMS,
+    "signup": "separator.users.forms.VendorSignupForm",
+}
+
+RECAPTCHA_PUBLIC_KEY = env("RECAPTCHA_PUBLIC_KEY", default="")
+RECAPTCHA_PRIVATE_KEY = env("RECAPTCHA_PRIVATE_KEY", default="")
 
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "wagtail.contrib.settings.context_processors.settings",

@@ -284,6 +284,24 @@
             {% trans "Send SMS through Bitrix open lines." %}
           </div>
         </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="availableInB24" name="availableInB24" {% if phone.availableInB24 %}checked{% endif %}>
+          <label class="form-check-label" for="availableInB24">
+            `availableInB24`
+          </label>
+          <div class="form-text">
+            {% trans "Show this number in the Bitrix widget." %}
+          </div>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="availabletoB24admins" name="availabletoB24admins" {% if phone.availabletoB24admins %}checked{% endif %}>
+          <label class="form-check-label" for="availabletoB24admins">
+            `availabletoB24admins`
+          </label>
+          <div class="form-text">
+            {% trans "Allow Bitrix portal admins to access this number." %}
+          </div>
+        </div>
         <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
       </form>
     </div>

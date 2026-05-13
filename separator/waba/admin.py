@@ -103,60 +103,9 @@ class TemplateAdmin(admin.ModelAdmin):
 class TemplateComponentInline(admin.TabularInline):
     model = TemplateComponent
     extra = 0
-    fields = ("id_link", "type", "format", "text", "index")
-    readonly_fields = ("id_link", "type", "format", "text", "index")
+    fields = ("type", "format", "text", "index")
+    readonly_fields = ("type", "format", "text", "index")
 
-    def id_link(self, instance):
-        if not instance.pk:
-            return "-"
-        url = reverse("admin:waba_templatecomponent_change", args=[instance.pk])
-        return format_html('<a href="{}">{}</a>', url, instance.pk)
-    id_link.short_description = "ID"
-
-
-class TemplateComponentButtonInline(admin.TabularInline):
-    model = TemplateComponentButton
-    extra = 0
-    fields = ("id_link", "component", "type", "text", "url", "phone_number", "example", "index")
-    readonly_fields = ("id_link", "component", "type", "text", "url", "phone_number", "example", "index")
-    autocomplete_fields = ("component",)
-
-    def id_link(self, instance):
-        if not instance.pk:
-            return "-"
-        url = reverse("admin:waba_templatecomponentbutton_change", args=[instance.pk])
-        return format_html('<a href="{}">{}</a>', url, instance.pk)
-    id_link.short_description = "ID"
-
-
-class TemplateComponentNamedParamInline(admin.TabularInline):
-    model = TemplateComponentNamedParam
-    extra = 0
-    fields = ("id_link", "component", "button", "name", "example")
-    readonly_fields = ("id_link", "component", "button", "name", "example")
-    autocomplete_fields = ("component", "button")
-
-    def id_link(self, instance):
-        if not instance.pk:
-            return "-"
-        url = reverse("admin:waba_templatecomponentnamedparam_change", args=[instance.pk])
-        return format_html('<a href="{}">{}</a>', url, instance.pk)
-    id_link.short_description = "ID"
-
-
-class TemplateComponentPositionalParamInline(admin.TabularInline):
-    model = TemplateComponentPositionalParam
-    extra = 0
-    fields = ("id_link", "component", "button", "position", "example")
-    readonly_fields = ("id_link", "component", "button", "position", "example")
-    autocomplete_fields = ("component", "button")
-
-    def id_link(self, instance):
-        if not instance.pk:
-            return "-"
-        url = reverse("admin:waba_templatecomponentpositionalparam_change", args=[instance.pk])
-        return format_html('<a href="{}">{}</a>', url, instance.pk)
-    id_link.short_description = "ID"
 
 
 TemplateAdmin.inlines = [

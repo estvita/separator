@@ -22,7 +22,8 @@
                 {% if LANGUAGE_CODE != DEFAULT_LANGUAGE_CODE %}
                   {% with lang_prefix='/'|add:LANGUAGE_CODE %}
                     {% for instance in portal.installations.all %}
-                      <a href="{{ lang_prefix }}{{ instance.app.page_url }}">{{ instance.app.name }}</a> ({{ instance.status }})
+                      <a href="{{ lang_prefix }}{{ instance.app.page_url }}">{{ instance.app.name }}</a>
+                      (<span class="badge {% if instance.status >= 200 and instance.status < 300 %}bg-success{% else %}bg-danger{% endif %}">{% if instance.status >= 200 and instance.status < 300 %}{{ instance.status }}{% else %}Error {{ instance.status }}{% endif %}</span>)
                       {% if not forloop.last %},{% endif %}
                     {% empty %}
                       {% trans "No App Instances" %}
@@ -30,7 +31,8 @@
                   {% endwith %}
                 {% else %}
                   {% for instance in portal.installations.all %}
-                    <a href="{{ instance.app.page_url }}">{{ instance.app.name }}</a> ({{ instance.status }})
+                    <a href="{{ instance.app.page_url }}">{{ instance.app.name }}</a>
+                    (<span class="badge {% if instance.status >= 200 and instance.status < 300 %}bg-success{% else %}bg-danger{% endif %}">{% if instance.status >= 200 and instance.status < 300 %}{{ instance.status }}{% else %}Error {{ instance.status }}{% endif %}</span>)
                     {% if not forloop.last %},{% endif %}
                   {% empty %}
                     {% trans "No App Instances" %}

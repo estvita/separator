@@ -61,6 +61,8 @@ class Phone(models.Model):
         null=True,
         related_name="phones",
     )
+    availableInB24 = models.BooleanField(default=True)
+    availabletoB24admins = models.BooleanField(default=True)
     date_end = models.DateTimeField(null=True, blank=True)
 
     # Calling settings
@@ -89,6 +91,7 @@ class Phone(models.Model):
     error = models.CharField(max_length=500, blank=True, null=True)
     sip_extensions = models.ForeignKey(Extension, on_delete=models.SET_NULL, null=True, blank=True)
     voximplant_id = models.PositiveIntegerField(blank=True, null=True)
+    voximplant_reg_id = models.PositiveIntegerField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
         if self.phone:

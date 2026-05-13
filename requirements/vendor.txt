@@ -3,4 +3,5 @@
 wagtail
 wagtailcodeblock
 django-hijack
+django-recaptcha
 flower

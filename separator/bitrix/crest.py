@@ -1,4 +1,5 @@
 import logging
+import re
 import requests
 from urllib.parse import urlparse
 from django.utils import timezone
@@ -13,6 +14,23 @@ logger = logging.getLogger("django")
 
 class BitrixAccessDeniedError(Exception):
     pass
+
+
+def _save_instance_status(appinstance, status):
+    if appinstance.status == status:
+        return
+    appinstance.status = status
+    try:
+        appinstance.save(update_fields=["status"])
+    except Exception:
+        pass
+
+
+def _connection_error_status(exc):
+    match = re.search(r"\[Errno\s+(-?\d+)\]", str(exc))
+    if match:
+        return int(match.group(1))
+    return -1
 
 
 def call_method(appinstance: AppInstance, 
@@ -46,12 +64,7 @@ def call_method(appinstance: AppInstance,
             try:
                 response = requests.post(f"{endpoint}/{b24_method}", json=payload,
                                         allow_redirects=False, verify=verify, timeout=timeout)
-                if appinstance.status != response.status_code:
-                    appinstance.status = response.status_code
-                    try:
-                        appinstance.save()
-                    except Exception:
-                        pass
+                _save_instance_status(appinstance, response.status_code)
             except requests.exceptions.Timeout:
                 # If timeout occurs, we should probably stop trying for this user/portal this time
                 # and let the caller handle the retry (e.g. Celery task)
@@ -70,6 +83,9 @@ def call_method(appinstance: AppInstance,
                     )
                 else:
                     raise
+            except requests.exceptions.ConnectionError as exc:
+                _save_instance_status(appinstance, _connection_error_status(exc))
+                raise
 
             if response.status_code == 302 and not attempted_refresh:
                 new_url = response.headers['Location']

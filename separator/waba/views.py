@@ -22,6 +22,7 @@ from separator.decorators import login_message_required, user_message
 
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
+from separator.bitrix.models import User as BitrixUser
 
 from .models import App, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
 import separator.waba.utils as waba_utils
@@ -51,72 +52,40 @@ def delete_voximplant(phone):
 
 @login_required
 def phone_details(request, phone_id):
-    phone = Phone.objects.select_related("owner", "line__portal", "waba").filter(phone_id=phone_id).first()
+    phone = Phone.objects.select_related(
+        "owner",
+        "line__portal",
+        "app_instance__portal",
+        "waba",
+    ).filter(phone_id=phone_id).first()
     if not phone:
         raise Http404
     if phone.owner_id != request.user.id:
-        portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
-        if (
-            phone.owner_id
-            and phone.line_id
-            and phone.line
-            and phone.line.portal_id
-            and portals.filter(id=phone.line.portal_id).exists()
-        ):
+        portal_id = phone.line.portal_id if phone.line_id and phone.line else None
+        if not portal_id and phone.app_instance_id and phone.app_instance:
+            portal_id = phone.app_instance.portal_id
+
+        has_admin_access = False
+        if phone.owner_id and portal_id and phone.availabletoB24admins:
+            has_admin_access = BitrixUser.objects.filter(
+                owner=request.user,
+                bitrix_id=portal_id,
+                admin=True,
+                active=True,
+            ).exists()
+
+        if not has_admin_access:
             messages.error(request, _("This number is linked to another user."))
             return redirect("waba")
-        raise Http404
     phone_status_json = ""
     phone_status_error = ""
     ctwa_query = request.GET.get("ctwa_q", "").strip()
     ctwa_status = request.GET.get("ctwa_status", "").strip()
-    templates = Template.objects.filter(waba=phone.waba).prefetch_related(
-        "components__named_params",
-        "components__positional_params",
-        "components__buttons",
-        "components__buttons__named_params",
-        "components__buttons__positional_params",
-    )
+    templates = list(waba_utils.prefetch_template_components(Template.objects.filter(waba=phone.waba)))
     for template in templates:
         template.bitrix_code = waba_utils.build_bitrix_template_code(template)
 
-    templates_data = []
-    for template in templates:
-        components_data = []
-        for component in template.components.order_by("index", "id"):
-            buttons_data = []
-            for button in component.buttons.order_by("index", "id"):
-                buttons_data.append({
-                    "id": button.id,
-                    "type": button.type,
-                    "index": button.index,
-                    "named_params": [
-                        {"name": p.name} for p in button.named_params.order_by("id")
-                    ],
-                    "positional_params": [
-                        {"position": p.position} for p in button.positional_params.order_by("position", "id")
-                    ],
-                })
-            components_data.append({
-                "id": component.id,
-                "type": component.type,
-                "format": component.format,
-                "index": component.index,
-                "text": component.text,
-                "named_params": [
-                    {"name": p.name} for p in component.named_params.order_by("id")
-                ],
-                "positional_params": [
-                    {"position": p.position} for p in component.positional_params.order_by("position", "id")
-                ],
-                "buttons": buttons_data,
-            })
-        templates_data.append({
-            "id": template.id,
-            "label": f"{template.name} ({template.lang})",
-            "lang": template.lang,
-            "components": components_data,
-        })
+    templates_data = waba_utils.serialize_templates_for_frontend(templates)
 
     latest_event_subquery = CtwaEvents.objects.filter(
         ctwa_id=OuterRef("pk")
@@ -250,7 +219,9 @@ def phone_details(request, phone_id):
                                 resp = bitrix_tasks.call_api(phone.app_instance.id, "voximplant.sip.add", payload)
                                 result = resp.get("result", {})
                                 voximplant_id = result.get("ID")
+                                voximplant_reg_id = result.get("REG_ID")
                                 phone.voximplant_id = int(voximplant_id)
+                                phone.voximplant_reg_id = int(voximplant_reg_id)
                                 phone.save()
                             except Exception as e:
                                 messages.error(request, e)
@@ -282,17 +253,32 @@ def phone_details(request, phone_id):
         elif action == "update_bitrix":
             sms_service = request.POST.get("sms_service") == "on"
             chat_from_sms = request.POST.get("ChatFromSms") == "on"
+            available_in_b24 = request.POST.get("availableInB24") == "on"
+            available_to_b24_admins = request.POST.get("availabletoB24admins") == "on"
             sms_service_changed = phone.sms_service != sms_service
             chat_from_sms_changed = phone.ChatFromSms != chat_from_sms
+            available_in_b24_changed = phone.availableInB24 != available_in_b24
+            available_to_b24_admins_changed = phone.availabletoB24admins != available_to_b24_admins
 
-            if sms_service_changed or chat_from_sms_changed:
+            if (
+                sms_service_changed
+                or chat_from_sms_changed
+                or available_in_b24_changed
+                or available_to_b24_admins_changed
+            ):
                 phone.sms_service = sms_service
                 phone.ChatFromSms = chat_from_sms
+                phone.availableInB24 = available_in_b24
+                phone.availabletoB24admins = available_to_b24_admins
                 update_fields = []
                 if sms_service_changed:
                     update_fields.append("sms_service")
                 if chat_from_sms_changed:
                     update_fields.append("ChatFromSms")
+                if available_in_b24_changed:
+                    update_fields.append("availableInB24")
+                if available_to_b24_admins_changed:
+                    update_fields.append("availabletoB24admins")
                 phone.save(update_fields=update_fields)
 
                 if sms_service_changed:
@@ -351,51 +337,9 @@ def broadcast_page(request):
     templates_data_by_phone = {}
     templates_by_phone = {}
     for phone in phones:
-        tqs = Template.objects.filter(waba=phone.waba).prefetch_related(
-            "components__named_params",
-            "components__positional_params",
-            "components__buttons__named_params",
-            "components__buttons__positional_params",
-        )
+        tqs = waba_utils.prefetch_template_components(Template.objects.filter(waba=phone.waba))
         templates_by_phone[phone.id] = tqs
-        tdata = []
-        for template in tqs:
-            components_data = []
-            for component in template.components.order_by("index", "id"):
-                buttons_data = []
-                for button in component.buttons.order_by("index", "id"):
-                    buttons_data.append({
-                        "id": button.id,
-                        "type": button.type,
-                        "index": button.index,
-                        "named_params": [
-                            {"name": p.name} for p in button.named_params.order_by("id")
-                        ],
-                        "positional_params": [
-                            {"position": p.position} for p in button.positional_params.order_by("position", "id")
-                        ],
-                    })
-                components_data.append({
-                    "id": component.id,
-                    "type": component.type,
-                    "format": component.format,
-                    "index": component.index,
-                    "text": component.text,
-                    "named_params": [
-                        {"name": p.name} for p in component.named_params.order_by("id")
-                    ],
-                    "positional_params": [
-                        {"position": p.position} for p in component.positional_params.order_by("position", "id")
-                    ],
-                    "buttons": buttons_data,
-                })
-            tdata.append({
-                "id": template.id,
-                "label": f"{template.name} ({template.lang})",
-                "lang": template.lang,
-                "components": components_data,
-            })
-        templates_data_by_phone[phone.id] = tdata
+        templates_data_by_phone[phone.id] = waba_utils.serialize_templates_for_frontend(tqs)
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -569,12 +513,13 @@ def broadcast_details(request, broadcast_id):
 
 @login_required
 def waba_account_details(request, waba_id):
-    waba = get_object_or_404(
-        Waba.objects.select_related("app").prefetch_related("phones").filter(
-            Q(owner=request.user) | Q(phones__owner=request.user)
-        ).distinct(),
-        waba_id=waba_id,
-    )
+    waba = Waba.objects.select_related("app").prefetch_related("phones").filter(waba_id=waba_id).first()
+    if not waba:
+        raise Http404
+    if waba.owner_id != request.user.id:
+        messages.error(request, _("This waba is linked to another user"))
+        return redirect("waba")
+
     phones = waba.phones.filter(owner=request.user).order_by("phone", "id")
     status_json = ""
     status_error = ""
@@ -607,34 +552,52 @@ def waba_view(request):
     portals, instances, lines = bitrix_utils.get_instances(request, connector_service)
     if not instances:
         user_message(request, "waba_install")
+
+    if request.method == "POST" and "filter_portal_id" in request.POST:
+        filter_portal_id = request.POST.get("filter_portal_id")
+        if filter_portal_id in {"all", "free"}:
+            request.session["waba_portal_filter"] = filter_portal_id
+        elif filter_portal_id:
+            try:
+                selected_portal = portals.filter(id=filter_portal_id).first()
+            except (TypeError, ValueError):
+                selected_portal = None
+            if selected_portal:
+                request.session["waba_portal_filter"] = str(selected_portal.id)
+        return redirect('waba')
+
+    selected_portal_id = request.session.get("waba_portal_filter")
     b24_data = request.session.get('b24_data')
     selected_portal = None
-    if b24_data:
+    show_free_numbers = selected_portal_id == "free"
+    if selected_portal_id and selected_portal_id not in {"all", "free"}:
+        try:
+            selected_portal = portals.filter(id=selected_portal_id).first()
+        except (TypeError, ValueError):
+            selected_portal = None
+        if not selected_portal:
+            selected_portal_id = "all"
+            request.session.pop("waba_portal_filter", None)
+    elif not selected_portal_id and b24_data:
         member_id = b24_data.get("member_id")
         if member_id:
             selected_portal = portals.filter(member_id=member_id).first()
+            selected_portal_id = str(selected_portal.id) if selected_portal else "all"
+    if not selected_portal_id:
+        selected_portal_id = "all"
+
     if selected_portal:
-        phones = Phone.objects.filter(
-            Q(line__portal=selected_portal) | Q(owner=request.user, line__isnull=True)
-        )
+        phones = Phone.objects.filter(line__portal=selected_portal)
         lines = lines.filter(portal=selected_portal)
         instances = instances.filter(portal=selected_portal)
+    elif show_free_numbers:
+        phones = Phone.objects.filter(owner=request.user, line__isnull=True)
     else:
         phones = Phone.objects.filter(
             Q(line__portal__in=portals) | Q(owner=request.user)
-        )
+        ).distinct()
 
     if request.method == "POST":
-        if "filter_portal_id" in request.POST:
-            filter_portal_id = request.POST.get("filter_portal_id")
-            if filter_portal_id:
-                if filter_portal_id == 'all':
-                    request.session.pop('b24_data', None)
-                else:
-                    selected_portal = portals.filter(id=filter_portal_id).first()
-                    if selected_portal:
-                        request.session['b24_data'] = {"member_id": selected_portal.member_id}
-            return redirect('waba')  
         days = request.POST.get('days')
         if days:
             request.session['waba_days'] = days
@@ -664,17 +627,16 @@ def waba_view(request):
         "phones": phones,
         "waba_lines": lines,
         "instances": instances,
-        "request_id": str(uuid.uuid4()),
         "days": days,
         "portals": portals,
-        "selected_portal_id": request.session.get('b24_data', {}).get('member_id') if request.session.get('b24_data') else "all",
+        "selected_portal_id": selected_portal_id,
     })
 
 
 @login_required
 def save_request(request):
     user_id = request.user.id
-    request_id = request.GET.get('request-id')
+    request_id = str(uuid.uuid4())
 
     if user_id and request_id:
         domain = request.get_host().split(':')[0]

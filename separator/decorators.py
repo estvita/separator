@@ -18,7 +18,8 @@ def user_message(request, code=None, message_type='info'):
 def login_message_required(code=None):
     def decorator(view_func):
         def _wrapped_view(request, *args, **kwargs):
-            user_message(request, code)
+            if request.method == "GET":
+                user_message(request, code)
             if not request.user.is_authenticated:
                 return redirect(f'{settings.LOGIN_URL}?next={request.get_full_path()}')
             return view_func(request, *args, **kwargs)

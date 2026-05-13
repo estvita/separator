@@ -105,7 +105,12 @@ def get_app(auth_id):
 
 
 def get_instances(request, service=None):
-    b24_users = B24_user.objects.filter(owner=request.user, admin=True).all()
+    b24_users = B24_user.objects.filter(
+        owner=request.user,
+        admin=True,
+        active=True,
+        bitrix__isnull=False,
+    )
     portal_ids = b24_users.values_list('bitrix_id', flat=True).distinct()
     portals = Bitrix.objects.filter(id__in=portal_ids).distinct()
     lines = Line.objects.filter(portal__in=portals).distinct()
@@ -331,6 +336,13 @@ def register_placements(appinstance: AppInstance):
             handler_url = urljoin(base_url, raw_handler.lstrip('/'))
 
         for placement_code in [p.strip() for p in raw_placements.splitlines() if p.strip()]:
+            try:
+                bitrix_tasks.call_api(appinstance.id, "placement.unbind", {
+                    "PLACEMENT": placement_code,
+                })
+            except Exception:
+                pass
+
             payload = {
                 "PLACEMENT": placement_code,
                 "HANDLER": handler_url,
@@ -1377,17 +1389,19 @@ def save_temp_file(file_content, filename, app_instance):
         with open(file_path, 'wb') as f:
             f.write(file_content)
 
-        # Accept host override via app_instance.host if present, else use app_instance.app.site.domain
-        domain = getattr(app_instance, 'host', None)
-        if not domain:
-            domain = app_instance.app.site.domain
-        # Ensure domain doesn't have protocol
-        domain = domain.replace("http://", "").replace("https://", "").strip("/")
-
         signer = TimestampSigner()
         signed_path = signer.sign(filename)
-
-        file_url = f"https://{domain}{settings.MEDIA_URL}temp/?{signed_path}"
+        base_url = getattr(settings, "BITRIX_TEMP_FILE_BASE_URL", "").strip().rstrip("/")
+        if base_url:
+            file_url = f"{base_url}{settings.MEDIA_URL}temp/?{signed_path}"
+        else:
+            # Accept host override via app_instance.host if present, else use app_instance.app.site.domain
+            domain = getattr(app_instance, 'host', None)
+            if not domain:
+                domain = app_instance.app.site.domain
+            # Ensure domain doesn't have protocol
+            domain = domain.replace("http://", "").replace("https://", "").strip("/")
+            file_url = f"https://{domain}{settings.MEDIA_URL}temp/?{signed_path}"
 
         # Schedule deletion after configured TTL
         ttl = getattr(settings, 'BITRIX_TEMP_FILE_TTL', 1800)
