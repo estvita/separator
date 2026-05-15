@@ -1418,7 +1418,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 edited_type = edited_message.get("type")
                 if edited_type == "text":
                     edited_text = (edited_message.get("text") or {}).get("body")
-                    text = f"Edited: {edited_text}" if edited_text else "Edited:"
+                    text = f"📝: {edited_text}" if edited_text else "Edited:"
                 else:
                     raise Exception(f"Unsupported edit.message type: {edited_type}")
 

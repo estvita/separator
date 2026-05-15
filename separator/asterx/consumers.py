@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from pathlib import Path
 from django.utils import timezone
 from django.conf import settings
@@ -33,11 +34,19 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        self.server_id = server_id
+        try:
+            server_uuid = uuid.UUID(server_id)
+        except (ValueError, TypeError, AttributeError):
+            receive_logger.warning("Invalid server_id received: %s", server_id)
+            await self.close()
+            return
+
+        self.server_id = str(server_uuid)
         self.server = await database_sync_to_async(
-            lambda: Server.objects.filter(id=server_id).first()
+            lambda: Server.objects.filter(id=server_uuid).first()
         )()
         if not self.server:
+            receive_logger.warning("Server not found for server_id=%s", self.server_id)
             await self.close()
             return
 

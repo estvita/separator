@@ -9,7 +9,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from .crest import BitrixAccessDeniedError, call_method, refresh_token
-from .models import AppInstance, Credential
+from .models import AppInstance, Connector, Credential
 
 from separator.waba.models import Phone
 from separator.waweb.models import Session
@@ -256,8 +256,11 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
         logger.error(f"AppInstance {app_instance_id} does not exist")
         raise
 
+    connector_service = Connector.objects.filter(code=connector).values_list("service", flat=True).first()
+    is_olx_connector = connector_service == "olx"
+
     # BSUIDs from WhatsApp usernames include dots (for example, US.xxx), phone numbers do not.
-    if user_phone and not str(user_phone).startswith("+") and "." not in str(user_phone):
+    if not is_olx_connector and user_phone and not str(user_phone).startswith("+") and "." not in str(user_phone):
         user_phone = f"+{user_phone}"
 
     member_id = app_instance.portal.member_id
@@ -312,6 +315,8 @@ def message_add(self, app_instance_id, line_id, user_phone, text, connector, att
                 else:
                     self.retry(exc=e)
     else:
+        if is_olx_connector:
+            return None
         return send_messages(app_instance_id, user_phone, text, connector, line_id, True, attachments=attach)
 
 

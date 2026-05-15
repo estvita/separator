@@ -33,7 +33,7 @@
         <tbody>
           {% for account in olx_accounts %}
             <tr>
-              <td>{{ account.olx_id }} ({{ account.status }})</td>
+              <td><a href="{% url 'olx-account-adverts' account.id %}">{{ account.olx_id }}</a> ({{ account.status }})</td>
               <td>{{ account.date_end }}</td>
               <td>
                 {% if account.line %}

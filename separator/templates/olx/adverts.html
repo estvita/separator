@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}OLX adverts{% endblock title %}
+
+{% block content %}
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3 class="mb-0">OLX {{ olx_user.olx_id }} adverts</h3>
+      <div class="d-flex gap-2">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="sync_adverts">
+          <button type="submit" class="btn btn-outline-primary btn-sm">{% trans "Sync adverts" %}</button>
+        </form>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'olx-accounts' %}">{% trans "Back" %}</a>
+      </div>
+    </div>
+
+    <table class="table table-bordered table-sm align-middle">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>{% trans "Title" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Category" %}</th>
+          <th>{% trans "Geo" %}</th>
+          <th>{% trans "Pushup" %}</th>
+          <th>{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for advert in adverts %}
+          <tr>
+            <td>
+              {% if advert.url %}
+                <a href="{{ advert.url }}" target="_blank">{{ advert.advert_id }}</a>
+              {% else %}
+                {{ advert.advert_id }}
+              {% endif %}
+            </td>
+            <td>{{ advert.title }}</td>
+            <td>{{ advert.status }}</td>
+            <td>{{ advert.category.name|default:"-" }}</td>
+            <td>
+              {% if advert.city.region %}{{ advert.city.region.name }} / {% endif %}
+              {{ advert.city.name|default:"-" }}
+              {% if advert.district %} / {{ advert.district.name }}{% endif %}
+            </td>
+            <td style="min-width: 220px;">
+              <form method="post" class="d-grid gap-1">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_pushup">
+                <input type="hidden" name="advert_id" value="{{ advert.id }}">
+                <div class="d-flex align-items-center gap-1">
+                  <span class="small text-muted">{% trans "every" %}</span>
+                  <input type="number" min="0" name="pushup_interval_days" class="form-control form-control-sm text-center" style="width: 70px;" value="{{ advert.pushup_interval_days }}">
+                  <span class="small text-muted">{% trans "day" %}</span>
+                </div>
+                <input type="time" name="pushup_time" class="form-control form-control-sm" value="{{ advert.pushup_time|time:'H:i' }}">
+                <button type="submit" class="btn btn-primary btn-sm">{% trans "Save" %}</button>
+                <small class="text-muted">
+                  {% if advert.pushup_enabled %}
+                    next: {{ advert.next_pushup_at|default:"now" }}
+                  {% else %}
+                    disabled
+                  {% endif %}
+                </small>
+              </form>
+            </td>
+            <td>
+              <div class="d-grid gap-1">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="pushup_now">
+                  <input type="hidden" name="advert_id" value="{{ advert.id }}">
+                  <button type="submit" class="btn btn-outline-primary btn-sm w-100">{% trans "Push up" %}</button>
+                </form>
+                {% if advert.status != "active" %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="publish_advert">
+                    <input type="hidden" name="advert_id" value="{{ advert.id }}">
+                    <button type="submit" class="btn btn-success btn-sm w-100">{% trans "Publish" %}</button>
+                  </form>
+                {% endif %}
+                <a class="btn btn-outline-info btn-sm w-100" href="{% url 'olx-account-adverts' olx_user.id %}?copy={{ advert.id }}">{% trans "Copy" %}</a>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_advert">
+                  <input type="hidden" name="advert_id" value="{{ advert.id }}">
+                  <button type="submit" class="btn btn-outline-danger btn-sm w-100">{% trans "Delete" %}</button>
+                </form>
+                <a class="btn btn-outline-secondary btn-sm w-100" href="{% url 'olx-account-adverts' olx_user.id %}?edit={{ advert.id }}">{% trans "Edit" %}</a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7">{% trans "No adverts yet." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h4 class="mt-4">
+      {% if edit_advert %}
+        {% trans "Edit advert" %} {{ edit_advert.advert_id }}
+      {% elif copy_advert %}
+        {% trans "Copy advert" %} {{ copy_advert.advert_id }}
+      {% else %}
+        {% trans "Add advert" %}
+      {% endif %}
+    </h4>
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+      {% if edit_advert %}
+        <input type="hidden" name="action" value="update_advert">
+        <input type="hidden" name="advert_id" value="{{ edit_advert.id }}">
+      {% else %}
+        <input type="hidden" name="action" value="create_advert">
+      {% endif %}
+      {% if form.errors %}
+        <div class="col-12">
+          <div class="alert alert-danger">{{ form.errors }}</div>
+        </div>
+      {% endif %}
+
+      <div class="col-md-6">
+        <label class="form-label" for="{{ form.title.id_for_label }}">{% trans "Title" %}</label>
+        {{ form.title }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.category.id_for_label }}">{% trans "Category" %}</label>
+        <input type="search" class="form-control form-control-sm mb-1 js-select-search" data-target="id_category" placeholder="{% trans 'Search category' %}">
+        {{ form.category }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.advertiser_type.id_for_label }}">{% trans "Advertiser type" %}</label>
+        {{ form.advertiser_type }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="{{ form.contact_name.id_for_label }}">{% trans "Contact name" %}</label>
+        {{ form.contact_name }}
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="{{ form.contact_phone.id_for_label }}">{% trans "Contact phone" %}</label>
+        {{ form.contact_phone }}
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label" for="{{ form.region.id_for_label }}">{% trans "Region" %}</label>
+        <input type="search" class="form-control form-control-sm mb-1 js-select-search" data-target="id_region" placeholder="{% trans 'Search region' %}">
+        <select name="region" id="id_region" class="form-control">
+          <option value="">---------</option>
+          {% for region in regions %}
+            <option value="{{ region.id }}" {% if region.id|stringformat:"s" == selected_region_id %}selected{% endif %}>{{ region.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="{{ form.city.id_for_label }}">{% trans "City" %}</label>
+        <input type="search" class="form-control form-control-sm mb-1 js-select-search" data-target="id_city" placeholder="{% trans 'Search city' %}">
+        <select name="city" id="id_city" class="form-control">
+          <option value="">---------</option>
+          {% for city in cities %}
+            <option value="{{ city.id }}" data-region="{{ city.region_id|default:'' }}" {% if city.id|stringformat:"s" == selected_city_id %}selected{% endif %}>{{ city.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="{{ form.district.id_for_label }}">{% trans "District" %}</label>
+        <input type="search" class="form-control form-control-sm mb-1 js-select-search" data-target="id_district" placeholder="{% trans 'Search district' %}">
+        <select name="district" id="id_district" class="form-control">
+          <option value="">---------</option>
+          {% for district in districts %}
+            <option value="{{ district.id }}" data-city="{{ district.city_id }}" {% if district.id|stringformat:"s" == selected_district_id %}selected{% endif %}>{{ district.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="{{ form.description.id_for_label }}">{% trans "Description" %}</label>
+        {{ form.description }}
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="{{ form.images.id_for_label }}">{% trans "Images" %}</label>
+        {{ form.images }}
+        <small class="text-muted">{{ form.images.help_text }}</small>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.pushup_interval_days.id_for_label }}">{% trans "Pushup interval days" %}</label>
+        {{ form.pushup_interval_days }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.pushup_time.id_for_label }}">{% trans "Pushup time" %}</label>
+        {{ form.pushup_time }}
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          {% if edit_advert %}{% trans "Update advert" %}{% else %}{% trans "Publish advert" %}{% endif %}
+        </button>
+        {% if edit_advert %}
+          <a class="btn btn-outline-secondary" href="{% url 'olx-account-adverts' olx_user.id %}">{% trans "Cancel edit" %}</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+{% endblock content %}
+
+{% block inline_javascript %}
+  <script>
+    (() => {
+      const selects = {
+        category: document.getElementById("id_category"),
+        region: document.getElementById("id_region"),
+        city: document.getElementById("id_city"),
+        district: document.getElementById("id_district"),
+      };
+
+      const searchState = {};
+      const originalOptions = new Map();
+
+      Object.values(selects).forEach(select => {
+        if (!select) return;
+        originalOptions.set(select.id, Array.from(select.options).map(option => ({
+          value: option.value,
+          text: option.textContent,
+          region: option.dataset.region || "",
+          city: option.dataset.city || "",
+          selected: option.selected,
+        })));
+      });
+
+      const optionMatches = (optionData, search) => {
+        return !search || optionData.text.toLowerCase().includes(search);
+      };
+
+      const rebuildSelect = (select, search, relationFilter) => {
+        if (!select) return;
+        const previousValue = select.value;
+        const sourceOptions = originalOptions.get(select.id) || [];
+        select.innerHTML = "";
+        sourceOptions.forEach(optionData => {
+          if (optionData.value && (!optionMatches(optionData, search) || (relationFilter && !relationFilter(optionData)))) {
+            return;
+          }
+          const option = document.createElement("option");
+          option.value = optionData.value;
+          option.textContent = optionData.text;
+          if (optionData.region) option.dataset.region = optionData.region;
+          if (optionData.city) option.dataset.city = optionData.city;
+          select.appendChild(option);
+        });
+        if (Array.from(select.options).some(option => option.value === previousValue)) {
+          select.value = previousValue;
+        }
+      };
+
+      const applyFilters = () => {
+        rebuildSelect(selects.category, searchState.id_category || "");
+        rebuildSelect(selects.region, searchState.id_region || "");
+        const cityOptions = originalOptions.get("id_city") || [];
+        const districtOptions = originalOptions.get("id_district") || [];
+        const hasCitiesForRegion = cityOptions.some(optionData => {
+          return optionData.value && optionData.region === selects.region?.value;
+        });
+        const hasDistrictsForCity = districtOptions.some(optionData => {
+          return optionData.value && optionData.city === selects.city?.value;
+        });
+        rebuildSelect(selects.city, searchState.id_city || "", optionData => {
+          return Boolean(selects.region?.value) && (!hasCitiesForRegion || optionData.region === selects.region.value);
+        });
+        rebuildSelect(selects.district, searchState.id_district || "", optionData => {
+          return Boolean(selects.city?.value) && (!hasDistrictsForCity || optionData.city === selects.city.value);
+        });
+        if (selects.city) selects.city.disabled = !selects.region?.value;
+        if (selects.district) selects.district.disabled = !selects.city?.value;
+      };
+
+      document.querySelectorAll(".js-select-search").forEach(input => {
+        input.addEventListener("input", () => {
+          searchState[input.dataset.target] = input.value.trim().toLowerCase();
+          applyFilters();
+        });
+      });
+
+      selects.region?.addEventListener("change", () => {
+        if (selects.city) selects.city.value = "";
+        if (selects.district) selects.district.value = "";
+        applyFilters();
+      });
+      selects.city?.addEventListener("change", () => {
+        if (selects.district) selects.district.value = "";
+        applyFilters();
+      });
+
+      applyFilters();
+    })();
+  </script>
+{% endblock inline_javascript %}

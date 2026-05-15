@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-12 20:39+0500\n"
+"POT-Creation-Date: 2026-05-13 15:20+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -760,6 +760,96 @@ msgstr "линия"
 
 msgid "Connect OLX account"
 msgstr "Подключить OLX аккаунт"
+
+msgid "Sync adverts"
+msgstr "Синхронизировать"
+
+msgid "Category"
+msgstr "Категория"
+
+msgid "Geo"
+msgstr "Гео"
+
+msgid "Pushup"
+msgstr "Поднятие"
+
+msgid "Actions"
+msgstr "Действия"
+
+msgid "every"
+msgstr "каждый"
+
+msgid "day"
+msgstr "день"
+
+msgid "Push up"
+msgstr "Поднять"
+
+msgid "Publish"
+msgstr "Опубликовать"
+
+msgid "Copy"
+msgstr "Копировать"
+
+msgid "No adverts yet."
+msgstr "Объявлений пока нет."
+
+msgid "Edit advert"
+msgstr "Редактировать"
+
+msgid "Copy advert"
+msgstr "Копировать"
+
+msgid "Add advert"
+msgstr "Добавить"
+
+msgid "Search category"
+msgstr "Поиск категории"
+
+msgid "Advertiser type"
+msgstr "Тип продавца"
+
+msgid "Contact name"
+msgstr "Имя"
+
+msgid "Contact phone"
+msgstr "Телефон"
+
+msgid "Region"
+msgstr "Область"
+
+msgid "Search region"
+msgstr "Поиск области"
+
+msgid "City"
+msgstr "Город"
+
+msgid "Search city"
+msgstr "Поиск города"
+
+msgid "District"
+msgstr "Район"
+
+msgid "Search district"
+msgstr "Поиск района"
+
+msgid "Images"
+msgstr "Изображения"
+
+msgid "Pushup interval days"
+msgstr "Период поднятия в днях"
+
+msgid "Pushup time"
+msgstr "Время поднятия"
+
+msgid "Update advert"
+msgstr "Обновить"
+
+msgid "Publish advert"
+msgstr "Опубликовать"
+
+msgid "Cancel edit"
+msgstr "Отменить"
 
 msgid "If you were not redirected,"
 msgstr "Если вы не были перенаправлены,"
