@@ -153,6 +153,46 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         raise
 
 
+def get_hosted_business_token(app: App, owner_business_id: str):
+    if not app or not app.access_token or not app.client_secret:
+        raise Exception("Hosted app must have system access_token and client_secret")
+    if not owner_business_id:
+        raise Exception("owner_business_id is required")
+
+    appsecret_proof = hmac.new(
+        app.client_secret.encode("utf-8"),
+        app.access_token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    base_url = f"{API_URL}/v{app.api_version}.0"
+    resp = requests.post(
+        f"{base_url}/{owner_business_id}/system_user_access_tokens",
+        data={
+            "appsecret_proof": appsecret_proof,
+            "fetch_only": "true",
+        },
+        headers={
+            "Authorization": f"Bearer {app.access_token}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+
+    try:
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        try:
+            error_details = resp.json()
+        except Exception:
+            error_details = resp.text
+        raise Exception(f"Hosted token API Error {resp.status_code}: {error_details}") from e
+
+    data = resp.json() if resp.content else {}
+    access_token = data.get("access_token")
+    if not access_token:
+        raise Exception(f"Hosted token response has no access_token: {data}")
+    return access_token
+
+
 def upload_media_for_phone(phone, file_content, mime_type, filename):
     waba = phone.waba if phone else None
     if not phone or not waba:
@@ -1113,6 +1153,27 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     send_result = None
 
     if field == 'account_update':
+        if event == "PARTNER_ADDED":
+            waba_info = value.get("waba_info") or {}
+            hosted_app_id = app_id
+            hosted_waba_id = waba_info.get("waba_id")
+            owner_business_id = waba_info.get("owner_business_id")
+
+            app = App.objects.filter(client_id=hosted_app_id, hosted=True).first()
+            if not app:
+                raise Exception(f"Hosted app not found or disabled: {hosted_app_id}")
+            if not hosted_waba_id or not owner_business_id:
+                raise Exception(f"Hosted payload is missing waba_id or owner_business_id: {data}")
+
+            from separator.waba.tasks import hosted_partner_added
+            hosted_partner_added.delay(app.id, hosted_waba_id, owner_business_id)
+            return {
+                "status": "scheduled",
+                "event": event,
+                "app_id": hosted_app_id,
+                "waba_id": hosted_waba_id,
+            }
+
         if event == "PARTNER_APP_UNINSTALLED":
             try:
                 if waba:
@@ -1150,6 +1211,21 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         raise Exception(f"phone_number not found {phone_number}")
                 except Exception:
                     raise Exception(data)
+        elif event == "PHONE_NUMBER_ADDED":
+            if not waba:
+                raise
+            phone_number = value.get("phone_number")
+            if not phone_number:
+                raise
+
+            from separator.waba.tasks import add_phone_number_to_waba
+            add_phone_number_to_waba.delay(waba.waba_id, phone_number)
+            return {
+                "status": "scheduled",
+                "event": event,
+                "waba_id": waba.waba_id,
+                "phone_number": phone_number,
+            }
         else:
             raise Exception(data)
 

@@ -76,11 +76,18 @@ class PhoneInline(admin.TabularInline):
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner']
-    list_display = ("waba_id", "owner", "app", "subscribed")
+    list_display = ("waba_id", "web_link", "owner", "app", "subscribed")
     list_filter = ("subscribed", "app")
     search_fields = ["waba_id", "owner__email"]
     readonly_fields = ("ctwa_records_link",)
     inlines = [PhoneInline, TemplateInline]
+
+    def web_link(self, instance):
+        if not instance.waba_id:
+            return "-"
+        url = reverse("waba-account-details", args=[instance.waba_id])
+        return format_html('<a href="{}" target="_blank" rel="noopener">Open</a>', url)
+    web_link.short_description = "Web"
 
     def ctwa_records_link(self, instance):
         if not instance.pk:
@@ -115,10 +122,17 @@ TemplateAdmin.inlines = [
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', 'waba', 'line', 'app_instance', 'sip_extensions']
-    list_display = ("phone_id", "phone", "owner", "waba_link", "date_end", "type")
+    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type")
     search_fields = ("phone", "phone_id", "owner__email")
     list_filter = ("calling", "type")
     readonly_fields = ("error", )
+
+    def web_link(self, instance):
+        if not instance.phone_id:
+            return "-"
+        url = reverse("phone-details", args=[instance.phone_id])
+        return format_html('<a href="{}" target="_blank" rel="noopener">Open</a>', url)
+    web_link.short_description = "Web"
 
     def waba_link(self, instance):
         if not instance.waba_id:

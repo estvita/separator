@@ -2,6 +2,7 @@ import uuid
 import json
 import redis
 import logging
+import ast
 from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 
@@ -45,6 +46,69 @@ PHONE_STATUS_FIELDS = (
 )
 
 
+def build_phone_status_summary(status_data, phone=None):
+    summary = {
+        "items": [],
+        "can_register": False,
+        "needs_verification": False,
+        "ok": False,
+    }
+    status = status_data.get("status")
+    code_status = status_data.get("code_verification_status")
+
+    if status and status != "CONNECTED":
+        summary["items"].append({
+            "level": "warning",
+            "title": _("Phone is not registered"),
+            "text": _("Current status: %(status)s") % {"status": status},
+        })
+        summary["can_register"] = True
+
+    if status != "CONNECTED" and code_status and code_status != "VERIFIED" and getattr(phone, "type", None) != "app":
+        summary["needs_verification"] = True
+        summary["items"].append({
+            "level": "warning",
+            "title": _("Phone number is not verified"),
+            "text": _("Verification status: %(status)s") % {"status": code_status},
+        })
+
+    if not summary["items"]:
+        summary["ok"] = True
+    return summary
+
+
+def phone_verification_session_key(phone):
+    return f"waba_phone_verification_requested:{phone.id}"
+
+
+def phone_verification_language(request):
+    language = (getattr(request, "LANGUAGE_CODE", None) or settings.LANGUAGE_CODE or "en_US").replace("-", "_")
+    if "_" not in language:
+        language = {
+            "en": "en_US",
+            "ru": "ru_RU",
+            "kk": "kk_KZ",
+        }.get(language, "en_US")
+    return language
+
+
+def format_meta_user_error(error):
+    text = str(error)
+    marker = ": "
+    if marker in text:
+        try:
+            data = ast.literal_eval(text.split(marker, 1)[1])
+            meta_error = data.get("error", {})
+            title = meta_error.get("error_user_title")
+            message = meta_error.get("error_user_msg")
+            if title and message:
+                return f"{title}. {message}"
+            return title or message or text
+        except Exception:
+            pass
+    return text
+
+
 def delete_voximplant(phone):
     if phone.voximplant_id and phone.app_instance:
         bitrix_tasks.call_api.delay(phone.app_instance.id, "voximplant.sip.delete", {"CONFIG_ID": phone.voximplant_id})
@@ -60,7 +124,7 @@ def phone_details(request, phone_id):
     ).filter(phone_id=phone_id).first()
     if not phone:
         raise Http404
-    if phone.owner_id != request.user.id:
+    if not request.user.is_superuser and phone.owner_id != request.user.id:
         portal_id = phone.line.portal_id if phone.line_id and phone.line else None
         if not portal_id and phone.app_instance_id and phone.app_instance:
             portal_id = phone.app_instance.portal_id
@@ -79,6 +143,9 @@ def phone_details(request, phone_id):
             return redirect("waba")
     phone_status_json = ""
     phone_status_error = ""
+    phone_status_summary = None
+    verification_session_key = phone_verification_session_key(phone)
+    verification_code_requested = request.session.pop(verification_session_key, False)
     ctwa_query = request.GET.get("ctwa_q", "").strip()
     ctwa_status = request.GET.get("ctwa_status", "").strip()
     templates = list(waba_utils.prefetch_template_components(Template.objects.filter(waba=phone.waba)))
@@ -309,10 +376,70 @@ def phone_details(request, phone_id):
                         payload={"fields": PHONE_STATUS_FIELDS},
                     )
                     phone_status_json = json.dumps(status_data, ensure_ascii=False, indent=2)
+                    phone_status_summary = build_phone_status_summary(status_data, phone=phone)
+                    if not phone_status_summary["needs_verification"]:
+                        request.session.pop(verification_session_key, None)
+                        verification_code_requested = False
                 except Exception as e:
                     phone_status_error = str(e)
+        elif action == "request_verification_code":
+            if not phone.waba or not phone.waba.app:
+                messages.error(request, _("App is not connected to this phone WABA account."))
+            else:
+                code_method = request.POST.get("code_method")
+                if code_method not in {"SMS", "VOICE"}:
+                    messages.error(request, _("Invalid verification method."))
+                    return redirect_to_phone_tab("status")
+                try:
+                    waba_utils.call_api(
+                        waba=phone.waba,
+                        endpoint=f"{phone.phone_id}/request_code",
+                        method="post",
+                        payload={
+                            "code_method": code_method,
+                            "language": phone_verification_language(request),
+                        },
+                    )
+                    request.session[verification_session_key] = True
+                    messages.success(request, _("Verification code has been requested."))
+                except Exception as e:
+                    messages.error(request, format_meta_user_error(e))
+            return redirect_to_phone_tab("status")
+        elif action == "verify_phone_code":
+            if not phone.waba or not phone.waba.app:
+                messages.error(request, _("App is not connected to this phone WABA account."))
+            else:
+                code = (request.POST.get("verification_code") or "").strip()
+                if not code:
+                    messages.error(request, _("Enter verification code."))
+                    request.session[verification_session_key] = True
+                    return redirect_to_phone_tab("status")
+                try:
+                    waba_utils.call_api(
+                        waba=phone.waba,
+                        endpoint=f"{phone.phone_id}/verify_code",
+                        method="post",
+                        payload={"code": code},
+                    )
+                    request.session.pop(verification_session_key, None)
+                    waba_tasks.register_phone.delay(phone.id)
+                    messages.success(request, _("Phone number has been verified. Registration has been queued."))
+                except Exception as e:
+                    request.session[verification_session_key] = True
+                    messages.error(request, format_meta_user_error(e))
+            return redirect_to_phone_tab("status")
+        elif action == "register_phone":
+            if not phone.waba or not phone.waba.app:
+                messages.error(request, _("App is not connected to this phone WABA account."))
+            else:
+                try:
+                    waba_tasks.register_phone.delay(phone.id)
+                    messages.success(request, _("Phone registration has been queued."))
+                except Exception as e:
+                    messages.error(request, format_meta_user_error(e))
+            return redirect_to_phone_tab("status")
     
-    if phone.date_end and timezone.now() > phone.date_end:
+    if not request.user.is_superuser and phone.date_end and timezone.now() > phone.date_end:
         messages.error(request, _('The tariff has expired ') + str(phone.date_end))
         return redirect("waba")
     return render(request, 'waba/phone.html', {
@@ -320,6 +447,8 @@ def phone_details(request, phone_id):
         'templates': templates,
         'phone_status_json': phone_status_json,
         'phone_status_error': phone_status_error,
+        'phone_status_summary': phone_status_summary,
+        'verification_code_requested': verification_code_requested,
         'ctwa_page_obj': ctwa_page_obj,
         'ctwa_q': ctwa_query,
         'ctwa_status': ctwa_status,
@@ -516,11 +645,14 @@ def waba_account_details(request, waba_id):
     waba = Waba.objects.select_related("app").prefetch_related("phones").filter(waba_id=waba_id).first()
     if not waba:
         raise Http404
-    if waba.owner_id != request.user.id:
+    if not request.user.is_superuser and waba.owner_id != request.user.id:
         messages.error(request, _("This waba is linked to another user"))
         return redirect("waba")
 
-    phones = waba.phones.filter(owner=request.user).order_by("phone", "id")
+    if request.user.is_superuser:
+        phones = waba.phones.all().order_by("phone", "id")
+    else:
+        phones = waba.phones.filter(owner=request.user).order_by("phone", "id")
     status_json = ""
     status_error = ""
 

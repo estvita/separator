@@ -14,6 +14,95 @@ from django.utils import timezone
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
+
+def _normalize_phone_number(phone_number):
+    return '+' + ''.join(filter(str.isdigit, phone_number or ''))
+
+
+def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=None, save_templates=True, create_lead=True):
+    # Common post-token onboarding for Embedded Signup and Hosted Embedded Signup.
+    if save_templates:
+        utils.save_approved_templates.delay(waba.id)
+
+    try:
+        resp = utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/phone_numbers")
+        phone_numbers = resp.get('data', {})
+    except Exception:
+        raise
+
+    target_phone_number = _normalize_phone_number(target_phone_number) if target_phone_number else None
+    matched_target = False
+
+    for phone_data in phone_numbers:
+        phone_type = "cloud"
+        phone_id = phone_data.get('id')
+        pin = f"{random.randint(0, 999999):06d}"
+        phone_number = phone_data.get('display_phone_number')
+        normalized_phone_number = _normalize_phone_number(phone_number)
+        if target_phone_number and normalized_phone_number != target_phone_number:
+            continue
+        matched_target = True
+
+        try:
+            biz_data = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
+            is_on_biz_app = biz_data.get("is_on_biz_app")
+        except Exception:
+            raise
+
+        if is_on_biz_app and biz_data.get("platform_type") == "CLOUD_API":
+            phone_type = "app"
+        elif register:
+            payload = {
+                'messaging_product': 'whatsapp',
+                'pin': pin
+            }
+            try:
+                utils.call_api(waba=waba, endpoint=f"{phone_id}/register", method="post", payload=payload)
+            except Exception:
+                raise
+
+        phone = Phone.objects.filter(phone=normalized_phone_number).first()
+        if phone:
+            update_fields = []
+            if phone.phone_id != phone_id:
+                phone.phone_id = phone_id
+                update_fields.append("phone_id")
+            if phone.waba_id != waba.id:
+                phone.waba = waba
+                update_fields.append("waba")
+            if user and not phone.owner_id:
+                phone.owner = user
+                update_fields.append("owner")
+            if update_fields:
+                phone.save(update_fields=update_fields)
+        else:
+            phone, created = Phone.objects.get_or_create(
+                phone_id=phone_id,
+                defaults={
+                    "waba": waba,
+                    "owner": user,
+                    "phone": normalized_phone_number,
+                    "pin": pin,
+                    "sms_service": True,
+                    "ChatFromSms": False,
+                    "type": phone_type,
+                }
+            )
+
+        if user and create_lead:
+            # create lead in b24
+            from separator.bitrix.tasks import prepare_lead
+            prepare_lead.delay(user.id, f'New WhatsApp Cloud: {phone_number}')
+
+        if user and "separator.tariff" in settings.INSTALLED_APPS and not phone.date_end:
+            from separator.tariff.utils import get_trial
+            phone.date_end = get_trial(user, "waba")
+            phone.save()
+
+    if target_phone_number and not matched_target:
+        raise Exception(f"Phone number {target_phone_number} not found in WABA {waba.waba_id}")
+
+
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
 @shared_task(queue='waba')
 def add_waba_phone(request_id, app_id):
@@ -33,7 +122,7 @@ def add_waba_phone(request_id, app_id):
     try:
         response = utils.call_api(app=app, endpoint="oauth/access_token", method="post", payload=payload)
         access_token = response.get('access_token')
-    except Exception as e:
+    except Exception:
         raise
     wabas = None
     try:
@@ -53,75 +142,82 @@ def add_waba_phone(request_id, app_id):
                 defaults={
                     'access_token': access_token,
                     'owner': user,
+                    'subscribed': app.subscribe,
                 }
             )
             if not created and waba.access_token != access_token:
                 waba.access_token = access_token
                 waba.save(update_fields=["access_token"])
-            # get templates
-            utils.save_approved_templates.delay(waba.id)
+            _onboard_waba_assets(waba, user=user, register=app.register)
 
-            # get phones
-            try:
-                resp = utils.call_api(waba=waba, endpoint=f"{waba_id}/phone_numbers")
-                phone_numbers = resp.get('data', {})
-            except Exception:
-                raise
-            
-            for phone in phone_numbers:
-                phone_type = "cloud"
-                phone_id = phone.get('id')
-                pin = f"{random.randint(0, 999999):06d}"
-                phone_number = phone.get('display_phone_number')
-                normalized_phone_number = '+' + ''.join(filter(str.isdigit, phone_number or ''))
-                # https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users
-                try:
-                    biz_data = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
-                    is_on_biz_app = biz_data.get("is_on_biz_app")
-                except Exception:
-                    raise
-                if is_on_biz_app and biz_data.get("platform_type") == "CLOUD_API":
-                    phone_type = "app"
-                    pass
-                else:
-                    payload = {
-                        'messaging_product': 'whatsapp',
-                        'pin': pin
-                    }
-                    try:
-                        resp = utils.call_api(waba=waba, endpoint=f"{phone_id}/register", method="post", payload=payload)
-                    except Exception:
-                        raise
 
-                phone = Phone.objects.filter(phone=normalized_phone_number).first()
-                if phone and (phone.phone_id != phone_id or phone.waba_id != waba.id):
-                    phone.phone_id = phone_id
-                    phone.waba = waba
-                    phone.save(update_fields=["phone_id", "waba"])
-                    created = False
-                else:
-                    phone, created = Phone.objects.get_or_create(
-                        phone_id=phone_id,
-                        defaults={
-                            "waba": waba,
-                            "owner": user,
-                            "phone": normalized_phone_number,
-                            "pin": pin,
-                            "sms_service": True,
-                            "ChatFromSms": False,
-                            "type": phone_type,
-                        }
-                    )
+@shared_task(queue='waba')
+def hosted_partner_added(app_id, waba_id, owner_business_id):
+    app = App.objects.filter(id=app_id, hosted=True).first()
+    if not app:
+        raise Exception(f"Hosted app not found: {app_id}")
+    if not waba_id or not owner_business_id:
+        raise Exception(f"Hosted payload is missing waba_id or owner_business_id: {waba_id}, {owner_business_id}")
 
-                # create lead in b24
-                from separator.bitrix.tasks import prepare_lead
-                prepare_lead.delay(user.id, f'New WhatsApp Cloud: {phone_number}')
+    access_token = utils.get_hosted_business_token(app, owner_business_id)
+    waba, created = Waba.objects.get_or_create(
+        waba_id=waba_id,
+        defaults={
+            "app": app,
+            "access_token": access_token,
+            "owner": None,
+            "subscribed": app.subscribe,
+        }
+    )
 
-                if "separator.tariff" in settings.INSTALLED_APPS and not phone.date_end:
-                    from separator.tariff.utils import get_trial
-                    phone.date_end = get_trial(user, "waba")
-                    phone.save()
-                        
+    update_fields = []
+    if not created:
+        if waba.app_id != app.id:
+            waba.app = app
+            update_fields.append("app")
+        if waba.access_token != access_token:
+            waba.access_token = access_token
+            update_fields.append("access_token")
+        if waba.subscribed != app.subscribe:
+            waba.subscribed = app.subscribe
+            update_fields.append("subscribed")
+        if update_fields:
+            waba.save(update_fields=update_fields)
+
+    _onboard_waba_assets(waba, user=None, register=app.register)
+
+
+@shared_task(queue='waba')
+def add_phone_number_to_waba(waba_id, phone_number):
+    waba = Waba.objects.select_related("app", "owner").filter(waba_id=waba_id).first()
+    if not waba:
+        raise Exception(f"WABA not found: {waba_id}")
+    if not waba.app:
+        raise Exception(f"App not found for WABA: {waba_id}")
+
+    _onboard_waba_assets(
+        waba,
+        user=waba.owner,
+        register=False,
+        target_phone_number=phone_number,
+        save_templates=False,
+        create_lead=True,
+    )
+
+
+@shared_task(queue='waba')
+def register_phone(phone_id):
+    phone = Phone.objects.select_related("waba").filter(id=phone_id).first()
+    if not phone or not phone.waba:
+        raise Exception(f"Phone not found or has no WABA: {phone_id}")
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "pin": phone.pin,
+    }
+    return utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/register", method="post", payload=payload)
+
+
 @shared_task(queue='waba')
 def send_single_message(template, recipient, id, components=None, broadcast_id=None):
     try:
@@ -279,6 +375,8 @@ def waba_subscription(waba_id):
     waba = Waba.objects.select_related("app").filter(id=waba_id).first()
     if not waba or not waba.app:
         return
+    if not waba.app.subscribe and not waba.subscribed:
+        return {"status": "skipped", "reason": "app subscription disabled"}
 
     method = "post" if waba.subscribed else "delete"
     return utils.call_api(app=waba.app, endpoint=f"{waba.waba_id}/subscribed_apps", method=method)

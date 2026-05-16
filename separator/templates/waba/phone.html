@@ -411,10 +411,69 @@
           <strong>{% trans "Error:" %}</strong> {{ phone_status_error }}
         </div>
       {% endif %}
-      {% if phone_status_json %}
-        <div class="mt-3">
-          <h5>{% trans "Response" %}</h5>
-          <pre class="p-3 bg-light border rounded">{{ phone_status_json }}</pre>
+      {% if phone_status_json or phone_status_summary or verification_code_requested %}
+        <div class="row g-3 mt-3">
+          <div class="col-md-6">
+            {% if phone_status_json %}
+              <pre class="p-3 bg-light border rounded">{{ phone_status_json }}</pre>
+            {% else %}
+              <div class="alert alert-info">{% trans "Check phone status to refresh JSON response." %}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            {% if phone_status_summary.ok %}
+              <div class="alert alert-success">
+                <strong>OK</strong>
+              </div>
+            {% else %}
+              {% if phone_status_summary %}
+                {% for item in phone_status_summary.items %}
+                  <div class="alert alert-warning">
+                    <strong>{{ item.title }}</strong><br>
+                    {{ item.text }}
+                  </div>
+                {% endfor %}
+              {% endif %}
+
+              {% if phone_status_summary.needs_verification %}
+                <form method="POST" action="{% url 'phone-details' phone.phone_id %}?tab=status" class="border rounded p-3 mb-3">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="request_verification_code">
+                  <input type="hidden" name="tab" value="status">
+                  <div class="mb-2">
+                    <label for="code_method" class="form-label">{% trans "Verification method" %}</label>
+                    <select id="code_method" name="code_method" class="form-control">
+                      <option value="SMS">SMS</option>
+                      <option value="VOICE">{% trans "Voice call" %}</option>
+                    </select>
+                  </div>
+                  <button type="submit" class="btn btn-primary">{% trans "Request code" %}</button>
+                </form>
+              {% endif %}
+
+              {% if verification_code_requested %}
+                <form method="POST" action="{% url 'phone-details' phone.phone_id %}?tab=status" class="border rounded p-3 mb-3">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="verify_phone_code">
+                  <input type="hidden" name="tab" value="status">
+                  <div class="mb-2">
+                    <label for="verification_code" class="form-label">{% trans "Verification code" %}</label>
+                    <input type="text" id="verification_code" name="verification_code" class="form-control" inputmode="numeric" autocomplete="one-time-code" required>
+                  </div>
+                  <button type="submit" class="btn btn-success">{% trans "Verify and register" %}</button>
+                </form>
+              {% endif %}
+
+              {% if phone_status_summary.can_register and not phone_status_summary.needs_verification %}
+                <form method="POST" action="{% url 'phone-details' phone.phone_id %}?tab=status" class="mt-2">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="register_phone">
+                  <input type="hidden" name="tab" value="status">
+                  <button type="submit" class="btn btn-success">{% trans "Register" %}</button>
+                </form>
+              {% endif %}
+            {% endif %}
+          </div>
         </div>
       {% endif %}
     </div>

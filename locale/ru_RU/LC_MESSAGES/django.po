@@ -1231,7 +1231,60 @@ msgid "No Bitrix settings were changed."
 msgstr ""
 
 msgid "App is not connected to this phone WABA account."
-msgstr ""
+msgstr "Приложение не подключено к WABA этого номера."
+
+msgid "Phone is not registered"
+msgstr "Номер не зарегистрирован"
+
+#, python-format
+msgid "Current status: %(status)s"
+msgstr "Текущий статус: %(status)s"
+
+msgid "Phone number is not verified"
+msgstr "Номер телефона не подтвержден"
+
+#, python-format
+msgid "Verification status: %(status)s"
+msgstr "Статус подтверждения: %(status)s"
+
+msgid "Invalid verification method."
+msgstr "Некорректный способ подтверждения."
+
+msgid "Verification code has been requested."
+msgstr "Код подтверждения запрошен."
+
+msgid "Enter verification code."
+msgstr "Введите код подтверждения."
+
+msgid "Phone number has been verified. Registration has been queued."
+msgstr "Номер телефона подтвержден. Регистрация поставлена в очередь."
+
+msgid "Phone registration has been queued."
+msgstr "Регистрация номера поставлена в очередь."
+
+msgid "Check phone status to refresh JSON response."
+msgstr "Проверьте статус номера, чтобы обновить JSON-ответ."
+
+msgid "Interpretation"
+msgstr "Интерпретация"
+
+msgid "Verification method"
+msgstr "Способ подтверждения"
+
+msgid "Voice call"
+msgstr "Голосовой звонок"
+
+msgid "Request code"
+msgstr "Запросить код"
+
+msgid "Verification code"
+msgstr "Код подтверждения"
+
+msgid "Verify and register"
+msgstr "Подтвердить и зарегистрировать"
+
+msgid "Register"
+msgstr "Зарегистрировать"
 
 msgid "The tariff has expired "
 msgstr "Срок действия тарифа истёк "

@@ -11,6 +11,9 @@ from separator.freepbx.models import Server, Extension
 class App(models.Model):
     name = models.CharField(max_length=255, default="separator.biz")
     events = models.BooleanField(default=False, help_text="Chek for save inbound events")
+    hosted = models.BooleanField(default=False, help_text="Enable Hosted Embedded Signup flow")
+    register = models.BooleanField(default=True, help_text="Register phone numbers after onboarding")
+    subscribe = models.BooleanField(default=True, help_text="Subscribe WABAs to webhook events")
     sites = models.ManyToManyField(Site, related_name="waba_apps", blank=True)
     client_id = models.CharField(max_length=255, editable=True, default='')
     config_id = models.CharField(max_length=255, editable=True, default='')
