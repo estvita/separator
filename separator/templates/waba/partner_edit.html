@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% trans "Edit partner app" %}
+{% endblock title %}
+
+{% block content %}
+<div class="container">
+  <h3>{% trans "Edit partner app" %}</h3>
+  <p class="text-muted">
+    {% trans "App ID" %}: <code>{{ partner_app.id }}</code><br>
+    {% trans "Verify token" %}: <code>{{ partner_app.verify_token }}</code>
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label" for="{{ form.name.id_for_label }}">{% trans "Name" %}</label>
+      {{ form.name }}
+      {{ form.name.errors }}
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="{{ form.webhook_url.id_for_label }}">{% trans "Webhook URL" %}</label>
+      {{ form.webhook_url }}
+      {{ form.webhook_url.errors }}
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="{{ form.redirect_url.id_for_label }}">{% trans "Redirect URL" %}</label>
+      {{ form.redirect_url }}
+      {{ form.redirect_url.errors }}
+    </div>
+    <div class="form-check mb-3">
+      {{ form.active }}
+      <label class="form-check-label" for="{{ form.active.id_for_label }}">{% trans "Active" %}</label>
+      {{ form.active.errors }}
+    </div>
+    <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+    <a href="{% url 'waba-partner' %}" class="btn btn-secondary">{% trans "Back" %}</a>
+  </form>
+
+  <hr>
+  <form method="post" onsubmit="return confirm('{% trans "Delete partner app?" %}');">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete">
+    <button type="submit" class="btn btn-danger">{% trans "Delete" %}</button>
+  </form>
+</div>
+{% endblock content %}

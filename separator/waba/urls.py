@@ -1,10 +1,13 @@
 from django.urls import path
 from . import views
+from .api import views as api_views
 
 urlpatterns = [
     path('', views.waba_view, name='waba'),
+    path('partner/', views.partner_apps, name='waba-partner'),
+    path('partner/<uuid:partner_app_id>/', views.partner_app_edit, name='waba-partner-edit'),
     path('callback/', views.facebook_callback, name='facebook_callback'),
-    path('request/', views.save_request, name='save_request'),
+    path('es-link/', api_views.embedded_signup_link, name='embedded_signup_link'),
     path('phone/<str:phone_id>/', views.phone_details, name='phone-details'),
     path('account/<str:waba_id>/', views.waba_account_details, name='waba-account-details'),
     path('broadcast/', views.broadcast_page, name='broadcast-page'),

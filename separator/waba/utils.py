@@ -2,12 +2,13 @@ import re
 import os
 import json
 import hmac
+import uuid
 import redis
 import logging
 import hashlib
 import requests
 import mimetypes
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 from datetime import datetime
 
 from django.db import OperationalError, models
@@ -53,6 +54,41 @@ TEMPLATE_COMPONENT_PREFETCHES = (
     "components__buttons__named_params",
     "components__buttons__positional_params",
 )
+
+
+def build_embedded_signup_link(request, user, partner_app=None):
+    user_id = user.id
+    request_id = str(uuid.uuid4())
+
+    if not user_id or not request_id:
+        raise ValueError("Invalid signup request")
+
+    domain = request.get_host().split(':')[0]
+    app = partner_app.app if partner_app else App.objects.filter(sites__domain__iexact=domain).first()
+    if not app:
+        raise App.DoesNotExist
+
+    request_data = {'user': user_id, "app": app.client_id, "host": domain}
+    if partner_app:
+        request_data["partner_app_id"] = str(partner_app.id)
+    redis_client.json().set(request_id, "$", request_data)
+    redis_client.expire(request_id, 7200)
+    extras = {
+        "version": app.es_version,
+        "sessionInfoVersion": app.session_info_version,
+    }
+    if app.business_app_onboarding:
+        extras["featureType"] = "whatsapp_business_app_onboarding"
+    params = {
+        'client_id': app.client_id,
+        'config_id': app.config_id,
+        'response_type': 'code',
+        'override_default_response_type': 'true',
+        'redirect_uri': f'https://{domain}/waba/callback/',
+        'state': request_id,
+        'extras': json.dumps(extras)
+    }
+    return f'https://www.facebook.com/v{app.api_version}.0/dialog/oauth?{urlencode(params)}'
 
 
 def prefetch_template_components(queryset):

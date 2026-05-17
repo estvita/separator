@@ -3,7 +3,7 @@ import redis
 import random
 from celery import shared_task
 
-from .models import App, Waba, Phone, Template, Error, Ctwa, CtwaEvents
+from .models import App, PartnerApp, Waba, Phone, Template, Error, Ctwa, CtwaEvents
 import separator.waba.utils as utils
 
 from separator.users.models import User
@@ -104,9 +104,7 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
 
 
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
-@shared_task(queue='waba')
-def add_waba_phone(request_id, app_id):
-    
+def exchange_embedded_signup_code(request_id, app_id):
     current_data = redis_client.json().get(request_id, "$")
     current_data = current_data[0]
     app = App.objects.filter(client_id=app_id).first()
@@ -119,19 +117,18 @@ def add_waba_phone(request_id, app_id):
         "redirect_uri": f'https://{host}/waba/callback/'
     }
 
-    try:
-        response = utils.call_api(app=app, endpoint="oauth/access_token", method="post", payload=payload)
-        access_token = response.get('access_token')
-    except Exception:
-        raise
-    wabas = None
-    try:
-        debug_token = utils.call_api(app=app, endpoint=f"debug_token?input_token={access_token}")
-        token_data = debug_token.get('data', {})
-        granular_scopes = token_data.get('granular_scopes', {})
-        wabas = next((item['target_ids'] for item in granular_scopes if item['scope'] == 'whatsapp_business_management'), None)
-    except Exception:
-        raise
+    response = utils.call_api(app=app, endpoint="oauth/access_token", method="post", payload=payload)
+    access_token = response.get('access_token')
+    debug_token = utils.call_api(app=app, endpoint=f"debug_token?input_token={access_token}")
+    token_data = debug_token.get('data', {})
+    granular_scopes = token_data.get('granular_scopes', {})
+    wabas = next((item['target_ids'] for item in granular_scopes if item['scope'] == 'whatsapp_business_management'), None)
+    return current_data, app, access_token, wabas
+
+
+@shared_task(queue='waba')
+def add_waba_phone(request_id, app_id):
+    current_data, app, access_token, wabas = exchange_embedded_signup_code(request_id, app_id)
     
     if wabas:
         user = User.objects.get(id=current_data.get('user'))
@@ -149,6 +146,62 @@ def add_waba_phone(request_id, app_id):
                 waba.access_token = access_token
                 waba.save(update_fields=["access_token"])
             _onboard_waba_assets(waba, user=user, register=app.register)
+
+
+@shared_task(queue='waba')
+def add_partner_waba_phone(request_id, app_id):
+    current_data = redis_client.json().get(request_id, "$")
+    current_data = current_data[0]
+    app = App.objects.filter(client_id=app_id).first()
+    partner_app = PartnerApp.objects.select_related("owner").filter(
+        id=current_data.get("partner_app_id"),
+        app=app,
+        active=True,
+    ).first()
+    if not partner_app:
+        raise Exception("Partner app not found")
+
+    access_token = current_data.get("access_token")
+    wabas = current_data.get("wabas") or []
+    if not access_token or not wabas:
+        raise Exception("Partner signup data is missing")
+
+    waba_id = wabas[0]
+    waba, created = Waba.objects.get_or_create(
+        waba_id=waba_id,
+        defaults={
+            'app': app,
+            'partner_app': partner_app,
+            'access_token': access_token,
+            'owner': partner_app.owner,
+            'subscribed': True,
+        }
+    )
+    queue_subscription = not created
+    update_fields = []
+    if not created:
+        if waba.app_id != app.id:
+            waba.app = app
+            update_fields.append("app")
+        if waba.partner_app_id != partner_app.id:
+            waba.partner_app = partner_app
+            update_fields.append("partner_app")
+        if waba.access_token != access_token:
+            waba.access_token = access_token
+            update_fields.append("access_token")
+        if waba.owner_id != partner_app.owner_id:
+            waba.owner = partner_app.owner
+            update_fields.append("owner")
+        if not waba.subscribed:
+            waba.subscribed = True
+            update_fields.append("subscribed")
+        if update_fields:
+            waba.save(update_fields=update_fields)
+            queue_subscription = False
+
+    _onboard_waba_assets(waba, user=partner_app.owner, register=app.register)
+    if queue_subscription:
+        waba_subscription.delay(waba.id)
 
 
 @shared_task(queue='waba')
@@ -372,14 +425,20 @@ def call_management(id):
 
 @shared_task(queue='waba')
 def waba_subscription(waba_id):
-    waba = Waba.objects.select_related("app").filter(id=waba_id).first()
+    waba = Waba.objects.select_related("app", "partner_app").filter(id=waba_id).first()
     if not waba or not waba.app:
         return
     if not waba.app.subscribe and not waba.subscribed:
         return {"status": "skipped", "reason": "app subscription disabled"}
 
     method = "post" if waba.subscribed else "delete"
-    return utils.call_api(app=waba.app, endpoint=f"{waba.waba_id}/subscribed_apps", method=method)
+    payload = None
+    if method == "post" and waba.partner_app_id and waba.partner_app.active:
+        payload = {
+            "override_callback_uri": waba.partner_app.webhook_url,
+            "verify_token": waba.partner_app.verify_token,
+        }
+    return utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/subscribed_apps", method=method, payload=payload)
 
 
 @shared_task(queue='waba')

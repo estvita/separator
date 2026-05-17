@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% trans "WABA Partner Apps" %}
+{% endblock title %}
+
+{% block content %}
+<div class="container">
+  <h3>{% trans "WABA Partner Apps" %}</h3>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">{% trans "API token" %}</h5>
+      <div class="input-group mb-2">
+        <input id="partner-api-token" type="password" class="form-control" value="{{ token }}" readonly>
+        <button type="button" class="btn btn-outline-secondary" id="toggle-token">{% trans "Show" %}</button>
+        <button type="button" class="btn btn-outline-secondary" id="copy-token">{% trans "Copy" %}</button>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reset_token">
+        <button type="submit" class="btn btn-warning btn-sm">{% trans "Reset token" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">{% trans "Create partner app" %}</h5>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_partner_app">
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.name.id_for_label }}">{% trans "Name" %}</label>
+          {{ form.name }}
+          {{ form.name.errors }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.webhook_url.id_for_label }}">{% trans "Webhook URL" %}</label>
+          {{ form.webhook_url }}
+          {{ form.webhook_url.errors }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.redirect_url.id_for_label }}">{% trans "Redirect URL" %}</label>
+          {{ form.redirect_url }}
+          {{ form.redirect_url.errors }}
+        </div>
+        <div class="form-check mb-3">
+          {{ form.active }}
+          <label class="form-check-label" for="{{ form.active.id_for_label }}">{% trans "Active" %}</label>
+          {{ form.active.errors }}
+        </div>
+        <button type="submit" class="btn btn-primary">{% trans "Create" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <h5>{% trans "Applications" %}</h5>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "App ID" %}</th>
+        <th>{% trans "Addresses" %}</th>
+        <th>{% trans "Verify token" %}</th>
+        <th>{% trans "Active" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for app in partner_apps %}
+        <tr>
+          <td><a href="{% url 'waba-partner-edit' app.id %}">{{ app.name }}</a></td>
+          <td><code>{{ app.id }}</code></td>
+          <td style="word-break:break-word;">
+            <div><strong>{% trans "Webhook" %}:</strong> {{ app.webhook_url }}</div>
+            <div><strong>{% trans "Redirect" %}:</strong> {{ app.redirect_url }}</div>
+          </td>
+          <td><code>{{ app.verify_token }}</code></td>
+          <td>{{ app.active|yesno:"yes,no" }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5">{% trans "No partner applications yet." %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+document.getElementById('toggle-token').addEventListener('click', function () {
+  const input = document.getElementById('partner-api-token');
+  input.type = input.type === 'password' ? 'text' : 'password';
+});
+
+document.getElementById('copy-token').addEventListener('click', function () {
+  const input = document.getElementById('partner-api-token');
+  input.type = 'text';
+  input.select();
+  navigator.clipboard.writeText(input.value);
+});
+</script>
+{% endblock content %}

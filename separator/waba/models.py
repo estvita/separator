@@ -12,11 +12,25 @@ class App(models.Model):
     name = models.CharField(max_length=255, default="separator.biz")
     events = models.BooleanField(default=False, help_text="Chek for save inbound events")
     hosted = models.BooleanField(default=False, help_text="Enable Hosted Embedded Signup flow")
+    business_app_onboarding = models.BooleanField(
+        default=False,
+        help_text="Enable WhatsApp Business App onboarding/coexistence Embedded Signup flow",
+    )
     register = models.BooleanField(default=True, help_text="Register phone numbers after onboarding")
     subscribe = models.BooleanField(default=True, help_text="Subscribe WABAs to webhook events")
     sites = models.ManyToManyField(Site, related_name="waba_apps", blank=True)
     client_id = models.CharField(max_length=255, editable=True, default='')
     config_id = models.CharField(max_length=255, editable=True, default='')
+    es_version = models.CharField(
+        max_length=10,
+        default="v4",
+        verbose_name="ES Version",
+    )
+    session_info_version = models.CharField(
+        max_length=10,
+        default="3",
+        verbose_name="Session Info Version",
+    )
     client_secret = EncryptedCharField(max_length=500, editable=True, default='')
     access_token = EncryptedCharField(max_length=2000, default='',
                                     help_text="System admin user access_token")
@@ -31,8 +45,37 @@ class App(models.Model):
     def __str__(self):
         return f"{self.client_id} ({self.name})"
 
+
+class PartnerApp(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="waba_partner_apps")
+    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name="partner_apps")
+    name = models.CharField(max_length=255)
+    webhook_url = models.URLField(max_length=200)
+    redirect_url = models.URLField()
+    verify_token = models.CharField(
+        max_length=100,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+    )
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.id})"
+
+
 class Waba(models.Model):
     app = models.ForeignKey(App, on_delete=models.SET_NULL, null=True, blank=True)
+    partner_app = models.ForeignKey(
+        PartnerApp,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wabas",
+    )
     waba_id = models.CharField(max_length=255, editable=True, unique=True)
     dataset = models.PositiveBigIntegerField(default=0)
     access_token = EncryptedCharField(max_length=2000)

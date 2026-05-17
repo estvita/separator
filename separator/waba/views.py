@@ -1,4 +1,3 @@
-import uuid
 import json
 import redis
 import logging
@@ -13,19 +12,21 @@ from django.core.paginator import Paginator
 from django.urls import reverse
 
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpResponseBadRequest, HttpResponseServerError
+from django.http import Http404, HttpResponseBadRequest
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.db.models.functions import Cast
+from rest_framework.authtoken.models import Token
 
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 from separator.decorators import login_message_required, user_message
 
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
 from separator.bitrix.models import User as BitrixUser
 
-from .models import App, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
+from .forms import PartnerAppForm
+from .models import App, PartnerApp, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
 
@@ -765,38 +766,80 @@ def waba_view(request):
     })
 
 
-@login_required
-def save_request(request):
-    user_id = request.user.id
-    request_id = str(uuid.uuid4())
+def build_redirect_with_params(url, params):
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query.update({key: value for key, value in params.items() if value is not None})
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
-    if user_id and request_id:
-        domain = request.get_host().split(':')[0]
-        app = App.objects.filter(sites__domain__iexact=domain).first()
-        if not app:
-            messages.error(request, f"App not found for domain {domain}")
-            return redirect("waba")
-        redis_client.json().set(request_id, "$", {'user': user_id, "app": app.client_id, "host": domain})
-        redis_client.expire(request_id, 7200)
-        extras = {
-            "version": "v3",
-            "featureType": "whatsapp_business_app_onboarding"
-        }
-        params = {
-            'client_id': app.client_id,
-            'config_id': app.config_id,
-            'response_type': 'code',
-            'redirect_uri': f'https://{domain}/waba/callback/',
-            'state': request_id,
-            'extras': json.dumps(extras)
-        }
-        url = f'https://www.facebook.com/v{app.api_version}.0/dialog/oauth?{urlencode(params)}'
-        return redirect(url)
+
+@login_required
+def partner_apps(request):
+    if not request.user.integrator:
+        messages.error(request, _("Only integrators can manage partner applications."))
+        return redirect("waba")
+
+    token = Token.objects.get_or_create(user=request.user)[0]
+
+    if request.method == "POST" and request.POST.get("action") == "reset_token":
+        Token.objects.filter(user=request.user).delete()
+        Token.objects.create(user=request.user)
+        messages.success(request, _("API token has been reset."))
+        return redirect("waba-partner")
+
+    if request.method == "POST" and request.POST.get("action") == "create_partner_app":
+        form = PartnerAppForm(request.POST)
+        if form.is_valid():
+            domain = request.get_host().split(':')[0]
+            app = App.objects.filter(sites__domain__iexact=domain).first()
+            if not app:
+                messages.error(request, f"App not found for domain {domain}")
+            else:
+                partner_app = form.save(commit=False)
+                partner_app.owner = request.user
+                partner_app.app = app
+                partner_app.save()
+                messages.success(request, _("Partner application has been created."))
+                return redirect("waba-partner")
     else:
-        return HttpResponseServerError({'error'})
+        form = PartnerAppForm(initial={"active": True})
+
+    apps = PartnerApp.objects.filter(owner=request.user).select_related("app").order_by("-created_at")
+    return render(request, "waba/partner.html", {
+        "form": form,
+        "partner_apps": apps,
+        "token": token.key,
+    })
+
+
+@login_required
+def partner_app_edit(request, partner_app_id):
+    if not request.user.integrator:
+        messages.error(request, _("Only integrators can manage partner applications."))
+        return redirect("waba")
+
+    partner_app = get_object_or_404(PartnerApp, id=partner_app_id, owner=request.user)
+    if request.method == "POST":
+        if request.POST.get("action") == "delete":
+            partner_app.delete()
+            messages.success(request, _("Partner application has been deleted."))
+            return redirect("waba-partner")
+        else:
+            form = PartnerAppForm(request.POST, instance=partner_app)
+            if form.is_valid():
+                form.save()
+                messages.success(request, _("Partner application has been updated."))
+                return redirect("waba-partner")
+    else:
+        form = PartnerAppForm(instance=partner_app)
+
+    return render(request, "waba/partner_edit.html", {
+        "form": form,
+        "partner_app": partner_app,
+    })
+
 
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
-@login_required
 def facebook_callback(request):
     if request.method == 'GET':
         error = request.GET.get('error')
@@ -810,6 +853,9 @@ def facebook_callback(request):
         
         code = request.GET.get('code')
         request_id = request.GET.get('state')
+        if not code:
+            messages.error(request, "Authorization code is missing")
+            return redirect('waba')
         if not request_id:
             messages.error(request, "Request ID is missing")
             return redirect('waba')
@@ -820,9 +866,34 @@ def facebook_callback(request):
         app_id = existing.get('app')
         app = App.objects.filter(client_id=app_id).first()
         if not app:
-            messages.error("App not found")
+            messages.error(request, "App not found")
             return redirect('waba')
-        redis_client.json().set(request_id, '$.code', code)        
+
+        state_lock_key = f"{request_id}:used"
+        if not redis_client.set(state_lock_key, "1", nx=True, ex=7200):
+            messages.error(request, "Request has already been used")
+            return redirect('waba')
+
+        partner_app_id = existing.get("partner_app_id")
+        redis_client.json().set(request_id, '$.code', code)
+        if partner_app_id:
+            partner_app = PartnerApp.objects.filter(id=partner_app_id, active=True).first()
+            if not partner_app:
+                messages.error(request, "Partner app not found")
+                return redirect('waba')
+            try:
+                _current_data, _app, access_token, wabas = waba_tasks.exchange_embedded_signup_code(request_id, app_id)
+            except Exception as e:
+                return redirect(build_redirect_with_params(partner_app.redirect_url, {"error": str(e)}))
+            if not wabas:
+                return redirect(build_redirect_with_params(partner_app.redirect_url, {"error": "waba_not_found"}))
+
+            waba_id = wabas[0]
+            redis_client.json().set(request_id, '$.access_token', access_token)
+            redis_client.json().set(request_id, '$.wabas', wabas)
+            waba_tasks.add_partner_waba_phone.delay(request_id, app_id)
+            return redirect(build_redirect_with_params(partner_app.redirect_url, {"waba_id": waba_id}))
+
         waba_tasks.add_waba_phone.delay(request_id, app_id)
         messages.success(request, _('The number has been successfully added. It will appear here in a few minutes.'))
         return redirect('waba')

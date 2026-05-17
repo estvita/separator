@@ -14,6 +14,7 @@ from rest_framework.authtoken.views import obtain_auth_token
 from separator.bitrix.views import log_and_serve_temp_file
 from separator.bitrix.api.views import SmsViewSet, BizprocViewSet
 from separator.olx.api.views import OlxAuthorizationAPIView
+from separator.waba.api.views import partner_graph_proxy
 from django.conf.urls.i18n import i18n_patterns
 
 urlpatterns = [
@@ -54,6 +55,16 @@ urlpatterns += i18n_patterns(
 # API URLS
 urlpatterns += [
     # API base url
+    path(
+        "api/waba/partner/<str:object_id>/<path:endpoint>",
+        partner_graph_proxy,
+        name="waba-partner-graph-proxy",
+    ),
+    path(
+        "api/waba/partner/<str:object_id>",
+        partner_graph_proxy,
+        name="waba-partner-graph-object-proxy",
+    ),
     path("api/", include("config.api_router")),
     # DRF auth token
     path("api/auth-token/", obtain_auth_token),

@@ -98,7 +98,47 @@
   {% endif %}
 
     <a href="{% url 'broadcast-page' %}" class="btn btn-secondary connect-btn me-2">{% trans "Broadcasts" %}</a>
-    <a target="_blank" href="{% url 'save_request' %}" class="btn btn-primary connect-btn">{% trans "Add number" %}</a>
+    {% if request.user.integrator %}
+      <a href="{% url 'waba-partner' %}" class="btn btn-secondary connect-btn me-2">{% trans "Partner apps" %}</a>
+    {% endif %}
+    <button type="button" class="btn btn-primary connect-btn" id="add-waba-number" data-url="{% url 'embedded_signup_link' %}">{% trans "Add number" %}</button>
 
 </div>
+<script>
+document.getElementById('add-waba-number').addEventListener('click', function () {
+  const button = this;
+  const popup = window.open('about:blank', '_blank');
+  button.disabled = true;
+
+  fetch(button.dataset.url, {
+    headers: { 'Accept': 'application/json' },
+    credentials: 'same-origin'
+  })
+    .then(function (response) {
+      return response.json().then(function (data) {
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to get authorization link');
+        }
+        return data;
+      });
+    })
+    .then(function (data) {
+      if (popup) {
+        popup.opener = null;
+        popup.location = data.url;
+      } else {
+        window.location.href = data.url;
+      }
+    })
+    .catch(function (error) {
+      if (popup) {
+        popup.close();
+      }
+      alert(error.message);
+    })
+    .finally(function () {
+      button.disabled = false;
+    });
+});
+</script>
 {% endblock content %}

@@ -1,6 +1,18 @@
 # forms.py
 from django import forms
-from .models import Phone
+from .models import PartnerApp, Phone
+
+
+class PartnerAppForm(forms.ModelForm):
+    class Meta:
+        model = PartnerApp
+        fields = ("name", "webhook_url", "redirect_url", "active")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "webhook_url": forms.URLInput(attrs={"class": "form-control"}),
+            "redirect_url": forms.URLInput(attrs={"class": "form-control"}),
+            "active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
 
 class WhatsAppMessageForm(forms.Form):
     phone_sender = forms.ModelChoiceField(

@@ -12,6 +12,7 @@ import separator.waba.utils as waba_utils
 from .models import (
     App,
     ApiCall,
+    PartnerApp,
     Waba,
     Phone,
     Template,
@@ -21,9 +22,6 @@ from .models import (
     CtwaEvents,
     Bot,
     TemplateComponent,
-    TemplateComponentButton,
-    TemplateComponentNamedParam,
-    TemplateComponentPositionalParam,
 )
 from .tasks import call_management
 
@@ -47,7 +45,26 @@ class ApiCallAdminForm(forms.ModelForm):
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     form = AppAdminForm
-    list_display = ("name", "client_id", "verify_token", "api_version")
+    search_fields = ("name", "client_id")
+    list_display = (
+        "name",
+        "client_id",
+        "verify_token",
+        "api_version",
+        "es_version",
+        "session_info_version",
+        "business_app_onboarding",
+    )
+
+
+@admin.register(PartnerApp)
+class PartnerAppAdmin(admin.ModelAdmin):
+    list_display = ("name", "id", "owner", "app", "active")
+    list_filter = ("active", "app")
+    search_fields = ("name", "id", "owner__email", "webhook_url", "redirect_url")
+    autocomplete_fields = ("owner", "app")
+    readonly_fields = ("id", "verify_token", "created_at", "updated_at")
+
 
 class TemplateInline(admin.TabularInline):
     model = Template
@@ -75,9 +92,9 @@ class PhoneInline(admin.TabularInline):
 
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['owner']
-    list_display = ("waba_id", "web_link", "owner", "app", "subscribed")
-    list_filter = ("subscribed", "app")
+    autocomplete_fields = ['owner', 'partner_app']
+    list_display = ("waba_id", "web_link", "owner", "app", "partner_app", "subscribed")
+    list_filter = ("subscribed", "app", "partner_app")
     search_fields = ["waba_id", "owner__email"]
     readonly_fields = ("ctwa_records_link",)
     inlines = [PhoneInline, TemplateInline]
