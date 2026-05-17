@@ -9,6 +9,7 @@ django-cors-headers
 django-crispy-forms
 django-environ
 django-phonenumber-field
+django-recaptcha
 django-redis
 djangorestframework
 drf-spectacular

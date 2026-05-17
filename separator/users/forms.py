@@ -1,14 +1,19 @@
 from allauth.account.forms import SignupForm
 # from allauth.socialaccount.forms import SignupForm as SocialSignupForm
+from django.core.exceptions import ImproperlyConfigured
 from django.contrib.auth import forms as admin_forms
 from django.forms import EmailField
 from django import forms
-from django_recaptcha.fields import ReCaptchaField
 from django.utils.translation import gettext_lazy as _
 
 from phonenumber_field.formfields import PhoneNumberField
 
 from .models import User
+
+try:
+    from django_recaptcha.fields import ReCaptchaField
+except ImportError:
+    ReCaptchaField = None
 
 
 class UserAdminChangeForm(admin_forms.UserChangeForm):
@@ -57,8 +62,16 @@ class UserSignupForm(SignupForm):
         return user
 
 
-class VendorSignupForm(UserSignupForm):
-    captcha = ReCaptchaField()
+if ReCaptchaField is not None:
+    class VendorSignupForm(UserSignupForm):
+        captcha = ReCaptchaField()
+else:
+    class VendorSignupForm(UserSignupForm):
+        def __init__(self, *args, **kwargs):
+            raise ImproperlyConfigured(
+                "Vendor signup requires django-recaptcha. "
+                "Install requirements/vendor.txt or use config.settings.vendor."
+            )
 
 
 # class UserSocialSignupForm(SocialSignupForm):
