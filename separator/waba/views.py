@@ -691,33 +691,19 @@ def waba_view(request):
         if filter_portal_id in {"all", "free"}:
             request.session["waba_portal_filter"] = filter_portal_id
         elif filter_portal_id:
-            try:
-                selected_portal = portals.filter(id=filter_portal_id).first()
-            except (TypeError, ValueError):
-                selected_portal = None
+            selected_portal = portals.filter(id=filter_portal_id).first()
             if selected_portal:
                 request.session["waba_portal_filter"] = str(selected_portal.id)
         return redirect('waba')
 
-    selected_portal_id = request.session.get("waba_portal_filter")
-    b24_data = request.session.get('b24_data')
+    selected_portal_id = request.session.get("waba_portal_filter", "all")
     selected_portal = None
     show_free_numbers = selected_portal_id == "free"
     if selected_portal_id and selected_portal_id not in {"all", "free"}:
-        try:
-            selected_portal = portals.filter(id=selected_portal_id).first()
-        except (TypeError, ValueError):
-            selected_portal = None
+        selected_portal = portals.filter(id=selected_portal_id).first()
         if not selected_portal:
             selected_portal_id = "all"
             request.session.pop("waba_portal_filter", None)
-    elif not selected_portal_id and b24_data:
-        member_id = b24_data.get("member_id")
-        if member_id:
-            selected_portal = portals.filter(member_id=member_id).first()
-            selected_portal_id = str(selected_portal.id) if selected_portal else "all"
-    if not selected_portal_id:
-        selected_portal_id = "all"
 
     if selected_portal:
         phones = Phone.objects.filter(line__portal=selected_portal)

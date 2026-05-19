@@ -42,6 +42,7 @@ class App(models.Model):
         Site, on_delete=models.SET_NULL, related_name="apps", blank=True, null=True
     )
     name = models.CharField(max_length=255, blank=True, unique=False)
+    handler = models.CharField(max_length=1000, blank=True)
     page_url = models.CharField(max_length=255, blank=True, default="/")
     autologin = models.BooleanField(default=True)
     min_version = models.PositiveIntegerField(default=0)
@@ -55,6 +56,13 @@ class App(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_bitrix_handler_url(self):
+        if self.handler:
+            return self.handler
+        if self.site:
+            return f"https://{self.site}/api/bitrix/"
+        return ""
 
 
 class Bitrix(models.Model):
@@ -104,12 +112,26 @@ class AppInstance(models.Model):
     storage_id = models.CharField(max_length=255, blank=True)
     status = models.IntegerField(default=0, blank=True)
     fileAsUrl = models.BooleanField(default=False, help_text="Send file as URL, not base64")
-    ctwa = models.BooleanField(default=False, help_text="Check for CTWA tracking")
 
     def __str__(self):
         app_name = self.app.name if self.app else "—"
         portal_domain = self.portal.domain if self.portal else "—"
         return f"{app_name} on {portal_domain}"
+
+    def get_feature_grant(self, code):
+        if not code or not self.portal_id:
+            return None
+        return self.portal.feature_grants.filter(code=code).select_related("feature").first()
+
+    def has_active_feature(self, code):
+        grant = self.get_feature_grant(code)
+        if not grant:
+            return False
+        if grant.feature and not grant.feature.active:
+            return False
+        if grant.date_end and grant.date_end <= timezone.now():
+            return False
+        return True
 
 
 class Credential(models.Model):
@@ -134,6 +156,13 @@ class ImNotify(models.Model):
 
 
 class ApiCall(models.Model):
+    app = models.ForeignKey(
+        App,
+        on_delete=models.SET_NULL,
+        related_name="apicalls",
+        null=True,
+        blank=True,
+    )
     app_instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE, related_name='apicalls',
                                      null=True, blank=True)
     admin = models.BooleanField(default=False)
@@ -157,15 +186,35 @@ class Line(models.Model):
         return f"Line {self.line_id} for AppInstance {self.app_instance}"
 
 
-class Plasement(models.Model):
-    app = models.ForeignKey(App, on_delete=models.SET_NULL, related_name="placements", blank=True, null=True)
-    title = models.CharField(max_length=255)
-    placement = models.TextField(blank=True, null=True)
-    handler = models.CharField(max_length=2500, default="/placement/")
-    useBuiltInInterface = models.BooleanField(default=False)
+class Feature(models.Model):
+    apps = models.ManyToManyField(App, related_name="features", blank=True)
+    name = models.CharField(max_length=255)
+    link = models.CharField(max_length=1000, blank=True)
+    method = models.CharField(max_length=512)
+    placements = models.TextField(blank=True, null=True)
+    payload = models.JSONField(blank=True, null=True, default=dict)
+    active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.title} for {self.app.name if self.app else '—'}"
+        return self.name
+
+
+class FeatureGrant(models.Model):
+    portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="feature_grants", blank=True, null=True)
+    feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name="grants")
+    code = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    date_end = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("portal", "code"),
+                name="bitrix_featuregrant_portal_code_unique",
+            )
+        ]
+
+    def __str__(self):
+        return self.code or f"FeatureGrant {self.pk}"
     
 class VerificationCode(models.Model):
     portal = models.OneToOneField(Bitrix, on_delete=models.SET_NULL, blank=True, null=True)

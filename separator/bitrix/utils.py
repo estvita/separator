@@ -9,7 +9,7 @@ import os
 import redis
 import requests
 from django.core.signing import TimestampSigner
-from urllib.parse import unquote, urljoin
+from urllib.parse import unquote
 from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
@@ -23,7 +23,6 @@ import separator.olx.tasks as olx_tasks
 import separator.waba.utils as waba
 import separator.waba.tasks as waba_tasks
 from separator.waba.models import Phone
-from separator.waba.ctwa_events import CTWA_CONVERSION_EVENTS
 
 from separator.waweb.models import Session
 import separator.waweb.tasks as waweb_tasks
@@ -252,8 +251,9 @@ def connect_line(request, line_id, entity, connector_service):
 
 # Подписка на события
 def events_bind(appinstance: AppInstance):
-    url = appinstance.app.site
-    handler_url = f"https://{url}/api/bitrix/"
+    handler_url = appinstance.app.get_bitrix_handler_url() if appinstance.app else ""
+    if not handler_url:
+        return
     try:
         existing = bitrix_tasks.call_api(appinstance.id, "event.get", {})
     except Exception:
@@ -315,45 +315,18 @@ def register_connector(appinstance: AppInstance, connector):
         return None
 
 
-def register_placements(appinstance: AppInstance):
+def queue_app_features(appinstance: AppInstance):
     app = appinstance.app
-    if not app or not app.site:
+    if not app:
         return
 
-    site_domain = str(app.site).strip().strip('/')
-    base_url = f"https://{site_domain}/"
-
-    for placement_obj in app.placements.all():
-        raw_handler = (placement_obj.handler or "").strip()
-        raw_placements = (placement_obj.placement or "").strip()
-
-        if not raw_handler or not raw_placements:
+    for feature in app.features.filter(active=True):
+        placement_codes = [p.strip() for p in (feature.placements or "").splitlines() if p.strip()]
+        if placement_codes:
+            for placement_code in placement_codes:
+                bitrix_tasks.register_feature.delay(appinstance.id, feature.id, placement_code=placement_code)
             continue
-
-        if raw_handler.startswith(("http://", "https://")):
-            handler_url = raw_handler
-        else:
-            handler_url = urljoin(base_url, raw_handler.lstrip('/'))
-
-        for placement_code in [p.strip() for p in raw_placements.splitlines() if p.strip()]:
-            try:
-                bitrix_tasks.call_api(appinstance.id, "placement.unbind", {
-                    "PLACEMENT": placement_code,
-                })
-            except Exception:
-                pass
-
-            payload = {
-                "PLACEMENT": placement_code,
-                "HANDLER": handler_url,
-                "OPTIONS": {
-                    "useBuiltInInterface": "Y" if placement_obj.useBuiltInInterface else "N",
-                },
-            }
-            if placement_obj.title:
-                payload["TITLE"] = placement_obj.title
-
-            bitrix_tasks.call_api.delay(appinstance.id, "placement.bind", payload)
+        bitrix_tasks.register_feature.delay(appinstance.id, feature.id)
 
 
 def extract_files(data):
@@ -797,6 +770,9 @@ def bizproc_processor(data):
         appinstance = AppInstance.objects.filter(application_token=application_token).first()
     except Exception as e:        
         raise Exception(f"AppInstance not found for token {application_token}: {e}")
+
+    if not appinstance:
+        raise Exception(f"AppInstance not found for token {application_token}")
     
     if appinstance and appinstance.app and appinstance.app.save_events:
         Events.objects.create(
@@ -805,37 +781,49 @@ def bizproc_processor(data):
             content=json.dumps(data, ensure_ascii=False, default=str),
         )
     
-    code = data.get("code")
+    code = str(data.get("code") or "").strip()
+    if not code:
+        raise Exception("Missing bizproc code")
+
+    grant = appinstance.get_feature_grant(code)
+    if grant:
+        if grant.feature and not grant.feature.active:
+            raise Exception(f"Feature {code} is inactive")
+        if grant.date_end and grant.date_end <= timezone.now():
+            raise Exception(f"Feature {code} subscription expired")
+
     if code == "separator_auto_finish_chat":
-        bitrix_tasks.auto_finish_chat(appinstance.id, data)
-    elif code == "separator_ctwa_tracker":
+        return bitrix_tasks.auto_finish_chat(appinstance.id, data)
+
+    if code == "separator_ctwa_tracker":
         ctwa_id = data.get("properties[ctwa_id]")
-        
-        # Если ID нет, игнорируем выполнение
         if not ctwa_id or str(ctwa_id).strip().lower() in ("", "null", "none"):
-            return
-            
+            raise Exception("ctwa_id not found")
+
         custom_data = {}
-        
+
         amount_raw = data.get("properties[amount]")
         if amount_raw:
             try:
                 custom_data["value"] = float(amount_raw)
             except ValueError:
                 pass
-                
+
         currency_raw = data.get("properties[currency]")
         if currency_raw:
             custom_data["currency"] = str(currency_raw).strip()
 
         event_name_raw = data.get("properties[event_name]")
         event_name = str(event_name_raw).strip() if event_name_raw else ""
-        if event_name in CTWA_CONVERSION_EVENTS:
+        if event_name:
             waba_tasks.send_ctwa_conversion.delay(
                 str(ctwa_id).strip(),
                 event=event_name,
                 custom_data=custom_data,
             )
+        return
+
+    raise Exception(f"Unhandled bizproc code {code}")
 
 
 def _extract_crm_entity_for_openlines(data):
@@ -1065,14 +1053,7 @@ def event_processor(data):
 
             def register_events_and_connectors():
                 events_bind(appinstance)
-                if "placement" in scope:
-                    register_placements(appinstance)
-                if "bizproc" in scope:
-                    payload = {
-                        "CODE": "separator_auto_finish_chat",
-                        "NAME": "Auto Finish Chat",
-                    }
-                    bitrix_tasks.register_bizproc_robot.delay(appinstance.id, payload)
+                queue_app_features(appinstance)
                 
                 if app.connectors.exists():
                     for connector in app.connectors.all():
@@ -1364,10 +1345,7 @@ def event_processor(data):
             bitbot_router.event_processor.delay(data)
 
         elif event == "ONAPPUNINSTALL":
-            portal = appinstance.portal
             appinstance.delete()
-            if not AppInstance.objects.filter(portal=portal).exists():
-                portal.delete()
 
     except Exception as e:
         raise

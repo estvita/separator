@@ -302,7 +302,7 @@ def app_install(request):
 
     payload = {
         "event": "ONAPPINSTALL",
-        "HANDLER": f"https://{app.site}/api/bitrix/",
+        "HANDLER": app.get_bitrix_handler_url(),
         "auth": auth_id,
     }
 
@@ -399,6 +399,10 @@ def portal_detail(request, portal_id):
     b24_user = B24_user.objects.filter(owner=request.user, bitrix__id=portal_id).first()
     portal = portals.filter(id=portal_id).first()
     lines = lines.filter(portal=portal)
+    app_instances = portal.installations.select_related("app", "owner").order_by("app__name") if portal else []
+    feature_grants = portal.feature_grants.select_related("feature").prefetch_related("feature__apps").order_by(
+        "feature__name", "code"
+    ) if portal else []
     
     if request.method == 'POST':
         if b24_user and b24_user.admin:
@@ -430,7 +434,9 @@ def portal_detail(request, portal_id):
                   'bitrix/portal_detail.html', 
                   {
                       'portal': portal,
-                      'open_lines': lines
+                      'open_lines': lines,
+                      'app_instances': app_instances,
+                      'feature_grants': feature_grants,
                       })
 
 

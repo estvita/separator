@@ -2,6 +2,8 @@ import re
 import os
 import redis
 import logging
+from copy import deepcopy
+from urllib.parse import urljoin
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
@@ -9,7 +11,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from .crest import BitrixAccessDeniedError, call_method, refresh_token
-from .models import AppInstance, Connector, Credential
+from .models import ApiCall, AppInstance, Connector, Credential, Feature, FeatureGrant
 
 from separator.waba.models import Phone
 from separator.waweb.models import Session
@@ -23,6 +25,74 @@ logger = logging.getLogger("django")
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 
+def _feature_owner(app_instance):
+    if app_instance.owner_id:
+        return app_instance.owner
+    if app_instance.portal and app_instance.portal.owner_id:
+        return app_instance.portal.owner
+    return None
+
+
+def _render_feature_value(value, context):
+    if isinstance(value, dict):
+        return {key: _render_feature_value(item, context) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_render_feature_value(item, context) for item in value]
+    if isinstance(value, str):
+        try:
+            return value.format(**context)
+        except Exception:
+            return value
+    return value
+
+
+def _normalize_handler_url(value, base_url):
+    if not isinstance(value, str) or not value:
+        return value
+    if value.startswith(("http://", "https://")):
+        return value
+    return urljoin(base_url, value.lstrip("/"))
+
+
+def _build_feature_payload(feature, app_instance, placement_code=None):
+    site_domain = str(app_instance.app.site).strip().strip("/") if app_instance.app and app_instance.app.site else ""
+    app_base_url = f"https://{site_domain}/" if site_domain else ""
+    context = {
+        "app_base_url": app_base_url.rstrip("/"),
+        "site_domain": site_domain,
+        "app_instance_id": app_instance.id,
+        "portal_domain": app_instance.portal.domain if app_instance.portal else "",
+        "portal_protocol": app_instance.portal.protocol if app_instance.portal else "https",
+        "placement": placement_code or "",
+    }
+    payload = deepcopy(feature.payload or {})
+    payload = _render_feature_value(payload, context)
+
+    if not isinstance(payload, dict):
+        raise Exception(f"Feature {feature.id} payload must be a JSON object")
+
+    if placement_code and "PLACEMENT" not in payload:
+        payload["PLACEMENT"] = placement_code
+    if feature.method == "placement.bind" and feature.name and "TITLE" not in payload:
+        payload["TITLE"] = feature.name
+
+    for key in ("HANDLER", "PLACEMENT_HANDLER"):
+        if key in payload:
+            payload[key] = _normalize_handler_url(payload[key], app_base_url)
+
+    return payload
+
+
+def _feature_date_end(app_instance, code, existing_grant=None):
+    if existing_grant and existing_grant.date_end is not None:
+        return existing_grant.date_end
+    owner = _feature_owner(app_instance)
+    if not owner or not code:
+        return None
+    from separator.tariff.utils import get_trial
+    return get_trial(owner, code)
+
+
 def build_lead_title(site, code, fallback, **context):
     template = Message.objects.filter(site=site, code=code).first() if site else None
     text = template.message if template and template.message else fallback
@@ -33,15 +103,104 @@ def build_lead_title(site, code, fallback, **context):
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
-def call_api(self, id, method, payload, b24_user=None):
+def call_api(self, id, method, payload, b24_user=None, admin=False):
     try:
         app_instance = AppInstance.objects.get(id=id)
-        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
+        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, admin=admin, timeout=10)
         return resp
     except BitrixAccessDeniedError:
         raise
     except (ObjectDoesNotExist, Exception) as exc:
         raise self.retry(exc=exc)
+
+
+@shared_task(queue="bitrix")
+def dispatch_api_call(api_call_id):
+    api_call = ApiCall.objects.select_related("app").get(id=api_call_id)
+    payload = api_call.payload or {}
+
+    if not api_call.app_id:
+        raise Exception(f"ApiCall {api_call.id} has no app selected")
+    if not api_call.method:
+        raise Exception(f"ApiCall {api_call.id} has no method")
+    if not isinstance(payload, dict):
+        raise Exception(f"ApiCall {api_call.id} payload must be a JSON object")
+
+    app_instance_ids = list(
+        AppInstance.objects.filter(app_id=api_call.app_id).values_list("id", flat=True)
+    )
+    if not app_instance_ids:
+        raise Exception(f"No AppInstances found for app {api_call.app_id}")
+
+    queued = 0
+    for app_instance_id in app_instance_ids:
+        call_api.delay(app_instance_id, api_call.method, payload, admin=api_call.admin)
+        queued += 1
+
+    return {
+        "api_call_id": api_call.id,
+        "queued": queued,
+    }
+
+
+@shared_task(queue="bitrix")
+def register_feature(app_instance_id, feature_id, placement_code=None, force=False):
+    app_instance = AppInstance.objects.select_related("app", "portal", "owner").get(id=app_instance_id)
+    feature = Feature.objects.prefetch_related("apps").get(id=feature_id)
+
+    if not force and not feature.active:
+        raise Exception(f"Feature {feature.id} is inactive")
+    if app_instance.app_id and not feature.apps.filter(id=app_instance.app_id).exists():
+        raise Exception(
+            f"Feature {feature.id} is not linked to app {app_instance.app_id}"
+        )
+
+    payload = _build_feature_payload(feature, app_instance, placement_code=placement_code)
+    response = call_method(app_instance, feature.method, payload, timeout=30)
+
+    code = str(payload.get("CODE") or "").strip() or None
+    if code:
+        if not app_instance.portal_id:
+            raise Exception(f"AppInstance {app_instance.id} has no portal for FeatureGrant")
+        existing_grant = FeatureGrant.objects.filter(portal=app_instance.portal, code=code).first()
+        FeatureGrant.objects.update_or_create(
+            portal=app_instance.portal,
+            code=code,
+            defaults={
+                "feature": feature,
+                "date_end": _feature_date_end(app_instance, code, existing_grant=existing_grant),
+            },
+        )
+
+    return response
+
+
+@shared_task(queue="bitrix")
+def apply_feature_now(feature_id):
+    feature = Feature.objects.prefetch_related("apps").get(id=feature_id)
+
+    app_ids = list(feature.apps.values_list("id", flat=True))
+    if not app_ids:
+        raise Exception(f"Feature {feature.id} has no linked apps")
+
+    app_instances = AppInstance.objects.filter(app_id__in=app_ids).distinct()
+    placement_codes = [p.strip() for p in (feature.placements or "").splitlines() if p.strip()]
+
+    queued = 0
+    for app_instance in app_instances:
+        if placement_codes:
+            for placement_code in placement_codes:
+                register_feature.delay(app_instance.id, feature.id, placement_code=placement_code, force=True)
+                queued += 1
+            continue
+
+        register_feature.delay(app_instance.id, feature.id, force=True)
+        queued += 1
+
+    return {
+        "feature_id": feature.id,
+        "queued": queued,
+    }
 
 @shared_task(queue='bitrix')
 def upd_refresh_token(period):
@@ -240,7 +399,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
                 
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
-                if app_instance.ctwa and chat_id and (ctwa_id or source_id is not None):
+                if app_instance.has_active_feature("separator_ctwa_tracker") and chat_id and (ctwa_id or source_id is not None):
                     save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
         return results
 
@@ -469,36 +628,3 @@ def check_tariffs(*days):
                         redis_client.setex(redis_key, ttl, resp['result'])
                 except Exception as e:
                     print(e)
-
-
-@shared_task(queue='bitrix')
-def register_bizproc_robot(appinstance_id, payload=None):
-    try:
-        appinstance = AppInstance.objects.get(id=appinstance_id)
-        url = appinstance.app.site
-        if payload:
-            payload["HANDLER"] = f"https://{url}/api/bitrix/bizproc/"
-            call_api.delay(appinstance.id, "bizproc.robot.add", payload)
-    except Exception:
-        raise
-
-@shared_task(queue='bitrix')
-def delete_ctwa_fields(app_instance_id):
-    try:
-        app_instance = AppInstance.objects.get(id=app_instance_id)
-        
-        for entity_type in ["lead", "deal"]:
-            list_method = f"crm.{entity_type}.userfield.list"
-            for field_name in ["UF_CRM_SEPARATOR_CTWA_ID", "UF_CRM_SEPARATOR_SOURCE_ID"]:
-                fields = call_method(app_instance, list_method, {"filter": {"FIELD_NAME": field_name}})
-
-                field_id = None
-                if fields and "result" in fields and len(fields["result"]) > 0:
-                    field_id = fields["result"][0].get("ID")
-
-                if field_id:
-                    call_api.delay(app_instance_id, f"crm.{entity_type}.userfield.delete", {"id": field_id})
-                
-        call_api.delay(app_instance_id, "bizproc.robot.delete", {"CODE": "separator_ctwa_tracker"})
-    except Exception as e:
-        logger.error(f"Error deleting CTWA fields: {e}")

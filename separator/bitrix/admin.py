@@ -5,7 +5,20 @@ from django import forms
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import App, AppInstance, Bitrix, Line, ImNotify, Connector, User, Credential, Plasement, ApiCall, Events
+from .models import (
+    App,
+    AppInstance,
+    Bitrix,
+    Line,
+    ImNotify,
+    Connector,
+    User,
+    Credential,
+    Feature,
+    FeatureGrant,
+    ApiCall,
+    Events,
+)
 from .crest import call_method
 import separator.bitrix.tasks as bitrix_tasks
 
@@ -106,32 +119,59 @@ class AppAdminForm(forms.ModelForm):
         }
 
 
-class PlasementInline(admin.TabularInline):
-    model = Plasement
-    fields = ('title', 'placement', 'handler')
+class FeatureGrantInline(admin.TabularInline):
+    model = FeatureGrant
     extra = 0
+    autocomplete_fields = ["feature"]
+    fields = ("feature", "code", "date_end")
 
 
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     form = AppAdminForm
-    inlines = [PlasementInline]
     list_display = ("name", "client_id", "site", "owner")
     search_fields = ("name", "id", "client_id", "owner__email")
     autocomplete_fields = ['owner']
     list_filter = ('autologin', 'asterx')
     fieldsets = (
         (None, {"fields": ("name", "save_events", "client_id", "client_secret", "site", "owner", "page_url")}),
+        ("Bitrix", {"fields": ("handler", "events")}),
         ("Auth", {"fields": ("autologin", "min_version")}),
-        ("Options", {"fields": ("events", "connectors", "asterx", "vendor", "bitbot")}),
+        ("Options", {"fields": ("connectors", "asterx", "vendor", "bitbot")}),
     )
 
 
-@admin.register(Plasement)
-class PlasementAdmin(admin.ModelAdmin):
-    list_display = ('title', 'app')
-    search_fields = ('title', 'placement', 'handler', 'app__name')
-    autocomplete_fields = ['app']
+@admin.register(Feature)
+class FeatureAdmin(admin.ModelAdmin):
+    list_display = ("name", "apps_list", "method", "active")
+    search_fields = ("name", "link", "method", "placements", "apps__name")
+    list_filter = ("active",)
+    filter_horizontal = ("apps",)
+    actions = ("apply_now",)
+
+    def apps_list(self, obj):
+        return ", ".join(obj.apps.values_list("name", flat=True)) or "-"
+    apps_list.short_description = "Apps"
+
+    @admin.action(description="Применить сейчас")
+    def apply_now(self, request, queryset):
+        queued = 0
+        for feature in queryset:
+            bitrix_tasks.apply_feature_now.delay(feature.id)
+            queued += 1
+
+        self.message_user(
+            request,
+            f"Поставлено задач на применение фич: {queued}",
+            level=messages.SUCCESS,
+        )
+
+
+@admin.register(FeatureGrant)
+class FeatureGrantAdmin(admin.ModelAdmin):
+    list_display = ("feature", "portal", "code", "date_end")
+    search_fields = ("code", "feature__name", "portal__domain")
+    autocomplete_fields = ["feature", "portal"]
 
 
 @admin.register(Connector)
@@ -141,7 +181,7 @@ class ConnectorAdmin(admin.ModelAdmin):
 
 @admin.register(Bitrix)
 class BitrixAdmin(admin.ModelAdmin):
-    inlines = [UserInline, AppInstanceInline]    
+    inlines = [UserInline, AppInstanceInline, FeatureGrantInline]
     autocomplete_fields = ['owner']
     list_display = ("domain", "owner", "license", "license_expired")
     search_fields = ("domain", "member_id", "owner__email")
@@ -153,9 +193,9 @@ class BitrixAdmin(admin.ModelAdmin):
 class AppInstanceAdmin(admin.ModelAdmin):
     inlines = [CredentialInline]
     autocomplete_fields = ['owner', "portal"]
-    list_display = ("app", "owner", "portal_link", "status", "ctwa")
+    list_display = ("app", "owner", "portal_link", "status")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
-    list_filter = ("app", "status", "auth_status", "ctwa")
+    list_filter = ("app", "status", "auth_status")
 
     def portal_link(self, obj):
         if obj.portal:
@@ -197,6 +237,24 @@ class CredentialAdminForm(forms.ModelForm):
         }
 
 
+class ApiCallAdminForm(forms.ModelForm):
+    class Meta:
+        model = ApiCall
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        app = cleaned_data.get("app")
+        app_instance = cleaned_data.get("app_instance")
+
+        if app and app_instance:
+            raise forms.ValidationError("Choose either app or app_instance, not both.")
+        if not app and not app_instance:
+            raise forms.ValidationError("app or app_instance is required.")
+
+        return cleaned_data
+
+
 @admin.register(Credential)
 class CredentialAdmin(admin.ModelAdmin):
     form = CredentialAdminForm
@@ -206,21 +264,32 @@ class CredentialAdmin(admin.ModelAdmin):
 
 @admin.register(ApiCall)
 class ApiCallAdmin(admin.ModelAdmin):
-    autocomplete_fields = ["app_instance"]
-    fields = ("app_instance", "admin", "method", "payload")
-    list_display = ("id", "app_instance", "admin", "method")
-    search_fields = ("method", "app_instance__id", "app_instance__portal__domain")
+    form = ApiCallAdminForm
+    autocomplete_fields = ["app", "app_instance"]
+    fields = ("app", "app_instance", "admin", "method", "payload")
+    list_display = ("id", "app", "app_instance", "admin", "method")
+    search_fields = ("method", "app__name", "app_instance__id", "app_instance__portal__domain")
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         payload = obj.payload or {}
         try:
-            if not obj.app_instance:
-                raise ValueError("app_instance is required")
             if not obj.method:
                 raise ValueError("method is required")
             if not isinstance(payload, dict):
                 raise ValueError("payload must be a JSON object")
+
+            if obj.app and not obj.app_instance:
+                bitrix_tasks.dispatch_api_call.delay(obj.id)
+                self.message_user(
+                    request,
+                    "Bitrix API call queued for app instances. Check Flower for per-instance results.",
+                    level=messages.SUCCESS,
+                )
+                return
+
+            if not obj.app_instance:
+                raise ValueError("app_instance is required")
 
             call_kwargs = {"admin": True} if obj.admin else {}
             result = call_method(obj.app_instance, obj.method, payload, **call_kwargs)

@@ -11,7 +11,6 @@ from separator.bitrix.models import Bitrix
 import separator.bitrix.utils as utils
 from separator.waba.models import Ctwa
 from separator.waba.tasks import send_ctwa_conversion
-from separator.waba.ctwa_events import CTWA_CONVERSION_EVENTS
 
 
 class PortalViewSet(CreateModelMixin, GenericViewSet):
@@ -86,7 +85,7 @@ class ConversionViewSet(GenericViewSet, CreateModelMixin):
                 Bitrix.objects.get(member_id=member_id)
 
                 if ctwa.waba.owner == request.user:
-                    if event_name and str(event_name).strip() in CTWA_CONVERSION_EVENTS:
+                    if event_name and str(event_name).strip():
                         send_ctwa_conversion.delay(separator_id, event=event_name)
             except (Ctwa.DoesNotExist, Bitrix.DoesNotExist):
                 pass

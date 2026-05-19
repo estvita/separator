@@ -17,7 +17,7 @@
           <form method="post">
             {% csrf_token %}
             <div class="mb-3">
-              <label class="form-label fw-bold">{% trans "Portal Owner" %}:</label>
+              <label class="form-label fw-bold">{% trans "App Owner" %}:</label>
               <p class="form-control-plaintext">
                 {% if portal.owner %}
                   {{ portal.owner.email }}
@@ -49,6 +49,98 @@
                     </td>
                     <td class="text-center">
                       <input type="checkbox" name="delete_line_{{ line.id }}">
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+
+            {% if app_instances %}
+            <div class="mb-3">
+              <label class="form-label fw-bold">{% trans "Applications" %}:</label>
+              <table class="table table-bordered align-middle">
+                <thead>
+                  <tr>
+                    <th>{% trans "App" %}</th>
+                    <th>{% trans "Owner" %}</th>
+                    <th>{% trans "Status" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for instance in app_instances %}
+                  <tr>
+                    <td>
+                      {% if instance.app %}
+                        {% if instance.app.page_url %}
+                          <a href="{{ instance.app.page_url }}">{{ instance.app.name }}</a>
+                        {% else %}
+                          {{ instance.app.name }}
+                        {% endif %}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if instance.owner %}
+                        {{ instance.owner.email }}
+                      {% else %}
+                        {% trans "Not assigned" %}
+                      {% endif %}
+                    </td>
+                    <td>{{ instance.status }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+
+            {% if feature_grants %}
+            <div class="mb-3">
+              <label class="form-label fw-bold">{% trans "Features" %}:</label>
+              <table class="table table-bordered align-middle">
+                <thead>
+                  <tr>
+                    <th>{% trans "Feature" %}</th>
+                    <th>{% trans "App" %}</th>
+                    <th>{% trans "Code" %}</th>
+                    <th>{% trans "Expires At" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for grant in feature_grants %}
+                  <tr>
+                    <td>
+                      {% if grant.feature %}
+                        {% if grant.feature.link %}
+                          <a href="{{ grant.feature.link }}" target="_blank" rel="noopener noreferrer">{{ grant.feature.name }}</a>
+                        {% else %}
+                          {{ grant.feature.name }}
+                        {% endif %}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if grant.feature %}
+                        {% for app in grant.feature.apps.all %}
+                          {% if not forloop.first %}, {% endif %}{{ app.name }}
+                        {% empty %}
+                          -
+                        {% endfor %}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                    <td>{{ grant.code|default:"-" }}</td>
+                    <td>
+                      {% if grant.date_end %}
+                        {{ grant.date_end|date:"Y-m-d H:i" }}
+                      {% else %}
+                        {% trans "Unlimited" %}
+                      {% endif %}
                     </td>
                   </tr>
                   {% endfor %}

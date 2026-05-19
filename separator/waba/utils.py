@@ -1283,7 +1283,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             appinstance = phone.app_instance
             if appinstance:
                 appinstance.host = host
-                if appinstance.ctwa:
+                if appinstance.has_active_feature("separator_ctwa_tracker"):
                     ctwa_enabled = True
         except Phone.DoesNotExist:
             raise Exception(f"phone_number not found {phone_number}")
