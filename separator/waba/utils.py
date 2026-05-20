@@ -257,7 +257,7 @@ def upload_media(appinstance, file_content, mime_type, filename, line_id=None, p
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()
     elif line_id:
-        line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
+        line = Line.objects.filter(line_id=line_id, portal=appinstance.portal).first()
         waba = Waba.objects.filter(phones__line=line).first() if line else None
         phone = waba.phones.filter(line=line).first() if waba and line else None
     else:
@@ -322,7 +322,7 @@ def send_message(appinstance, message, line_id=None, phone_num=None):
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()
     elif line_id:
-        line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
+        line = Line.objects.filter(line_id=line_id, portal=appinstance.portal).first()
         waba = Waba.objects.filter(phones__line=line).first() if line else None
         phone = waba.phones.filter(line=line).first() if waba and line else None
     else:

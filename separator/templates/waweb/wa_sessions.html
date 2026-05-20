@@ -67,7 +67,7 @@
             <!-- Line ID -->
             <td>
               {% if session.line %}
-                <span style="color: green;"> <a href="{% url 'portal_detail' session.line.portal.id %}">{{ session.line.portal.domain }}</a> - 
+                <span style="color: green;">
                   <a href="https://{{ session.line.portal.domain }}/contact_center/connector/?ID={{ session.line.connector.code }}&LINE={{ session.line.line_id }}" target="_blank">
                     {{ session.line.name }} ({{ session.line.line_id }})</a>                  
                 </span>

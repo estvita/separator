@@ -43,13 +43,12 @@ def settings_connector(request, user):
     connector = Connector.objects.filter(code=connector_code).first()
     if not connector:
         return HttpResponse("connector not found")
-    line, created = Line.objects.get_or_create(
-        line_id=line_id,
-        portal=portal,
-        connector=connector,
-        app_instance=app_instance,
-        owner=app_instance.owner
-    )
+    line = Line.objects.filter(line_id=line_id, portal=portal).order_by("id").first()
+    if not line:
+        line = Line.objects.create(line_id=line_id, portal=portal, connector=connector)
+    elif line.connector_id != connector.id:
+        line.connector = connector
+        line.save(update_fields=["connector"])
     configs = {
         "waba": {
             "queryset": Phone.objects.filter(owner=user, line__isnull=True).order_by("phone"),

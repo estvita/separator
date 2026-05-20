@@ -17,7 +17,7 @@ from django.utils.translation import gettext as _
 
 from .crest import call_method
 from .tasks import call_api, prepare_lead
-from .utils import get_b24_user, get_instances, get_app
+from .utils import get_b24_user, get_instances, get_app, get_line_app_instance
 from .forms import BitrixPortalForm, VerificationCodeForm
 import separator.bitrix.placements as placements
 from .models import AppInstance, Bitrix, VerificationCode, Line, Events
@@ -35,7 +35,6 @@ def link_ojects(portal: Bitrix, user):
         portal.owner = user
         portal.save()
     AppInstance.objects.filter(portal=portal, owner__isnull=True).update(owner=user)
-    Line.objects.filter(portal=portal, owner__isnull=True).update(owner=user)
 
 
 def link_portal(request, code):
@@ -408,22 +407,24 @@ def portal_detail(request, portal_id):
         if b24_user and b24_user.admin:
             portal.save()
             for line in lines:
+                app_instance = get_line_app_instance(line)
                 if request.POST.get(f"delete_line_{line.id}") == 'on':
-                    call_api.delay(line.app_instance.id, "imopenlines.config.delete", {"CONFIG_ID": line.line_id})
+                    if app_instance:
+                        call_api.delay(app_instance.id, "imopenlines.config.delete", {"CONFIG_ID": line.line_id})
                     line.delete()
                     continue
                 new_name = request.POST.get(f"line_name_{line.id}")
                 if new_name is not None and new_name != line.name:
                     line.name = new_name
                     line.save()
-                    if line.app_instance:
+                    if app_instance:
                         payload = {
                             "CONFIG_ID": line.line_id,
                             "PARAMS": {
                                 "LINE_NAME": new_name
                             }
                         }
-                        call_api.delay(line.app_instance.id, "imopenlines.config.update", payload)
+                        call_api.delay(app_instance.id, "imopenlines.config.update", payload)
             
         else:
             messages.error(request, _('Administrator rights are required to edit the portal.'))

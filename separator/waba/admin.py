@@ -23,7 +23,7 @@ from .models import (
     Bot,
     TemplateComponent,
 )
-from .tasks import call_management
+from .tasks import call_management, force_sync_waba_phones
 
 class AppAdminForm(forms.ModelForm):
     class Meta:
@@ -98,6 +98,27 @@ class WabaAdmin(admin.ModelAdmin):
     search_fields = ["waba_id", "owner__email"]
     readonly_fields = ("ctwa_records_link",)
     inlines = [PhoneInline, TemplateInline]
+    actions = ["force_sync_phones", "force_sync_templates"]
+
+    @admin.action(description="Получить телефы")
+    def force_sync_phones(self, request, queryset):
+        for waba in queryset:
+            force_sync_waba_phones.delay(waba.id)
+        self.message_user(
+            request,
+            f"Запущено получение телефонов для {queryset.count()} WABA.",
+            messages.SUCCESS,
+        )
+
+    @admin.action(description="Получить шаблоны")
+    def force_sync_templates(self, request, queryset):
+        for waba in queryset:
+            waba_utils.save_approved_templates.delay(waba.id)
+        self.message_user(
+            request,
+            f"Запущено получение шаблонов для {queryset.count()} WABA.",
+            messages.SUCCESS,
+        )
 
     def web_link(self, instance):
         if not instance.waba_id:
@@ -233,32 +254,41 @@ class ApiCallAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
 
-        payload = obj.payload or {}
-        waba = obj.phone.waba if obj.phone_id else obj.waba
-        app = waba.app if waba else form.cleaned_data.get("app")
-        endpoint = (obj.endpoint or "").strip().strip("/")
-        base_endpoint = ""
-
-        if obj.phone_id:
-            base_endpoint = obj.phone.phone_id
-        elif obj.waba_id:
-            base_endpoint = obj.waba.waba_id
-
-        if base_endpoint and endpoint:
-            endpoint = f"{base_endpoint}/{endpoint}"
-        elif base_endpoint:
-            endpoint = base_endpoint
-
         try:
+            payload = obj.payload or {}
+            endpoint = (obj.endpoint or "").strip().strip("/")
+            selected_app = form.cleaned_data.get("app")
+            waba = None
+            app = None
+            base_endpoint = ""
+
+            if obj.phone_id:
+                if not obj.phone.waba:
+                    raise ValueError("selected phone has no WABA")
+                waba = obj.phone.waba
+                app = waba.app
+                base_endpoint = obj.phone.phone_id
+            elif obj.waba_id:
+                waba = obj.waba
+                app = waba.app
+                base_endpoint = waba.waba_id
+            elif selected_app:
+                app = selected_app
+            else:
+                raise ValueError("choose app, waba or phone")
+
+            if base_endpoint and endpoint:
+                endpoint = f"{base_endpoint}/{endpoint}"
+            elif base_endpoint:
+                endpoint = base_endpoint
+
             if not isinstance(payload, dict):
                 raise ValueError("payload must be a JSON object")
-            if not endpoint:
-                raise ValueError("endpoint, phone or waba is required")
             if not app:
                 raise ValueError("app is required")
 
             result = waba_utils.call_api(
-                app=app,
+                app=None if waba else app,
                 waba=waba,
                 endpoint=endpoint,
                 method=obj.method,

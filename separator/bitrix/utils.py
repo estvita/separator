@@ -124,6 +124,75 @@ def get_instances(request, service=None):
         return portals, lines
 
 
+def get_line_app_instance(line: Line, connector_service=None):
+    if not line or not line.portal_id:
+        return None
+
+    instances = AppInstance.objects.filter(portal=line.portal).select_related("app", "portal")
+    if connector_service:
+        instances = instances.filter(app__connectors__service=connector_service)
+    elif line.connector_id:
+        instances = instances.filter(app__connectors=line.connector)
+    else:
+        instances = instances.filter(app__connectors__isnull=False)
+    return instances.distinct().order_by("id").first()
+
+
+def sync_portal_open_lines(appinstance: AppInstance):
+    if not appinstance or not appinstance.portal_id:
+        return 0
+
+    synced = 0
+    limit = 50
+    offset = 0
+
+    try:
+        while True:
+            response = bitrix_tasks.call_api(appinstance.id, "imopenlines.config.list.get", {
+                "PARAMS": {
+                    "select": ["ID", "LINE_NAME"],
+                    "order": {"ID": "ASC"},
+                    "limit": limit,
+                    "offset": offset,
+                }
+            })
+            configs = response.get("result") if isinstance(response, dict) else response
+            if not isinstance(configs, list) or not configs:
+                break
+
+            for config in configs:
+                if not isinstance(config, dict):
+                    continue
+                bitrix_line_id = str(config.get("ID") or config.get("id") or "").strip()
+                if not bitrix_line_id:
+                    continue
+
+                name = config.get("LINE_NAME") or config.get("line_name") or config.get("NAME") or "openline"
+                line = Line.objects.filter(
+                    line_id=bitrix_line_id,
+                    portal=appinstance.portal,
+                ).order_by("id").first()
+                if line:
+                    if name and line.name != name:
+                        line.name = name
+                        line.save(update_fields=["name"])
+                else:
+                    Line.objects.create(
+                        line_id=bitrix_line_id,
+                        portal=appinstance.portal,
+                        name=name,
+                    )
+                synced += 1
+
+            if len(configs) < limit:
+                break
+            offset += limit
+    except Exception:
+        logger.warning("Failed to sync open lines for AppInstance %s", appinstance.id, exc_info=True)
+
+    return synced
+
+
 def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id=None):
     try:
         profile = requests.post(f"{portal.protocol}://{portal.domain}/rest/profile", json={"auth": auth_id}, timeout=10)
@@ -176,8 +245,12 @@ def connect_line(request, line_id, entity, connector_service):
         instance_id = line_id.split("__")[1]
         app_instance = get_object_or_404(AppInstance, id=instance_id)
         connector = app_instance.app.connectors.filter(service=connector_service).first()
+        if not connector:
+            messages.error(request, "Не найден коннектор для установки приложения.")
+            return
         if entity.line:
-            bitrix_tasks.call_api(app_instance.id, "imconnector.activate", {
+            old_app_instance = get_line_app_instance(entity.line, connector_service) or app_instance
+            bitrix_tasks.call_api(old_app_instance.id, "imconnector.activate", {
                 "CONNECTOR": connector.code,
                 "LINE": entity.line.line_id,
                 "ACTIVE": 0,
@@ -205,8 +278,7 @@ def connect_line(request, line_id, entity, connector_service):
                 line_id=new_line_id,
                 portal=app_instance.portal,
                 connector=connector,
-                app_instance=app_instance,
-                owner=app_instance.owner
+                name=line_name,
             )
             entity.line = line
             entity.app_instance = app_instance
@@ -225,14 +297,21 @@ def connect_line(request, line_id, entity, connector_service):
             return
     else:
         line = get_object_or_404(Line, id=line_id)                
-        app_instance = line.app_instance
+        app_instance = get_line_app_instance(line, connector_service)
+        if not app_instance:
+            messages.error(request, "Не найдена установка приложения для портала линии.")
+            return
         connector = app_instance.app.connectors.filter(service=connector_service).first()
+        if not connector:
+            messages.error(request, "Не найден коннектор для установки приложения.")
+            return
         bitrix_tasks.messageservice_add.delay(app_instance.id, entity.id, connector.service)       
         if entity.line:
             if str(entity.line.id) == str(line_id):
                 messages.warning(request, "Эта линия уже используется.")
                 return
-            bitrix_tasks.call_api(app_instance.id, "imconnector.activate", {
+            old_app_instance = get_line_app_instance(entity.line, connector_service) or app_instance
+            bitrix_tasks.call_api(old_app_instance.id, "imconnector.activate", {
                 "CONNECTOR": connector.code,
                 "LINE": entity.line.line_id,
                 "ACTIVE": 0,
@@ -243,6 +322,9 @@ def connect_line(request, line_id, entity, connector_service):
             "ACTIVE": 1,
         })
         if response.get("result"):
+            if line.connector_id != connector.id:
+                line.connector = connector
+                line.save(update_fields=["connector"])
             entity.line = line
             entity.app_instance = app_instance
             entity.save()
@@ -1052,6 +1134,7 @@ def event_processor(data):
                     appinstance.save(update_fields=["storage_id"])
 
             def register_events_and_connectors():
+                sync_portal_open_lines(appinstance)
                 events_bind(appinstance)
                 queue_app_features(appinstance)
                 
@@ -1261,7 +1344,7 @@ def event_processor(data):
 
             elif connector.service == "waweb":
                 try:
-                    line = Line.objects.get(line_id=line_id, app_instance=appinstance)
+                    line = Line.objects.get(line_id=line_id, portal=appinstance.portal)
                     wa = Session.objects.get(line=line)
                     if files:
                         for file in files:
@@ -1286,7 +1369,7 @@ def event_processor(data):
             line_id = data.get("data[line]")
             connector_code = data.get("data[connector]")
             connector = get_object_or_404(Connector, code=connector_code)
-            line = get_object_or_404(Line, line_id=line_id, app_instance=appinstance)
+            line = get_object_or_404(Line, line_id=line_id, portal=appinstance.portal)
 
             if connector.service == "olx":
                 olxuser = line.olx_users.first()
@@ -1308,7 +1391,7 @@ def event_processor(data):
 
         elif event == "ONIMCONNECTORLINEDELETE":
             line_id = data.get("data")
-            line = get_object_or_404(Line, line_id=line_id, app_instance=appinstance)
+            line = get_object_or_404(Line, line_id=line_id, portal=appinstance.portal)
             line.delete()
             
         # AsterX

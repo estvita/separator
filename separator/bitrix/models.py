@@ -175,15 +175,11 @@ class ApiCall(models.Model):
 
 class Line(models.Model):
     line_id = models.CharField(max_length=50)
-    owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
-    )
     name = models.CharField(max_length=255, default="openline")
-    app_instance = models.ForeignKey(AppInstance, on_delete=models.CASCADE, related_name="lines", null=True)
-    connector = models.ForeignKey(Connector, on_delete=models.SET_NULL, related_name="lines", null=True)
+    connector = models.ForeignKey(Connector, on_delete=models.SET_NULL, related_name="lines", blank=True, null=True)
     portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="lines", blank=True, null=True)
     def __str__(self):
-        return f"Line {self.line_id} for AppInstance {self.app_instance}"
+        return f"Line {self.line_id} for {self.portal}"
 
 
 class Feature(models.Model):

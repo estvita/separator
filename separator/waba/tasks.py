@@ -103,6 +103,18 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
         raise Exception(f"Phone number {target_phone_number} not found in WABA {waba.waba_id}")
 
 
+@shared_task(queue='waba')
+def force_sync_waba_phones(waba_id):
+    waba = Waba.objects.select_related("app", "owner").get(id=waba_id)
+    _onboard_waba_assets(
+        waba,
+        user=waba.owner,
+        register=False,
+        save_templates=False,
+        create_lead=False,
+    )
+
+
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
 def exchange_embedded_signup_code(request_id, app_id):
     current_data = redis_client.json().get(request_id, "$")

@@ -7,6 +7,7 @@ import redis
 from celery import shared_task
 
 import separator.bitrix.tasks as bitrix_tasks
+from separator.bitrix.models import AppInstance
 
 from .models import (
     OlxAdvert,
@@ -283,10 +284,16 @@ def get_threads(olx_user_id):
     try:
         user = OlxUser.objects.get(olx_id=olx_user_id)
         line = None
+        app_instance = None
         if user.line:
             line = user.line
-            connector_code = line.connector.code
-        if not line:
+            if line.connector:
+                connector_code = line.connector.code
+                app_instance = AppInstance.objects.filter(
+                    portal=line.portal,
+                    app__connectors=line.connector,
+                ).distinct().order_by("id").first()
+        if not line or not line.connector or not app_instance:
             deactivate_task(olx_user_id)
             logger.info(f"OLX task deactivated for user {olx_user_id}: line is not connected.")
             return
@@ -367,11 +374,11 @@ def get_threads(olx_user_id):
                     text = message.get("text")
                     attachments = message.get("attachments", [])
                     if message_type == "received":
-                        bitrix_tasks.send_messages.delay(line.app_instance.id, None, text, connector_code,
+                        bitrix_tasks.send_messages.delay(app_instance.id, None, text, connector_code,
                                                             line.line_id, False, user_name, message_id,
                                                             attachments, None, chat_id, advert_url, interlocutor_id)
                     elif message_type == "sent":
-                        bitrix_tasks.message_add.delay(line.app_instance.id, line.line_id,
+                        bitrix_tasks.message_add.delay(app_instance.id, line.line_id,
                                                         interlocutor_id, text, connector_code,
                                                         attach=attachments)
 

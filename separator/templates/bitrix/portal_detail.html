@@ -48,12 +48,15 @@
                       <input type="text" class="form-control" name="line_name_{{ line.id }}" value="{{ line.name }}">
                     </td>
                     <td class="text-center">
-                      <input type="checkbox" name="delete_line_{{ line.id }}">
+                      <input type="checkbox" class="delete-line-checkbox" name="delete_line_{{ line.id }}">
                     </td>
                   </tr>
                   {% endfor %}
                 </tbody>
               </table>
+              <div class="alert alert-warning">
+                {% trans "Deleting a line will remove it from the portal with all chats." %}
+              </div>
             </div>
             {% endif %}
 
@@ -104,7 +107,6 @@
                 <thead>
                   <tr>
                     <th>{% trans "Feature" %}</th>
-                    <th>{% trans "App" %}</th>
                     <th>{% trans "Code" %}</th>
                     <th>{% trans "Expires At" %}</th>
                   </tr>
@@ -119,17 +121,6 @@
                         {% else %}
                           {{ grant.feature.name }}
                         {% endif %}
-                      {% else %}
-                        -
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if grant.feature %}
-                        {% for app in grant.feature.apps.all %}
-                          {% if not forloop.first %}, {% endif %}{{ app.name }}
-                        {% empty %}
-                          -
-                        {% endfor %}
                       {% else %}
                         -
                       {% endif %}
@@ -164,3 +155,27 @@
   </div>
 </div>
 {% endblock content %}
+
+{% block inline_javascript %}
+{{ block.super }}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+    if (!form) {
+      return;
+    }
+
+    form.addEventListener("submit", function (event) {
+      const hasDelete = form.querySelector(".delete-line-checkbox:checked");
+      if (!hasDelete) {
+        return;
+      }
+
+      const confirmed = window.confirm("{% trans 'This will delete the line from the portal with all chats. Continue?' %}");
+      if (!confirmed) {
+        event.preventDefault();
+      }
+    });
+  });
+</script>
+{% endblock inline_javascript %}

@@ -207,8 +207,8 @@ class AppInstanceAdmin(admin.ModelAdmin):
 
 @admin.register(Line)
 class LineAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['owner']
-    list_display = ("line_id", "app_instance", "owner")
+    autocomplete_fields = ['portal']
+    list_display = ("line_id", "portal", "connector")
     search_fields = ("line_id", "portal__domain")
 
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-13 15:20+0500\n"
+"POT-Creation-Date: 2026-05-20 15:43+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -220,6 +220,15 @@ msgid "send failed"
 msgstr ""
 
 msgid "WABA template sent"
+msgstr ""
+
+msgid "Sender"
+msgstr ""
+
+msgid "Recipient"
+msgstr ""
+
+msgid "Template"
 msgstr ""
 
 msgid "unknown action"
@@ -575,9 +584,6 @@ msgstr ""
 msgid "Client number"
 msgstr ""
 
-msgid "Template"
-msgstr ""
-
 msgid "Send"
 msgstr ""
 
@@ -638,7 +644,7 @@ msgstr ""
 msgid "Portal"
 msgstr ""
 
-msgid "Portal Owner"
+msgid "App Owner"
 msgstr ""
 
 msgid "Not assigned"
@@ -647,7 +653,37 @@ msgstr ""
 msgid "Line ID"
 msgstr ""
 
+msgid "Deleting a line will remove it from the portal with all chats."
+msgstr ""
+
+msgid "Applications"
+msgstr ""
+
+msgid "App"
+msgstr ""
+
+msgid "Owner"
+msgstr ""
+
+msgid "Features"
+msgstr ""
+
+msgid "Feature"
+msgstr ""
+
+msgid "Code"
+msgstr ""
+
+msgid "Expires At"
+msgstr ""
+
+msgid "Unlimited"
+msgstr ""
+
 msgid "Back to Portals"
+msgstr ""
+
+msgid "This will delete the line from the portal with all chats. Continue?"
 msgstr ""
 
 msgid "Your Bitrix24"
@@ -926,9 +962,6 @@ msgstr ""
 msgid "All statuses"
 msgstr ""
 
-msgid "Recipient"
-msgstr ""
-
 msgid "WAMID"
 msgstr ""
 
@@ -966,6 +999,60 @@ msgid "add line"
 msgstr ""
 
 msgid "You don't have any connected sessions."
+msgstr ""
+
+msgid "Partner apps"
+msgstr ""
+
+msgid "Changing the connected line may desynchronize existing chats. Continue?"
+msgstr ""
+
+msgid "WABA Partner Apps"
+msgstr ""
+
+msgid "API token"
+msgstr ""
+
+msgid "Show"
+msgstr ""
+
+msgid "Reset token"
+msgstr ""
+
+msgid "Create partner app"
+msgstr ""
+
+msgid "Webhook URL"
+msgstr ""
+
+msgid "Redirect URL"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "App ID"
+msgstr ""
+
+msgid "Addresses"
+msgstr ""
+
+msgid "Verify token"
+msgstr ""
+
+msgid "Webhook"
+msgstr ""
+
+msgid "Redirect"
+msgstr ""
+
+msgid "No partner applications yet."
+msgstr ""
+
+msgid "Edit partner app"
+msgstr ""
+
+msgid "Delete partner app?"
 msgstr ""
 
 msgid "WhatsApp Cloud number settings"
@@ -1079,6 +1166,27 @@ msgstr ""
 msgid "Check phone status"
 msgstr ""
 
+msgid "Check phone status to refresh JSON response."
+msgstr ""
+
+msgid "Verification method"
+msgstr ""
+
+msgid "Voice call"
+msgstr ""
+
+msgid "Request code"
+msgstr ""
+
+msgid "Verification code"
+msgstr ""
+
+msgid "Verify and register"
+msgstr ""
+
+msgid "Register"
+msgstr ""
+
 msgid "Delete selected templates from Facebook and local database?"
 msgstr ""
 
@@ -1157,6 +1265,23 @@ msgstr ""
 msgid "Information successfully updated"
 msgstr ""
 
+msgid "Без имени"
+msgstr ""
+
+msgid "Phone is not registered"
+msgstr ""
+
+#, python-format
+msgid "Current status: %(status)s"
+msgstr ""
+
+msgid "Phone number is not verified"
+msgstr ""
+
+#, python-format
+msgid "Verification status: %(status)s"
+msgstr ""
+
 msgid "This number is linked to another user."
 msgstr ""
 
@@ -1199,6 +1324,21 @@ msgstr ""
 msgid "App is not connected to this phone WABA account."
 msgstr ""
 
+msgid "Invalid verification method."
+msgstr ""
+
+msgid "Verification code has been requested."
+msgstr ""
+
+msgid "Enter verification code."
+msgstr ""
+
+msgid "Phone number has been verified. Registration has been queued."
+msgstr ""
+
+msgid "Phone registration has been queued."
+msgstr ""
+
 msgid "The tariff has expired "
 msgstr ""
 
@@ -1226,6 +1366,21 @@ msgstr ""
 msgid "App is not connected to this WABA account."
 msgstr ""
 
+msgid "Only integrators can manage partner applications."
+msgstr ""
+
+msgid "API token has been reset."
+msgstr ""
+
+msgid "Partner application has been created."
+msgstr ""
+
+msgid "Partner application has been deleted."
+msgstr ""
+
+msgid "Partner application has been updated."
+msgstr ""
+
 msgid ""
 "The number has been successfully added. It will appear here in a few minutes."
 msgstr ""
@@ -1246,6 +1401,9 @@ msgid "Attachment"
 msgstr ""
 
 msgid "You must provide either a message or a file."
+msgstr ""
+
+msgid "From WhatsApp"
 msgstr ""
 
 msgid "You must connect WhatsApp first."

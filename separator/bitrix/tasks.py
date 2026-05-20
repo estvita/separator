@@ -103,10 +103,13 @@ def build_lead_title(site, code, fallback, **context):
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
-def call_api(self, id, method, payload, b24_user=None, admin=False):
+def call_api(self, id, method, payload, b24_user=None):
+    # Keep this wrapper aligned with the historical default behavior of call_method().
+    # Changing its implicit admin-mode semantics breaks existing install/runtime flows
+    # that call bitrix_tasks.call_api(...) without extra flags.
     try:
         app_instance = AppInstance.objects.get(id=id)
-        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, admin=admin, timeout=10)
+        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
         return resp
     except BitrixAccessDeniedError:
         raise
@@ -134,7 +137,7 @@ def dispatch_api_call(api_call_id):
 
     queued = 0
     for app_instance_id in app_instance_ids:
-        call_api.delay(app_instance_id, api_call.method, payload, admin=api_call.admin)
+        call_api.delay(app_instance_id, api_call.method, payload)
         queued += 1
 
     return {
@@ -572,7 +575,7 @@ def delete_temp_file(file_path):
 @shared_task(queue='bitrix')
 def check_tariffs(*days):
     """
-    Check tariff expiration for WABA, WaWeb, OLX, BitBot, and AsterX.
+    Check expiration for service subscriptions and feature grants.
     Accepts multiple integer arguments.
     Example: check_tariffs(10, 5, 1)
     """
@@ -628,3 +631,34 @@ def check_tariffs(*days):
                         redis_client.setex(redis_key, ttl, resp['result'])
                 except Exception as e:
                     print(e)
+
+        feature_grants = FeatureGrant.objects.filter(
+            date_end__year=target_date.year,
+            date_end__month=target_date.month,
+            date_end__day=target_date.day,
+            portal__owner__isnull=False,
+        ).select_related("feature", "portal", "portal__owner")
+
+        for grant in feature_grants:
+            owner = grant.portal.owner
+            redis_key = f"leads:feature:{grant.id}"
+            if redis_client.get(redis_key):
+                continue
+
+            feature_name = grant.feature.name
+            expiration_str = grant.date_end.strftime('%d.%m.%Y')
+            title = build_lead_title(
+                owner.site,
+                "service_subscription_title",
+                "Subscription for {service}: {identifier} expires on {expiration_date}",
+                service=feature_name,
+                identifier=grant.code or feature_name,
+                expiration_date=expiration_str,
+            )
+
+            try:
+                resp = prepare_lead(owner.id, title)
+                if resp and isinstance(resp, dict) and 'result' in resp:
+                    redis_client.setex(redis_key, ttl, resp['result'])
+            except Exception as e:
+                print(e)

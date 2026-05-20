@@ -61,7 +61,7 @@
             </td>
             <td>
               {% if phone.line %}
-                <span style="color: green;"> <a href="{% url 'portal_detail' phone.line.portal.id %}">{{ phone.line.portal.domain }}</a> - 
+                <span style="color: green;">
                   <a href="https://{{ phone.line.portal.domain }}/contact_center/connector/?ID={{ phone.line.connector.code }}&LINE={{ phone.line.line_id }}" target="_blank">
                     {{ phone.line.name }} ({{ phone.line.line_id }})</a>
                 </span>
@@ -70,18 +70,18 @@
               {% endif %}
             </td>
             <td>
-              <form method="POST" action="{% url 'waba' %}">
+              <form method="POST" action="{% url 'waba' %}" class="waba-line-form" data-has-line="{% if phone.line %}1{% else %}0{% endif %}">
                 {% csrf_token %}
                 <div class="form-group d-flex align-items-center">
                   <select id="line_id" name="line_id" class="form-control mr-2">
                     <option value="" disabled {% if not phone.line %}selected{% endif %}>{% trans "Select a line" %}</option>
                   
                     {% for line in waba_lines %}
-                      <option value="{{ line.id }}">{{ line.line_id }} ({{ line.name }}) - {{ line.portal.domain }}</option>
+                      <option value="{{ line.id }}">{{ line.name }} ({{ line.line_id }})</option>
                     {% endfor %}
 
                     {% for instance in instances %}
-                    <option value="create__{{ instance.id }}">➕ {% trans "add line" %} {{ instance.portal.domain }}</option>
+                    <option value="create__{{ instance.id }}">+ {% trans "add line" %} {{ instance.portal.domain }}</option>
                     {% endfor %}
                   </select>
                   <input type="hidden" name="phone_id" value="{{ phone.id }}" />
@@ -139,6 +139,19 @@ document.getElementById('add-waba-number').addEventListener('click', function ()
     .finally(function () {
       button.disabled = false;
     });
+});
+
+document.querySelectorAll('.waba-line-form').forEach(function (form) {
+  form.addEventListener('submit', function (event) {
+    if (form.dataset.hasLine !== '1') {
+      return;
+    }
+
+    const confirmed = window.confirm('{% trans "Changing the connected line may desynchronize existing chats. Continue?" %}');
+    if (!confirmed) {
+      event.preventDefault();
+    }
+  });
 });
 </script>
 {% endblock content %}
