@@ -125,7 +125,7 @@
                         -
                       {% endif %}
                     </td>
-                    <td>{{ grant.code|default:"-" }}</td>
+                    <td>{{ grant.feature.code|default:"-" }}</td>
                     <td>
                       {% if grant.date_end %}
                         {{ grant.date_end|date:"Y-m-d H:i" }}

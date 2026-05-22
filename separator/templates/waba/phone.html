@@ -472,6 +472,41 @@
                   <button type="submit" class="btn btn-success">{% trans "Register" %}</button>
                 </form>
               {% endif %}
+
+              {% if phone_status_summary.needs_oba_application and phone.type != "app" %}
+                <form method="POST" action="{% url 'phone-details' phone.phone_id %}?tab=status" class="border rounded p-3 mt-3">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="submit_oba_application">
+                  <input type="hidden" name="tab" value="status">
+                  <h5 class="mb-3">{% trans "Official Business Account application" %}</h5>
+                  <div class="mb-2">
+                    <label for="business_website_url" class="form-label">{% trans "Business website URL" %}</label>
+                    <input type="url" id="business_website_url" name="business_website_url" class="form-control" required>
+                  </div>
+                  <div class="mb-2">
+                    <label for="primary_country_of_operation" class="form-label">{% trans "Primary country of operation" %}</label>
+                    <input type="text" id="primary_country_of_operation" name="primary_country_of_operation" class="form-control" required>
+                  </div>
+                  <div class="mb-2">
+                    <label for="primary_language" class="form-label">{% trans "Primary language" %}</label>
+                    <input type="text" id="primary_language" name="primary_language" class="form-control">
+                  </div>
+                  <div class="mb-2">
+                    <label for="parent_business_or_brand" class="form-label">{% trans "Parent business or brand" %}</label>
+                    <input type="text" id="parent_business_or_brand" name="parent_business_or_brand" class="form-control">
+                  </div>
+                  <div class="mb-2">
+                    <label for="supporting_links" class="form-label">{% trans "Supporting links" %}</label>
+                    <textarea id="supporting_links" name="supporting_links" class="form-control" rows="4" placeholder="{% trans 'One URL per line' %}"></textarea>
+                    <div class="form-text">{% trans "Optional, 5 to 10 links." %}</div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="additional_supporting_information" class="form-label">{% trans "Additional supporting information" %}</label>
+                    <textarea id="additional_supporting_information" name="additional_supporting_information" class="form-control" rows="3"></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-primary">{% trans "Submit application" %}</button>
+                </form>
+              {% endif %}
             {% endif %}
           </div>
         </div>

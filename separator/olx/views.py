@@ -250,7 +250,9 @@ def olx_account_adverts(request, account_id):
             if response.status_code == 204:
                 details = _olx_request(olx_user, "GET", f"/adverts/{advert.advert_id}")
                 if details.status_code == 200:
-                    _upsert_advert(olx_user, _advert_data(details))
+                    advert = _upsert_advert(olx_user, _advert_data(details))
+                advert.status = "active"
+                advert.save(update_fields=["status"])
                 messages.success(request, "OLX advert publication requested.")
             else:
                 messages.error(request, f"OLX advert publication failed: {_olx_error_message(response)}")

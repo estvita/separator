@@ -46,6 +46,107 @@ def _items(response):
         return payload.get("data", [])
     return payload
 
+
+def _working_user(client_domain):
+    return (
+        OlxUser.objects.select_related("olxapp")
+        .filter(olxapp__client_domain=client_domain, access_token__isnull=False)
+        .exclude(access_token="")
+        .order_by("attempts", "id")
+        .first()
+    )
+
+
+def _sync_regions_for_user(user, client_domain):
+    regions_response = _partner_request(user, "GET", "/regions")
+    regions_by_olx_id = {}
+    if regions_response.status_code == 200:
+        for item in _items(regions_response):
+            region, _ = OlxRegion.objects.update_or_create(
+                client_domain=client_domain,
+                olx_id=item["id"],
+                defaults={"name": item.get("name") or ""},
+            )
+            regions_by_olx_id[region.olx_id] = region
+    return regions_by_olx_id
+
+
+def _sync_cities_for_user(user, client_domain):
+    regions_by_olx_id = _sync_regions_for_user(user, client_domain)
+    offset = 0
+    limit = 1000
+    synced = 0
+    while True:
+        cities_response = _partner_request(user, "GET", "/cities", params={"offset": offset, "limit": limit})
+        if cities_response.status_code != 200:
+            raise Exception(f"OLX cities sync failed: {cities_response.status_code} {cities_response.text}")
+        cities = _items(cities_response)
+        for item in cities:
+            OlxCity.objects.update_or_create(
+                client_domain=client_domain,
+                olx_id=item["id"],
+                defaults={
+                    "region": regions_by_olx_id.get(item.get("region_id")),
+                    "name": item.get("name") or "",
+                    "county": item.get("county") or "",
+                    "municipality": item.get("municipality") or "",
+                    "latitude": item.get("latitude"),
+                    "longitude": item.get("longitude"),
+                },
+            )
+            synced += 1
+        if len(cities) < limit:
+            break
+        offset += limit
+    return synced
+
+
+def _sync_districts_for_user(user, client_domain):
+    cities_by_olx_id = {
+        city.olx_id: city
+        for city in OlxCity.objects.filter(client_domain=client_domain)
+    }
+    districts_response = _partner_request(user, "GET", "/districts")
+    if districts_response.status_code != 200:
+        raise Exception(f"OLX districts sync failed: {districts_response.status_code} {districts_response.text}")
+    synced = 0
+    for item in _items(districts_response):
+        city = cities_by_olx_id.get(item.get("city_id"))
+        if not city:
+            continue
+        OlxDistrict.objects.update_or_create(
+            client_domain=client_domain,
+            olx_id=item["id"],
+            defaults={
+                "city": city,
+                "name": item.get("name") or "",
+                "latitude": item.get("latitude"),
+                "longitude": item.get("longitude"),
+            },
+        )
+        synced += 1
+    return synced
+
+
+@shared_task(queue='olx')
+def sync_olx_geo(section, client_domains=None):
+    result = {}
+    client_domains = client_domains or list(
+        OlxUser.objects.filter(olxapp__isnull=False)
+        .values_list("olxapp__client_domain", flat=True)
+        .distinct()
+    )
+    for client_domain in client_domains:
+        user = _working_user(client_domain)
+        if not user:
+            result[client_domain] = "no working token"
+            continue
+        if section == "cities":
+            result[client_domain] = _sync_cities_for_user(user, client_domain)
+        elif section == "districts":
+            result[client_domain] = _sync_districts_for_user(user, client_domain)
+    return result
+
 @shared_task(queue='olx')
 def refresh_token(olx_user_id):
     user = OlxUser.objects.get(olx_id=olx_user_id)
@@ -152,6 +253,8 @@ def sync_olx_dictionaries(olx_user_id):
                 defaults={
                     "region": regions_by_olx_id.get(item.get("region_id")),
                     "name": item.get("name") or "",
+                    "county": item.get("county") or "",
+                    "municipality": item.get("municipality") or "",
                     "latitude": item.get("latitude"),
                     "longitude": item.get("longitude"),
                 },

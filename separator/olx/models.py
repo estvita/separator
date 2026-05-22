@@ -158,6 +158,8 @@ class OlxCity(models.Model):
         null=True,
     )
     name = models.CharField(max_length=255)
+    county = models.CharField(max_length=255, blank=True)
+    municipality = models.CharField(max_length=255, blank=True)
     latitude = models.DecimalField(max_digits=10, decimal_places=6, blank=True, null=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=6, blank=True, null=True)
 
@@ -166,7 +168,8 @@ class OlxCity(models.Model):
         ordering = ("name",)
 
     def __str__(self):
-        return f"{self.name} ({self.client_domain})"
+        parts = [self.name, self.municipality, self.county]
+        return ", ".join(part for part in parts if part)
 
 
 class OlxDistrict(models.Model):

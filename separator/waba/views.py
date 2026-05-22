@@ -43,7 +43,7 @@ WABA_STATUS_FIELDS = (
 PHONE_STATUS_FIELDS = (
     "display_phone_number,verified_name,status,quality_rating,country_code,"
     "country_dial_code,code_verification_status,account_mode,host_platform,"
-    "messaging_limit_tier,is_official_business_account"
+    "messaging_limit_tier,is_official_business_account,official_business_account"
 )
 
 
@@ -52,10 +52,12 @@ def build_phone_status_summary(status_data, phone=None):
         "items": [],
         "can_register": False,
         "needs_verification": False,
+        "needs_oba_application": False,
         "ok": False,
     }
     status = status_data.get("status")
     code_status = status_data.get("code_verification_status")
+    is_official_business_account = status_data.get("is_official_business_account")
 
     if status and status != "CONNECTED":
         summary["items"].append({
@@ -71,6 +73,14 @@ def build_phone_status_summary(status_data, phone=None):
             "level": "warning",
             "title": _("Phone number is not verified"),
             "text": _("Verification status: %(status)s") % {"status": code_status},
+        })
+
+    if is_official_business_account is False and getattr(phone, "type", None) != "app":
+        summary["needs_oba_application"] = True
+        summary["items"].append({
+            "level": "warning",
+            "title": _("Official Business Account is not enabled"),
+            "text": _("You can submit an application for Official Business Account status."),
         })
 
     if not summary["items"]:
@@ -149,7 +159,8 @@ def phone_details(request, phone_id):
     verification_code_requested = request.session.pop(verification_session_key, False)
     ctwa_query = request.GET.get("ctwa_q", "").strip()
     ctwa_status = request.GET.get("ctwa_status", "").strip()
-    templates = list(waba_utils.prefetch_template_components(Template.objects.filter(waba=phone.waba)))
+    templates_qs = Template.objects.filter(waba=phone.waba)
+    templates = list(waba_utils.prefetch_template_components(templates_qs))
     for template in templates:
         template.bitrix_code = waba_utils.build_bitrix_template_code(template)
 
@@ -208,7 +219,7 @@ def phone_details(request, phone_id):
         elif action == 'update_templates':
             delete_ids = set(request.POST.getlist('delete_templates'))
             if delete_ids:
-                to_delete_ids = list(templates.filter(id__in=delete_ids).values_list("id", flat=True))
+                to_delete_ids = list(templates_qs.filter(id__in=delete_ids).values_list("id", flat=True))
                 for template_id in to_delete_ids:
                     waba_tasks.delete_template.delay(template_id, request.user.id)
                 if to_delete_ids:
@@ -217,15 +228,15 @@ def phone_details(request, phone_id):
             allowed_ids = set(request.POST.getlist('available_templates'))
             if delete_ids:
                 allowed_ids -= delete_ids
-            templates.update(availableInB24=False)
+            templates_qs.update(availableInB24=False)
             if allowed_ids:
-                templates.filter(id__in=allowed_ids).update(availableInB24=True)
+                templates_qs.filter(id__in=allowed_ids).update(availableInB24=True)
 
             # Handle default template selection (only one per WABA)
             default_id = request.POST.get('default_template')
             if default_id and default_id not in delete_ids:
-                templates.update(default=False)
-                templates.filter(id=default_id).update(default=True)
+                templates_qs.update(default=False)
+                templates_qs.filter(id=default_id).update(default=True)
 
             messages.success(request, _('Template availability updated.'))
             return redirect_to_phone_tab("templates")
@@ -436,6 +447,54 @@ def phone_details(request, phone_id):
                 try:
                     waba_tasks.register_phone.delay(phone.id)
                     messages.success(request, _("Phone registration has been queued."))
+                except Exception as e:
+                    messages.error(request, format_meta_user_error(e))
+            return redirect_to_phone_tab("status")
+        elif action == "submit_oba_application":
+            if not phone.waba or not phone.waba.app:
+                messages.error(request, _("App is not connected to this phone WABA account."))
+            elif phone.type == "app":
+                messages.error(request, _("Official Business Account application is not available for WhatsApp Business App numbers."))
+            else:
+                business_website_url = (request.POST.get("business_website_url") or "").strip()
+                primary_country_of_operation = (request.POST.get("primary_country_of_operation") or "").strip()
+                if not business_website_url or not primary_country_of_operation:
+                    messages.error(request, _("Business website URL and primary country of operation are required."))
+                    return redirect_to_phone_tab("status")
+
+                payload = {
+                    "business_website_url": business_website_url,
+                    "primary_country_of_operation": primary_country_of_operation,
+                }
+                for field in (
+                    "primary_language",
+                    "parent_business_or_brand",
+                    "additional_supporting_information",
+                ):
+                    value = (request.POST.get(field) or "").strip()
+                    if value:
+                        payload[field] = value
+
+                supporting_links = [
+                    link.strip()
+                    for link in (request.POST.get("supporting_links") or "").replace(",", "\n").splitlines()
+                    if link.strip()
+                ]
+                if supporting_links:
+                    if len(supporting_links) < 5 or len(supporting_links) > 10:
+                        messages.error(request, _("Supporting links must contain from 5 to 10 URLs."))
+                        return redirect_to_phone_tab("status")
+                    payload["supporting_links"] = supporting_links
+
+                try:
+                    response = waba_utils.call_api(
+                        waba=phone.waba,
+                        endpoint=f"{phone.phone_id}/official_business_account",
+                        method="post",
+                        payload=payload,
+                    )
+                    message = response.get("message") or _("Official Business Account application has been submitted.")
+                    messages.success(request, message)
                 except Exception as e:
                     messages.error(request, format_meta_user_error(e))
             return redirect_to_phone_tab("status")

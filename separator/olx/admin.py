@@ -10,9 +10,8 @@ from .models import OlxDistrict
 from .models import OlxRegion
 from .models import OlxThread
 from .models import OlxUser
+from .tasks import sync_olx_geo
 
-from separator.bitrix.models import Connector, Line
-import separator.bitrix.utils as bitrix_utils
 
 class OlxAppAdminForm(forms.ModelForm):
     class Meta:
@@ -63,7 +62,6 @@ class OlxUserAdmin(admin.ModelAdmin):
         "attempts",
         # "line",
     )
-    list_per_page = 30
 
     # def save_model(self, request, obj, form, change):
     #     super().save_model(request, obj, form, change)
@@ -83,16 +81,21 @@ class OlxRegionAdmin(admin.ModelAdmin):
     list_display = ("name", "olx_id", "client_domain")
     list_filter = ("client_domain",)
     search_fields = ("name", "olx_id")
-    list_per_page = 50
 
 
 @admin.register(OlxCity)
 class OlxCityAdmin(admin.ModelAdmin):
-    list_display = ("name", "olx_id", "client_domain", "region", "latitude", "longitude")
+    list_display = ("name", "olx_id", "client_domain", "region", "county", "municipality", "latitude", "longitude")
     list_filter = ("client_domain", "region")
-    search_fields = ("name", "olx_id", "region__name")
+    search_fields = ("name", "olx_id", "region__name", "county", "municipality")
     autocomplete_fields = ("region",)
-    list_per_page = 50
+    actions = ("update_cities",)
+
+    @admin.action(description="update cities")
+    def update_cities(self, request, queryset):
+        client_domains = list(queryset.values_list("client_domain", flat=True).distinct())
+        sync_olx_geo.apply_async(args=["cities", client_domains], queue="olx")
+        self.message_user(request, "Cities update started.")
 
 
 @admin.register(OlxDistrict)
@@ -101,7 +104,13 @@ class OlxDistrictAdmin(admin.ModelAdmin):
     list_filter = ("client_domain",)
     search_fields = ("name", "olx_id", "city__name")
     autocomplete_fields = ("city",)
-    list_per_page = 50
+    actions = ("update_districts",)
+
+    @admin.action(description="update districts")
+    def update_districts(self, request, queryset):
+        client_domains = list(queryset.values_list("client_domain", flat=True).distinct())
+        sync_olx_geo.apply_async(args=["districts", client_domains], queue="olx")
+        self.message_user(request, "Districts update started.")
 
 
 class OlxCategoryAttributeInline(admin.TabularInline):
@@ -118,7 +127,6 @@ class OlxCategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "olx_id", "parent__name")
     autocomplete_fields = ("parent",)
     inlines = (OlxCategoryAttributeInline,)
-    list_per_page = 50
 
 
 @admin.register(OlxCategoryAttribute)
@@ -127,7 +135,6 @@ class OlxCategoryAttributeAdmin(admin.ModelAdmin):
     list_filter = ("category__client_domain",)
     search_fields = ("label", "code", "category__name", "category__olx_id")
     autocomplete_fields = ("category",)
-    list_per_page = 50
 
     @admin.display(description="type")
     def attribute_type(self, obj):
@@ -158,7 +165,6 @@ class OlxAdvertAdmin(admin.ModelAdmin):
     search_fields = ("advert_id", "title", "olx_user__olx_id", "category__name", "city__name", "district__name")
     autocomplete_fields = ("olx_user", "category", "city", "district")
     readonly_fields = ("advert_id", "payload", "last_pushup_at", "last_pushup_error")
-    list_per_page = 50
 
 
 @admin.register(OlxThread)
@@ -173,4 +179,3 @@ class OlxThreadAdmin(admin.ModelAdmin):
         "total_count",
     )
     autocomplete_fields = ("olx_user",)
-    list_per_page = 50

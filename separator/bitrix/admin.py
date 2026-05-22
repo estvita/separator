@@ -123,7 +123,7 @@ class FeatureGrantInline(admin.TabularInline):
     model = FeatureGrant
     extra = 0
     autocomplete_fields = ["feature"]
-    fields = ("feature", "code", "date_end")
+    fields = ("feature", "date_end")
 
 
 @admin.register(App)
@@ -143,8 +143,8 @@ class AppAdmin(admin.ModelAdmin):
 
 @admin.register(Feature)
 class FeatureAdmin(admin.ModelAdmin):
-    list_display = ("name", "apps_list", "method", "active")
-    search_fields = ("name", "link", "method", "placements", "apps__name")
+    list_display = ("name", "code", "apps_list", "method", "active")
+    search_fields = ("name", "code", "link", "method", "placements", "apps__name")
     list_filter = ("active",)
     filter_horizontal = ("apps",)
     actions = ("apply_now",)
@@ -169,9 +169,13 @@ class FeatureAdmin(admin.ModelAdmin):
 
 @admin.register(FeatureGrant)
 class FeatureGrantAdmin(admin.ModelAdmin):
-    list_display = ("feature", "portal", "code", "date_end")
-    search_fields = ("code", "feature__name", "portal__domain")
+    list_display = ("feature", "portal", "feature_code", "date_end")
+    search_fields = ("feature__code", "feature__name", "portal__domain")
     autocomplete_fields = ["feature", "portal"]
+
+    def feature_code(self, obj):
+        return obj.feature.code
+    feature_code.short_description = "Code"
 
 
 @admin.register(Connector)

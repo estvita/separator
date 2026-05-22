@@ -121,7 +121,7 @@ class AppInstance(models.Model):
     def get_feature_grant(self, code):
         if not code or not self.portal_id:
             return None
-        return self.portal.feature_grants.filter(code=code).select_related("feature").first()
+        return self.portal.feature_grants.filter(feature__code=code).select_related("feature").first()
 
     def has_active_feature(self, code):
         grant = self.get_feature_grant(code)
@@ -185,6 +185,7 @@ class Line(models.Model):
 class Feature(models.Model):
     apps = models.ManyToManyField(App, related_name="features", blank=True)
     name = models.CharField(max_length=255)
+    code = models.CharField(max_length=255, blank=True, null=True, unique=True)
     link = models.CharField(max_length=1000, blank=True)
     method = models.CharField(max_length=512)
     placements = models.TextField(blank=True, null=True)
@@ -198,19 +199,18 @@ class Feature(models.Model):
 class FeatureGrant(models.Model):
     portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="feature_grants", blank=True, null=True)
     feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name="grants")
-    code = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     date_end = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=("portal", "code"),
-                name="bitrix_featuregrant_portal_code_unique",
+                fields=("portal", "feature"),
+                name="bitrix_featuregrant_portal_feature_unique",
             )
         ]
 
     def __str__(self):
-        return self.code or f"FeatureGrant {self.pk}"
+        return self.feature.code or f"FeatureGrant {self.pk}"
     
 class VerificationCode(models.Model):
     portal = models.OneToOneField(Bitrix, on_delete=models.SET_NULL, blank=True, null=True)

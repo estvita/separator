@@ -400,7 +400,7 @@ def portal_detail(request, portal_id):
     lines = lines.filter(portal=portal)
     app_instances = portal.installations.select_related("app", "owner").order_by("app__name") if portal else []
     feature_grants = portal.feature_grants.select_related("feature").prefetch_related("feature__apps").order_by(
-        "feature__name", "code"
+        "feature__name", "feature__code"
     ) if portal else []
     
     if request.method == 'POST':

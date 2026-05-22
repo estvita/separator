@@ -81,7 +81,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="publish_advert">
                     <input type="hidden" name="advert_id" value="{{ advert.id }}">
-                    <button type="submit" class="btn btn-success btn-sm w-100">{% trans "Publish" %}</button>
+                    <button type="submit" class="btn btn-success btn-sm w-100">{% trans "Activate" %}</button>
                   </form>
                 {% endif %}
                 <a class="btn btn-outline-info btn-sm w-100" href="{% url 'olx-account-adverts' olx_user.id %}?copy={{ advert.id }}">{% trans "Copy" %}</a>
@@ -140,6 +140,21 @@
         {{ form.advertiser_type }}
       </div>
 
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.price_value.id_for_label }}">{% trans "Price" %}</label>
+        {{ form.price_value }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.price_currency.id_for_label }}">{% trans "Currency" %}</label>
+        {{ form.price_currency }}
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <div class="form-check mb-2">
+          {{ form.price_negotiable }}
+          <label class="form-check-label" for="{{ form.price_negotiable.id_for_label }}">{% trans "Negotiable" %}</label>
+        </div>
+      </div>
+
       <div class="col-md-6">
         <label class="form-label" for="{{ form.contact_name.id_for_label }}">{% trans "Contact name" %}</label>
         {{ form.contact_name }}
@@ -165,7 +180,9 @@
         <select name="city" id="id_city" class="form-control">
           <option value="">---------</option>
           {% for city in cities %}
-            <option value="{{ city.id }}" data-region="{{ city.region_id|default:'' }}" {% if city.id|stringformat:"s" == selected_city_id %}selected{% endif %}>{{ city.name }}</option>
+            <option value="{{ city.id }}" data-region="{{ city.region_id|default:'' }}" {% if city.id|stringformat:"s" == selected_city_id %}selected{% endif %}>
+              {{ city.name }}{% if city.municipality %}, {{ city.municipality }}{% endif %}{% if city.county %}, {{ city.county }}{% endif %}
+            </option>
           {% endfor %}
         </select>
       </div>

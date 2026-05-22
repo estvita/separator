@@ -11,6 +11,9 @@ class OlxAdvertForm(forms.Form):
         choices=(("private", "private"), ("business", "business")),
         initial="private",
     )
+    price_value = forms.DecimalField(min_value=0, required=False)
+    price_currency = forms.CharField(max_length=3, initial="KZT")
+    price_negotiable = forms.BooleanField(required=False)
     contact_name = forms.CharField(max_length=255)
     contact_phone = forms.CharField(max_length=255, required=False)
     region = forms.ModelChoiceField(queryset=OlxRegion.objects.none())
@@ -65,6 +68,9 @@ class OlxAdvertForm(forms.Form):
             raise forms.ValidationError("District does not belong to selected city.")
         return district
 
+    def clean_price_currency(self):
+        return (self.cleaned_data.get("price_currency") or "KZT").upper()
+
     def build_payload(self):
         data = self.cleaned_data
         payload = {
@@ -81,6 +87,14 @@ class OlxAdvertForm(forms.Form):
             },
             "attributes": [],
         }
+        if data.get("price_value") is not None or data.get("price_negotiable"):
+            payload["price"] = {
+                "value": float(data.get("price_value") or 0),
+                "currency": data["price_currency"],
+                "negotiable": bool(data.get("price_negotiable")),
+                "trade": False,
+                "budget": False,
+            }
         if data.get("district"):
             payload["location"]["district_id"] = data["district"].olx_id
         if data.get("images"):
@@ -96,12 +110,16 @@ def olx_advert_initial(advert):
     payload = advert.payload or {}
     contact = payload.get("contact") or {}
     images = payload.get("images") or []
+    price = payload.get("price") or {}
     city = advert.city
     return {
         "title": payload.get("title") or advert.title,
         "description": payload.get("description") or "",
         "category": advert.category_id,
         "advertiser_type": payload.get("advertiser_type") or "private",
+        "price_value": price.get("value"),
+        "price_currency": price.get("currency") or "KZT",
+        "price_negotiable": bool(price.get("negotiable")),
         "contact_name": contact.get("name") or "",
         "contact_phone": contact.get("phone") or "",
         "region": city.region_id if city else None,

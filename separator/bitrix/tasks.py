@@ -71,6 +71,8 @@ def _build_feature_payload(feature, app_instance, placement_code=None):
     if not isinstance(payload, dict):
         raise Exception(f"Feature {feature.id} payload must be a JSON object")
 
+    if feature.code:
+        payload["CODE"] = feature.code
     if placement_code and "PLACEMENT" not in payload:
         payload["PLACEMENT"] = placement_code
     if feature.method == "placement.bind" and feature.name and "TITLE" not in payload:
@@ -161,16 +163,15 @@ def register_feature(app_instance_id, feature_id, placement_code=None, force=Fal
     payload = _build_feature_payload(feature, app_instance, placement_code=placement_code)
     response = call_method(app_instance, feature.method, payload, timeout=30)
 
-    code = str(payload.get("CODE") or "").strip() or None
+    code = str(feature.code or "").strip() or None
     if code:
         if not app_instance.portal_id:
             raise Exception(f"AppInstance {app_instance.id} has no portal for FeatureGrant")
-        existing_grant = FeatureGrant.objects.filter(portal=app_instance.portal, code=code).first()
+        existing_grant = FeatureGrant.objects.filter(portal=app_instance.portal, feature=feature).first()
         FeatureGrant.objects.update_or_create(
             portal=app_instance.portal,
-            code=code,
+            feature=feature,
             defaults={
-                "feature": feature,
                 "date_end": _feature_date_end(app_instance, code, existing_grant=existing_grant),
             },
         )
@@ -650,9 +651,8 @@ def check_tariffs(*days):
             title = build_lead_title(
                 owner.site,
                 "service_subscription_title",
-                "Subscription for {service}: {identifier} expires on {expiration_date}",
+                "Subscription for {service}: expires on {expiration_date}",
                 service=feature_name,
-                identifier=grant.code or feature_name,
                 expiration_date=expiration_str,
             )
 
