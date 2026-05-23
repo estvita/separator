@@ -23,10 +23,11 @@ from separator.decorators import login_message_required, user_message
 
 import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
-from separator.bitrix.models import User as BitrixUser
+from separator.bitrix.models import Line, User as BitrixUser
 
 from .forms import PartnerAppForm
 from .models import App, PartnerApp, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
+import separator.waba.bitrix as waba_bitrix
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
 
@@ -75,7 +76,8 @@ def build_phone_status_summary(status_data, phone=None):
             "text": _("Verification status: %(status)s") % {"status": code_status},
         })
 
-    if is_official_business_account is False and getattr(phone, "type", None) != "app":
+    show_oba_form = bool(getattr(getattr(getattr(phone, "waba", None), "app", None), "showObaForm", False))
+    if is_official_business_account is False and show_oba_form and getattr(phone, "type", None) != "app":
         summary["needs_oba_application"] = True
         summary["items"].append({
             "level": "warning",
@@ -121,8 +123,9 @@ def format_meta_user_error(error):
 
 
 def delete_voximplant(phone):
-    if phone.voximplant_id and phone.app_instance:
-        bitrix_tasks.call_api.delay(phone.app_instance.id, "voximplant.sip.delete", {"CONFIG_ID": phone.voximplant_id})
+    if phone.voximplant_id and phone.line_id:
+        context = waba_bitrix.get_waba_context_for_phone(phone)
+        bitrix_tasks.call_api.delay(context["app_instance"].id, "voximplant.sip.delete", {"CONFIG_ID": phone.voximplant_id})
         phone.voximplant_id = None
 
 @login_required
@@ -130,15 +133,13 @@ def phone_details(request, phone_id):
     phone = Phone.objects.select_related(
         "owner",
         "line__portal",
-        "app_instance__portal",
-        "waba",
+        "line__connector",
+        "waba__app",
     ).filter(phone_id=phone_id).first()
     if not phone:
         raise Http404
     if not request.user.is_superuser and phone.owner_id != request.user.id:
         portal_id = phone.line.portal_id if phone.line_id and phone.line else None
-        if not portal_id and phone.app_instance_id and phone.app_instance:
-            portal_id = phone.app_instance.portal_id
 
         has_admin_access = False
         if phone.owner_id and portal_id and phone.availabletoB24admins:
@@ -276,7 +277,9 @@ def phone_details(request, phone_id):
                     phone.save()
                     def after_commit():
                         if call_dest == "b24":
-                            if not phone.app_instance:
+                            try:
+                                context = waba_bitrix.get_waba_context_for_phone(phone)
+                            except Exception:
                                 user_message(request, "waba_calling_error", "error")
                                 return
                             if phone.voximplant_id:
@@ -295,7 +298,7 @@ def phone_details(request, phone_id):
                                 "PASSWORD": ext.password
                             }
                             try:
-                                resp = bitrix_tasks.call_api(phone.app_instance.id, "voximplant.sip.add", payload)
+                                resp = bitrix_tasks.call_api(context["app_instance"].id, "voximplant.sip.add", payload)
                                 result = resp.get("result", {})
                                 voximplant_id = result.get("ID")
                                 voximplant_reg_id = result.get("REG_ID")
@@ -361,17 +364,15 @@ def phone_details(request, phone_id):
                 phone.save(update_fields=update_fields)
 
                 if sms_service_changed:
-                    if phone.app_instance_id:
-                        transaction.on_commit(
-                            lambda: bitrix_tasks.messageservice_add.delay(
-                                phone.app_instance_id, phone.id, "waba"
-                            )
-                        )
-                    else:
+                    try:
+                        waba_bitrix.get_waba_context_for_phone(phone)
+                    except Exception:
                         messages.warning(
                             request,
                             _("Bitrix portal is not connected for this phone, SMS provider sync was skipped."),
                         )
+                    else:
+                        transaction.on_commit(lambda: waba_bitrix.sync_waba_sms_sender(phone))
 
                 messages.success(request, _("Bitrix settings updated."))
             else:
@@ -453,6 +454,8 @@ def phone_details(request, phone_id):
         elif action == "submit_oba_application":
             if not phone.waba or not phone.waba.app:
                 messages.error(request, _("App is not connected to this phone WABA account."))
+            elif not phone.waba.app.showObaForm:
+                messages.error(request, _("Official Business Account application is not available."))
             elif phone.type == "app":
                 messages.error(request, _("Official Business Account application is not available for WhatsApp Business App numbers."))
             else:
@@ -741,7 +744,7 @@ def waba_account_details(request, waba_id):
 @login_message_required(code="waba")
 def waba_view(request):
     connector_service = "waba"
-    portals, instances, lines = bitrix_utils.get_instances(request, connector_service)
+    portals, instances, _lines = bitrix_utils.get_instances(request, connector_service)
     if not instances:
         user_message(request, "waba_install")
 
@@ -765,8 +768,9 @@ def waba_view(request):
             request.session.pop("waba_portal_filter", None)
 
     if selected_portal:
-        phones = Phone.objects.filter(line__portal=selected_portal)
-        lines = lines.filter(portal=selected_portal)
+        phones = Phone.objects.filter(
+            Q(line__portal=selected_portal) | Q(owner=request.user, line__isnull=True)
+        ).distinct()
         instances = instances.filter(portal=selected_portal)
     elif show_free_numbers:
         phones = Phone.objects.filter(owner=request.user, line__isnull=True)
@@ -774,6 +778,26 @@ def waba_view(request):
         phones = Phone.objects.filter(
             Q(line__portal__in=portals) | Q(owner=request.user)
         ).distinct()
+    phones = phones.select_related("line", "line__portal", "line__connector", "sip_extensions").order_by("phone", "id")
+
+    lines = (
+        Line.objects.filter(portal__in=portals)
+        .select_related("portal", "connector")
+        .order_by("portal__domain", "name", "line_id")
+    )
+    if selected_portal:
+        lines = lines.filter(portal=selected_portal)
+
+    linked_phone_by_line = {
+        phone.line_id: phone
+        for phone in Phone.objects.filter(line__portal__in=portals)
+        .select_related("line", "line__portal")
+        .order_by("phone", "id")
+        if phone.line_id
+    }
+    for line in lines:
+        line.linked_waba_phone = linked_phone_by_line.get(line.id)
+        line.status_label = waba_bitrix.line_status_label(line)
 
     if request.method == "POST":
         days = request.POST.get('days')
@@ -784,9 +808,11 @@ def waba_view(request):
             line_id = request.POST.get("line_id")
             phone = get_object_or_404(Phone, id=phone_id)
             try:
-                bitrix_utils.connect_line(request, line_id, phone, connector_service)
+                waba_bitrix.relink_waba_phone(phone, line_id)
+                messages.success(request, _("Line connected"))
             except Exception as e:
                 messages.error(request, str(e))
+            return redirect("waba")
     else:
         days = request.session.get('waba_days', 7)
 

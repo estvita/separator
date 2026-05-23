@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django import forms
 from urllib.parse import urlencode
-import separator.bitrix.utils as bitrix_utils
+import separator.waba.bitrix as waba_bitrix
 import separator.waba.utils as waba_utils
 
 from .models import (
@@ -159,11 +159,49 @@ TemplateAdmin.inlines = [
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['owner', 'waba', 'line', 'app_instance', 'sip_extensions']
+    autocomplete_fields = ['owner', 'waba', 'line', 'sip_extensions']
     list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type")
     search_fields = ("phone", "phone_id", "owner__email")
     list_filter = ("calling", "type")
     readonly_fields = ("error", )
+    fieldsets = (
+        (None, {
+            "fields": (
+                "phone",
+                "phone_id",
+                "type",
+                "pin",
+                "waba",
+                "owner",
+                "date_end",
+            )
+        }),
+        ("Bitrix24", {
+            "fields": (
+                "line",
+                "sms_service",
+                "ChatFromSms",
+                "availableInB24",
+                "availabletoB24admins",
+                "voximplant_id",
+                "voximplant_reg_id",
+            )
+        }),
+        ("Calling", {
+            "fields": (
+                "call_dest",
+                "calling",
+                "srtp_key_exchange_protocol",
+                "callback_permission_status",
+                "sip_status",
+                "sip_user_password",
+                "sip_hostname",
+                "sip_port",
+                "sip_extensions",
+                "error",
+            )
+        }),
+    )
 
     def web_link(self, instance):
         if not instance.phone_id:
@@ -185,14 +223,11 @@ class PhoneAdmin(admin.ModelAdmin):
 
         transaction.on_commit(lambda: call_management.delay(obj.id))
 
-        if obj.app_instance:
-            app_instance = obj.app_instance
-            line_id = obj.line.id if obj.line else f"create__{app_instance.id}"
-
+        if obj.line_id:
             def send_connect():
                 try:
-                    resp = bitrix_utils.connect_line(request, line_id, obj, "waba")
-                    messages.info(request, resp)
+                    waba_bitrix.relink_waba_phone(obj, obj.line.id)
+                    messages.info(request, "Line connected")
                 except Exception as e:
                     messages.warning(request, f"Error: {e}")
             transaction.on_commit(send_connect)

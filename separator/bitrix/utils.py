@@ -135,7 +135,10 @@ def get_line_app_instance(line: Line, connector_service=None):
         instances = instances.filter(app__connectors=line.connector)
     else:
         instances = instances.filter(app__connectors__isnull=False)
-    return instances.distinct().order_by("id").first()
+    instances = instances.distinct()
+    if connector_service:
+        return instances.get()
+    return instances.order_by("id").first()
 
 
 def sync_portal_open_lines(appinstance: AppInstance):
@@ -281,7 +284,8 @@ def connect_line(request, line_id, entity, connector_service):
                 name=line_name,
             )
             entity.line = line
-            entity.app_instance = app_instance
+            if any(field.name == "app_instance" for field in entity._meta.fields):
+                entity.app_instance = app_instance
             entity.save()
 
             activate_payload = {
@@ -326,7 +330,8 @@ def connect_line(request, line_id, entity, connector_service):
                 line.connector = connector
                 line.save(update_fields=["connector"])
             entity.line = line
-            entity.app_instance = app_instance
+            if any(field.name == "app_instance" for field in entity._meta.fields):
+                entity.app_instance = app_instance
             entity.save()
             messages.success(request, "Линия подключена")
 
@@ -984,7 +989,7 @@ def sms_processor(data, service):
         if "template+" in body:
             template_start = body.index("template+")
             template_str = body[template_start:]
-            message.update(parse_template_code(template_str, appinstance=app_instance, line_id=line_id, phone_num=phone_num))
+            message.update(parse_template_code(template_str, appinstance=app_instance, line_id=line_id))
         elif body.strip() == "#call_permission_request":
             message.update(CALL_REQUEST)
         else:
@@ -993,8 +998,10 @@ def sms_processor(data, service):
         return message
 
     def _send_waba_direct(target, body):
-        message = _build_waba_message(target, body, phone_num=sender)
-        return waba.send_message(app_instance, message, phone_num=sender)
+        if not phone:
+            raise Exception("WABA phone not found")
+        message = _build_waba_message(target, body, line_id=phone.line.line_id if phone.line_id else None)
+        return waba.send_message_from_phone(phone, message)
 
     try:
         if not app_instance:
@@ -1009,7 +1016,15 @@ def sms_processor(data, service):
         send_result = None
 
         if service == "waba":
-            phone = Phone.objects.filter(phone=f"+{sender}", app_instance=app_instance).first()
+            phone = (
+                Phone.objects.select_related("line", "line__connector", "line__portal", "waba", "waba__app")
+                .filter(
+                    phone=f"+{sender}",
+                    line__portal=app_instance.portal,
+                    line__connector__service="waba",
+                )
+                .first()
+            )
             if phone and phone.line:
                 line = phone.line
 
@@ -1231,9 +1246,20 @@ def event_processor(data):
             
             # If WABA connector
             if connector.service == "waba":
+                phone = (
+                    Phone.objects.select_related("line", "line__connector", "line__portal", "waba")
+                    .filter(
+                        line__line_id=line_id,
+                        line__portal=appinstance.portal,
+                        line__connector__service="waba",
+                    )
+                    .first()
+                )
+                if not phone:
+                    raise Exception("WABA phone not found for Bitrix line")
+
                 if not files and command_text in ["#wa_block", "#wa_unblock"]:
                     try:
-                        phone = Phone.objects.filter(line__line_id=line_id, app_instance=appinstance).first()
                         send_result = parse_block_command(command_text, phone, chat, appinstance.id, chat_id)
                     except Exception as e:
                         return {"error": True, "message": str(e)}
@@ -1281,12 +1307,11 @@ def event_processor(data):
                                     time.sleep(1)
                             
                             if f_content and f_content.status_code == 200:
-                                up_res = waba.upload_media(
-                                    appinstance, 
-                                    f_content.content, 
-                                    f_content.headers.get("Content-Type", ""), 
-                                    file["name"], 
-                                    line_id=line_id
+                                up_res = waba.upload_media_for_phone(
+                                    phone,
+                                    f_content.content,
+                                    f_content.headers.get("Content-Type", ""),
+                                    file["name"],
                                 )
                                 if up_res and "id" in up_res:
                                     uploaded_id = up_res["id"]
@@ -1317,7 +1342,7 @@ def event_processor(data):
                             if media_caption:
                                 message["document"]["caption"] = media_caption
 
-                        send_result = waba.send_message(appinstance, message, line_id=line_id)
+                        send_result = waba.send_message_from_phone(phone, message)
                         if "error" in send_result:
                             error_msg = format_waba_error(send_result)
                             bitrix_tasks.message_add.delay(
@@ -1330,7 +1355,7 @@ def event_processor(data):
                             raise Exception(send_result)
 
                 else:
-                    send_result = waba.send_message(appinstance, message, line_id=line_id)
+                    send_result = waba.send_message_from_phone(phone, message)
                     if "error" in send_result:
                         error_msg = format_waba_error(send_result)
                         bitrix_tasks.message_add.delay(

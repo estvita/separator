@@ -3,12 +3,14 @@ import re
 import requests
 
 from django.conf import settings
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from separator.waba.models import Phone, Template
+import separator.waba.bitrix as waba_bitrix
 from separator.olx.models import OlxUser
 from separator.waweb.models import Session
 import separator.waba.utils as waba_utils
@@ -46,12 +48,20 @@ def settings_connector(request, user):
     line = Line.objects.filter(line_id=line_id, portal=portal).order_by("id").first()
     if not line:
         line = Line.objects.create(line_id=line_id, portal=portal, connector=connector)
-    elif line.connector_id != connector.id:
+    elif line.connector_id != connector.id and connector.service != "waba":
         line.connector = connector
         line.save(update_fields=["connector"])
+    waba_phones = (
+        Phone.objects.filter(Q(owner=user) | Q(line__portal=portal))
+        .select_related("line", "line__portal")
+        .distinct()
+        .order_by("phone", "id")
+    )
+    current_waba_phone = line.phones.order_by("id").first() if connector.service == "waba" else None
+
     configs = {
         "waba": {
-            "queryset": Phone.objects.filter(owner=user, line__isnull=True).order_by("phone"),
+            "queryset": waba_phones,
             "id_field": "phone_id",
             "label": lambda obj: obj.phone,
             "not_found": _("phone not found"),
@@ -72,7 +82,16 @@ def settings_connector(request, user):
 
     config = configs.get(connector.service)
     if config:
-        items = [{"id": obj.id, "label": config["label"](obj)} for obj in config["queryset"]]
+        items = [
+            {
+                "id": obj.id,
+                "label": config["label"](obj),
+                "selected": bool(getattr(obj, "line_id", None) and obj.line_id == line.id),
+                "has_binding": bool(getattr(obj, "line_id", None)),
+            }
+            for obj in config["queryset"]
+            if not (connector.service == "waba" and current_waba_phone and obj.id == current_waba_phone.id)
+        ]
         selected_id = data.get(config["id_field"])
         if selected_id:
             selected = next((obj for obj in config["queryset"] if str(obj.id) == str(selected_id)), None)
@@ -80,7 +99,13 @@ def settings_connector(request, user):
                 return HttpResponse(config["not_found"], status=404)
             if not line_id:
                 return HttpResponse(_("line not found"), status=404)
-            connect_line(request, line.id, selected, connector.service)
+            if connector.service == "waba":
+                try:
+                    waba_bitrix.relink_waba_phone(selected, line.id)
+                except Exception as exc:
+                    return HttpResponse(str(exc), status=400)
+            else:
+                connect_line(request, line.id, selected, connector.service)
             return HttpResponse(_("Connected"))
         return render(
             request,
@@ -93,6 +118,7 @@ def settings_connector(request, user):
                 "auth_id": data.get("AUTH_ID"),
                 "member_id": member_id,
                 "connector_service": connector.service,
+                "line_has_binding": bool(current_waba_phone),
                 "add_number_url": WabaPlacementModule._portal_app_url(app_instance, data.get("AUTH_ID")),
                 "user": user,
             },
@@ -302,10 +328,11 @@ class WabaPlacementModule:
     @staticmethod
     def _get_sender_phones(appinstance):
         return Phone.objects.filter(
-            app_instance=appinstance,
+            line__portal=appinstance.portal,
+            line__connector__service="waba",
             waba__isnull=False,
             availableInB24=True,
-        ).select_related("waba", "waba__app").order_by("phone")
+        ).select_related("line", "line__connector", "waba", "waba__app").order_by("phone")
 
     def _get_sender_phone(self, sender_phones, sender_phone_id):
         if not sender_phone_id:
@@ -390,15 +417,15 @@ class WabaPlacementModule:
             result = {"raw": response.text}
         return result, response.status_code
 
-    def _ensure_voximplant_reg_id(self, sender_phone):
-        if not sender_phone or not sender_phone.app_instance:
+    def _ensure_voximplant_reg_id(self, appinstance, sender_phone):
+        if not sender_phone or not appinstance:
             return None
         if sender_phone.voximplant_reg_id:
             return sender_phone.voximplant_reg_id
         if not sender_phone.voximplant_id:
             return None
 
-        result = call_method(sender_phone.app_instance, "voximplant.sip.get", {
+        result = call_method(appinstance, "voximplant.sip.get", {
             "FILTER": {
                 "ID": sender_phone.voximplant_id,
             }
@@ -435,10 +462,10 @@ class WabaPlacementModule:
         )
         return bool(start_call_action and start_call_action.get("can_perform_action"))
 
-    def _start_voximplant_callback(self, sender_phone, user_phone=None):
+    def _start_voximplant_callback(self, appinstance, sender_phone, user_phone=None):
         if not sender_phone:
             return {"error": _("sender phone not found")}, 400
-        if not sender_phone.app_instance:
+        if not appinstance:
             return {"error": _("appinstance not found")}, 400
 
         permission_result, permission_status_code = self._call_permission_api(sender_phone, user_phone)
@@ -454,7 +481,7 @@ class WabaPlacementModule:
                 permission_result = {"error": _("user did not allow calls")}
             return permission_result, 400
 
-        reg_id = self._ensure_voximplant_reg_id(sender_phone)
+        reg_id = self._ensure_voximplant_reg_id(appinstance, sender_phone)
         if not reg_id:
             return self._bitrix_telephony_not_connected_error(sender_phone), 400
 
@@ -467,7 +494,7 @@ class WabaPlacementModule:
             "TO_NUMBER": normalized_phone,
         }
         try:
-            result = call_method(sender_phone.app_instance, "voximplant.callback.start", payload)
+            result = call_method(appinstance, "voximplant.callback.start", payload)
             return result, 200
         except Exception as exc:
             return {"error": str(exc)}, 400
@@ -642,12 +669,12 @@ class WabaPlacementModule:
             "result": result,
         })
 
-    def _call_action(self, data, sender_phones, action):
+    def _call_action(self, data, appinstance, sender_phones, action):
         sender_phone = self._get_sender_phone(sender_phones, data.get("sender_phone_id"))
         if action == "call_permission_status":
             result, status_code = self._call_permission_api(sender_phone, data.get("phone"))
         else:
-            result, status_code = self._start_voximplant_callback(sender_phone, data.get("phone"))
+            result, status_code = self._start_voximplant_callback(appinstance, sender_phone, data.get("phone"))
         return self._action_response({
             "ok": 200 <= status_code < 300 and not (isinstance(result, dict) and result.get("error")),
             "result": result,
@@ -659,7 +686,7 @@ class WabaPlacementModule:
         if action in self.BLOCK_ACTION_METHODS:
             return self._block_users_action(data, sender_phones, action)
         if action in self.CALL_ACTIONS:
-            return self._call_action(data, sender_phones, action)
+            return self._call_action(data, appinstance, sender_phones, action)
         return self._action_response({"ok": False, "error": _("unknown action")})
 
     @staticmethod

@@ -73,11 +73,13 @@
               <form method="POST" action="{% url 'waba' %}" class="waba-line-form" data-has-line="{% if phone.line %}1{% else %}0{% endif %}">
                 {% csrf_token %}
                 <div class="form-group d-flex align-items-center">
-                  <select id="line_id" name="line_id" class="form-control mr-2">
-                    <option value="" disabled {% if not phone.line %}selected{% endif %}>{% trans "Select a line" %}</option>
+                  <select id="line_id" name="line_id" class="form-control mr-2" style="width:70%;">
+                    <option value="" disabled selected>{% trans "Select a line" %}</option>
                   
                     {% for line in waba_lines %}
-                      <option value="{{ line.id }}">{{ line.name }} ({{ line.line_id }})</option>
+                      {% if phone.line_id != line.id %}
+                        <option value="{{ line.id }}">{{ line.status_label }}</option>
+                      {% endif %}
                     {% endfor %}
 
                     {% for instance in instances %}

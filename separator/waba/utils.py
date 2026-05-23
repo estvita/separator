@@ -1279,14 +1279,18 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         phone_number = metadata.get('display_phone_number')
         phone_number_id = metadata.get('phone_number_id')
         try:
-            phone = Phone.objects.filter(phone_id=phone_number_id, waba=waba).first()
-            appinstance = phone.app_instance
-            if appinstance:
+            phone = (
+                Phone.objects.select_related("line", "line__connector", "line__portal", "waba", "waba__app")
+                .filter(phone_id=phone_number_id, waba=waba)
+                .first()
+            )
+            if not phone:
+                raise Exception(f"phone_number not found {phone_number}")
+            if phone.line_id:
+                appinstance = bitrix_utils.get_line_app_instance(phone.line, "waba")
                 appinstance.host = host
                 if appinstance.has_active_feature("separator_ctwa_tracker"):
                     ctwa_enabled = True
-        except Phone.DoesNotExist:
-            raise Exception(f"phone_number not found {phone_number}")
         except Exception:
             raise
         
@@ -1334,6 +1338,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             raise
     
     elif field == 'messages':
+        if not appinstance or not phone.line_id or not phone.line.connector_id:
+            raise Exception("WABA phone is not connected to Bitrix line")
+
         if phone.date_end and timezone.now() > phone.date_end:
             raise Exception(f"subscription ended")
 
@@ -1737,6 +1744,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 )
 
     elif field == 'smb_message_echoes':
+        if not appinstance or not phone.line_id or not phone.line.connector_id:
+            raise Exception("WABA phone is not connected to Bitrix line")
+
         text = None
         attach= None
         message_echoes = value.get("message_echoes", {})

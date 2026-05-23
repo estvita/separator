@@ -21,16 +21,21 @@
   </div>
   <div class="d-flex align-items-center">
     {% if items %}
-    <form method="post" class="d-flex align-items-center">
+    <form method="post" class="d-flex align-items-center connector-settings-form" data-has-current-binding="{% if line_has_binding %}1{% else %}0{% endif %}">
       {% csrf_token %}
       <input type="hidden" name="AUTH_ID" value="{{ auth_id }}">
       <input type="hidden" name="member_id" value="{{ member_id }}">
       <input type="hidden" name="PLACEMENT" value="SETTING_CONNECTOR">
       <input type="hidden" name="line_id" value="{{ line_id }}">
       <input type="hidden" name="connector_code" value="{{ connector_code }}">
-      <select name="{{ item_id_field }}" id="{{ item_id_field }}" class="form-control w-auto" style="width:110px;">
+      <select name="{{ item_id_field }}" id="{{ item_id_field }}" class="form-control w-auto" style="width:180px;">
         {% for item in items %}
-          <option value="{{ item.id }}">{{ item.label }}</option>
+          <option
+            value="{{ item.id }}"
+            data-current="{% if item.selected %}1{% else %}0{% endif %}"
+            data-bound="{% if item.has_binding %}1{% else %}0{% endif %}"
+            {% if item.selected %}selected{% endif %}
+          >{{ item.label }}</option>
         {% endfor %}
       </select>
       <button type="submit" class="btn btn-primary connect-btn ms-2 me-2">{% trans "Connect" %}</button>
@@ -43,6 +48,27 @@
     {% elif connector_service == "olx" %}
       <a href="/olx/accounts/" target="_blank" class="btn btn-secondary connect-btn">{% trans "New OLX" %}</a>
     {% endif %}
-  </div>
-</body>
-</html>
+	  </div>
+  <script>
+    document.querySelectorAll('.connector-settings-form').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        const select = form.querySelector('select');
+        if (!select) {
+          return;
+        }
+        const selected = select.options[select.selectedIndex];
+        const currentOption = select.querySelector('option[data-current="1"]');
+        const changesCurrentBinding = (form.dataset.hasCurrentBinding === '1' || currentOption) && selected.dataset.current !== '1';
+        const selectedHasOtherBinding = selected.dataset.bound === '1' && selected.dataset.current !== '1';
+        if (!changesCurrentBinding && !selectedHasOtherBinding) {
+          return;
+        }
+        const confirmed = window.confirm('{% trans "Changing the connected line may desynchronize existing chats. Continue?" %}');
+        if (!confirmed) {
+          event.preventDefault();
+        }
+      });
+    });
+  </script>
+	</body>
+	</html>

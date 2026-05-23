@@ -54,7 +54,7 @@ def _normalize_handler_url(value, base_url):
     return urljoin(base_url, value.lstrip("/"))
 
 
-def _build_feature_payload(feature, app_instance, placement_code=None):
+def _build_feature_payloads(feature, app_instance, placement_code=None):
     site_domain = str(app_instance.app.site).strip().strip("/") if app_instance.app and app_instance.app.site else ""
     app_base_url = f"https://{site_domain}/" if site_domain else ""
     context = {
@@ -65,24 +65,36 @@ def _build_feature_payload(feature, app_instance, placement_code=None):
         "portal_protocol": app_instance.portal.protocol if app_instance.portal else "https",
         "placement": placement_code or "",
     }
-    payload = deepcopy(feature.payload or {})
-    payload = _render_feature_value(payload, context)
+    raw_payload = deepcopy(feature.payload or {})
+    raw_payload = _render_feature_value(raw_payload, context)
 
-    if not isinstance(payload, dict):
-        raise Exception(f"Feature {feature.id} payload must be a JSON object")
+    if isinstance(raw_payload, dict):
+        payloads = [raw_payload]
+    elif isinstance(raw_payload, list):
+        payloads = raw_payload
+    else:
+        raise Exception(f"Feature {feature.id} payload must be a JSON object or list of objects")
 
-    if feature.code:
-        payload["CODE"] = feature.code
-    if placement_code and "PLACEMENT" not in payload:
-        payload["PLACEMENT"] = placement_code
-    if feature.method == "placement.bind" and feature.name and "TITLE" not in payload:
-        payload["TITLE"] = feature.name
+    prepared_payloads = []
+    for index, payload in enumerate(payloads, start=1):
+        if not isinstance(payload, dict):
+            raise Exception(f"Feature {feature.id} payload item {index} must be a JSON object")
 
-    for key in ("HANDLER", "PLACEMENT_HANDLER"):
-        if key in payload:
-            payload[key] = _normalize_handler_url(payload[key], app_base_url)
+        payload = dict(payload)
+        if feature.code and (len(payloads) == 1 or "CODE" not in payload):
+            payload["CODE"] = feature.code
+        if placement_code and "PLACEMENT" not in payload:
+            payload["PLACEMENT"] = placement_code
+        if feature.method == "placement.bind" and feature.name and "TITLE" not in payload:
+            payload["TITLE"] = feature.name
 
-    return payload
+        for key in ("HANDLER", "PLACEMENT_HANDLER"):
+            if key in payload:
+                payload[key] = _normalize_handler_url(payload[key], app_base_url)
+
+        prepared_payloads.append(payload)
+
+    return prepared_payloads
 
 
 def _feature_date_end(app_instance, code, existing_grant=None):
@@ -160,8 +172,10 @@ def register_feature(app_instance_id, feature_id, placement_code=None, force=Fal
             f"Feature {feature.id} is not linked to app {app_instance.app_id}"
         )
 
-    payload = _build_feature_payload(feature, app_instance, placement_code=placement_code)
-    response = call_method(app_instance, feature.method, payload, timeout=30)
+    payloads = _build_feature_payloads(feature, app_instance, placement_code=placement_code)
+    responses = []
+    for payload in payloads:
+        responses.append(call_method(app_instance, feature.method, payload, timeout=30))
 
     code = str(feature.code or "").strip() or None
     if code:
@@ -176,7 +190,7 @@ def register_feature(app_instance_id, feature_id, placement_code=None, force=Fal
             },
         )
 
-    return response
+    return responses[0] if len(responses) == 1 else responses
 
 
 @shared_task(queue="bitrix")

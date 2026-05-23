@@ -5,11 +5,12 @@ from django.db import models
 from django.contrib.sites.models import Site
 from encrypted_fields.fields import EncryptedCharField
 
-from separator.bitrix.models import AppInstance, Line
+from separator.bitrix.models import Line
 from separator.freepbx.models import Server, Extension
 
 class App(models.Model):
     name = models.CharField(max_length=255, default="separator.biz")
+    showObaForm = models.BooleanField(default=False, help_text="Show Official Business Account application form")
     events = models.BooleanField(default=False, help_text="Chek for save inbound events")
     hosted = models.BooleanField(default=False, help_text="Enable Hosted Embedded Signup flow")
     business_app_onboarding = models.BooleanField(
@@ -99,7 +100,6 @@ class Phone(models.Model):
     ChatFromSms = models.BooleanField(default=False)
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="phones", null=True, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    app_instance = models.ForeignKey(AppInstance, on_delete=models.SET_NULL, related_name="phones", null=True, blank=True)
     line = models.ForeignKey(
         Line,
         on_delete=models.SET_NULL,
