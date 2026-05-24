@@ -271,6 +271,7 @@ def process_placement(request):
             return placements.settings_connector(request, user)
         if service == "waba":
             return placements.WabaPlacementModule(app=app, portal=portal, appinstance=appinstance).handle(request)
+        return redirect("/")
 
     except Exception as e:
         if request.GET.get("service") == "waba" and request.POST.get("action"):

@@ -52,7 +52,7 @@ def settings_connector(request, user):
         line.connector = connector
         line.save(update_fields=["connector"])
     waba_phones = (
-        Phone.objects.filter(Q(owner=user) | Q(line__portal=portal))
+        Phone.objects.filter(Q(line__portal=portal) | Q(owner=user, line__isnull=True))
         .select_related("line", "line__portal")
         .distinct()
         .order_by("phone", "id")
