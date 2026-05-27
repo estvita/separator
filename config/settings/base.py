@@ -360,8 +360,14 @@ CELERY_QUEUES = (
     Queue('olx'),
     Queue('waweb'),
     Queue('waba'),
+    Queue('waba_messages'),
     Queue('bitbot'),
 )
+
+# Решение проблемы RabbitMQ 4.x согласно PR #10290:
+CELERY_CONTROL_QUEUE_EXCLUSIVE = True
+CELERY_EVENT_QUEUE_EXCLUSIVE = True
+
 
 # django-allauth
 # ------------------------------------------------------------------------------
