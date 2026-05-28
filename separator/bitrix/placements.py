@@ -559,7 +559,11 @@ class WabaPlacementModule:
         if components_payload:
             message["template"]["components"] = components_payload
 
-        send_result = waba_utils.send_message_from_phone(sender_phone, message, template=template)
+        try:
+            send_result = waba_utils.send_message_from_phone(sender_phone, message, template=template)
+        except requests.RequestException as exc:
+            return self._action_response({"ok": False, "error": str(exc)})
+
         if isinstance(send_result, dict) and send_result.get("error"):
             return self._action_response({"ok": False, "error": format_waba_error(send_result) or _("send failed")})
 

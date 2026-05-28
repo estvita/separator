@@ -313,6 +313,8 @@ def send_message_from_phone(phone, message, template=None):
         response = call_api(waba=waba, endpoint=endpoint, method="post", payload=message)
         _cache_outbound_text(message, response)
         return response
+    except requests.RequestException:
+        raise
     except Exception as e:
         return {"error": True, "message": str(e)}
 

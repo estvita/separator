@@ -582,9 +582,9 @@ def delete_temp_file(file_path):
     if os.path.exists(file_path):
         try:
             os.remove(file_path)
-            logger.info(f"Deleted temp file: {file_path}")
+            raise Exception(f"Deleted temp file: {file_path}")
         except Exception as e:
-            logger.error(f"Error deleting temp file {file_path}: {e}")
+            raise Exception(f"Error deleting temp file {file_path}: {e}")
 
 
 @shared_task(queue='bitrix')

@@ -953,8 +953,8 @@ def _extract_crm_entity_for_openlines(data):
     return None, None
 
 
-@shared_task(queue='bitrix')
-def sms_processor(data, service):
+@shared_task(queue='bitrix', bind=True, max_retries=5)
+def sms_processor(self, data, service):
     application_token = data.get("auth[application_token]")
     manager_id = data.get("auth[user_id]")
     message_id = data.get("message_id")
@@ -967,15 +967,6 @@ def sms_processor(data, service):
             portal=app_instance.portal,
             content=json.dumps(data, ensure_ascii=False, default=str),
         )
-
-    def _notify_error(error_obj):
-        if not app_instance or not manager_id:
-            return
-        payload = {
-            "USER_ID": manager_id,
-            "message": str(error_obj)
-        }
-        bitrix_tasks.call_api.delay(app_instance.id, "im.notify.system.add", payload)
 
     def _build_waba_message(target, body, line_id=None, phone_num=None):
         message = {
@@ -1087,13 +1078,15 @@ def sms_processor(data, service):
         if "error" in (send_result or {}):
             raise ValueError(send_result)
         return send_result
-    except Exception as e:
-        _notify_error(e)
+    except requests.RequestException as e:
+        countdown = min(60 * (2 ** self.request.retries), 600)
+        raise self.retry(exc=e, countdown=countdown)
+    except Exception:
         raise
 
 
-@shared_task(queue='bitrix')
-def event_processor(data):
+@shared_task(queue='bitrix', bind=True, max_retries=5)
+def event_processor(self, data):
     try:
         event = data.get("event").upper()
         domain = data.get("auth[domain]")
@@ -1149,13 +1142,31 @@ def event_processor(data):
                     appinstance.save(update_fields=["storage_id"])
 
             def register_events_and_connectors():
-                sync_portal_open_lines(appinstance)
-                events_bind(appinstance)
-                queue_app_features(appinstance)
+                errors = []
+                try:
+                    sync_portal_open_lines(appinstance)
+                except Exception as e:
+                    errors.append(f"sync_portal_open_lines: {e}")
+
+                try:
+                    events_bind(appinstance)
+                except Exception as e:
+                    errors.append(f"events_bind: {e}")
+
+                try:
+                    queue_app_features(appinstance)
+                except Exception as e:
+                    errors.append(f"queue_app_features: {e}")
                 
                 if app.connectors.exists():
                     for connector in app.connectors.all():
-                        register_connector(appinstance, connector)
+                        try:
+                            register_connector(appinstance, connector)
+                        except Exception as e:
+                            errors.append(f"register_connector {connector.id}: {e}")
+
+                if errors:
+                    raise Exception("; ".join(errors))
 
             transaction.on_commit(register_events_and_connectors)
 
@@ -1343,29 +1354,13 @@ def event_processor(data):
                                 message["document"]["caption"] = media_caption
 
                         send_result = waba.send_message_from_phone(phone, message)
-                        if "error" in send_result:
-                            error_msg = format_waba_error(send_result)
-                            bitrix_tasks.message_add.delay(
-                                appinstance.id, 
-                                line_id, 
-                                chat, 
-                                f"[color=#ff0000]{error_msg}[/color]", 
-                                connector.code
-                            )
-                            raise Exception(send_result)
+                        if "error" in (send_result or {}):
+                            raise ValueError(send_result)
 
                 else:
                     send_result = waba.send_message_from_phone(phone, message)
-                    if "error" in send_result:
-                        error_msg = format_waba_error(send_result)
-                        bitrix_tasks.message_add.delay(
-                            appinstance.id, 
-                            line_id, 
-                            chat, 
-                            f"[color=#ff0000]{error_msg}[/color]", 
-                            connector.code
-                        )
-                        raise Exception(send_result)
+                    if "error" in (send_result or {}):
+                        raise ValueError(send_result)
 
             elif connector.service == "waweb":
                 try:
@@ -1455,7 +1450,10 @@ def event_processor(data):
         elif event == "ONAPPUNINSTALL":
             appinstance.delete()
 
-    except Exception as e:
+    except requests.RequestException as e:
+        countdown = min(60 * (2 ** self.request.retries), 600)
+        raise self.retry(exc=e, countdown=countdown)
+    except Exception:
         raise
 
 
