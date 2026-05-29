@@ -1124,6 +1124,42 @@ def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
     queue='waba',
     autoretry_for=(OperationalError, requests.RequestException),
     default_retry_delay=5,
+    max_retries=5,
+)
+def send_waba_read_status(waba_id=None, phone_id=None, message_id=None):
+    if not waba_id or not phone_id or not message_id:
+        return None
+
+    waba = Waba.objects.filter(id=waba_id).first()
+    if not waba:
+        return None
+
+    status_data = {
+        "messaging_product": "whatsapp",
+        "status": "read",
+        "message_id": message_id,
+    }
+    return call_api(
+        waba=waba,
+        endpoint=f"{phone_id}/messages",
+        method="post",
+        payload=status_data,
+    )
+
+
+def _queue_waba_read_status(waba, phone, message_id):
+    if not waba or not getattr(waba, "id", None) or not phone or not getattr(phone, "phone_id", None) or not message_id:
+        return
+    try:
+        send_waba_read_status.delay(waba.id, phone.phone_id, message_id)
+    except Exception as e:
+        logger.warning(f"Failed to queue read status for message {message_id}: {e}")
+
+
+@shared_task(
+    queue='waba',
+    autoretry_for=(OperationalError, requests.RequestException),
+    default_retry_delay=5,
     max_retries=5
 )
 def event_processing(raw_body=None, signature=None, app_id=None, host=None):
@@ -1573,20 +1609,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     attachments=attach,
                     chat_url=source_url,
                 )
-                status_data = {
-                    "messaging_product": "whatsapp",
-                    "status": "read",
-                    "message_id": message_id,
-                }
-                try:
-                    call_api(
-                        waba=waba,
-                        endpoint=f"{phone.phone_id}/messages",
-                        method="post",
-                        payload=status_data,
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to send read status for message {message_id}: {e}")
+                _queue_waba_read_status(waba, phone, message_id)
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -1724,20 +1747,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 source_id=source_id,
             )
             if message_type not in ["unsupported", "system"]:
-                status_data = {
-                    "messaging_product": "whatsapp",
-                    "status": "read",
-                    "message_id": message_id,
-                }
-                try:
-                    call_api(
-                        waba=waba,
-                        endpoint=f"{phone.phone_id}/messages",
-                        method="post",
-                        payload=status_data,
-                    )
-                except Exception as e:
-                    pass
+                _queue_waba_read_status(waba, phone, message_id)
             if referral_body:
                 bitrix_tasks.send_messages.delay(
                     appinstance.id,

@@ -396,9 +396,8 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
 
         result = resp.get("result", {})
         results = result.get("DATA", {}).get("RESULT", [])
-        retried_without_session = False
-        if results and not any(result_item.get("session", {}) for result_item in results) and not retried_without_session:
-            retried_without_session = True
+        needs_ctwa_session = ctwa_id or source_id is not None
+        if needs_ctwa_session and results and not any(result_item.get("session", {}) for result_item in results):
             resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=30)
             result = resp.get("result", {})
             results = result.get("DATA", {}).get("RESULT", [])
