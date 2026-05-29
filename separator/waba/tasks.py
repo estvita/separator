@@ -147,16 +147,29 @@ def add_waba_phone(request_id, app_id):
         for waba_id in wabas:
             waba, created = Waba.objects.get_or_create(
                 waba_id=waba_id,
-                app=app,
                 defaults={
+                    'app': app,
                     'access_token': access_token,
                     'owner': user,
                     'subscribed': app.subscribe,
                 }
             )
-            if not created and waba.access_token != access_token:
-                waba.access_token = access_token
-                waba.save(update_fields=["access_token"])
+            if not created:
+                update_fields = []
+                if waba.app_id != app.id:
+                    waba.app = app
+                    update_fields.append("app")
+                if waba.access_token != access_token:
+                    waba.access_token = access_token
+                    update_fields.append("access_token")
+                if waba.owner_id != user.id:
+                    waba.owner = user
+                    update_fields.append("owner")
+                if waba.subscribed != app.subscribe:
+                    waba.subscribed = app.subscribe
+                    update_fields.append("subscribed")
+                if update_fields:
+                    waba.save(update_fields=update_fields)
             _onboard_waba_assets(waba, user=user, register=app.register)
 
 

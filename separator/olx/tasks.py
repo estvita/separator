@@ -477,13 +477,33 @@ def get_threads(olx_user_id):
                     text = message.get("text")
                     attachments = message.get("attachments", [])
                     if message_type == "received":
-                        bitrix_tasks.send_messages.delay(app_instance.id, None, text, connector_code,
-                                                            line.line_id, False, user_name, message_id,
-                                                            attachments, None, chat_id, advert_url, interlocutor_id)
+                        bitrix_tasks.send_messages.delay(
+                            app_instance.id,
+                            None,
+                            text,
+                            connector_code,
+                            line.line_id,
+                            pushName=user_name,
+                            message_id=message_id,
+                            attachments=attachments,
+                            chat_id=chat_id,
+                            chat_url=advert_url,
+                            user_id=interlocutor_id,
+                        )
                     elif message_type == "sent":
-                        bitrix_tasks.message_add.delay(app_instance.id, line.line_id,
-                                                        interlocutor_id, text, connector_code,
-                                                        attach=attachments)
+                        bitrix_tasks.send_messages.delay(
+                            app_instance.id,
+                            None,
+                            text,
+                            connector_code,
+                            line.line_id,
+                            pushName=user_name,
+                            attachments=attachments,
+                            chat_id=chat_id,
+                            chat_url=advert_url,
+                            user_id=interlocutor_id,
+                            manager_id=0,
+                        )
 
                 olx_thread.last_message_id = max(int(message.get("id") or 0) for message in messages)
                 olx_thread.total_count = total_count

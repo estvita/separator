@@ -159,20 +159,21 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         access_token = app.access_token
     headers = {"Authorization": f"Bearer {access_token}"}
     base_url = f"{API_URL}/v{app.api_version}.0"
+    timeout = (10, 60)
 
     resp = None
     try:
         if file_url:
-            return requests.get(file_url, headers=headers)
+            return requests.get(file_url, headers=headers, timeout=timeout)
         if method == "get":
-            resp = requests.get(f"{base_url}/{endpoint}", params=payload, headers=headers)
+            resp = requests.get(f"{base_url}/{endpoint}", params=payload, headers=headers, timeout=timeout)
         elif method == "post":
             if files:
-                resp = requests.post(f"{base_url}/{endpoint}", data=data, files=files, headers=headers)
+                resp = requests.post(f"{base_url}/{endpoint}", data=data, files=files, headers=headers, timeout=timeout)
             else:
-                resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers)
+                resp = requests.post(f"{base_url}/{endpoint}", json=payload, headers=headers, timeout=timeout)
         elif method == "delete":
-            resp = requests.delete(f"{base_url}/{endpoint}", json=payload, headers=headers)
+            resp = requests.delete(f"{base_url}/{endpoint}", json=payload, headers=headers, timeout=timeout)
         
         try:
             resp.raise_for_status()
@@ -1497,12 +1498,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         dt = datetime.fromtimestamp(expiration)
                         expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
                     msg = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
-                    return bitrix_tasks.message_add(
-                        appinstance.id, 
-                        phone.line.line_id,
-                        user_identy, 
-                        msg, 
+                    return bitrix_tasks.send_messages(
+                        appinstance.id,
+                        user_identy,
+                        msg,
                         phone.line.connector.code,
+                        phone.line.line_id,
+                        manager_id=0,
                     )
                 elif interactive_type == "nfm_reply":
                     text = _format_nfm_reply(interactive)
@@ -1566,10 +1568,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     caption,
                     phone.line.connector.code,
                     phone.line.line_id,
-                    False,
-                    user_name,
-                    message_id,
-                    attach,
+                    pushName=user_name,
+                    message_id=message_id,
+                    attachments=attach,
                     chat_url=source_url,
                 )
                 status_data = {
@@ -1655,12 +1656,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                             message_obj = Message.objects.filter(site__domain=host, code="default_template").first()
                                             if message_obj:
                                                 msg = f"[color=#00ff00]{message_obj.message} {error_code}[/color]"
-                                        bitrix_tasks.message_add.delay(
-                                            appinstance.id, 
-                                            phone.line.line_id,
-                                            user_identy, 
-                                            msg, 
+                                        bitrix_tasks.send_messages.delay(
+                                            appinstance.id,
+                                            user_identy,
+                                            msg,
                                             phone.line.connector.code,
+                                            phone.line.line_id,
+                                            manager_id=0,
                                         )
                     except Exception:
                         pass
@@ -1670,12 +1672,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             out_message = error_message(item)
                             user_identy = item.get("recipient_id")
                             if user_identy and appinstance:
-                                bitrix_tasks.message_add.delay(
-                                    appinstance.id, 
-                                    phone.line.line_id,
-                                    user_identy, 
-                                    f"[color=#ff0000]{out_message}[/color]", 
+                                bitrix_tasks.send_messages.delay(
+                                    appinstance.id,
+                                    user_identy,
+                                    f"[color=#ff0000]{out_message}[/color]",
                                     phone.line.connector.code,
+                                    phone.line.line_id,
+                                    manager_id=0,
                                 )
                         except Exception:
                             pass
@@ -1713,10 +1716,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 text,
                 phone.line.connector.code,
                 phone.line.line_id,
-                False,
-                user_name,
-                message_id,
-                attach,
+                pushName=user_name,
+                message_id=message_id,
+                attachments=attach,
                 chat_url=source_url,
                 ctwa_id=ctwa_id,
                 source_id=source_id,
@@ -1737,12 +1739,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 except Exception as e:
                     pass
             if referral_body:
-                bitrix_tasks.message_add.delay(
+                bitrix_tasks.send_messages.delay(
                     appinstance.id,
-                    phone.line.line_id,
                     user_identy,
                     referral_body,
                     phone.line.connector.code,
+                    phone.line.line_id,
+                    manager_id=0,
                 )
 
     elif field == 'smb_message_echoes':
@@ -1778,15 +1781,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     text = f"{original_filename} {text}"
                 text = text.strip() if text else None
 
-                # For echo (system) messages, we must upload to Bitrix to keep the file durable in chat history
                 try:
-                    downloaded = call_api(file_url=media_url, waba=phone.waba)
-                    if downloaded:
-                        file_url = bitrix_utils.upload_and_get_link(
-                            appinstance, downloaded.content, filename
-                        )
-                    else:
-                        file_url = None
+                    file_url = get_file(media_url, filename, appinstance, phone.waba)
                 except requests.RequestException:
                     raise
                 except Exception as e:
@@ -1800,10 +1796,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 if file_url:
                     attach = [
                         {
-                            "FILE": {
-                                "NAME": filename,
-                                "LINK": file_url
-                            }
+                            "url": file_url,
+                            "name": filename,
                         }
                     ]
             
@@ -1818,7 +1812,15 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 raise Exception(f"Unsupported smb_message_echoes message_type: {message_type}")
 
             if text or attach:
-                return bitrix_tasks.message_add(appinstance.id, phone.line.line_id, user_identy, text, phone.line.connector.code, attach)
+                return bitrix_tasks.send_messages(
+                    appinstance.id,
+                    user_identy,
+                    text,
+                    phone.line.connector.code,
+                    phone.line.line_id,
+                    attachments=attach,
+                    manager_id=0,
+                )
     else:
         raise Exception(f"this event is not handled")
 

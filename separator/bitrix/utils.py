@@ -11,7 +11,7 @@ import requests
 from django.core.signing import TimestampSigner
 from urllib.parse import unquote
 from datetime import timedelta
-from django.db import transaction
+from django.db import transaction, OperationalError
 from django.utils import timezone
 from django.contrib import messages
 from django.conf import settings
@@ -66,6 +66,18 @@ def format_waba_error(send_result):
             return waba.error_message({"errors": error_data["errors"], "recipient_id": "Error"})
 
     return str(error_msg)
+
+
+def send_waba_error_to_openline(app_instance_id, user_phone, error_result, connector_code, line_id):
+    error_msg = format_waba_error(error_result)
+    bitrix_tasks.send_messages.delay(
+        app_instance_id,
+        user_phone,
+        f"[color=#ff0000]{error_msg}[/color]",
+        connector_code,
+        line_id,
+        manager_id=0,
+    )
 
 
 logger = logging.getLogger("django")
@@ -994,6 +1006,17 @@ def sms_processor(self, data, service):
         message = _build_waba_message(target, body, line_id=phone.line.line_id if phone.line_id else None)
         return waba.send_message_from_phone(phone, message)
 
+    def _send_waba_error_to_openline(error_result):
+        if service != "waba" or not line:
+            return
+        send_waba_error_to_openline(
+            app_instance.id,
+            message_to,
+            error_result,
+            line.connector.code,
+            line.line_id,
+        )
+
     try:
         if not app_instance:
             raise Exception("app not found")
@@ -1076,10 +1099,14 @@ def sms_processor(self, data, service):
                         send_result = _send_waba_direct(message_to, message_body)
 
         if "error" in (send_result or {}):
+            _send_waba_error_to_openline(send_result)
             raise ValueError(send_result)
         return send_result
     except requests.RequestException as e:
         countdown = min(60 * (2 ** self.request.retries), 600)
+        raise self.retry(exc=e, countdown=countdown)
+    except OperationalError as e:
+        countdown = min(5 * (2 ** self.request.retries), 60)
         raise self.retry(exc=e, countdown=countdown)
     except Exception:
         raise
@@ -1213,11 +1240,6 @@ def event_processor(self, data):
             chat = data.get("data[MESSAGES][0][chat][id]")
             send_result = None
 
-            # # Проверяем наличие сообщения в редис (отправлено из других сервисов )
-            # for _ in range(5):
-            #     if redis_client.exists(f'bitrix:{member_id}:{message_id}'):
-            #         raise Exception('loop message')
-            #     time.sleep(1)
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
             text = data.get("data[MESSAGES][0][message][text]", "")
@@ -1355,11 +1377,13 @@ def event_processor(self, data):
 
                         send_result = waba.send_message_from_phone(phone, message)
                         if "error" in (send_result or {}):
+                            send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
                             raise ValueError(send_result)
 
                 else:
                     send_result = waba.send_message_from_phone(phone, message)
                     if "error" in (send_result or {}):
+                        send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
                         raise ValueError(send_result)
 
             elif connector.service == "waweb":
@@ -1453,6 +1477,9 @@ def event_processor(self, data):
     except requests.RequestException as e:
         countdown = min(60 * (2 ** self.request.retries), 600)
         raise self.retry(exc=e, countdown=countdown)
+    except OperationalError as e:
+        countdown = min(5 * (2 ** self.request.retries), 60)
+        raise self.retry(exc=e, countdown=countdown)
     except Exception:
         raise
 
@@ -1499,22 +1526,3 @@ def save_temp_file(file_content, filename, app_instance):
     except Exception as e:
         logger.error(f"Error handling temp file: {e}")
         return None
-
-def upload_and_get_link(appinstance, file_content_bytes, filename):
-    """
-    Uploads file to Bitrix Disk and returns a permanent external link.
-    Used for system messages (echoes) that need to persist in chat history.
-    """
-    try:
-        file_b64 = base64.b64encode(file_content_bytes).decode("utf-8")
-        upload_res = upload_file(appinstance, appinstance.storage_id, file_b64, filename)
-        
-        if upload_res:
-            file_id = upload_res.get("ID")
-            if file_id:
-                link_res = bitrix_tasks.call_api(appinstance.id, "disk.file.getExternalLink", {"id": file_id})
-                if link_res and "result" in link_res:
-                    return link_res.get("result")
-    except Exception as e:
-        logger.error(f"Error uploading file to Bitrix Disk: {e}")
-    return None

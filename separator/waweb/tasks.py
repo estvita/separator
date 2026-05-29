@@ -312,7 +312,7 @@ def event_processor(event_data):
                 line = session.line
                 # Prepare file if present
                 file_content_bytes = None
-                if file_data and redis_client.exists(f'bitrix_chat:{line.portal.member_id}:{line.line_id}:{remote_user}'):
+                if file_data:
                     import base64
                     file_content_bytes = base64.b64decode(file_body)
 
@@ -321,11 +321,10 @@ def event_processor(event_data):
                 attach = None
                 
                 if fromme:
-                    # Echo message (system message) -> needs permanent storage in Bitrix
                     file_url = None
                     if file_content_bytes:
-                         file_url = bitrix_utils.upload_and_get_link(
-                             session.app_instance, file_content_bytes, fileName
+                         file_url = bitrix_utils.save_temp_file(
+                             file_content_bytes, fileName, session.app_instance
                          )
                     
                     source = data.get("source", "")
@@ -338,17 +337,22 @@ def event_processor(event_data):
                         text = f"{from_app} [BR] {text}" if text else from_app
                         attach = [
                             {
-                                "FILE": {
-                                    "NAME": file_name,
-                                    "LINK": file_url
-                                }
+                                "url": file_url,
+                                "name": file_name,
                             }
                         ]
                     if text and not attach:
                         text = f"{from_app} {text}"
                     if text or attach:
-                        bitrix_tasks.message_add.delay(session.app_instance.id, line.line_id, 
-                                                    remote_user, text, line.connector.code, attach)
+                        bitrix_tasks.send_messages.delay(
+                            session.app_instance.id,
+                            remote_user,
+                            text,
+                            line.connector.code,
+                            line.line_id,
+                            attachments=attach,
+                            manager_id=0,
+                        )
 
                 else:
                     # Incoming message -> use temporary link for connector ingestion
@@ -365,8 +369,17 @@ def event_processor(event_data):
                                 "name": fileName
                             }
                         ]
-                    bitrix_tasks.send_messages.delay(session.app_instance.id, remote_user, text, line.connector.code, line.line_id,
-                                                        False, pushName, message_id, attach, profilepic_url)
+                    bitrix_tasks.send_messages.delay(
+                        session.app_instance.id,
+                        remote_user,
+                        text,
+                        line.connector.code,
+                        line.line_id,
+                        pushName=pushName,
+                        message_id=message_id,
+                        attachments=attach,
+                        profilepic_url=profilepic_url,
+                    )
                     
         except Exception as e:
             raise Exception(event_data)

@@ -11,7 +11,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from .crest import BitrixAccessDeniedError, call_method, refresh_token
-from .models import ApiCall, AppInstance, Connector, Credential, Feature, FeatureGrant
+from .models import ApiCall, AppInstance, Credential, Feature, FeatureGrant
 
 from separator.waba.models import Phone
 from separator.waweb.models import Session
@@ -357,10 +357,9 @@ def save_ctwa(self, instace_id, ctwa_id, chat_id, source_id=None):
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def send_messages(self, app_instance_id, user_phone, text, connector,
-                  line, sms=False, pushName=None,
+                  line, pushName=None,
                   message_id=None, attachments=None, profilepic_url=None,
                   chat_id=None, chat_url=None, user_id=None, ctwa_id=None, source_id=None, manager_id=None):
-    init_message = "Создание чата..."
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
         # BSUIDs from WhatsApp usernames include dots (for example, US.xxx), phone numbers do not.
@@ -385,9 +384,9 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                         "url": chat_url,
                     },
                     "message": {
-                        "text": init_message if sms else text,
+                        "text": text,
                         "id": message_id,
-                        "files": attachments if not sms else [],
+                        "files": attachments,
                         "user_id": manager_id,
                     }
                 }
@@ -406,16 +405,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
         for result_item in results:
             chat_session = result_item.get("session", {})
             if chat_session:
-                member_id = app_instance.portal.member_id
                 chat_id = chat_session.get("CHAT_ID")
-                identity = user_id or user_phone
-                try:
-                    redis_client.set(f"bitrix_chat:{member_id}:{line}:{identity}", chat_id, ex=2592000)
-                except Exception:
-                    pass
-                if sms:
-                    message_add.delay(app_instance_id, line, user_phone, text, connector, attach=attachments)
-                
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
                 if app_instance.has_active_feature("separator_ctwa_tracker") and chat_id and (ctwa_id or source_id is not None):
                     save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
@@ -423,78 +413,6 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
 
     except Exception as e:
         raise self.retry(exc=e)
-
-
-@shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
-def message_add(self, app_instance_id, line_id, user_phone, text, connector, attach=None):
-    try:
-        app_instance = AppInstance.objects.get(id=app_instance_id)
-    except AppInstance.DoesNotExist:
-        logger.error(f"AppInstance {app_instance_id} does not exist")
-        raise
-
-    connector_service = Connector.objects.filter(code=connector).values_list("service", flat=True).first()
-    is_olx_connector = connector_service == "olx"
-
-    # BSUIDs from WhatsApp usernames include dots (for example, US.xxx), phone numbers do not.
-    if not is_olx_connector and user_phone and not str(user_phone).startswith("+") and "." not in str(user_phone):
-        user_phone = f"+{user_phone}"
-
-    member_id = app_instance.portal.member_id
-    chat_keys = [f'bitrix_chat:{member_id}:{line_id}:{user_phone}']
-    
-    chat_id = None
-    try:
-        for chat_key in chat_keys:
-            if redis_client.exists(chat_key):
-                chat_id = redis_client.get(chat_key).decode('utf-8')
-                break
-    except Exception:
-        pass
-
-    if chat_id:
-        payload = {
-            "DIALOG_ID": f"chat{chat_id}",
-            "MESSAGE": text or " ",
-            "SYSTEM": "Y",
-            "ATTACH": attach
-        }
-        max_send_attempts = 3
-
-        for attempt in range(max_send_attempts):
-            try:
-                # try:
-                #     call_method(app_instance, "imopenlines.session.start", {"CHAT_ID": chat_id})
-                # except Exception as e:
-                #     logger.warning(f"Failed to start session for chat {chat_id}: {e}")
-                resp = call_method(app_instance, "im.message.add", payload, timeout=10)
-                # message_id = resp.get("result")
-                # try:
-                #     redis_client.setex(f'bitrix:{member_id}:{message_id}', 600, message_id)
-                # except Exception:
-                #     pass
-                # payload_status = {
-                #     "CONNECTOR": connector,
-                #     "LINE": line_id,
-                #     "MESSAGES": [{
-                #         "im": {
-                #             "chat_id": chat_id,
-                #             "message_id": message_id
-                #         }
-                #     }]
-                # }
-                # call_api.delay(app_instance.id, "imconnector.send.status.delivery", payload_status)
-                return resp
-            except Exception as e:
-                if attempt >= max_send_attempts - 1:
-                    logger.error(f"Exception occurred while sending message: {e}")
-                    raise
-                else:
-                    self.retry(exc=e)
-    else:
-        if is_olx_connector:
-            return None
-        return send_messages(app_instance_id, user_phone, text, connector, line_id, True, attachments=attach)
 
 
 @shared_task(queue='bitrix')
