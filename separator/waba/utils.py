@@ -1585,6 +1585,16 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                  reaction = message.get("reaction")
                  text = reaction.get("emoji")
 
+            elif message_type == "edit":
+                edit_data = message.get("edit", {})
+                edited_message = edit_data.get("message", {})
+                edited_type = edited_message.get("type")
+                if edited_type == "text":
+                    edited_text = (edited_message.get("text") or {}).get("body")
+                    text = f"📝: {edited_text}" if edited_text else "Edited:"
+                else:
+                    raise Exception(f"Unsupported edit.message type: {edited_type}")
+
             elif message_type == "unsupported":
                 text = f"[color=#ff0000]{error_message(message)}[/color]"
 
@@ -1770,6 +1780,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             message_type = message.get("type")
             if message_type == "text":
                 text = message.get("text", {}).get("body")
+
+            elif message_type == "button":
+                text = message.get("button", {}).get("text")
 
             elif message_type in ["image", "video", "audio", "document", "sticker"]:
                 media_data = message.get(message_type)
