@@ -14,6 +14,7 @@ import separator.waba.bitrix as waba_bitrix
 from separator.olx.models import OlxUser
 from separator.waweb.models import Session
 import separator.waba.utils as waba_utils
+import separator.bitrix.tasks as bitrix_tasks
 
 from .crest import call_method
 from .utils import get_app, connect_line, format_waba_error
@@ -568,6 +569,16 @@ class WabaPlacementModule:
             return self._action_response({"ok": False, "error": format_waba_error(send_result) or _("send failed")})
 
         self._add_timeline_comment(appinstance, sender_phone, template, recipient_phone, send_result, data)
+        if sender_phone.ChatFromSms and sender_phone.line_id:
+            template_text = " ".join([f"template+{template.id}", *self._template_param_lines(template, data)])
+            bitrix_tasks.send_messages(
+                appinstance.id,
+                recipient_phone,
+                template_text,
+                sender_phone.line.connector.code,
+                sender_phone.line.line_id,
+                manager_id=0,
+            )
         return self._action_response({"ok": True, "result": send_result})
 
     @staticmethod

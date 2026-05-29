@@ -1126,7 +1126,7 @@ def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
     default_retry_delay=5,
     max_retries=5,
 )
-def send_waba_read_status(waba_id=None, phone_id=None, message_id=None):
+def read_status(waba_id=None, phone_id=None, message_id=None):
     if not waba_id or not phone_id or not message_id:
         return None
 
@@ -1151,7 +1151,7 @@ def _queue_waba_read_status(waba, phone, message_id):
     if not waba or not getattr(waba, "id", None) or not phone or not getattr(phone, "phone_id", None) or not message_id:
         return
     try:
-        send_waba_read_status.delay(waba.id, phone.phone_id, message_id)
+        read_status.delay(waba.id, phone.phone_id, message_id)
     except Exception as e:
         logger.warning(f"Failed to queue read status for message {message_id}: {e}")
 
