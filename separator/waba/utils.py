@@ -1585,16 +1585,6 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                  reaction = message.get("reaction")
                  text = reaction.get("emoji")
 
-            elif message_type == "edit":
-                edit_data = message.get("edit", {})
-                edited_message = edit_data.get("message", {})
-                edited_type = edited_message.get("type")
-                if edited_type == "text":
-                    edited_text = (edited_message.get("text") or {}).get("body")
-                    text = f"📝: {edited_text}" if edited_text else "Edited:"
-                else:
-                    raise Exception(f"Unsupported edit.message type: {edited_type}")
-
             elif message_type == "unsupported":
                 text = f"[color=#ff0000]{error_message(message)}[/color]"
 
@@ -1620,6 +1610,24 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     chat_url=source_url,
                 )
                 _queue_waba_read_status(waba, phone, message_id)
+                if message_type == "audio" and media_data.get("voice") is True and media_url:
+                    try:
+                        app = phone.waba.app if phone.waba_id and phone.waba else None
+                        if app and app.openai_api_key and phone.tokens > 0:
+                            from separator.waba.tasks import transcribe_voice_message
+                            transcribe_voice_message.delay(
+                                phone.id,
+                                appinstance.id,
+                                user_identy,
+                                phone.line.connector.code,
+                                phone.line.line_id,
+                                media_url,
+                                filename,
+                                message_id=message_id,
+                                push_name=user_name,
+                            )
+                    except Exception as e:
+                        logger.warning(f"Failed to queue voice transcription for message {message_id}: {e}")
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -1784,6 +1792,10 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type == "button":
                 text = message.get("button", {}).get("text")
 
+            elif message_type == "contacts":
+                contacts = message.get("contacts", [])
+                text = format_contacts(contacts)
+
             elif message_type in ["image", "video", "audio", "document", "sticker"]:
                 media_data = message.get(message_type)
                 media_id = media_data["id"]
@@ -1827,6 +1839,16 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type == "reaction":
                  reaction = message.get("reaction")
                  text = reaction.get("emoji")
+
+            elif message_type == "edit":
+                edit_data = message.get("edit", {})
+                edited_message = edit_data.get("message", {})
+                edited_type = edited_message.get("type")
+                if edited_type == "text":
+                    edited_text = (edited_message.get("text") or {}).get("body")
+                    text = f"📝: {edited_text}" if edited_text else "Edited:"
+                else:
+                    raise Exception(f"Unsupported edit.message type: {edited_type}")
 
             elif message_type == "unsupported":
                 text = f"[color=#ff0000]{error_message(message)}[/color]"

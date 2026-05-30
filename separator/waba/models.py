@@ -35,6 +35,7 @@ class App(models.Model):
     client_secret = EncryptedCharField(max_length=500, editable=True, default='')
     access_token = EncryptedCharField(max_length=2000, default='',
                                     help_text="System admin user access_token")
+    openai_api_key = EncryptedCharField(max_length=2000, blank=True, null=True)
     api_version = models.IntegerField(default=20)
     verify_token = models.CharField(
         max_length=100,
@@ -92,12 +93,23 @@ class Phone(models.Model):
         ('cloud', 'cloud'),
         ('app', 'app'),
     ]
+    TRANSCRIBE_MODEL_CHOICES = [
+        ("gpt-4o-mini-transcribe", "gpt-4o-mini-transcribe"),
+        ("gpt-4o-transcribe", "gpt-4o-transcribe"),
+        ("gpt-4o-transcribe-diarize", "gpt-4o-transcribe-diarize"),
+    ]
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     type = models.CharField(max_length=10, choices=TYPES_CHOICES, default="cloud")
     pin = models.CharField(max_length=6, default="000000")
     phone_id = models.CharField(max_length=50, unique=True)
     sms_service = models.BooleanField(default=True)
     ChatFromSms = models.BooleanField(default=False)
+    tokens = models.PositiveIntegerField(default=0)
+    transcribe_model = models.CharField(
+        max_length=50,
+        choices=TRANSCRIBE_MODEL_CHOICES,
+        default="gpt-4o-mini-transcribe",
+    )
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="phones", null=True, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     line = models.ForeignKey(

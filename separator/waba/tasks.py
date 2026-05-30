@@ -1,14 +1,20 @@
 import time
 import redis
 import random
+import os
+import subprocess
+import tempfile
+import requests
 from celery import shared_task
 
 from .models import App, PartnerApp, Waba, Phone, Template, Error, Ctwa, CtwaEvents
 import separator.waba.utils as utils
 
 from separator.users.models import User
+import separator.bitrix.tasks as bitrix_tasks
 
 from django.conf import settings
+from django.db import models
 from django.utils import timezone
 
 
@@ -113,6 +119,104 @@ def force_sync_waba_phones(waba_id):
         save_templates=False,
         create_lead=False,
     )
+
+
+@shared_task(queue='waba')
+def transcribe_voice_message(
+    phone_id,
+    app_instance_id,
+    user_phone,
+    connector_code,
+    line_id,
+    media_url,
+    filename,
+    message_id=None,
+    push_name=None,
+):
+    phone = None
+    input_path = None
+    converted_path = None
+    try:
+        phone = Phone.objects.select_related("waba", "waba__app").get(id=phone_id)
+        app = phone.waba.app if phone.waba_id and phone.waba else None
+        if not app or not app.openai_api_key:
+            return None
+        if phone.tokens <= 0:
+            return None
+
+        media_response = utils.call_api(file_url=media_url, waba=phone.waba)
+        media_response.raise_for_status()
+
+        original_ext = os.path.splitext(filename or "")[1] or ".oga"
+        with tempfile.NamedTemporaryFile(suffix=original_ext, delete=False) as input_file:
+            input_path = input_file.name
+            input_file.write(media_response.content)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as converted_file:
+            converted_path = converted_file.name
+
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                input_path,
+                "-vn",
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                converted_path,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        with open(converted_path, "rb") as audio_file:
+            openai_base_url = settings.OPENAI_API_BASE_URL.rstrip("/")
+            response = requests.post(
+                f"{openai_base_url}/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {app.openai_api_key}"},
+                data={"model": phone.transcribe_model},
+                files={"file": ("voice.mp3", audio_file)},
+                timeout=(10, 120),
+            )
+        response.raise_for_status()
+        data = response.json()
+        text = (data.get("text") or "").strip()
+        if not text:
+            return None
+
+        usage = data.get("usage") or {}
+        total_tokens = usage.get("total_tokens")
+        if isinstance(total_tokens, int) and total_tokens > 0:
+            Phone.objects.filter(id=phone.id).update(
+                tokens=models.Case(
+                    models.When(tokens__gte=total_tokens, then=models.F("tokens") - total_tokens),
+                    default=0,
+                    output_field=models.PositiveIntegerField(),
+                )
+            )
+
+        return bitrix_tasks.send_messages(
+            app_instance_id,
+            user_phone,
+            f"Transcript:\n{text}",
+            connector_code,
+            line_id,
+            pushName=push_name,
+            message_id=f"{message_id}:transcription" if message_id else None,
+        )
+    except Exception:
+        raise
+    finally:
+        for path in (input_path, converted_path):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
 
 
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/

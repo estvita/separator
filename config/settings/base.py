@@ -24,6 +24,7 @@ WABA_EVENTS_SEPARATOR = env.bool("WABA_EVENTS_SEPARATOR", default=False)
 
 BITRIX_OAUTH_URL = env("BITRIX_OAUTH_URL", default="https://oauth.bitrix24.tech")
 BITRIX_TEMP_FILE_BASE_URL = env("BITRIX_TEMP_FILE_BASE_URL", default="")
+OPENAI_API_BASE_URL = env("OPENAI_API_BASE_URL", default="https://api.openai.com")
 
 OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 CHECK_PHONE_NUMBER = env.bool("CHECK_PHONE_NUMBER", False)

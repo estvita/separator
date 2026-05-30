@@ -32,6 +32,7 @@ class AppAdminForm(forms.ModelForm):
         widgets = {
             'client_secret': forms.PasswordInput(render_value=True),
             'access_token': forms.PasswordInput(render_value=True),
+            'openai_api_key': forms.PasswordInput(render_value=True),
         }
 
 
@@ -160,9 +161,9 @@ TemplateAdmin.inlines = [
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', 'waba', 'line', 'sip_extensions']
-    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type")
+    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type", "tokens", "transcribe_model")
     search_fields = ("phone", "phone_id", "owner__email")
-    list_filter = ("calling", "type")
+    list_filter = ("calling", "type", "transcribe_model")
     readonly_fields = ("error", )
     fieldsets = (
         (None, {
@@ -181,6 +182,8 @@ class PhoneAdmin(admin.ModelAdmin):
                 "line",
                 "sms_service",
                 "ChatFromSms",
+                "tokens",
+                "transcribe_model",
                 "availableInB24",
                 "availabletoB24admins",
                 "voximplant_id",

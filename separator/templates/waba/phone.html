@@ -302,10 +302,22 @@
             {% trans "Allow Bitrix portal admins to access this number." %}
           </div>
         </div>
+        <div class="form-group mb-3">
+          <label for="tokens">Transcribe tokens</label>
+          <input type="number" min="0" class="form-control" id="tokens" value="{{ phone.tokens }}" readonly>
+        </div>
+        <div class="form-group mb-3">
+          <label for="transcribe_model">Transcribe model</label>
+          <select class="form-control" id="transcribe_model" name="transcribe_model">
+            {% for value, label in transcribe_model_choices %}
+              <option value="{{ value }}" {% if phone.transcribe_model == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
         <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
       </form>
     </div>
-
+    
     <div
       class="tab-pane fade {% if active_tab == 'calls' %}show active{% endif %}"
       id="calls-pane"

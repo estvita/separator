@@ -335,21 +335,28 @@ def phone_details(request, phone_id):
         elif action == "update_bitrix":
             sms_service = request.POST.get("sms_service") == "on"
             chat_from_sms = request.POST.get("ChatFromSms") == "on"
+            transcribe_model = request.POST.get("transcribe_model") or phone.transcribe_model
+            valid_transcribe_models = {choice[0] for choice in Phone.TRANSCRIBE_MODEL_CHOICES}
+            if transcribe_model not in valid_transcribe_models:
+                transcribe_model = phone.transcribe_model
             available_in_b24 = request.POST.get("availableInB24") == "on"
             available_to_b24_admins = request.POST.get("availabletoB24admins") == "on"
             sms_service_changed = phone.sms_service != sms_service
             chat_from_sms_changed = phone.ChatFromSms != chat_from_sms
+            transcribe_model_changed = phone.transcribe_model != transcribe_model
             available_in_b24_changed = phone.availableInB24 != available_in_b24
             available_to_b24_admins_changed = phone.availabletoB24admins != available_to_b24_admins
 
             if (
                 sms_service_changed
                 or chat_from_sms_changed
+                or transcribe_model_changed
                 or available_in_b24_changed
                 or available_to_b24_admins_changed
             ):
                 phone.sms_service = sms_service
                 phone.ChatFromSms = chat_from_sms
+                phone.transcribe_model = transcribe_model
                 phone.availableInB24 = available_in_b24
                 phone.availabletoB24admins = available_to_b24_admins
                 update_fields = []
@@ -357,6 +364,8 @@ def phone_details(request, phone_id):
                     update_fields.append("sms_service")
                 if chat_from_sms_changed:
                     update_fields.append("ChatFromSms")
+                if transcribe_model_changed:
+                    update_fields.append("transcribe_model")
                 if available_in_b24_changed:
                     update_fields.append("availableInB24")
                 if available_to_b24_admins_changed:
@@ -517,6 +526,7 @@ def phone_details(request, phone_id):
         'ctwa_status': ctwa_status,
         'ctwa_status_options': ctwa_status_options,
         'ctwa_has_empty_status': ctwa_has_empty_status,
+        'transcribe_model_choices': Phone.TRANSCRIBE_MODEL_CHOICES,
         'active_tab': active_tab,
     })
 
