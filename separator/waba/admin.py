@@ -16,6 +16,7 @@ from .models import (
     Waba,
     Phone,
     Template,
+    Interactive,
     Event,
     Error,
     Ctwa,
@@ -157,6 +158,15 @@ class TemplateComponentInline(admin.TabularInline):
 TemplateAdmin.inlines = [
     TemplateComponentInline,
 ]
+
+
+@admin.register(Interactive)
+class InteractiveAdmin(admin.ModelAdmin):
+    autocomplete_fields = ["owner"]
+    list_display = ("id", "name", "type", "owner")
+    list_filter = ("type",)
+    search_fields = ("id", "name", "owner__email")
+
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):

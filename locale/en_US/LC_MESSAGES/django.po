@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-20 15:43+0500\n"
+"POT-Creation-Date: 2026-05-30 17:18+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -563,6 +563,9 @@ msgstr ""
 msgid "New OLX"
 msgstr ""
 
+msgid "Changing the connected line may desynchronize existing chats. Continue?"
+msgstr ""
+
 msgid "WABA Widget"
 msgstr ""
 
@@ -797,7 +800,7 @@ msgstr ""
 msgid "Push up"
 msgstr ""
 
-msgid "Publish"
+msgid "Activate"
 msgstr ""
 
 msgid "Copy"
@@ -819,6 +822,9 @@ msgid "Search category"
 msgstr ""
 
 msgid "Advertiser type"
+msgstr ""
+
+msgid "Negotiable"
 msgstr ""
 
 msgid "Contact name"
@@ -974,6 +980,66 @@ msgstr ""
 msgid "No recipients found."
 msgstr ""
 
+msgid "Interactive message"
+msgstr ""
+
+msgid "Shortcode"
+msgstr ""
+
+msgid "Variables"
+msgstr ""
+
+msgid "Add variable"
+msgstr ""
+
+msgid "Header"
+msgstr ""
+
+msgid "Header value"
+msgstr ""
+
+msgid "Body"
+msgstr ""
+
+msgid "Footer"
+msgstr ""
+
+msgid "Buttons"
+msgstr ""
+
+msgid "Add button"
+msgstr ""
+
+msgid "List"
+msgstr ""
+
+msgid "Open button text"
+msgstr ""
+
+msgid "Add section"
+msgstr ""
+
+msgid "CTA URL"
+msgstr ""
+
+msgid "Button text"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Add row"
+msgstr ""
+
+msgid "Interactive messages"
+msgstr ""
+
+msgid "Delete interactive message?"
+msgstr ""
+
+msgid "No interactive messages found."
+msgstr ""
+
 msgid "Your WhatsApp Cloud numbers"
 msgstr ""
 
@@ -1002,9 +1068,6 @@ msgid "You don't have any connected sessions."
 msgstr ""
 
 msgid "Partner apps"
-msgstr ""
-
-msgid "Changing the connected line may desynchronize existing chats. Continue?"
 msgstr ""
 
 msgid "WABA Partner Apps"
@@ -1187,6 +1250,36 @@ msgstr ""
 msgid "Register"
 msgstr ""
 
+msgid "Official Business Account application"
+msgstr ""
+
+msgid "Business website URL"
+msgstr ""
+
+msgid "Primary country of operation"
+msgstr ""
+
+msgid "Primary language"
+msgstr ""
+
+msgid "Parent business or brand"
+msgstr ""
+
+msgid "Supporting links"
+msgstr ""
+
+msgid "One URL per line"
+msgstr ""
+
+msgid "Optional, 5 to 10 links."
+msgstr ""
+
+msgid "Additional supporting information"
+msgstr ""
+
+msgid "Submit application"
+msgstr ""
+
 msgid "Delete selected templates from Facebook and local database?"
 msgstr ""
 
@@ -1282,6 +1375,12 @@ msgstr ""
 msgid "Verification status: %(status)s"
 msgstr ""
 
+msgid "Official Business Account is not enabled"
+msgstr ""
+
+msgid "You can submit an application for Official Business Account status."
+msgstr ""
+
 msgid "This number is linked to another user."
 msgstr ""
 
@@ -1339,6 +1438,23 @@ msgstr ""
 msgid "Phone registration has been queued."
 msgstr ""
 
+msgid "Official Business Account application is not available."
+msgstr ""
+
+msgid ""
+"Official Business Account application is not available for WhatsApp Business "
+"App numbers."
+msgstr ""
+
+msgid "Business website URL and primary country of operation are required."
+msgstr ""
+
+msgid "Supporting links must contain from 5 to 10 URLs."
+msgstr ""
+
+msgid "Official Business Account application has been submitted."
+msgstr ""
+
 msgid "The tariff has expired "
 msgstr ""
 
@@ -1360,10 +1476,19 @@ msgstr ""
 msgid "Broadcast has been cancelled."
 msgstr ""
 
+msgid "Interactive message saved."
+msgstr ""
+
+msgid "Interactive message deleted."
+msgstr ""
+
 msgid "This waba is linked to another user"
 msgstr ""
 
 msgid "App is not connected to this WABA account."
+msgstr ""
+
+msgid "Line connected"
 msgstr ""
 
 msgid "Only integrators can manage partner applications."

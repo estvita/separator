@@ -25,8 +25,8 @@ import separator.bitrix.utils as bitrix_utils
 import separator.bitrix.tasks as bitrix_tasks
 from separator.bitrix.models import Line, User as BitrixUser
 
-from .forms import PartnerAppForm
-from .models import App, PartnerApp, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
+from .forms import InteractiveForm, PartnerAppForm
+from .models import App, Interactive, PartnerApp, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
 import separator.waba.bitrix as waba_bitrix
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
@@ -711,6 +711,69 @@ def broadcast_details(request, broadcast_id):
         "status": status or "",
         "q": query or "",
     })
+
+
+@login_required
+def interactive_messages(request):
+    messages_qs = Interactive.objects.filter(owner=request.user).order_by("name")
+    return render(request, "waba/interactive_list.html", {
+        "interactive_messages": messages_qs,
+    })
+
+
+def build_interactive_shortcode(item):
+    shortcode = f"interactive+{item.id}"
+    variables = (item.payload or {}).get("variables") or []
+    params = []
+    for variable in variables:
+        name = str(variable.get("name", "")).strip()
+        if not name:
+            continue
+        example = str(variable.get("example", "")).strip() or "-"
+        params.append(f"{name}:{example}")
+    if params:
+        shortcode = f"{shortcode}+{'|'.join(params)}"
+    return shortcode
+
+
+@login_required
+def interactive_message_create(request):
+    form = InteractiveForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(commit=False)
+        item.owner = request.user
+        item.save()
+        messages.success(request, _("Interactive message saved."))
+        return redirect("waba-interactive")
+    return render(request, "waba/interactive_form.html", {
+        "form": form,
+        "interactive_message": None,
+        "interactive_shortcode": "",
+    })
+
+
+@login_required
+def interactive_message_edit(request, message_id):
+    item = get_object_or_404(Interactive, id=message_id, owner=request.user)
+    form = InteractiveForm(request.POST or None, instance=item)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, _("Interactive message saved."))
+        return redirect("waba-interactive")
+    return render(request, "waba/interactive_form.html", {
+        "form": form,
+        "interactive_message": item,
+        "interactive_shortcode": build_interactive_shortcode(item),
+    })
+
+
+@login_required
+def interactive_message_delete(request, message_id):
+    item = get_object_or_404(Interactive, id=message_id, owner=request.user)
+    if request.method == "POST":
+        item.delete()
+        messages.success(request, _("Interactive message deleted."))
+    return redirect("waba-interactive")
 
 
 @login_required

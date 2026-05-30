@@ -551,6 +551,118 @@ def _build_file_header_component(file_url, appinstance=None, line_id=None, phone
     }
 
 
+def _parse_shortcode_params(payload: str) -> dict:
+    params = {}
+    position = 1
+    for segment in (payload or "").split("|"):
+        item = segment.strip()
+        if not item:
+            continue
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_.-]*):(.*)$", item, re.S)
+        if match:
+            params[match.group(1)] = match.group(2).strip() or "-"
+        else:
+            params[f"param{position}"] = item
+            position += 1
+    return params
+
+
+def _render_interactive_value(value, params):
+    if isinstance(value, str):
+        return re.sub(
+            r"\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}",
+            lambda match: str(params.get(match.group(1), "-")),
+            value,
+        )
+    if isinstance(value, list):
+        return [_render_interactive_value(item, params) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: _render_interactive_value(item, params)
+            for key, item in value.items()
+        }
+    return value
+
+
+def _build_interactive_header(header):
+    if not header:
+        return None
+    header_type = header.get("type")
+    value = header.get("value")
+    if not header_type or not value:
+        return None
+    if header_type == "text":
+        return {"type": "text", "text": value}
+    if header_type in {"image", "video", "document"}:
+        return {"type": header_type, header_type: {"link": value}}
+    return None
+
+
+def parse_interactive_code(code: str, appinstance=None) -> dict:
+    parts = code.split("+", 2)
+    if len(parts) < 2 or parts[0] != "interactive":
+        raise ValueError("Invalid interactive code")
+
+    try:
+        message_id = uuid.UUID(parts[1].strip())
+    except Exception:
+        raise ValueError("Invalid interactive message ID")
+
+    from separator.waba.models import Interactive
+
+    interactive_message = Interactive.objects.filter(id=message_id).first()
+    if not interactive_message:
+        raise ValueError("Interactive message not found")
+
+    params = _parse_shortcode_params(parts[2] if len(parts) > 2 else "")
+    payload = _render_interactive_value(interactive_message.payload or {}, params)
+    interactive_type = interactive_message.type
+
+    interactive = {"type": interactive_type}
+    header = _build_interactive_header(payload.get("header"))
+    if header:
+        interactive["header"] = header
+    if payload.get("body"):
+        interactive["body"] = {"text": payload["body"]}
+    if payload.get("footer"):
+        interactive["footer"] = {"text": payload["footer"]}
+
+    if interactive_type == "button":
+        buttons = []
+        for button in payload.get("buttons", []):
+            buttons.append({
+                "type": "reply",
+                "reply": {
+                    "id": button.get("id"),
+                    "title": button.get("title"),
+                },
+            })
+        interactive["action"] = {"buttons": buttons}
+
+    elif interactive_type == "list":
+        interactive["action"] = {
+            "button": payload.get("button"),
+            "sections": payload.get("sections", []),
+        }
+
+    elif interactive_type == "cta_url":
+        interactive["action"] = {
+            "name": "cta_url",
+            "parameters": {
+                "display_text": payload.get("display_text"),
+                "url": payload.get("url"),
+            },
+        }
+
+    else:
+        raise ValueError("Unsupported interactive message type")
+
+    return {
+        "type": "interactive",
+        "interactive": interactive,
+    }
+
+
 def parse_template_code(code: str, appinstance=None, line_id=None, phone_num=None) -> dict:
     try:
         # New shortcode format: template+<template_id>+param1:value1|param2:value2
@@ -952,6 +1064,10 @@ def sms_processor(self, data, service):
             template_start = body.index("template+")
             template_str = body[template_start:]
             message.update(parse_template_code(template_str, appinstance=app_instance, line_id=line_id))
+        elif "interactive+" in body:
+            interactive_start = body.index("interactive+")
+            interactive_str = body[interactive_start:]
+            message.update(parse_interactive_code(interactive_str, appinstance=app_instance))
         elif body.strip() == "#call_permission_request":
             message.update(CALL_REQUEST)
         else:
@@ -1249,6 +1365,11 @@ def event_processor(self, data):
                     template_start = text.index("template+")
                     template_str = text[template_start:]
                     message.update(parse_template_code(template_str, appinstance=appinstance, line_id=line_id))
+
+                elif "interactive+" in text:
+                    interactive_start = text.index("interactive+")
+                    interactive_str = text[interactive_start:]
+                    message.update(parse_interactive_code(interactive_str, appinstance=appinstance))
 
                 elif command_text == "#call_permission_request":
                     message.update(CALL_REQUEST)

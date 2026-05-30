@@ -100,6 +100,7 @@
   {% endif %}
 
     <a href="{% url 'broadcast-page' %}" class="btn btn-secondary connect-btn me-2">{% trans "Broadcasts" %}</a>
+    <a href="{% url 'waba-interactive' %}" class="btn btn-secondary connect-btn me-2">{% trans "Interactive messages" %}</a>
     {% if request.user.integrator %}
       <a href="{% url 'waba-partner' %}" class="btn btn-secondary connect-btn me-2">{% trans "Partner apps" %}</a>
     {% endif %}

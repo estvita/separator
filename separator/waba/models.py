@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.contrib.sites.models import Site
+from django.utils.translation import gettext_lazy as _
 from encrypted_fields.fields import EncryptedCharField
 
 from separator.bitrix.models import Line
@@ -173,6 +174,23 @@ class Template(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.lang})"
+
+
+class Interactive(models.Model):
+    TYPE_CHOICES = [
+        ("button", _("Reply buttons")),
+        ("list", _("List")),
+        ("cta_url", _("CTA URL")),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="waba_interactives")
+    name = models.CharField(max_length=255)
+    type = models.CharField(max_length=32, choices=TYPE_CHOICES)
+    payload = models.JSONField(default=dict)
+
+    def __str__(self):
+        return self.name
 
 
 class TemplateBroadcast(models.Model):

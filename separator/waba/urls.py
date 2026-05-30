@@ -12,4 +12,8 @@ urlpatterns = [
     path('account/<str:waba_id>/', views.waba_account_details, name='waba-account-details'),
     path('broadcast/', views.broadcast_page, name='broadcast-page'),
     path('broadcast/<int:broadcast_id>/', views.broadcast_details, name='broadcast-details'),
+    path('interactive/', views.interactive_messages, name='waba-interactive'),
+    path('interactive/create/', views.interactive_message_create, name='waba-interactive-create'),
+    path('interactive/<uuid:message_id>/edit/', views.interactive_message_edit, name='waba-interactive-edit'),
+    path('interactive/<uuid:message_id>/delete/', views.interactive_message_delete, name='waba-interactive-delete'),
 ]

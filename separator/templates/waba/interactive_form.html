@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}
+  {% trans "Interactive message" %}
+{% endblock title %}
+{% block content %}
+<div class="container">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">{% trans "Interactive message" %}</h3>
+    {% if interactive_message %}
+      <code>interactive+{{ interactive_message.id }}</code>
+    {% endif %}
+  </div>
+  {% if interactive_message %}
+    <div class="alert alert-info">
+      <div>{% trans "Shortcode" %}: <code>{{ interactive_shortcode }}</code></div>
+    </div>
+  {% endif %}
+
+  <form method="post" id="interactive-form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form.variables_json }}
+    {{ form.buttons_json }}
+    {{ form.sections_json }}
+
+    <div id="variables-builder" class="mb-3">
+      <h5>{% trans "Variables" %}</h5>
+      {{ form.variables_json.errors }}
+      <div id="variables-list"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="add-variable">{% trans "Add variable" %}</button>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ form.name.id_for_label }}">{% trans "Name" %}</label>
+          {{ form.name }}
+          {{ form.name.errors }}
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ form.type.id_for_label }}">{% trans "Type" %}</label>
+          {{ form.type }}
+          {{ form.type.errors }}
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="form-group">
+          <label for="{{ form.header_type.id_for_label }}">{% trans "Header" %}</label>
+          {{ form.header_type }}
+          {{ form.header_type.errors }}
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="form-group">
+          <label for="{{ form.header_value.id_for_label }}">{% trans "Header value" %}</label>
+          {{ form.header_value }}
+          {{ form.header_value.errors }}
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="{{ form.body.id_for_label }}">{% trans "Body" %}</label>
+      {{ form.body }}
+      {{ form.body.errors }}
+    </div>
+
+    <div class="form-group">
+      <label for="{{ form.footer.id_for_label }}">{% trans "Footer" %}</label>
+      {{ form.footer }}
+      {{ form.footer.errors }}
+    </div>
+
+    <div id="button-builder">
+      <h5>{% trans "Buttons" %}</h5>
+      {{ form.buttons_json.errors }}
+      <div id="buttons-list"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="add-button">{% trans "Add button" %}</button>
+    </div>
+
+    <div id="list-builder">
+      <h5>{% trans "List" %}</h5>
+      <div class="form-group">
+        <label for="{{ form.list_button.id_for_label }}">{% trans "Open button text" %}</label>
+        {{ form.list_button }}
+        {{ form.list_button.errors }}
+      </div>
+      {{ form.sections_json.errors }}
+      <div id="sections-list"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="add-section">{% trans "Add section" %}</button>
+    </div>
+
+    <div id="cta-builder">
+      <h5>{% trans "CTA URL" %}</h5>
+      <div class="form-group">
+        <label for="{{ form.cta_display_text.id_for_label }}">{% trans "Button text" %}</label>
+        {{ form.cta_display_text }}
+        {{ form.cta_display_text.errors }}
+      </div>
+      <div class="form-group">
+        <label for="{{ form.cta_url.id_for_label }}">{% trans "URL" %}</label>
+        {{ form.cta_url }}
+        {{ form.cta_url.errors }}
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">{% trans "Save" %}</button>
+    <a href="{% url 'waba-interactive' %}" class="btn btn-secondary mt-3">{% trans "Back" %}</a>
+  </form>
+</div>
+
+<script>
+(function () {
+  const typeSelect = document.getElementById("id_type");
+  const headerType = document.getElementById("id_header_type");
+  const variablesInput = document.getElementById("id_variables_json");
+  const buttonsInput = document.getElementById("id_buttons_json");
+  const sectionsInput = document.getElementById("id_sections_json");
+  const variablesList = document.getElementById("variables-list");
+  const buttonsList = document.getElementById("buttons-list");
+  const sectionsList = document.getElementById("sections-list");
+  const buttonBuilder = document.getElementById("button-builder");
+  const listBuilder = document.getElementById("list-builder");
+  const ctaBuilder = document.getElementById("cta-builder");
+  const addButton = document.getElementById("add-button");
+  const addSection = document.getElementById("add-section");
+  const addVariable = document.getElementById("add-variable");
+
+  let variables = parseList(variablesInput.value);
+  let buttons = parseList(buttonsInput.value);
+  let sections = parseList(sectionsInput.value);
+  if (!buttons.length) buttons = [{id: "button-1", title: ""}];
+  if (!sections.length) sections = [{title: "", rows: [{id: "row-1", title: "", description: ""}]}];
+
+  function parseList(raw) {
+    try {
+      const value = JSON.parse(raw || "[]");
+      return Array.isArray(value) ? value : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function makeInput(value, placeholder, onInput) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "form-control";
+    input.value = value || "";
+    input.placeholder = placeholder;
+    input.addEventListener("input", function () {
+      onInput(input.value);
+      syncHidden();
+    });
+    return input;
+  }
+
+  function removeButton(text, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-outline-danger btn-sm";
+    button.textContent = text;
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function variableShortcode(name) {
+    return name ? "{" + "{" + name + "}" + "}" : "";
+  }
+
+  function nextId(prefix, ids) {
+    let index = 1;
+    while (ids.indexOf(prefix + "-" + index) !== -1) index += 1;
+    return prefix + "-" + index;
+  }
+
+  function buttonIds() {
+    return buttons.map(function (button) { return button.id; });
+  }
+
+  function rowIds() {
+    const ids = [];
+    sections.forEach(function (section) {
+      (section.rows || []).forEach(function (row) {
+        ids.push(row.id);
+      });
+    });
+    return ids;
+  }
+
+  function normalizeIds() {
+    const usedButtonIds = [];
+    buttons.forEach(function (button) {
+      if (!button.id || usedButtonIds.indexOf(button.id) !== -1) {
+        button.id = nextId("button", usedButtonIds);
+      }
+      usedButtonIds.push(button.id);
+    });
+
+    const usedRowIds = [];
+    sections.forEach(function (section) {
+      (section.rows || []).forEach(function (row) {
+        if (!row.id || usedRowIds.indexOf(row.id) !== -1) {
+          row.id = nextId("row", usedRowIds);
+        }
+        usedRowIds.push(row.id);
+      });
+    });
+  }
+
+  function rowsCount() {
+    return sections.reduce(function (total, section) {
+      return total + ((section.rows || []).length);
+    }, 0);
+  }
+
+  function syncLimits() {
+    addButton.disabled = buttons.length >= 3;
+    addSection.disabled = sections.length >= 10 || rowsCount() >= 10;
+  }
+
+  function renderVariables() {
+    variablesList.innerHTML = "";
+    variables.forEach(function (variable, index) {
+      const row = document.createElement("div");
+      row.className = "row g-2 align-items-end mb-2";
+      const nameCol = document.createElement("div");
+      nameCol.className = "col-md-3";
+      const exampleCol = document.createElement("div");
+      exampleCol.className = "col-md-3";
+      const shortcodeCol = document.createElement("div");
+      shortcodeCol.className = "col-md-4";
+      const actionCol = document.createElement("div");
+      actionCol.className = "col-md-2";
+      const shortcodeInput = makeInput(variableShortcode(variable.name), "Shortcode", function () {});
+      shortcodeInput.readOnly = true;
+      nameCol.appendChild(makeInput(variable.name, "Name", function (value) {
+        variable.name = value;
+        shortcodeInput.value = variableShortcode(value);
+      }));
+      exampleCol.appendChild(makeInput(variable.example, "Example", function (value) { variable.example = value; }));
+      shortcodeCol.appendChild(shortcodeInput);
+      actionCol.appendChild(removeButton("{% trans "Remove" %}", function () {
+        variables.splice(index, 1);
+        renderVariables();
+        syncHidden();
+      }));
+      row.appendChild(nameCol);
+      row.appendChild(exampleCol);
+      row.appendChild(shortcodeCol);
+      row.appendChild(actionCol);
+      variablesList.appendChild(row);
+    });
+  }
+
+  function renderButtons() {
+    buttonsList.innerHTML = "";
+    buttons.forEach(function (button, index) {
+      const row = document.createElement("div");
+      row.className = "row g-2 align-items-end mb-2";
+      const idCol = document.createElement("div");
+      idCol.className = "col-md-5";
+      const titleCol = document.createElement("div");
+      titleCol.className = "col-md-5";
+      const actionCol = document.createElement("div");
+      actionCol.className = "col-md-2";
+      idCol.appendChild(makeInput(button.id, "ID", function (value) { button.id = value; }));
+      titleCol.appendChild(makeInput(button.title, "Title", function (value) { button.title = value; }));
+      actionCol.appendChild(removeButton("{% trans "Remove" %}", function () {
+        buttons.splice(index, 1);
+        renderButtons();
+        syncHidden();
+      }));
+      row.appendChild(idCol);
+      row.appendChild(titleCol);
+      row.appendChild(actionCol);
+      buttonsList.appendChild(row);
+    });
+  }
+
+  function renderSections() {
+    sectionsList.innerHTML = "";
+    sections.forEach(function (section, sectionIndex) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "border rounded p-2 mb-3";
+      const header = document.createElement("div");
+      header.className = "row g-2 align-items-end mb-2";
+      const titleCol = document.createElement("div");
+      titleCol.className = "col-md-10";
+      const actionCol = document.createElement("div");
+      actionCol.className = "col-md-2";
+      titleCol.appendChild(makeInput(section.title, "Section title", function (value) { section.title = value; }));
+      actionCol.appendChild(removeButton("{% trans "Remove" %}", function () {
+        sections.splice(sectionIndex, 1);
+        renderSections();
+        syncHidden();
+      }));
+      header.appendChild(titleCol);
+      header.appendChild(actionCol);
+      wrapper.appendChild(header);
+
+      (section.rows || []).forEach(function (row, rowIndex) {
+        const rowNode = document.createElement("div");
+        rowNode.className = "row g-2 align-items-end mb-2";
+        [["id", "Row ID", 3], ["title", "Row title", 3], ["description", "Description", 4]].forEach(function (item) {
+          const col = document.createElement("div");
+          col.className = "col-md-" + item[2];
+          col.appendChild(makeInput(row[item[0]], item[1], function (value) { row[item[0]] = value; }));
+          rowNode.appendChild(col);
+        });
+        const removeCol = document.createElement("div");
+        removeCol.className = "col-md-2";
+        removeCol.appendChild(removeButton("{% trans "Remove" %}", function () {
+          section.rows.splice(rowIndex, 1);
+          renderSections();
+          syncHidden();
+        }));
+        rowNode.appendChild(removeCol);
+        wrapper.appendChild(rowNode);
+      });
+
+      const addRow = document.createElement("button");
+      addRow.type = "button";
+      addRow.className = "btn btn-outline-secondary btn-sm";
+      addRow.textContent = "{% trans "Add row" %}";
+      addRow.disabled = rowsCount() >= 10;
+      addRow.addEventListener("click", function () {
+        if (rowsCount() >= 10) return;
+        if (!section.rows) section.rows = [];
+        section.rows.push({id: nextId("row", rowIds()), title: "", description: ""});
+        renderSections();
+        syncHidden();
+      });
+      wrapper.appendChild(addRow);
+      sectionsList.appendChild(wrapper);
+    });
+  }
+
+  function syncHidden() {
+    normalizeIds();
+    variablesInput.value = JSON.stringify(variables);
+    buttonsInput.value = JSON.stringify(buttons);
+    sectionsInput.value = JSON.stringify(sections);
+    syncLimits();
+  }
+
+  function syncType() {
+    const type = typeSelect.value;
+    buttonBuilder.style.display = type === "button" ? "" : "none";
+    listBuilder.style.display = type === "list" ? "" : "none";
+    ctaBuilder.style.display = type === "cta_url" ? "" : "none";
+    Array.from(headerType.options).forEach(function (option) {
+      if (type === "list" && option.value && option.value !== "text") {
+        option.disabled = true;
+      } else {
+        option.disabled = false;
+      }
+    });
+    if (type === "list" && headerType.value && headerType.value !== "text") {
+      headerType.value = "text";
+    }
+  }
+
+  addButton.addEventListener("click", function () {
+    if (buttons.length >= 3) return;
+    buttons.push({id: nextId("button", buttonIds()), title: ""});
+    renderButtons();
+    syncHidden();
+  });
+  addSection.addEventListener("click", function () {
+    if (sections.length >= 10 || rowsCount() >= 10) return;
+    sections.push({title: "", rows: [{id: nextId("row", rowIds()), title: "", description: ""}]});
+    renderSections();
+    syncHidden();
+  });
+  addVariable.addEventListener("click", function () {
+    variables.push({name: "", example: ""});
+    renderVariables();
+    syncHidden();
+  });
+  typeSelect.addEventListener("change", syncType);
+
+  renderVariables();
+  renderButtons();
+  renderSections();
+  syncHidden();
+  syncType();
+})();
+</script>
+{% endblock content %}
