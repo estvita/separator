@@ -620,11 +620,11 @@ def parse_interactive_code(code: str, appinstance=None) -> dict:
 
     interactive = {"type": interactive_type}
     header = _build_interactive_header(payload.get("header"))
-    if header:
+    if header and interactive_type not in {"voice_call", "call_permission_request"}:
         interactive["header"] = header
     if payload.get("body"):
         interactive["body"] = {"text": payload["body"]}
-    if payload.get("footer"):
+    if payload.get("footer") and interactive_type not in {"voice_call", "call_permission_request"}:
         interactive["footer"] = {"text": payload["footer"]}
 
     if interactive_type == "button":
@@ -653,6 +653,21 @@ def parse_interactive_code(code: str, appinstance=None) -> dict:
                 "url": payload.get("url"),
             },
         }
+
+    elif interactive_type == "voice_call":
+        parameters = {}
+        if payload.get("display_text"):
+            parameters["display_text"] = payload.get("display_text")
+        if payload.get("ttl_minutes"):
+            parameters["ttl_minutes"] = payload.get("ttl_minutes")
+        if payload.get("call_payload"):
+            parameters["payload"] = payload.get("call_payload")
+        interactive["action"] = {"name": "voice_call"}
+        if parameters:
+            interactive["action"]["parameters"] = parameters
+
+    elif interactive_type == "call_permission_request":
+        interactive["action"] = {"name": "call_permission_request"}
 
     else:
         raise ValueError("Unsupported interactive message type")

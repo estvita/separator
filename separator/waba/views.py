@@ -715,7 +715,8 @@ def broadcast_details(request, broadcast_id):
 
 @login_required
 def interactive_messages(request):
-    messages_qs = Interactive.objects.filter(owner=request.user).order_by("name")
+    portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
+    messages_qs = Interactive.objects.filter(portal__in=portals).select_related("portal").order_by("name")
     return render(request, "waba/interactive_list.html", {
         "interactive_messages": messages_qs,
     })
@@ -738,7 +739,8 @@ def build_interactive_shortcode(item):
 
 @login_required
 def interactive_message_create(request):
-    form = InteractiveForm(request.POST or None)
+    portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
+    form = InteractiveForm(request.POST or None, portals=portals)
     if request.method == "POST" and form.is_valid():
         item = form.save(commit=False)
         item.owner = request.user
@@ -754,8 +756,9 @@ def interactive_message_create(request):
 
 @login_required
 def interactive_message_edit(request, message_id):
-    item = get_object_or_404(Interactive, id=message_id, owner=request.user)
-    form = InteractiveForm(request.POST or None, instance=item)
+    portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
+    item = get_object_or_404(Interactive, id=message_id, portal__in=portals)
+    form = InteractiveForm(request.POST or None, instance=item, portals=portals)
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, _("Interactive message saved."))
@@ -769,7 +772,8 @@ def interactive_message_edit(request, message_id):
 
 @login_required
 def interactive_message_delete(request, message_id):
-    item = get_object_or_404(Interactive, id=message_id, owner=request.user)
+    portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
+    item = get_object_or_404(Interactive, id=message_id, portal__in=portals)
     if request.method == "POST":
         item.delete()
         messages.success(request, _("Interactive message deleted."))

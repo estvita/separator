@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from separator.waba.models import Phone, Template
+from separator.waba.models import Interactive, Phone, Template
 import separator.waba.bitrix as waba_bitrix
 from separator.olx.models import OlxUser
 from separator.waweb.models import Session
@@ -17,7 +17,7 @@ import separator.waba.utils as waba_utils
 import separator.bitrix.tasks as bitrix_tasks
 
 from .crest import call_method
-from .utils import get_app, connect_line, format_waba_error
+from .utils import get_app, connect_line, format_waba_error, parse_interactive_code
 from .models import AppInstance, Bitrix, Line, Connector
 
 def settings_connector(request, user):
@@ -133,6 +133,7 @@ def settings_connector(request, user):
 class WabaPlacementModule:
     BLOCKS = [
         {"id": "templates", "label": _("Templates")},
+        {"id": "interactives", "label": _("Interactive message")},
         {"id": "block_users", "label": _("Block users")},
         {"id": "call_permission", "label": _("Calls")},
     ]
@@ -354,6 +355,34 @@ class WabaPlacementModule:
                 availableInB24=True,
             ).order_by("name", "lang")
         )
+
+    @staticmethod
+    def _interactives_for_portal(appinstance):
+        if not appinstance or not appinstance.portal_id:
+            return Interactive.objects.none()
+        return Interactive.objects.filter(portal=appinstance.portal).order_by("name")
+
+    @staticmethod
+    def _serialize_interactives(interactives):
+        items = []
+        for item in interactives:
+            payload = item.payload or {}
+            variables = []
+            for variable in payload.get("variables") or []:
+                name = str(variable.get("name", "")).strip()
+                if not name:
+                    continue
+                variables.append({
+                    "name": name,
+                    "example": str(variable.get("example", "")).strip(),
+                })
+            items.append({
+                "id": str(item.id),
+                "label": item.name,
+                "type": item.get_type_display(),
+                "variables": variables,
+            })
+        return items
 
     def _block_users_api(self, sender_phone, method, user_phone=None):
         if not sender_phone:
@@ -581,6 +610,52 @@ class WabaPlacementModule:
             )
         return self._action_response({"ok": True, "result": send_result})
 
+    def _send_interactive_action(self, data, appinstance, sender_phones):
+        sender_phone = self._get_sender_phone(sender_phones, data.get("sender_phone_id"))
+        if not sender_phone:
+            return self._action_response({"ok": False, "error": _("sender phone not found")})
+
+        recipient_phone = self._normalize_phone(data.get("phone", ""))
+        if not recipient_phone:
+            return self._action_response({"ok": False, "error": _("recipient phone is required")})
+
+        interactive = self._interactives_for_portal(appinstance).filter(id=data.get("interactive_id")).first()
+        if not interactive:
+            return self._action_response({"ok": False, "error": _("interactive message not found")})
+
+        shortcode = f"interactive+{interactive.id}"
+        param_lines = self._interactive_param_lines(interactive, data)
+        if param_lines:
+            shortcode = f"{shortcode}+{'|'.join(param_lines)}"
+
+        try:
+            message = {
+                "messaging_product": "whatsapp",
+                "to": recipient_phone,
+            }
+            bitrix_user_id = data.get("bitrix_user_id")
+            if bitrix_user_id:
+                message["biz_opaque_callback_data"] = {"bitrix_user_id": str(bitrix_user_id)}
+            message.update(parse_interactive_code(shortcode, appinstance=appinstance))
+            send_result = waba_utils.send_message_from_phone(sender_phone, message)
+        except Exception as exc:
+            return self._action_response({"ok": False, "error": str(exc)})
+
+        if isinstance(send_result, dict) and send_result.get("error"):
+            return self._action_response({"ok": False, "error": format_waba_error(send_result) or _("send failed")})
+
+        self._add_interactive_timeline_comment(appinstance, sender_phone, interactive, recipient_phone, send_result, data)
+        if sender_phone.ChatFromSms and sender_phone.line_id:
+            bitrix_tasks.send_messages(
+                appinstance.id,
+                recipient_phone,
+                shortcode,
+                sender_phone.line.connector.code,
+                sender_phone.line.line_id,
+                manager_id=0,
+            )
+        return self._action_response({"ok": True, "result": send_result})
+
     @staticmethod
     def _short_param_value(value, limit=500):
         text = str(value or "").strip()
@@ -637,6 +712,17 @@ class WabaPlacementModule:
                             lines.append(f"{button_label} param {param.position}: {value}")
         return lines
 
+    def _interactive_param_lines(self, interactive, data):
+        lines = []
+        for variable in (interactive.payload or {}).get("variables") or []:
+            name = str(variable.get("name", "")).strip()
+            if not name:
+                continue
+            value = self._short_param_value(data.get(f"interactive_param__{name}"))
+            if value:
+                lines.append(f"{name}:{value}")
+        return lines
+
     def _add_timeline_comment(self, appinstance, sender_phone, template, recipient_phone, send_result, data):
         try:
             entity_id = int(data.get("entity_id"))
@@ -655,6 +741,44 @@ class WabaPlacementModule:
                 f"{_('Template')}: {template.name} ({template.lang})",
             ]
             param_lines = self._template_param_lines(template, data)
+            if param_lines:
+                comment_lines.append("параметры:")
+                comment_lines.extend(param_lines)
+            message_id = self._message_id_from_send_result(send_result)
+            if message_id:
+                comment_lines.append(f"id {message_id}")
+            call_method(
+                appinstance,
+                "crm.timeline.comment.add",
+                {
+                    "fields": {
+                        "ENTITY_ID": entity_id,
+                        "ENTITY_TYPE": entity_type_code,
+                        "COMMENT": "\n".join(comment_lines),
+                    }
+                },
+            )
+        except Exception:
+            pass
+
+    def _add_interactive_timeline_comment(self, appinstance, sender_phone, interactive, recipient_phone, send_result, data):
+        try:
+            entity_id = int(data.get("entity_id"))
+        except (TypeError, ValueError):
+            return
+
+        entity_type_code = (data.get("entity_type_code") or "").strip().lower()
+        if not entity_type_code:
+            return
+
+        try:
+            comment_lines = [
+                _("WABA interactive message sent"),
+                f"{_('Sender')}: {sender_phone.phone}",
+                f"{_('Recipient')}: +{recipient_phone}",
+                f"{_('Interactive message')}: {interactive.name}",
+            ]
+            param_lines = self._interactive_param_lines(interactive, data)
             if param_lines:
                 comment_lines.append("параметры:")
                 comment_lines.extend(param_lines)
@@ -698,6 +822,8 @@ class WabaPlacementModule:
     def _dispatch_action(self, request, data, appinstance, sender_phones, action):
         if action == "send":
             return self._send_template_action(request, data, appinstance, sender_phones)
+        if action == "send_interactive":
+            return self._send_interactive_action(data, appinstance, sender_phones)
         if action in self.BLOCK_ACTION_METHODS:
             return self._block_users_action(data, sender_phones, action)
         if action in self.CALL_ACTIONS:
@@ -753,6 +879,7 @@ class WabaPlacementModule:
                     stringify_ids=True,
                 )
             templates_data_by_phone[str(sender.id)] = templates_by_waba[sender.waba_id]
+        interactives_data = self._serialize_interactives(self._interactives_for_portal(appinstance))
 
         context = {
             "auth_id": data.get("AUTH_ID") or "",
@@ -761,6 +888,8 @@ class WabaPlacementModule:
             "blocks": self.BLOCKS,
             "sender_phones": [{"id": str(item.id), "label": item.phone or str(item.id)} for item in senders],
             "templates_data_by_phone": templates_data_by_phone,
+            "interactives_data": interactives_data,
+            "interactive_app_url": self._portal_app_url(appinstance, data.get("AUTH_ID")),
             "recipient_phones": [{"value": f"+{phone}", "label": f"+{phone}"} for phone in recipient_phones],
             "initial_sender_phone_id": str(selected_sender.id) if selected_sender else "",
             "entity_id": entity_id or "",

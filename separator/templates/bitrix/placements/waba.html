@@ -10,6 +10,7 @@
     {{ blocks|json_script:"widget-blocks-data" }}
     {{ sender_phones|json_script:"sender-phones-data" }}
     {{ templates_data_by_phone|json_script:"templates-data-by-phone" }}
+    {{ interactives_data|json_script:"interactives-data" }}
     {{ recipient_phones|json_script:"recipient-phones-data" }}
     <style>
         body { font-family: Arial, sans-serif; margin: 12px; }
@@ -136,6 +137,16 @@
         </div>
         <div id="template-params"></div>
     </div>
+    <div id="interactiveSection">
+        <div class="row">
+            <label for="interactive">{% trans "Interactive message" %}</label>
+            <select id="interactive" name="interactive_id"></select>
+        </div>
+        <div class="actions single" id="addInteractiveActions" style="display:none">
+            <a id="addInteractiveBtn" class="button" href="{{ interactive_app_url }}" target="_blank" rel="noopener">{% trans "Add interactive" %}</a>
+        </div>
+        <div id="interactive-params"></div>
+    </div>
     <input type="hidden" name="entity_id" value="{{ entity_id }}">
     <input type="hidden" name="entity_type_code" value="{{ entity_type_code }}">
 </form>
@@ -161,21 +172,27 @@
     const widgetBlocks = JSON.parse(document.getElementById('widget-blocks-data').textContent || '[]');
     const senderPhones = JSON.parse(document.getElementById('sender-phones-data').textContent || '[]');
     const templatesByPhone = JSON.parse(document.getElementById('templates-data-by-phone').textContent || '{}');
+    const interactives = JSON.parse(document.getElementById('interactives-data').textContent || '[]');
     const recipientPhones = JSON.parse(document.getElementById('recipient-phones-data').textContent || '[]');
 
     const authId = "{{ auth_id|escapejs }}";
     const refreshId = "{{ refresh_id|escapejs }}";
     const memberId = "{{ member_id|escapejs }}";
     const initialSenderId = "{{ initial_sender_phone_id|escapejs }}";
+    const interactiveAppUrl = "{{ interactive_app_url|escapejs }}";
 
     const statusNode = document.getElementById('status');
     const blockNode = document.getElementById('widgetBlock');
     const outputModeNode = document.getElementById('outputMode');
     const senderNode = document.getElementById('senderPhone');
     const templateNode = document.getElementById('template');
+    const interactiveNode = document.getElementById('interactive');
+    const addInteractiveActionsNode = document.getElementById('addInteractiveActions');
     const recipientNode = document.getElementById('recipientPhone');
     const templateSectionNode = document.getElementById('templateSection');
+    const interactiveSectionNode = document.getElementById('interactiveSection');
     const paramsContainer = document.getElementById('template-params');
+    const interactiveParamsContainer = document.getElementById('interactive-params');
     const formNode = document.getElementById('sendForm');
     const templateActionsNode = document.getElementById('templateActions');
     const blockActionsNode = document.getElementById('blockActions');
@@ -196,6 +213,9 @@
         rawJsonOutput: "{% trans 'Raw JSON' %}",
         senderNumber: "{% trans 'Business number' %}",
         template: "{% trans 'Template' %}",
+        interactive: "{% trans 'Interactive message' %}",
+        addInteractive: "{% trans 'Add interactive' %}",
+        noInteractives: "{% trans 'Interactive messages were not found.' %}",
         recipientPhone: "{% trans 'Client number' %}",
         send: "{% trans 'Send' %}",
         action: "{% trans 'Action' %}",
@@ -224,6 +244,7 @@
         outputMode: 'short',
         senderPhoneId: '',
         templateId: '',
+        interactiveId: '',
         recipientPhone: '',
         params: {},
     };
@@ -484,6 +505,7 @@
         blockActionNode.value = state.selectedBlockAction || '';
         senderNode.value = state.senderPhoneId || '';
         templateNode.value = state.templateId || '';
+        interactiveNode.value = state.interactiveId || '';
         recipientNode.value = state.recipientPhone || '';
         Object.keys(state.params || {}).forEach((key) => {
             setParamValue(key, state.params[key]);
@@ -516,6 +538,11 @@
         state.templateId = templateNode.value || '';
     }
 
+    function fillInteractives() {
+        fillSelect(interactiveNode, interactives || [], 'id', 'label');
+        state.interactiveId = interactiveNode.value || '';
+    }
+
     function fillRecipients() {
         fillSelect(recipientNode, recipientPhones, 'value', 'label');
         state.recipientPhone = recipientNode.value || '';
@@ -523,9 +550,33 @@
 
     function updateVisibleSections() {
         const isTemplates = state.activeBlock === 'templates';
+        const isInteractives = state.activeBlock === 'interactives';
         templateSectionNode.style.display = isTemplates ? '' : 'none';
-        templateActionsNode.style.display = isTemplates ? '' : 'none';
-        blockActionsNode.style.display = isTemplates ? 'none' : '';
+        interactiveSectionNode.style.display = isInteractives ? '' : 'none';
+        addInteractiveActionsNode.style.display = (isInteractives && !interactives.length) ? '' : 'none';
+        templateActionsNode.style.display = (isTemplates || (isInteractives && interactives.length)) ? '' : 'none';
+        blockActionsNode.style.display = (isTemplates || isInteractives) ? 'none' : '';
+    }
+
+    function appPath(url) {
+        try {
+            const parsed = new URL(url, window.location.href);
+            return parsed.pathname + parsed.search + parsed.hash;
+        } catch (e) {
+            return url;
+        }
+    }
+
+    function openInteractiveList() {
+        if (window.BX24 && typeof BX24.openPath === 'function') {
+            BX24.openPath(appPath(interactiveAppUrl), function (result) {
+                if (result && result.result === 'error') {
+                    window.open(interactiveAppUrl, '_blank', 'noopener');
+                }
+            });
+            return;
+        }
+        window.open(interactiveAppUrl, '_blank', 'noopener');
     }
 
     function labelForComponent(comp) {
@@ -659,23 +710,47 @@
         return fields;
     }
 
+    function collectInteractiveFields(interactiveId) {
+        const item = (interactives || []).find((interactive) => String(interactive.id) === String(interactiveId));
+        if (!item) {
+            return [];
+        }
+        return (item.variables || []).map((variable) => ({
+            id: 'interactive_param__' + variable.name,
+            label: variable.name,
+            type: 'text',
+            required: true,
+        }));
+    }
+
     let currentFields = [];
     let builtInInputType = 'input';
 
     function renderTemplateFields(templateId) {
         paramsContainer.innerHTML = '';
-        const fields = state.activeBlock === 'templates' ? collectTemplateFields(templateId) : [];
+        interactiveParamsContainer.innerHTML = '';
+        let fields = [];
+        let targetContainer = paramsContainer;
+        if (state.activeBlock === 'templates') {
+            fields = collectTemplateFields(templateId);
+        } else if (state.activeBlock === 'interactives') {
+            fields = collectInteractiveFields(interactiveNode.value);
+            targetContainer = interactiveParamsContainer;
+        }
         fields.forEach((field) => {
             if (field.type === 'title') {
                 const title = document.createElement('div');
                 title.className = 'row';
                 title.innerHTML = '<strong>' + field.label + '</strong>';
-                paramsContainer.appendChild(title);
+                targetContainer.appendChild(title);
                 return;
             }
             const input = addInput(field.label, field.id, field.type, field.accept);
             if (field.required && input) {
                 input.required = true;
+            }
+            if (targetContainer !== paramsContainer && input && input.parentNode) {
+                targetContainer.appendChild(input.parentNode);
             }
         });
         currentFields = fields;
@@ -690,7 +765,7 @@
             info: {
                 type: 'text',
                 properties: {
-                    value: state.activeBlock === 'templates' ? i18n.selectAndSend : i18n.blockActionHint,
+                    value: (state.activeBlock === 'templates' || state.activeBlock === 'interactives') ? i18n.selectAndSend : i18n.blockActionHint,
                     color: 'base_70',
                 },
             },
@@ -743,6 +818,25 @@
                     values: valuesMapFromNode(templateNode),
                 },
             };
+        } else if (state.activeBlock === 'interactives') {
+            if (interactives.length) {
+                layoutBlocks.interactiveSelect = {
+                    type: 'select',
+                    properties: {
+                        title: i18n.interactive,
+                        selectedValue: state.interactiveId,
+                        values: valuesMapFromNode(interactiveNode),
+                    },
+                };
+            } else {
+                layoutBlocks.interactiveEmpty = {
+                    type: 'text',
+                    properties: {
+                        value: i18n.noInteractives,
+                        color: 'base_70',
+                    },
+                };
+            }
         } else {
             layoutBlocks.blockActionSelect = {
                 type: 'select',
@@ -785,7 +879,7 @@
 
         BX24.placement.call('setLayout', {
             blocks: layoutBlocks,
-            primaryButton: { title: state.activeBlock === 'templates' ? i18n.send : i18n.apply },
+            primaryButton: { title: state.activeBlock === 'interactives' && !interactives.length ? i18n.addInteractive : ((state.activeBlock === 'templates' || state.activeBlock === 'interactives') ? i18n.send : i18n.apply) },
             secondaryButton: { title: i18n.close },
         });
     }
@@ -840,9 +934,13 @@
             setStatus(errorText, '#b00020');
             return;
         }
+        if (state.activeBlock === 'interactives' && !interactives.length) {
+            openInteractiveList();
+            return;
+        }
         syncDomFromState();
         const payload = new FormData(formNode);
-        payload.append('action', 'send');
+        payload.append('action', state.activeBlock === 'interactives' ? 'send_interactive' : 'send');
         payload.append('AUTH_ID', authId);
         payload.append('REFRESH_ID', refreshId);
         payload.append('member_id', memberId);
@@ -930,6 +1028,7 @@
     fillOutputModes();
     fillBlockActions();
     fillSenders();
+    fillInteractives();
     fillRecipients();
     syncDomFromState();
     updateVisibleSections();
@@ -963,11 +1062,20 @@
         renderCurrentBlock();
     });
 
+    interactiveNode.addEventListener('change', function () {
+        state.interactiveId = interactiveNode.value || '';
+        renderCurrentBlock();
+    });
+
     recipientNode.addEventListener('change', function () {
         state.recipientPhone = recipientNode.value || '';
     });
 
     sendBtn.addEventListener('click', sendTemplate);
+    document.getElementById('addInteractiveBtn').addEventListener('click', function (event) {
+        event.preventDefault();
+        openInteractiveList();
+    });
     blockApplyBtn.addEventListener('click', function () {
         runSelectedAction(blockApplyBtn);
     });
@@ -992,6 +1100,14 @@
             BX24.placement.call('bindPrimaryButtonClickCallback', null, function () {
                 syncDomFromState();
                 if (state.activeBlock === 'templates') {
+                    sendTemplate();
+                    return;
+                }
+                if (state.activeBlock === 'interactives') {
+                    if (!interactives.length) {
+                        openInteractiveList();
+                        return;
+                    }
                     sendTemplate();
                     return;
                 }
@@ -1025,6 +1141,12 @@
                     renderCurrentBlock();
                     return;
                 }
+                if (eventData.id === 'interactiveSelect') {
+                    state.interactiveId = eventData.value || '';
+                    syncDomFromState();
+                    renderCurrentBlock();
+                    return;
+                }
                 if (eventData.id === 'recipientSelect') {
                     state.recipientPhone = eventData.value || '';
                     syncDomFromState();
@@ -1036,7 +1158,7 @@
                     renderCurrentBlock();
                     return;
                 }
-                if (eventData.id.indexOf('param__') === 0 || eventData.id.indexOf('location__') === 0 || eventData.id.indexOf('media__') === 0) {
+                if (eventData.id.indexOf('param__') === 0 || eventData.id.indexOf('interactive_param__') === 0 || eventData.id.indexOf('location__') === 0 || eventData.id.indexOf('media__') === 0) {
                     setParamValue(eventData.id, eventData.value || '');
                     syncDomFromState();
                 }

@@ -91,17 +91,42 @@ class InteractiveForm(forms.ModelForm):
         required=False,
         widget=forms.URLInput(attrs={"class": "form-control"}),
     )
+    voice_call_display_text = forms.CharField(
+        required=False,
+        initial=_("Call on WhatsApp"),
+        max_length=20,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    voice_call_ttl_minutes = forms.IntegerField(
+        required=False,
+        initial=10080,
+        min_value=1,
+        max_value=43200,
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 1, "max": 43200}),
+    )
+    voice_call_payload = forms.CharField(
+        required=False,
+        max_length=512,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
 
     class Meta:
         model = Interactive
-        fields = ("name", "type")
+        fields = ("portal", "name", "type")
         widgets = {
+            "portal": forms.Select(attrs={"class": "form-control"}),
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "type": forms.Select(attrs={"class": "form-control"}),
         }
 
     def __init__(self, *args, **kwargs):
+        portals = kwargs.pop("portals", None)
         super().__init__(*args, **kwargs)
+        if portals is not None:
+            self.fields["portal"].queryset = portals
+            self.fields["portal"].required = True
+            if not self.instance.pk and portals.count() == 1:
+                self.fields["portal"].initial = portals.first()
         payload = self.instance.payload if self.instance and self.instance.pk else {}
         header = payload.get("header") or {}
         if payload:
@@ -115,6 +140,9 @@ class InteractiveForm(forms.ModelForm):
             self.fields["list_button"].initial = payload.get("button", "")
             self.fields["cta_display_text"].initial = payload.get("display_text", "")
             self.fields["cta_url"].initial = payload.get("url", "")
+            self.fields["voice_call_display_text"].initial = payload.get("display_text", _("Call on WhatsApp"))
+            self.fields["voice_call_ttl_minutes"].initial = payload.get("ttl_minutes", 10080)
+            self.fields["voice_call_payload"].initial = payload.get("call_payload", "")
 
     def _load_json_list(self, field):
         raw = self.cleaned_data.get(field) or "[]"
@@ -134,17 +162,17 @@ class InteractiveForm(forms.ModelForm):
         header_type = cleaned.get("header_type") or ""
         header_value = (cleaned.get("header_value") or "").strip()
 
-        if message_type in {"button", "cta_url"} and len(body) > 1024:
+        if message_type in {"button", "cta_url", "voice_call", "call_permission_request"} and len(body) > 1024:
             self.add_error("body", "Maximum 1024 characters.")
         if message_type == "list" and len(body) > 4096:
             self.add_error("body", "Maximum 4096 characters.")
         if footer and len(footer) > 60:
             self.add_error("footer", "Maximum 60 characters.")
-        if header_type and not header_value:
+        if header_type and not header_value and message_type not in {"voice_call", "call_permission_request"}:
             self.add_error("header_value", "Header value is required.")
         if message_type == "list" and header_type and header_type != "text":
             self.add_error("header_type", "List messages support text header only.")
-        if header_type == "text" and len(header_value) > 60:
+        if header_type == "text" and len(header_value) > 60 and message_type not in {"voice_call", "call_permission_request"}:
             self.add_error("header_value", "Maximum 60 characters.")
 
         payload = {"body": body}
@@ -165,9 +193,9 @@ class InteractiveForm(forms.ModelForm):
             clean_variables.append({"name": name, "example": example})
         if clean_variables:
             payload["variables"] = clean_variables
-        if header_type:
+        if header_type and message_type not in {"voice_call", "call_permission_request"}:
             payload["header"] = {"type": header_type, "value": header_value}
-        if footer:
+        if footer and message_type not in {"voice_call", "call_permission_request"}:
             payload["footer"] = footer
 
         if message_type == "button":
@@ -245,6 +273,20 @@ class InteractiveForm(forms.ModelForm):
                 self.add_error("cta_url", "URL is required.")
             payload["display_text"] = display_text
             payload["url"] = url
+
+        elif message_type == "voice_call":
+            display_text = (cleaned.get("voice_call_display_text") or "").strip()
+            ttl_minutes = cleaned.get("voice_call_ttl_minutes")
+            call_payload = (cleaned.get("voice_call_payload") or "").strip()
+            if display_text:
+                payload["display_text"] = display_text
+            if ttl_minutes:
+                payload["ttl_minutes"] = ttl_minutes
+            if call_payload:
+                payload["call_payload"] = call_payload
+
+        elif message_type == "call_permission_request":
+            pass
 
         self.cleaned_payload = payload
         return cleaned

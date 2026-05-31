@@ -14,6 +14,7 @@
     <thead>
       <tr>
         <th>{% trans "Name" %}</th>
+        <th>{% trans "Portal" %}</th>
         <th>{% trans "Type" %}</th>
         <th>{% trans "Shortcode" %}</th>
         <th>{% trans "Actions" %}</th>
@@ -23,6 +24,7 @@
       {% for item in interactive_messages %}
         <tr>
           <td><a href="{% url 'waba-interactive-edit' item.id %}">{{ item.name }}</a></td>
+          <td>{{ item.portal.domain }}</td>
           <td>{{ item.get_type_display }}</td>
           <td><code>interactive+{{ item.id }}</code></td>
           <td>
@@ -35,7 +37,7 @@
         </tr>
       {% empty %}
         <tr>
-          <td colspan="4">{% trans "No interactive messages found." %}</td>
+          <td colspan="5">{% trans "No interactive messages found." %}</td>
         </tr>
       {% endfor %}
     </tbody>

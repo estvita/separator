@@ -221,6 +221,9 @@ msgstr "Пользователь не разрешил звонки"
 msgid "template not found"
 msgstr "Шаблон не найден"
 
+msgid "interactive message not found"
+msgstr "Интерактивное сообщение не найдено"
+
 msgid "send failed"
 msgstr "Не удалось отправить"
 
@@ -228,6 +231,9 @@ msgstr "Не удалось отправить"
 #| msgid "Template list"
 msgid "WABA template sent"
 msgstr "Список шаблонов"
+
+msgid "WABA interactive message sent"
+msgstr "Интерактивное сообщение WABA отправлено"
 
 #, fuzzy
 #| msgid "Send"
@@ -977,6 +983,15 @@ msgstr "Текст"
 msgid "Reply buttons"
 msgstr "Кнопки ответа"
 
+msgid "Call button"
+msgstr "Кнопка звонка"
+
+msgid "Call permission request"
+msgstr "Запрос разрешения на звонок"
+
+msgid "Call on WhatsApp"
+msgstr "Позвонить в WhatsApp"
+
 msgid "No header"
 msgstr "Без заголовка"
 
@@ -1076,6 +1091,12 @@ msgstr "CTA-ссылка"
 msgid "Button text"
 msgstr "Текст кнопки"
 
+msgid "TTL in minutes"
+msgstr "TTL в минутах"
+
+msgid "Payload"
+msgstr "Payload"
+
 msgid "Remove"
 msgstr "Удалить"
 
@@ -1084,6 +1105,12 @@ msgstr "Добавить строку"
 
 msgid "Interactive messages"
 msgstr "Интерактивные сообщения"
+
+msgid "Add interactive"
+msgstr "Добавить интерактив"
+
+msgid "Interactive messages were not found."
+msgstr "Интерактивные сообщения не найдены."
 
 msgid "Delete interactive message?"
 msgstr "Удалить интерактивное сообщение?"

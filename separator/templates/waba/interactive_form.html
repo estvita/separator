@@ -32,6 +32,13 @@
     </div>
 
     <div class="row g-3">
+      <div class="col-md-4">
+        <div class="form-group">
+          <label for="{{ form.portal.id_for_label }}">{% trans "Portal" %}</label>
+          {{ form.portal }}
+          {{ form.portal.errors }}
+        </div>
+      </div>
       <div class="col-md-6">
         <div class="form-group">
           <label for="{{ form.name.id_for_label }}">{% trans "Name" %}</label>
@@ -39,7 +46,7 @@
           {{ form.name.errors }}
         </div>
       </div>
-      <div class="col-md-6">
+      <div class="col-md-2">
         <div class="form-group">
           <label for="{{ form.type.id_for_label }}">{% trans "Type" %}</label>
           {{ form.type }}
@@ -48,7 +55,7 @@
       </div>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-3" id="header-fields">
       <div class="col-md-4">
         <div class="form-group">
           <label for="{{ form.header_type.id_for_label }}">{% trans "Header" %}</label>
@@ -71,7 +78,7 @@
       {{ form.body.errors }}
     </div>
 
-    <div class="form-group">
+    <div class="form-group" id="footer-field">
       <label for="{{ form.footer.id_for_label }}">{% trans "Footer" %}</label>
       {{ form.footer }}
       {{ form.footer.errors }}
@@ -98,15 +105,48 @@
 
     <div id="cta-builder">
       <h5>{% trans "CTA URL" %}</h5>
-      <div class="form-group">
-        <label for="{{ form.cta_display_text.id_for_label }}">{% trans "Button text" %}</label>
-        {{ form.cta_display_text }}
-        {{ form.cta_display_text.errors }}
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="{{ form.cta_display_text.id_for_label }}">{% trans "Button text" %}</label>
+            {{ form.cta_display_text }}
+            {{ form.cta_display_text.errors }}
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="form-group">
+            <label for="{{ form.cta_url.id_for_label }}">{% trans "URL" %}</label>
+            {{ form.cta_url }}
+            {{ form.cta_url.errors }}
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="{{ form.cta_url.id_for_label }}">{% trans "URL" %}</label>
-        {{ form.cta_url }}
-        {{ form.cta_url.errors }}
+    </div>
+
+    <div id="voice-call-builder">
+      <h5>{% trans "Call button" %}</h5>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="{{ form.voice_call_display_text.id_for_label }}">{% trans "Button text" %}</label>
+            {{ form.voice_call_display_text }}
+            {{ form.voice_call_display_text.errors }}
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="{{ form.voice_call_ttl_minutes.id_for_label }}">{% trans "TTL in minutes" %}</label>
+            {{ form.voice_call_ttl_minutes }}
+            {{ form.voice_call_ttl_minutes.errors }}
+          </div>
+        </div>
+        <div class="col-md-5">
+          <div class="form-group">
+            <label for="{{ form.voice_call_payload.id_for_label }}">{% trans "Payload" %}</label>
+            {{ form.voice_call_payload }}
+            {{ form.voice_call_payload.errors }}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -128,6 +168,9 @@
   const buttonBuilder = document.getElementById("button-builder");
   const listBuilder = document.getElementById("list-builder");
   const ctaBuilder = document.getElementById("cta-builder");
+  const voiceCallBuilder = document.getElementById("voice-call-builder");
+  const headerFields = document.getElementById("header-fields");
+  const footerField = document.getElementById("footer-field");
   const addButton = document.getElementById("add-button");
   const addSection = document.getElementById("add-section");
   const addVariable = document.getElementById("add-variable");
@@ -354,6 +397,9 @@
     buttonBuilder.style.display = type === "button" ? "" : "none";
     listBuilder.style.display = type === "list" ? "" : "none";
     ctaBuilder.style.display = type === "cta_url" ? "" : "none";
+    voiceCallBuilder.style.display = type === "voice_call" ? "" : "none";
+    headerFields.style.display = ["voice_call", "call_permission_request"].indexOf(type) === -1 ? "" : "none";
+    footerField.style.display = ["voice_call", "call_permission_request"].indexOf(type) === -1 ? "" : "none";
     Array.from(headerType.options).forEach(function (option) {
       if (type === "list" && option.value && option.value !== "text") {
         option.disabled = true;

@@ -6,7 +6,7 @@ from django.contrib.sites.models import Site
 from django.utils.translation import gettext_lazy as _
 from encrypted_fields.fields import EncryptedCharField
 
-from separator.bitrix.models import Line
+from separator.bitrix.models import Bitrix, Line
 from separator.freepbx.models import Server, Extension
 
 class App(models.Model):
@@ -181,10 +181,13 @@ class Interactive(models.Model):
         ("button", _("Reply buttons")),
         ("list", _("List")),
         ("cta_url", _("CTA URL")),
+        ("voice_call", _("Call button")),
+        ("call_permission_request", _("Call permission request")),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="waba_interactives")
+    portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="waba_interactives", null=True, blank=True)
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=32, choices=TYPE_CHOICES)
     payload = models.JSONField(default=dict)

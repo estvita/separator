@@ -162,18 +162,18 @@ TemplateAdmin.inlines = [
 
 @admin.register(Interactive)
 class InteractiveAdmin(admin.ModelAdmin):
-    autocomplete_fields = ["owner"]
-    list_display = ("id", "name", "type", "owner")
+    autocomplete_fields = ["owner", "portal"]
+    list_display = ("id", "name", "type", "portal", "owner")
     list_filter = ("type",)
-    search_fields = ("id", "name", "owner__email")
+    search_fields = ("id", "name", "portal__domain", "owner__email")
 
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', 'waba', 'line', 'sip_extensions']
-    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type", "tokens", "transcribe_model")
+    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type")
     search_fields = ("phone", "phone_id", "owner__email")
-    list_filter = ("calling", "type", "transcribe_model")
+    list_filter = ("calling", "type")
     readonly_fields = ("error", )
     fieldsets = (
         (None, {

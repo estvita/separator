@@ -216,10 +216,16 @@ msgstr ""
 msgid "template not found"
 msgstr ""
 
+msgid "interactive message not found"
+msgstr ""
+
 msgid "send failed"
 msgstr ""
 
 msgid "WABA template sent"
+msgstr ""
+
+msgid "WABA interactive message sent"
 msgstr ""
 
 msgid "Sender"
@@ -1007,6 +1013,30 @@ msgstr ""
 msgid "Buttons"
 msgstr ""
 
+msgid "Reply buttons"
+msgstr ""
+
+msgid "Call button"
+msgstr ""
+
+msgid "Call permission request"
+msgstr ""
+
+msgid "Call on WhatsApp"
+msgstr ""
+
+msgid "No header"
+msgstr ""
+
+msgid "Image URL"
+msgstr ""
+
+msgid "Video URL"
+msgstr ""
+
+msgid "Document URL"
+msgstr ""
+
 msgid "Add button"
 msgstr ""
 
@@ -1025,6 +1055,12 @@ msgstr ""
 msgid "Button text"
 msgstr ""
 
+msgid "TTL in minutes"
+msgstr ""
+
+msgid "Payload"
+msgstr ""
+
 msgid "Remove"
 msgstr ""
 
@@ -1032,6 +1068,12 @@ msgid "Add row"
 msgstr ""
 
 msgid "Interactive messages"
+msgstr ""
+
+msgid "Add interactive"
+msgstr ""
+
+msgid "Interactive messages were not found."
 msgstr ""
 
 msgid "Delete interactive message?"
