@@ -174,7 +174,6 @@ class PhoneAdmin(admin.ModelAdmin):
     list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type")
     search_fields = ("phone", "phone_id", "owner__email")
     list_filter = ("calling", "type")
-    readonly_fields = ("error", )
     fieldsets = (
         (None, {
             "fields": (
@@ -211,7 +210,6 @@ class PhoneAdmin(admin.ModelAdmin):
                 "sip_hostname",
                 "sip_port",
                 "sip_extensions",
-                "error",
             )
         }),
     )

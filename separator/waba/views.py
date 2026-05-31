@@ -287,16 +287,25 @@ def phone_details(request, phone_id):
                 return redirect_to_phone_tab("calls")
 
             try:
+                previous_calling = {
+                    "calling": phone.calling,
+                    "call_dest": phone.call_dest,
+                    "sip_status": phone.sip_status,
+                    "sip_hostname": phone.sip_hostname,
+                    "sip_port": phone.sip_port,
+                }
                 update_fields = {"calling", "call_dest"}
                 phone.call_dest = call_dest
 
                 if call_dest == "disabled":
                     phone.calling = "disabled"
+                    phone.save(update_fields=list(update_fields))
+                    waba_tasks.call_management.delay(phone.id)
 
                 else:
                     phone.calling = "enabled"
                     phone.sip_status = "enabled"
-                    update_fields.add("sip_status")
+                    update_fields.update({"sip_status", "sip_hostname", "sip_port"})
 
                     if call_dest == "pbx":
                         sip_hostname = request.POST.get('sip_hostname', '').strip()
@@ -306,29 +315,31 @@ def phone_details(request, phone_id):
                             return redirect_to_phone_tab("calls")
                         phone.sip_hostname = sip_hostname
                         phone.sip_port = sip_port
-                        delete_voximplant(phone)
-                        update_fields.update({"voximplant_id", "voximplant_reg_id"})
                     else:
                         sip_server = get_current_sip_server(request)
                         phone.sip_hostname = sip_server.domain
                         phone.sip_port = sip_server.sip_port
 
-                        if call_dest == "b24":
-                            context = waba_bitrix.get_waba_context_for_phone(phone)
-                            ext = ensure_phone_extension(phone)
-                            ensure_voximplant(phone, context, ext)
-                        else:
-                            ensure_phone_extension(phone)
-                            delete_voximplant(phone)
-                            update_fields.update({"voximplant_id", "voximplant_reg_id"})
+                    phone.save(update_fields=list(update_fields))
+                    try:
+                        waba_tasks.call_management(phone.id)
+                    except Exception:
+                        for field, value in previous_calling.items():
+                            setattr(phone, field, value)
+                        phone.save(update_fields=list(previous_calling.keys()))
+                        raise
 
-                    update_fields.update({"sip_hostname", "sip_port"})
-
-                phone.save(update_fields=list(update_fields))
-                if call_dest == "pbx":
-                    waba_tasks.call_management(phone.id)
-                else:
-                    waba_tasks.call_management.delay(phone.id)
+                    if call_dest == "pbx":
+                        delete_voximplant(phone)
+                        phone.save(update_fields=["voximplant_id", "voximplant_reg_id"])
+                    elif call_dest == "ext":
+                        ensure_phone_extension(phone)
+                        delete_voximplant(phone)
+                        phone.save(update_fields=["voximplant_id", "voximplant_reg_id"])
+                    elif call_dest == "b24":
+                        ext = ensure_phone_extension(phone)
+                        context = waba_bitrix.get_waba_context_for_phone(phone)
+                        ensure_voximplant(phone, context, ext)
 
                 if call_dest == "disabled":
                     messages.info(request, _("Voice calls feature is disabled"))

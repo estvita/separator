@@ -500,10 +500,6 @@ def call_management(id):
     try:
         resp = utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/settings", method="post", payload=payload)
         try:
-            if phone.error:
-                phone.error = None
-                phone.save()
-         
             if phone.calling == "enabled":
                 sip_cred = utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/settings?include_sip_credentials=true")
                 calling_data = sip_cred.get("calling", {})
@@ -535,21 +531,6 @@ def call_management(id):
 
     except Exception as e:
         raw_error = e.args[0] if e.args else None
-        error = raw_error.get("error") if isinstance(raw_error, dict) else None
-        code = error.get("code") if error else None
-
-        if code:
-            fb_message = error.get("error_user_title") or error.get("message")
-            fb_details = error.get("error_user_msg") or error.get("error_data", {}).get("details")
-            error_obj, created = Error.objects.get_or_create(
-                code=code,
-                defaults={"message": fb_message, "details": fb_details}
-            )
-            error_text = f"Error code: {code}. {error_obj.message}. {error_obj.details}"
-        else:
-            error_text = str(raw_error or e)
-        phone.error = error_text
-        phone.save()
         raise Exception(raw_error or str(e)) from e
 
 

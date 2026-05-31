@@ -147,7 +147,6 @@ class Phone(models.Model):
     sip_user_password = models.CharField(max_length=250, null=True, blank=True, help_text="Whatsapp Cloud SIP Password")
     sip_hostname = models.CharField(max_length=200, default="voip.gulin.kz", blank=True)
     sip_port = models.PositiveIntegerField(default=5061, blank=True)
-    error = models.CharField(max_length=500, blank=True, null=True)
     sip_extensions = models.ForeignKey(Extension, on_delete=models.SET_NULL, null=True, blank=True)
     voximplant_id = models.PositiveIntegerField(blank=True, null=True)
     voximplant_reg_id = models.PositiveIntegerField(blank=True, null=True)
