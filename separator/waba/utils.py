@@ -178,12 +178,11 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         try:
             resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            error_details = ""
             try:
                 error_details = resp.json()
             except Exception:
-                error_details = resp.text
-            raise Exception(f"API Error {resp.status_code}: {error_details}") from e
+                error_details = {"error": resp.text}
+            raise Exception(error_details) from e
             
         return resp.json() if resp.content else {}
     except Exception:

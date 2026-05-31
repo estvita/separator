@@ -127,6 +127,44 @@ def delete_voximplant(phone):
         context = waba_bitrix.get_waba_context_for_phone(phone)
         bitrix_tasks.call_api.delay(context["app_instance"].id, "voximplant.sip.delete", {"CONFIG_ID": phone.voximplant_id})
         phone.voximplant_id = None
+        phone.voximplant_reg_id = None
+
+
+def get_current_sip_server(request):
+    domain = request.get_host().split(':')[0]
+    app = App.objects.filter(sites__domain__iexact=domain).first()
+    if not app or not app.sip_server:
+        raise Exception(_("FreePBX Server not connected"))
+    return app.sip_server
+
+
+def ensure_phone_extension(phone):
+    if not phone.sip_extensions:
+        ext = create_extension_task(phone.id)
+        phone.sip_extensions = ext
+        phone.save(update_fields=["sip_extensions"])
+
+    if not phone.sip_extensions:
+        raise Exception(_("SIP extension creation failed."))
+
+    return phone.sip_extensions
+
+
+def ensure_voximplant(phone, context, ext):
+    if phone.voximplant_id:
+        return
+
+    payload = {
+        "TITLE": f"{phone.phone} WhatsApp",
+        "SERVER": ext.server.domain,
+        "LOGIN": ext.number,
+        "PASSWORD": ext.password
+    }
+    resp = bitrix_tasks.call_api(context["app_instance"].id, "voximplant.sip.add", payload)
+    result = resp.get("result", {})
+    phone.voximplant_id = int(result.get("ID"))
+    phone.voximplant_reg_id = int(result.get("REG_ID"))
+    phone.save(update_fields=["voximplant_id", "voximplant_reg_id"])
 
 @login_required
 def phone_details(request, phone_id):
@@ -243,94 +281,63 @@ def phone_details(request, phone_id):
             return redirect_to_phone_tab("templates")
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
-            save_required = False
+            allowed_call_dest = {choice[0] for choice in Phone.CALL_DEST}
+            if call_dest not in allowed_call_dest:
+                messages.error(request, _("Invalid call destination"))
+                return redirect_to_phone_tab("calls")
 
-            if call_dest == "disabled":
-                phone.calling = "disabled"
-                save_required = True
-            else:
-                phone.calling = "enabled"
-                phone.sip_status = "enabled"
-            if call_dest != "b24":
-                delete_voximplant(phone)
-                save_required = True
-            if call_dest == "pbx":
-                phone.sip_hostname = request.POST.get('sip_hostname')
-                phone.sip_port = request.POST.get('sip_port')
-                save_required = True
-            else:  # для всех, кроме pbx
-                domain = request.get_host().split(':')[0]
-                app = App.objects.filter(sites__domain__iexact=domain).first()
-                if not app or not app.sip_server:
-                    messages.error(request, _("FreePBX Server not connected"))
-                    return redirect_to_phone_tab("calls")
-                phone.sip_hostname = app.sip_server.domain
-                phone.sip_port = app.sip_server.sip_port
-                save_required = True
-
-            if phone.call_dest != call_dest:
+            try:
+                update_fields = {"calling", "call_dest"}
                 phone.call_dest = call_dest
-                save_required = True
 
-            if save_required:
-                with transaction.atomic():
-                    phone.save()
-                    def after_commit():
+                if call_dest == "disabled":
+                    phone.calling = "disabled"
+
+                else:
+                    phone.calling = "enabled"
+                    phone.sip_status = "enabled"
+                    update_fields.add("sip_status")
+
+                    if call_dest == "pbx":
+                        sip_hostname = request.POST.get('sip_hostname', '').strip()
+                        sip_port = request.POST.get('sip_port')
+                        if not sip_hostname or not sip_port:
+                            messages.error(request, _("SIP Hostname and SIP Port are required"))
+                            return redirect_to_phone_tab("calls")
+                        phone.sip_hostname = sip_hostname
+                        phone.sip_port = sip_port
+                        delete_voximplant(phone)
+                        update_fields.update({"voximplant_id", "voximplant_reg_id"})
+                    else:
+                        sip_server = get_current_sip_server(request)
+                        phone.sip_hostname = sip_server.domain
+                        phone.sip_port = sip_server.sip_port
+
                         if call_dest == "b24":
-                            try:
-                                context = waba_bitrix.get_waba_context_for_phone(phone)
-                            except Exception:
-                                user_message(request, "waba_calling_error", "error")
-                                return
-                            if phone.voximplant_id:
-                                messages.info(request, _("This number is already connected."))
-                                return
-                            if not phone.sip_extensions:
-                                ext = create_extension_task(phone.id)
-                                phone.sip_extensions = ext
-                                phone.save()
-                            else:
-                                ext = phone.sip_extensions
-                            payload = {
-                                "TITLE": f"{phone.phone} WhatsApp",
-                                "SERVER": ext.server.domain,
-                                "LOGIN": ext.number,
-                                "PASSWORD": ext.password
-                            }
-                            try:
-                                resp = bitrix_tasks.call_api(context["app_instance"].id, "voximplant.sip.add", payload)
-                                result = resp.get("result", {})
-                                voximplant_id = result.get("ID")
-                                voximplant_reg_id = result.get("REG_ID")
-                                phone.voximplant_id = int(voximplant_id)
-                                phone.voximplant_reg_id = int(voximplant_reg_id)
-                                phone.save()
-                            except Exception as e:
-                                messages.error(request, e)
-                                return
+                            context = waba_bitrix.get_waba_context_for_phone(phone)
+                            ext = ensure_phone_extension(phone)
+                            ensure_voximplant(phone, context, ext)
+                        else:
+                            ensure_phone_extension(phone)
+                            delete_voximplant(phone)
+                            update_fields.update({"voximplant_id", "voximplant_reg_id"})
 
-                        elif call_dest == "ext":
-                            phone.refresh_from_db()
-                            if not phone.sip_extensions:
-                                ext = create_extension_task(phone.id)
-                                phone.sip_extensions = ext
-                                phone.save()
-                            if not phone.sip_extensions:
-                                messages.error(request, _("SIP extension creation failed."))                    
-                        try:
-                            waba_tasks.call_management.delay(phone.id)
-                            if call_dest == "disabled":
-                                messages.info(request, _("Voice calls feature is disabled"))
-                            else:
-                                messages.success(request, _("Call destination %(dest)s enabled") % {'dest': call_dest})
-                        except Exception as e:
-                            phone.calling = "disabled"
-                            phone.call_dest = "disabled"
-                            phone.sip_user_password = ""
-                            phone.save()
-                            messages.error(request, str(e))
-                            return 
-                    transaction.on_commit(after_commit)
+                    update_fields.update({"sip_hostname", "sip_port"})
+
+                phone.save(update_fields=list(update_fields))
+                if call_dest == "pbx":
+                    waba_tasks.call_management(phone.id)
+                else:
+                    waba_tasks.call_management.delay(phone.id)
+
+                if call_dest == "disabled":
+                    messages.info(request, _("Voice calls feature is disabled"))
+                else:
+                    messages.success(request, _("Call destination %(dest)s enabled") % {'dest': call_dest})
+            except Exception as e:
+                if call_dest == "b24":
+                    user_message(request, "waba_calling_error", "error")
+                messages.error(request, str(e))
             return redirect_to_phone_tab("calls")
         elif action == "update_bitrix":
             sms_service = request.POST.get("sms_service") == "on"

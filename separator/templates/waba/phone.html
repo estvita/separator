@@ -354,12 +354,12 @@
           <div class="form-group mb-3">
             <label for="sip_hostname">{% trans "SIP Hostname" %}</label>
             <input type="text" class="form-control" id="sip_hostname" name="sip_hostname"
-            value="{{ phone.sip_hostname }}">
+            value="{% if phone.call_dest == 'pbx' %}{{ phone.sip_hostname }}{% endif %}">
           </div>
           <div class="form-group mb-3">
             <label for="sip_port">{% trans "SIP Port" %}</label>
             <input type="number" class="form-control" id="sip_port" name="sip_port"
-            value="{{ phone.sip_port }}">
+            value="{% if phone.call_dest == 'pbx' %}{{ phone.sip_port }}{% else %}5061{% endif %}">
           </div>
         </div>
 
@@ -545,6 +545,8 @@
       var callDestInput = document.getElementById("call_dest");
       var serverBlock = document.getElementById("server_block");
       var extBlock = document.getElementById("extension_block");
+      var sipHostnameInput = document.getElementById("sip_hostname");
+      var sipPortInput = document.getElementById("sip_port");
 
       function toggleCallingBlocks() {
         if (!callDestInput || !serverBlock || !extBlock) {
@@ -552,6 +554,12 @@
         }
 
         var callDest = callDestInput.value;
+        var isPbx = callDest === "pbx";
+        if (sipHostnameInput && sipPortInput) {
+          sipHostnameInput.required = isPbx;
+          sipPortInput.required = isPbx;
+        }
+
         if (["b24", "disabled"].includes(callDest)) {
           serverBlock.style.display = "none";
           extBlock.style.display = "none";

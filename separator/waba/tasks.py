@@ -506,50 +506,51 @@ def call_management(id):
          
             if phone.calling == "enabled":
                 sip_cred = utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/settings?include_sip_credentials=true")
-                
-                # Получаем и сохраняем SIP пароль
                 calling_data = sip_cred.get("calling", {})
                 sip_servers = calling_data.get("sip", {}).get("servers", [])
-                
-                # Ищем сервер с нужным app_id
-                if not phone.waba.app:
-                    raise Exception("App not found")
-                app_id = phone.waba.app.client_id
+
+                matched_server = None
                 for server in sip_servers:
-                    if server.get("app_id") == int(app_id):
-                        sip_password = server.get("sip_user_password")
-                        if sip_password:
-                            phone.sip_user_password = sip_password
-                            phone.save()
+                    if (
+                        server.get("hostname") == phone.sip_hostname
+                        and str(server.get("port")) == str(phone.sip_port)
+                    ):
+                        matched_server = server
                         break
-                else:
-                    raise Exception(f"No matching server found for app_id {app_id}")
-                
+
+                if not matched_server:
+                    matched_server = next((server for server in sip_servers if server.get("sip_user_password")), None)
+
+                sip_password = matched_server.get("sip_user_password") if matched_server else None
+                if not sip_password:
+                    raise Exception({"error": "SIP password not found", "settings": sip_cred})
+
+                phone.sip_user_password = sip_password
+                phone.save(update_fields=["sip_user_password"])
+
             return resp
 
         except ValueError:
             raise
 
     except Exception as e:
-        error = None
-        if e.args and isinstance(e.args[0], dict):
-            error = e.args[0].get("error")
-        
-        if error:
-            code = error.get("code")
+        raw_error = e.args[0] if e.args else None
+        error = raw_error.get("error") if isinstance(raw_error, dict) else None
+        code = error.get("code") if error else None
+
         if code:
-            fb_message = error.get("error_user_title")
-            fb_details = error.get("error_user_msg")
+            fb_message = error.get("error_user_title") or error.get("message")
+            fb_details = error.get("error_user_msg") or error.get("error_data", {}).get("details")
             error_obj, created = Error.objects.get_or_create(
                 code=code,
                 defaults={"message": fb_message, "details": fb_details}
             )
             error_text = f"Error code: {code}. {error_obj.message}. {error_obj.details}"
         else:
-            error_text = str(e)
+            error_text = str(raw_error or e)
         phone.error = error_text
         phone.save()
-        raise Exception(phone.phone_id, e)
+        raise Exception(raw_error or str(e)) from e
 
 
 @shared_task(queue='waba')
