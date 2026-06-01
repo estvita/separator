@@ -464,15 +464,18 @@ def extract_files(data):
         # Формируем ключи для доступа к данным файлов
         name_key = f"data[MESSAGES][0][message][files][{i}][name]"
         link_key = f"data[MESSAGES][0][message][files][{i}][link]"
+        download_link_key = f"data[MESSAGES][0][message][files][{i}][downloadLink]"
         type_key = f"data[MESSAGES][0][message][files][{i}][type]"
 
         # Проверяем, существуют ли такие ключи в словаре
-        if name_key in data and link_key in data:
+        if name_key in data and (download_link_key in data or link_key in data):
             # Добавляем название и ссылку в список
             files.append(
                 {
                     "name": data.get(name_key),
-                    "link": data.get(link_key),
+                    "link": data.get(download_link_key) or data.get(link_key),
+                    "download_link": data.get(download_link_key),
+                    "source_link": data.get(link_key),
                     "type": data.get(type_key),
                 },
             )
@@ -1421,10 +1424,6 @@ def event_processor(self, data):
             files = []
             if file_type:
                 files = extract_files(data)
-            if appinstance.fileAsUrl:
-                msg = '\n'.join([f"{f['name']}: {f['link']}" for f in files])
-                text = f"{text} {msg}"
-                files = []
             
             # If WABA connector
             if connector.service == "waba":
@@ -1488,11 +1487,12 @@ def event_processor(self, data):
                     for file in files:
                         uploaded_id = None
                         try:
-                            # Reuse media uploaded from the same file URL before downloading it.
-                            uploaded_id = waba.get_cached_media_id_for_phone(phone, file["link"])
+                            if not appinstance.fileAsUrl:
+                                # Reuse media uploaded from the same file URL before downloading it.
+                                uploaded_id = waba.get_cached_media_id_for_phone(phone, file["link"])
                             f_content = None
                             # Simple retry logic for file download
-                            if not uploaded_id:
+                            if not appinstance.fileAsUrl and not uploaded_id:
                                 for attempt in range(3):
                                     try:
                                         f_content = requests.get(file["link"], timeout=(10, 60))
@@ -1503,7 +1503,7 @@ def event_processor(self, data):
                                             raise
                                         time.sleep(1)
 
-                            if not uploaded_id and f_content and f_content.status_code == 200:
+                            if not appinstance.fileAsUrl and not uploaded_id and f_content and f_content.status_code == 200:
                                 up_res = waba.upload_media_for_phone(
                                     phone,
                                     f_content.content,
