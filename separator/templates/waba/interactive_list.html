@@ -7,7 +7,20 @@
 <div class="container">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h3 class="mb-0">{% trans "Interactive messages" %}</h3>
+  </div>
+
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <form method="get" class="d-flex align-items-center mb-0">
+      <label for="filter_portal_id" class="me-2 mb-0">{% trans "Portal" %}:</label>
+      <select name="filter_portal_id" id="filter_portal_id" class="form-control" style="width:auto;" onchange="this.form.submit()">
+        <option value="all" {% if selected_portal_id == "all" %}selected{% endif %}>{% trans "All" %}</option>
+        {% for portal in portals %}
+          <option value="{{ portal.id }}" {% if portal.id|stringformat:"s" == selected_portal_id|stringformat:"s" %}selected{% endif %}>{{ portal.domain }}</option>
+        {% endfor %}
+      </select>
+    </form>
     <a href="{% url 'waba-interactive-create' %}" class="btn btn-primary">{% trans "Add" %}</a>
+    <a href="{% url 'waba' %}" class="btn btn-secondary">{% trans "Numbers" %}</a>
   </div>
 
   <table class="table table-striped">
@@ -42,7 +55,5 @@
       {% endfor %}
     </tbody>
   </table>
-
-  <a href="{% url 'waba' %}" class="btn btn-secondary">{% trans "Numbers" %}</a>
 </div>
 {% endblock content %}

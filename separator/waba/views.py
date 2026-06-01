@@ -734,9 +734,22 @@ def broadcast_details(request, broadcast_id):
 @login_required
 def interactive_messages(request):
     portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
-    messages_qs = Interactive.objects.filter(portal__in=portals).select_related("portal").order_by("name")
+    selected_portal_id = request.GET.get("filter_portal_id", "all")
+    selected_portal = None
+    if selected_portal_id and selected_portal_id != "all":
+        selected_portal = portals.filter(id=selected_portal_id).first()
+        if not selected_portal:
+            selected_portal_id = "all"
+
+    messages_qs = Interactive.objects.filter(portal__in=portals).select_related("portal")
+    if selected_portal:
+        messages_qs = messages_qs.filter(portal=selected_portal)
+    messages_qs = messages_qs.order_by("name")
+
     return render(request, "waba/interactive_list.html", {
         "interactive_messages": messages_qs,
+        "portals": portals,
+        "selected_portal_id": selected_portal_id,
     })
 
 

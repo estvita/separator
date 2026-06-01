@@ -48,6 +48,43 @@ logger = logging.getLogger("django")
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
 
 
+def _media_cache_key(phone, kind, value):
+    if not phone or not phone.phone_id or not value:
+        return None
+    if isinstance(value, bytes):
+        value_hash = hashlib.sha256(value).hexdigest()
+    else:
+        value_hash = hashlib.sha256(str(value).encode("utf-8")).hexdigest()
+    return f"waba_media:{phone.phone_id}:{kind}:{value_hash}"
+
+
+def get_cached_media_id_for_phone(phone, source_url=None, file_content=None):
+    cache_key = _media_cache_key(phone, "url", source_url) if source_url else _media_cache_key(phone, "content", file_content)
+    if not cache_key:
+        return None
+    try:
+        cached_id = redis_client.get(cache_key)
+        return cached_id.decode("utf-8") if cached_id else None
+    except Exception:
+        return None
+
+
+def cache_media_id_for_phone(phone, media_id, source_url=None, file_content=None):
+    # Meta media IDs are temporary, so keep the cache below the expected media lifetime.
+    if not media_id:
+        return
+    for cache_key in (
+        _media_cache_key(phone, "url", source_url),
+        _media_cache_key(phone, "content", file_content),
+    ):
+        if not cache_key:
+            continue
+        try:
+            redis_client.set(cache_key, media_id, ex=29 * 24 * 60 * 60)
+        except Exception:
+            pass
+
+
 TEMPLATE_COMPONENT_PREFETCHES = (
     "components__named_params",
     "components__positional_params",
@@ -229,7 +266,7 @@ def get_hosted_business_token(app: App, owner_business_id: str):
     return access_token
 
 
-def upload_media_for_phone(phone, file_content, mime_type, filename):
+def upload_media_for_phone(phone, file_content, mime_type, filename, source_url=None):
     waba = phone.waba if phone else None
     if not phone or not waba:
         return {"error": True, "message": "not phone or not waba"}
@@ -241,18 +278,31 @@ def upload_media_for_phone(phone, file_content, mime_type, filename):
         return {"error": True, "message": "not phone phone_id"}
 
     try:
+        if source_url:
+            cached_id = get_cached_media_id_for_phone(phone, source_url)
+            if cached_id:
+                return {"id": cached_id}
+
+        cached_id = get_cached_media_id_for_phone(phone, file_content=file_content)
+        if cached_id:
+            cache_media_id_for_phone(phone, cached_id, source_url=source_url)
+            return {"id": cached_id}
+
         files = {
             'file': (filename, file_content, mime_type)
         }
         data = {
             'messaging_product': 'whatsapp'
         }
-        return call_api(waba=waba, endpoint=f"{phone.phone_id}/media", method="post", files=files, data=data)
+        result = call_api(waba=waba, endpoint=f"{phone.phone_id}/media", method="post", files=files, data=data)
+        if isinstance(result, dict) and result.get("id"):
+            cache_media_id_for_phone(phone, result["id"], source_url=source_url, file_content=file_content)
+        return result
     except Exception as e:
         return {"error": True, "message": str(e)}
 
 
-def upload_media(appinstance, file_content, mime_type, filename, line_id=None, phone_num=None):
+def upload_media(appinstance, file_content, mime_type, filename, line_id=None, phone_num=None, source_url=None):
     phone = None
     if phone_num:
         phone = Phone.objects.filter(phone=f"+{phone_num}").first()
@@ -263,7 +313,7 @@ def upload_media(appinstance, file_content, mime_type, filename, line_id=None, p
     else:
         return {"error": True, "message": "phone not found"}
 
-    return upload_media_for_phone(phone, file_content, mime_type, filename)
+    return upload_media_for_phone(phone, file_content, mime_type, filename, source_url=source_url)
 
 
 def _template_message_endpoint(phone, message, template=None):
@@ -928,6 +978,7 @@ def build_template_components_payload(template, post_data, files_data, phone):
             media_content = None
             media_type = None
             media_name = None
+            media_id = None
 
             if file_obj:
                 media_content = file_obj.read()
@@ -937,39 +988,46 @@ def build_template_components_payload(template, post_data, files_data, phone):
                 parsed = urlparse(file_url)
                 if parsed.scheme not in ("http", "https"):
                     raise Exception("Media URL must be http/https")
-                try:
-                    resp = requests.get(file_url, timeout=20, stream=True)
-                    resp.raise_for_status()
-                except Exception as exc:
-                    raise Exception(f"Media download failed: {exc}") from exc
+                # Check URL cache before downloading media from the customer-provided source.
+                media_id = get_cached_media_id_for_phone(phone, file_url)
+                if not media_id:
+                    try:
+                        resp = requests.get(file_url, timeout=20, stream=True)
+                        resp.raise_for_status()
+                    except Exception as exc:
+                        raise Exception(f"Media download failed: {exc}") from exc
 
-                max_bytes = 25 * 1024 * 1024
-                total = 0
-                chunks = []
-                for chunk in resp.iter_content(chunk_size=1024 * 256):
-                    if not chunk:
-                        continue
-                    total += len(chunk)
-                    if total > max_bytes:
-                        raise Exception("Media download превышает лимит 25MB")
-                    chunks.append(chunk)
-                media_content = b"".join(chunks)
-                media_type = resp.headers.get("Content-Type") or "application/octet-stream"
-                path = parsed.path or ""
-                media_name = os.path.basename(path) or "media"
+                    max_bytes = 25 * 1024 * 1024
+                    total = 0
+                    chunks = []
+                    for chunk in resp.iter_content(chunk_size=1024 * 256):
+                        if not chunk:
+                            continue
+                        total += len(chunk)
+                        if total > max_bytes:
+                            # This message is shown to the user in Bitrix as a send error.
+                            raise Exception("Media file exceeds 25MB limit")
+                        chunks.append(chunk)
+                    media_content = b"".join(chunks)
+                    media_type = resp.headers.get("Content-Type") or "application/octet-stream"
+                    path = parsed.path or ""
+                    media_name = os.path.basename(path) or "media"
 
-            if media_content:
+            if media_content and not media_id:
                 upload = upload_media_for_phone(
                     phone,
                     media_content,
                     media_type,
                     media_name,
+                    source_url=file_url,
                 )
                 if upload.get("error"):
                     raise Exception(upload.get("message") or "Media upload failed")
                 media_id = upload.get("id")
                 if not media_id:
                     raise Exception("Media upload failed: missing id")
+
+            if media_id:
                 param_type = _media_param_type(comp_format)
                 if param_type:
                     components_payload.append({

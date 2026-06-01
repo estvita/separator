@@ -636,7 +636,7 @@ class WabaPlacementModule:
             bitrix_user_id = data.get("bitrix_user_id")
             if bitrix_user_id:
                 message["biz_opaque_callback_data"] = {"bitrix_user_id": str(bitrix_user_id)}
-            message.update(parse_interactive_code(shortcode, appinstance=appinstance))
+            message.update(parse_interactive_code(shortcode, appinstance=appinstance, phone=sender_phone))
             send_result = waba_utils.send_message_from_phone(sender_phone, message)
         except Exception as exc:
             return self._action_response({"ok": False, "error": str(exc)})

@@ -12,6 +12,7 @@ from django.core.signing import TimestampSigner
 from urllib.parse import unquote
 from datetime import timedelta
 from django.db import transaction, OperationalError
+from django.db.models import Q
 from django.utils import timezone
 from django.contrib import messages
 from django.conf import settings
@@ -22,7 +23,7 @@ from celery import shared_task
 import separator.olx.tasks as olx_tasks
 import separator.waba.utils as waba
 import separator.waba.tasks as waba_tasks
-from separator.waba.models import Phone
+from separator.waba.models import Ctwa, Phone
 
 from separator.waweb.models import Session
 import separator.waweb.tasks as waweb_tasks
@@ -38,6 +39,34 @@ if settings.ASTERX_SERVER:
     from separator.asterx.utils import send_call_info
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+
+
+def _normalize_phone_value(value):
+    if not value:
+        return []
+    digits = re.sub(r"\D", "", str(value))
+    return [f"+{digits}", digits] if digits else []
+
+
+def _find_ctwa_for_bizproc(appinstance, ctwa_id=None, client_phone=None):
+    # CTWA ID has priority; phone lookup is a fallback for robots that pass only a client phone.
+    ctwa_id = str(ctwa_id or "").strip()
+    if ctwa_id:
+        ctwa = Ctwa.objects.filter(id=ctwa_id).first()
+        if ctwa:
+            return ctwa
+
+    phones = _normalize_phone_value(client_phone)
+    if not phones:
+        return None
+
+    ctwa_qs = Ctwa.objects.filter(phone__in=phones)
+    if appinstance.portal_id:
+        ctwa_qs = ctwa_qs.filter(
+            Q(waba_phone__line__portal=appinstance.portal)
+            | Q(waba__phones__line__portal=appinstance.portal)
+        )
+    return ctwa_qs.distinct().first()
 
 
 def format_waba_error(send_result):
@@ -485,6 +514,36 @@ def _build_file_header_component(file_url, appinstance=None, line_id=None, phone
     if not file_url:
         return None
 
+    upload_phone = None
+    if appinstance and phone_num:
+        upload_phone = Phone.objects.filter(phone=f"+{phone_num}").first()
+    elif appinstance and line_id:
+        line = Line.objects.filter(line_id=line_id, portal=appinstance.portal).first()
+        upload_phone = Phone.objects.filter(line=line).first() if line else None
+
+    if upload_phone:
+        # Check cache before HEAD/GET requests to the original file host.
+        uploaded_id = waba.get_cached_media_id_for_phone(upload_phone, file_url)
+        if uploaded_id:
+            lower_url = file_url.split("?", 1)[0].lower()
+            if lower_url.endswith((".jpg", ".jpeg", ".png", ".webp")):
+                waba_file_type = "image"
+            elif lower_url.endswith((".mp4", ".mov", ".avi", ".webm")):
+                waba_file_type = "video"
+            elif lower_url.endswith((".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx")):
+                waba_file_type = "document"
+            else:
+                waba_file_type = None
+
+            if waba_file_type:
+                media_payload = {"id": uploaded_id}
+                if waba_file_type == "document":
+                    media_payload["filename"] = os.path.basename(file_url.split("?", 1)[0]) or "file"
+                return {
+                    "type": "header",
+                    "parameters": [{"type": waba_file_type, waba_file_type: media_payload}],
+                }
+
     file_type = ""
     file_headers = None
     try:
@@ -530,6 +589,7 @@ def _build_file_header_component(file_url, appinstance=None, line_id=None, phone
                     filename,
                     line_id=line_id,
                     phone_num=phone_num,
+                    source_url=file_url,
                 )
                 if up_res and "id" in up_res:
                     uploaded_id = up_res["id"]
@@ -584,7 +644,7 @@ def _render_interactive_value(value, params):
     return value
 
 
-def _build_interactive_header(header):
+def _build_interactive_header(header, phone=None):
     if not header:
         return None
     header_type = header.get("type")
@@ -594,11 +654,32 @@ def _build_interactive_header(header):
     if header_type == "text":
         return {"type": "text", "text": value}
     if header_type in {"image", "video", "document"}:
+        if phone:
+            # Check cache before downloading media from the customer-provided source.
+            media_id = waba.get_cached_media_id_for_phone(phone, value)
+            if media_id:
+                return {"type": header_type, header_type: {"id": media_id}}
+            try:
+                response = requests.get(value, timeout=(10, 60))
+                if response.status_code == 200:
+                    filename = os.path.basename(value.split("?", 1)[0]) or "file"
+                    upload = waba.upload_media_for_phone(
+                        phone,
+                        response.content,
+                        response.headers.get("Content-Type", "application/octet-stream"),
+                        filename,
+                        source_url=value,
+                    )
+                    media_id = upload.get("id") if isinstance(upload, dict) else None
+                    if media_id:
+                        return {"type": header_type, header_type: {"id": media_id}}
+            except Exception as e:
+                logger.error(f"Interactive media upload failed: {e}")
         return {"type": header_type, header_type: {"link": value}}
     return None
 
 
-def parse_interactive_code(code: str, appinstance=None) -> dict:
+def parse_interactive_code(code: str, appinstance=None, phone=None) -> dict:
     parts = code.split("+", 2)
     if len(parts) < 2 or parts[0] != "interactive":
         raise ValueError("Invalid interactive code")
@@ -619,7 +700,7 @@ def parse_interactive_code(code: str, appinstance=None) -> dict:
     interactive_type = interactive_message.type
 
     interactive = {"type": interactive_type}
-    header = _build_interactive_header(payload.get("header"))
+    header = _build_interactive_header(payload.get("header"), phone=phone)
     if header and interactive_type not in {"voice_call", "call_permission_request"}:
         interactive["header"] = header
     if payload.get("body"):
@@ -1023,8 +1104,10 @@ def bizproc_processor(data):
 
     if code == "separator_ctwa_tracker":
         ctwa_id = data.get("properties[ctwa_id]")
-        if not ctwa_id or str(ctwa_id).strip().lower() in ("", "null", "none"):
-            raise Exception("ctwa_id not found")
+        client_phone = data.get("properties[client_phone]")
+        ctwa = _find_ctwa_for_bizproc(appinstance, ctwa_id=ctwa_id, client_phone=client_phone)
+        if not ctwa:
+            raise Exception("ctwa not found")
 
         custom_data = {}
 
@@ -1043,7 +1126,7 @@ def bizproc_processor(data):
         event_name = str(event_name_raw).strip() if event_name_raw else ""
         if event_name:
             waba_tasks.send_ctwa_conversion.delay(
-                str(ctwa_id).strip(),
+                str(ctwa.id),
                 event=event_name,
                 custom_data=custom_data,
             )
@@ -1082,7 +1165,7 @@ def sms_processor(self, data, service):
         elif "interactive+" in body:
             interactive_start = body.index("interactive+")
             interactive_str = body[interactive_start:]
-            message.update(parse_interactive_code(interactive_str, appinstance=app_instance))
+            message.update(parse_interactive_code(interactive_str, appinstance=app_instance, phone=phone))
         elif body.strip() == "#call_permission_request":
             message.update(CALL_REQUEST)
         else:
@@ -1355,7 +1438,9 @@ def event_processor(self, data):
                     .first()
                 )
                 if not phone:
-                    raise Exception("WABA phone not found for Bitrix line")
+                    error_result = {"error": True, "message": "WABA phone not found for Bitrix line"}
+                    send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id)
+                    raise Exception(error_result["message"])
 
                 if not files and command_text in ["#wa_block", "#wa_unblock"]:
                     try:
@@ -1384,7 +1469,12 @@ def event_processor(self, data):
                 elif "interactive+" in text:
                     interactive_start = text.index("interactive+")
                     interactive_str = text[interactive_start:]
-                    message.update(parse_interactive_code(interactive_str, appinstance=appinstance))
+                    try:
+                        message.update(parse_interactive_code(interactive_str, appinstance=appinstance, phone=phone))
+                    except Exception as e:
+                        error_result = {"error": True, "message": str(e)}
+                        send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id)
+                        raise
 
                 elif command_text == "#call_permission_request":
                     message.update(CALL_REQUEST)
@@ -1398,24 +1488,28 @@ def event_processor(self, data):
                     for file in files:
                         uploaded_id = None
                         try:
+                            # Reuse media uploaded from the same file URL before downloading it.
+                            uploaded_id = waba.get_cached_media_id_for_phone(phone, file["link"])
                             f_content = None
                             # Simple retry logic for file download
-                            for attempt in range(3):
-                                try:
-                                    f_content = requests.get(file["link"], timeout=(10, 60))
-                                    if f_content.status_code == 200:
-                                        break
-                                except requests.RequestException:
-                                    if attempt == 2:
-                                        raise
-                                    time.sleep(1)
-                            
-                            if f_content and f_content.status_code == 200:
+                            if not uploaded_id:
+                                for attempt in range(3):
+                                    try:
+                                        f_content = requests.get(file["link"], timeout=(10, 60))
+                                        if f_content.status_code == 200:
+                                            break
+                                    except requests.RequestException:
+                                        if attempt == 2:
+                                            raise
+                                        time.sleep(1)
+
+                            if not uploaded_id and f_content and f_content.status_code == 200:
                                 up_res = waba.upload_media_for_phone(
                                     phone,
                                     f_content.content,
                                     f_content.headers.get("Content-Type", ""),
                                     file["name"],
+                                    source_url=file["link"],
                                 )
                                 if up_res and "id" in up_res:
                                     uploaded_id = up_res["id"]
