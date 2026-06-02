@@ -353,6 +353,7 @@ def phone_details(request, phone_id):
         elif action == "update_bitrix":
             sms_service = request.POST.get("sms_service") == "on"
             chat_from_sms = request.POST.get("ChatFromSms") == "on"
+            read_receipts = request.POST.get("read_receipts") == "on"
             transcribe_model = request.POST.get("transcribe_model") or phone.transcribe_model
             valid_transcribe_models = {choice[0] for choice in Phone.TRANSCRIBE_MODEL_CHOICES}
             if transcribe_model not in valid_transcribe_models:
@@ -361,6 +362,7 @@ def phone_details(request, phone_id):
             available_to_b24_admins = request.POST.get("availabletoB24admins") == "on"
             sms_service_changed = phone.sms_service != sms_service
             chat_from_sms_changed = phone.ChatFromSms != chat_from_sms
+            read_receipts_changed = phone.read_receipts != read_receipts
             transcribe_model_changed = phone.transcribe_model != transcribe_model
             available_in_b24_changed = phone.availableInB24 != available_in_b24
             available_to_b24_admins_changed = phone.availabletoB24admins != available_to_b24_admins
@@ -368,12 +370,14 @@ def phone_details(request, phone_id):
             if (
                 sms_service_changed
                 or chat_from_sms_changed
+                or read_receipts_changed
                 or transcribe_model_changed
                 or available_in_b24_changed
                 or available_to_b24_admins_changed
             ):
                 phone.sms_service = sms_service
                 phone.ChatFromSms = chat_from_sms
+                phone.read_receipts = read_receipts
                 phone.transcribe_model = transcribe_model
                 phone.availableInB24 = available_in_b24
                 phone.availabletoB24admins = available_to_b24_admins
@@ -382,6 +386,8 @@ def phone_details(request, phone_id):
                     update_fields.append("sms_service")
                 if chat_from_sms_changed:
                     update_fields.append("ChatFromSms")
+                if read_receipts_changed:
+                    update_fields.append("read_receipts")
                 if transcribe_model_changed:
                     update_fields.append("transcribe_model")
                 if available_in_b24_changed:
@@ -741,10 +747,12 @@ def interactive_messages(request):
         if not selected_portal:
             selected_portal_id = "all"
 
-    messages_qs = Interactive.objects.filter(portal__in=portals).select_related("portal")
+    messages_qs = Interactive.objects.filter(Q(portal__in=portals) | Q(**{"global": True})).select_related("portal")
     if selected_portal:
-        messages_qs = messages_qs.filter(portal=selected_portal)
+        messages_qs = messages_qs.filter(Q(portal=selected_portal) | Q(**{"global": True}))
     messages_qs = messages_qs.order_by("name")
+    for item in messages_qs:
+        item.interactive_shortcode = build_interactive_shortcode(item)
 
     return render(request, "waba/interactive_list.html", {
         "interactive_messages": messages_qs,
@@ -788,7 +796,7 @@ def interactive_message_create(request):
 @login_required
 def interactive_message_edit(request, message_id):
     portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
-    item = get_object_or_404(Interactive, id=message_id, portal__in=portals)
+    item = get_object_or_404(Interactive.objects.filter(portal__in=portals).filter(**{"global": False}), id=message_id)
     form = InteractiveForm(request.POST or None, instance=item, portals=portals)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -804,7 +812,7 @@ def interactive_message_edit(request, message_id):
 @login_required
 def interactive_message_delete(request, message_id):
     portals, _instances, _lines = bitrix_utils.get_instances(request, "waba")
-    item = get_object_or_404(Interactive, id=message_id, portal__in=portals)
+    item = get_object_or_404(Interactive.objects.filter(portal__in=portals).filter(**{"global": False}), id=message_id)
     if request.method == "POST":
         item.delete()
         messages.success(request, _("Interactive message deleted."))

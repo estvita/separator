@@ -220,7 +220,7 @@ def transcribe_voice_message(
         return bitrix_tasks.send_messages(
             app_instance_id,
             user_phone,
-            f"Transcript:\n{text}",
+            f"Transcript ({total_tokens} tokens):\n{text}",
             connector_code,
             line_id,
             pushName=push_name,

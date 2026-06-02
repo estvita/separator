@@ -285,6 +285,15 @@
           </div>
         </div>
         <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="read_receipts" name="read_receipts" {% if phone.read_receipts %}checked{% endif %}>
+          <label class="form-check-label" for="read_receipts">
+            `read_receipts`
+          </label>
+          <div class="form-text">
+            {% trans "Automatically send read receipts to WhatsApp." %}
+          </div>
+        </div>
+        <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="availableInB24" name="availableInB24" {% if phone.availableInB24 %}checked{% endif %}>
           <label class="form-check-label" for="availableInB24">
             `availableInB24`

@@ -1212,6 +1212,8 @@ def read_status(waba_id=None, phone_id=None, message_id=None):
 def _queue_waba_read_status(waba, phone, message_id):
     if not waba or not getattr(waba, "id", None) or not phone or not getattr(phone, "phone_id", None) or not message_id:
         return
+    if not phone.read_receipts:
+        return
     try:
         read_status.delay(waba.id, phone.phone_id, message_id)
     except Exception as e:

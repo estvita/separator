@@ -98,8 +98,7 @@ def format_waba_error(send_result):
     return str(error_msg)
 
 
-def send_waba_error_to_openline(app_instance_id, user_phone, error_result, connector_code, line_id):
-    error_msg = format_waba_error(error_result)
+def send_error_to_openline(app_instance_id, user_phone, error_msg, connector_code, line_id):
     bitrix_tasks.send_messages.delay(
         app_instance_id,
         user_phone,
@@ -107,6 +106,16 @@ def send_waba_error_to_openline(app_instance_id, user_phone, error_result, conne
         connector_code,
         line_id,
         manager_id=0,
+    )
+
+
+def send_waba_error_to_openline(app_instance_id, user_phone, error_result, connector_code, line_id):
+    send_error_to_openline(
+        app_instance_id,
+        user_phone,
+        format_waba_error(error_result),
+        connector_code,
+        line_id,
     )
 
 
@@ -526,16 +535,18 @@ def build_waba_media_proxy_url(app_instance, phone, media_id, filename):
 
 
 
-CALL_REQUEST = {
-    "type": "interactive",
-    "recipient_type": "individual",
-    "interactive": {
-        "type": "call_permission_request",
-        "action": {
-            "name": "call_permission_request"
-        }
-    }    
-}
+def _get_hashtag_interactive(text, appinstance):
+    hashtag = (text or "").strip()
+    if not hashtag or not appinstance or not appinstance.portal_id:
+        return None
+    from separator.waba.models import Interactive
+    return (
+        Interactive.objects
+        .filter(hashtag=hashtag)
+        .filter(Q(portal=appinstance.portal) | Q(**{"global": True}))
+        .order_by("-global", "name")
+        .first()
+    )
 
 
 def _build_file_header_component(file_url, appinstance=None, line_id=None, phone_num=None):
@@ -1194,8 +1205,8 @@ def sms_processor(self, data, service):
             interactive_start = body.index("interactive+")
             interactive_str = body[interactive_start:]
             message.update(parse_interactive_code(interactive_str, appinstance=app_instance, phone=phone))
-        elif body.strip() == "#call_permission_request":
-            message.update(CALL_REQUEST)
+        elif hashtag_interactive := _get_hashtag_interactive(body, app_instance):
+            message.update(parse_interactive_code(f"interactive+{hashtag_interactive.id}", appinstance=app_instance, phone=phone))
         else:
             message["type"] = "text"
             message["text"] = {"body": body}
@@ -1500,8 +1511,8 @@ def event_processor(self, data):
                         send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id)
                         raise
 
-                elif command_text == "#call_permission_request":
-                    message.update(CALL_REQUEST)
+                elif hashtag_interactive := _get_hashtag_interactive(text, appinstance):
+                    message.update(parse_interactive_code(f"interactive+{hashtag_interactive.id}", appinstance=appinstance, phone=phone))
                 elif not files and text:
                     message["type"] = "text"
                     message["text"] = {"body": text}
@@ -1592,7 +1603,8 @@ def event_processor(self, data):
             elif connector.service == "olx":
                 try:
                     send_result = olx_tasks.send_message(chat, text, files)
-                except Exception:
+                except Exception as e:
+                    send_error_to_openline(appinstance.id, chat, str(e), connector.code, line_id)
                     raise
 
             send_delivery_status(appinstance.id, connector_code, line_id, chat_id, message_id)

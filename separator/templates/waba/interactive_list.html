@@ -29,6 +29,7 @@
         <th>{% trans "Name" %}</th>
         <th>{% trans "Portal" %}</th>
         <th>{% trans "Type" %}</th>
+        <th>{% trans "Global" %}</th>
         <th>{% trans "Shortcode" %}</th>
         <th>{% trans "Actions" %}</th>
       </tr>
@@ -36,21 +37,35 @@
     <tbody>
       {% for item in interactive_messages %}
         <tr>
-          <td><a href="{% url 'waba-interactive-edit' item.id %}">{{ item.name }}</a></td>
-          <td>{{ item.portal.domain }}</td>
-          <td>{{ item.get_type_display }}</td>
-          <td><code>interactive+{{ item.id }}</code></td>
           <td>
-            <form method="post" action="{% url 'waba-interactive-delete' item.id %}" onsubmit="return confirm('{% trans "Delete interactive message?" %}');">
-              {% csrf_token %}
-              <a href="{% url 'waba-interactive-edit' item.id %}" class="btn btn-sm btn-secondary">{% trans "Edit" %}</a>
-              <button type="submit" class="btn btn-sm btn-danger">{% trans "Delete" %}</button>
-            </form>
+            {% if item.global %}
+              {{ item.name }}
+            {% else %}
+              <a href="{% url 'waba-interactive-edit' item.id %}">{{ item.name }}</a>
+            {% endif %}
+          </td>
+          <td>{{ item.portal.domain|default:"" }}</td>
+          <td>{{ item.get_type_display }}</td>
+          <td>{% if item.global %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
+          <td>
+            <code>{{ item.interactive_shortcode }}</code>
+            {% if item.hashtag %}
+              <br><code>{{ item.hashtag }}</code>
+            {% endif %}
+          </td>
+          <td>
+            {% if not item.global %}
+              <form method="post" action="{% url 'waba-interactive-delete' item.id %}" onsubmit="return confirm('{% trans "Delete interactive message?" %}');">
+                {% csrf_token %}
+                <a href="{% url 'waba-interactive-edit' item.id %}" class="btn btn-sm btn-secondary">{% trans "Edit" %}</a>
+                <button type="submit" class="btn btn-sm btn-danger">{% trans "Delete" %}</button>
+              </form>
+            {% endif %}
           </td>
         </tr>
       {% empty %}
         <tr>
-          <td colspan="5">{% trans "No interactive messages found." %}</td>
+          <td colspan="6">{% trans "No interactive messages found." %}</td>
         </tr>
       {% endfor %}
     </tbody>

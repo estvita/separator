@@ -163,17 +163,17 @@ TemplateAdmin.inlines = [
 @admin.register(Interactive)
 class InteractiveAdmin(admin.ModelAdmin):
     autocomplete_fields = ["owner", "portal"]
-    list_display = ("id", "name", "type", "portal", "owner")
-    list_filter = ("type",)
-    search_fields = ("id", "name", "portal__domain", "owner__email")
+    list_display = ("id", "name", "type", "global", "hashtag", "portal", "owner")
+    list_filter = ("type", "global")
+    search_fields = ("id", "name", "hashtag", "portal__domain", "owner__email")
 
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', 'waba', 'line', 'sip_extensions']
-    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type", "file_proxy")
+    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type", "file_proxy", "read_receipts")
     search_fields = ("phone", "phone_id", "owner__email")
-    list_filter = ("calling", "type", "file_proxy")
+    list_filter = ("calling", "type", "file_proxy", "read_receipts")
     fieldsets = (
         (None, {
             "fields": (
@@ -191,6 +191,7 @@ class PhoneAdmin(admin.ModelAdmin):
                 "line",
                 "sms_service",
                 "ChatFromSms",
+                "read_receipts",
                 "file_proxy",
                 "tokens",
                 "transcribe_model",

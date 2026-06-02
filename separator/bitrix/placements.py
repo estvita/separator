@@ -360,7 +360,7 @@ class WabaPlacementModule:
     def _interactives_for_portal(appinstance):
         if not appinstance or not appinstance.portal_id:
             return Interactive.objects.none()
-        return Interactive.objects.filter(portal=appinstance.portal).order_by("name")
+        return Interactive.objects.filter(Q(portal=appinstance.portal) | Q(**{"global": True})).order_by("name")
 
     @staticmethod
     def _serialize_interactives(interactives):

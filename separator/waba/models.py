@@ -105,6 +105,7 @@ class Phone(models.Model):
     phone_id = models.CharField(max_length=50, unique=True)
     sms_service = models.BooleanField(default=True)
     ChatFromSms = models.BooleanField(default=False)
+    read_receipts = models.BooleanField(default=False)
     file_proxy = models.BooleanField(default=True, help_text="Proxy inbound files to Bitrix instead of saving temp files")
     tokens = models.PositiveIntegerField(default=0)
     transcribe_model = models.CharField(
@@ -191,9 +192,13 @@ class Interactive(models.Model):
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=32, choices=TYPE_CHOICES)
     payload = models.JSONField(default=dict)
+    hashtag = models.CharField(max_length=255, blank=True, default="")
 
     def __str__(self):
         return self.name
+
+
+Interactive.add_to_class("global", models.BooleanField(default=False))
 
 
 class TemplateBroadcast(models.Model):
