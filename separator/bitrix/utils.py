@@ -8,6 +8,7 @@ import uuid
 import os
 import redis
 import requests
+from django.core import signing
 from django.core.signing import TimestampSigner
 from urllib.parse import unquote
 from datetime import timedelta
@@ -498,6 +499,30 @@ def upload_file(appinstance, storage_id, fileContent, filename):
         return upload_to_bitrix["result"]
     else:
         return None
+
+
+def build_waba_media_proxy_url(app_instance, phone, media_id, filename):
+    if not app_instance or not phone or not media_id:
+        return None
+
+    payload = {
+        "media_id": media_id,
+        "phone_id": phone.id,
+        "filename": filename or "file",
+    }
+    token = signing.dumps(payload, salt="waba-media-proxy")
+
+    base_url = getattr(settings, "BITRIX_TEMP_FILE_BASE_URL", "").strip().rstrip("/")
+    if base_url:
+        return f"{base_url}/media/waba/?{token}"
+
+    domain = getattr(app_instance, "host", None)
+    if not domain and app_instance.app and app_instance.app.site:
+        domain = app_instance.app.site.domain
+    if not domain:
+        return None
+    domain = domain.replace("http://", "").replace("https://", "").strip("/")
+    return f"https://{domain}/media/waba/?{token}"
 
 
 

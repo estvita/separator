@@ -10,7 +10,8 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.http import HttpResponse, FileResponse, Http404, HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, FileResponse, Http404, HttpResponseForbidden, JsonResponse, StreamingHttpResponse
+from django.core import signing
 from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
@@ -464,3 +465,63 @@ def log_and_serve_temp_file(request, path=None):
         return FileResponse(open(file_path, 'rb'))
     else:
         raise Http404("File does not exist")
+
+
+def proxy_waba_media_file(request):
+    token = request.META.get("QUERY_STRING", "")
+    ttl = getattr(settings, "BITRIX_TEMP_FILE_TTL", 1800)
+    try:
+        payload = signing.loads(token, max_age=ttl, salt="waba-media-proxy")
+    except SignatureExpired:
+        return HttpResponseForbidden("Link expired")
+    except BadSignature:
+        return HttpResponseForbidden("Invalid signature")
+
+    media_id = payload.get("media_id")
+    phone_id = payload.get("phone_id")
+    filename = payload.get("filename") or "file"
+    if not media_id or not phone_id:
+        raise Http404("Invalid media link")
+
+    from separator.waba.models import Phone
+    from separator.waba import utils as waba_utils
+
+    phone = Phone.objects.select_related("waba", "waba__app").filter(id=phone_id).first()
+    if not phone or not phone.waba_id:
+        raise Http404("Phone does not exist")
+
+    try:
+        media_info = waba_utils.call_api(waba=phone.waba, endpoint=media_id)
+        media_url = media_info.get("url") if isinstance(media_info, dict) else None
+        if not media_url:
+            raise Http404("Media URL does not exist")
+
+        upstream = requests.get(
+            media_url,
+            headers={"Authorization": f"Bearer {phone.waba.access_token}"},
+            timeout=(10, 60),
+            stream=True,
+        )
+        upstream.raise_for_status()
+    except Http404:
+        raise
+    except requests.RequestException:
+        return HttpResponse("Media proxy failed", status=502)
+
+    def stream():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    content_type = upstream.headers.get("Content-Type") or "application/octet-stream"
+    response = StreamingHttpResponse(stream(), content_type=content_type)
+    if upstream.headers.get("Content-Length"):
+        response["Content-Length"] = upstream.headers["Content-Length"]
+    response["Content-Disposition"] = upstream.headers.get(
+        "Content-Disposition",
+        f'attachment; filename="{filename}"',
+    )
+    return response

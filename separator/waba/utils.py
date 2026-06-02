@@ -404,7 +404,12 @@ def delete_template_remote(template):
     return {"error": True, "message": str(last_error) if last_error else "delete failed"}
 
 
-def get_file(media_url, filename, appinstance, waba):
+def get_file(media_url, filename, appinstance, waba, media_id=None, phone=None):
+    if phone and phone.file_proxy and media_id:
+        proxy_url = bitrix_utils.build_waba_media_proxy_url(appinstance, phone, media_id, filename)
+        if proxy_url:
+            return proxy_url
+
     try:
         download_file = call_api(file_url=media_url, waba=waba)
     except Exception:
@@ -1516,7 +1521,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 except Exception:
                     pass
 
-                file_url = get_file(media_url, filename, appinstance, phone.waba)
+                file_url = get_file(media_url, filename, appinstance, phone.waba, media_id=media_id, phone=phone)
 
             elif message_type == "location":
                 location = message.get("location", {})
@@ -1680,6 +1685,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                 phone.line.line_id,
                                 media_url,
                                 filename,
+                                media_id=media_id,
                                 message_id=message_id,
                                 push_name=user_name,
                             )
@@ -1874,7 +1880,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 text = text.strip() if text else None
 
                 try:
-                    file_url = get_file(media_url, filename, appinstance, phone.waba)
+                    file_url = get_file(media_url, filename, appinstance, phone.waba, media_id=media_id, phone=phone)
                 except requests.RequestException:
                     raise
                 except Exception as e:

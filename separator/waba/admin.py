@@ -171,9 +171,9 @@ class InteractiveAdmin(admin.ModelAdmin):
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', 'waba', 'line', 'sip_extensions']
-    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type")
+    list_display = ("phone_id", "phone", "web_link", "owner", "waba_link", "date_end", "type", "file_proxy")
     search_fields = ("phone", "phone_id", "owner__email")
-    list_filter = ("calling", "type")
+    list_filter = ("calling", "type", "file_proxy")
     fieldsets = (
         (None, {
             "fields": (
@@ -191,6 +191,7 @@ class PhoneAdmin(admin.ModelAdmin):
                 "line",
                 "sms_service",
                 "ChatFromSms",
+                "file_proxy",
                 "tokens",
                 "transcribe_model",
                 "availableInB24",

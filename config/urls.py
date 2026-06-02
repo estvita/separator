@@ -11,7 +11,7 @@ from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 
-from separator.bitrix.views import log_and_serve_temp_file
+from separator.bitrix.views import log_and_serve_temp_file, proxy_waba_media_file
 from separator.bitrix.api.views import SmsViewSet, BizprocViewSet
 from separator.olx.api.views import OlxAuthorizationAPIView
 from separator.waba.api.views import partner_graph_proxy
@@ -24,6 +24,7 @@ urlpatterns = [
     # ...
     # Logging temp file access
     path("media/temp/", log_and_serve_temp_file),
+    path("media/waba/", proxy_waba_media_file),
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]

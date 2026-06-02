@@ -33,7 +33,20 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
     try:
         resp = utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/phone_numbers")
         phone_numbers = resp.get('data', {})
-    except Exception:
+    except Exception as e:
+        try:
+            bitrix_tasks.send_messages.delay(
+                app_instance_id,
+                user_phone,
+                f"[color=#ff0000]Transcription error: {e}[/color]",
+                connector_code,
+                line_id,
+                pushName=push_name,
+                message_id=f"{message_id}:transcription:error" if message_id else None,
+                manager_id=0,
+            )
+        except Exception:
+            pass
         raise
 
     target_phone_number = _normalize_phone_number(target_phone_number) if target_phone_number else None
@@ -132,6 +145,7 @@ def transcribe_voice_message(
     filename,
     message_id=None,
     push_name=None,
+    media_id=None,
 ):
     phone = None
     input_path = None
@@ -143,6 +157,10 @@ def transcribe_voice_message(
             return None
         if phone.tokens <= 0:
             return None
+
+        if media_id:
+            media_info = utils.call_api(waba=phone.waba, endpoint=media_id)
+            media_url = media_info.get("url") if isinstance(media_info, dict) else media_url
 
         media_response = utils.call_api(file_url=media_url, waba=phone.waba)
         media_response.raise_for_status()

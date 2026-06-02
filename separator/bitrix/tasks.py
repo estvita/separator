@@ -2,6 +2,7 @@ import re
 import os
 import redis
 import logging
+import requests
 from copy import deepcopy
 from urllib.parse import urljoin
 from celery import shared_task
@@ -23,6 +24,10 @@ from separator.asterx.models import Server as AsterxServer
 logger = logging.getLogger("django")
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+
+
+class BitrixSendMessagesReadTimeout(Exception):
+    pass
 
 
 def _feature_owner(app_instance):
@@ -392,13 +397,14 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 }
             ],
         }
-        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=30)
+        request_timeout = 300 if attachments else 30
+        resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=request_timeout)
 
         result = resp.get("result", {})
         results = result.get("DATA", {}).get("RESULT", [])
         needs_ctwa_session = ctwa_id or source_id is not None
         if needs_ctwa_session and results and not any(result_item.get("session", {}) for result_item in results):
-            resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=30)
+            resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=request_timeout)
             result = resp.get("result", {})
             results = result.get("DATA", {}).get("RESULT", [])
         for result_item in results:
@@ -410,6 +416,12 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
         return results
 
+    except requests.exceptions.ReadTimeout as e:
+        if attachments:
+            raise BitrixSendMessagesReadTimeout(
+                "Bitrix send_messages timed out with attachments; retry skipped to avoid duplicates"
+            ) from e
+        raise self.retry(exc=e)
     except Exception as e:
         raise self.retry(exc=e)
 

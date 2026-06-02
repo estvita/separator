@@ -105,6 +105,7 @@ class Phone(models.Model):
     phone_id = models.CharField(max_length=50, unique=True)
     sms_service = models.BooleanField(default=True)
     ChatFromSms = models.BooleanField(default=False)
+    file_proxy = models.BooleanField(default=True, help_text="Proxy inbound files to Bitrix instead of saving temp files")
     tokens = models.PositiveIntegerField(default=0)
     transcribe_model = models.CharField(
         max_length=50,
