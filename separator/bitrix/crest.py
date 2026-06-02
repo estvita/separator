@@ -175,7 +175,7 @@ def call_method(appinstance: AppInstance,
     raise Exception("No active users for portal")
 
 
-def refresh_token(credential: Credential):
+def refresh_token(credential: Credential, raise_request_exception=False):
     payload = {
         "grant_type": "refresh_token",
         "client_id": credential.app_instance.app.client_id,
@@ -185,6 +185,8 @@ def refresh_token(credential: Credential):
     try:
         response = requests.post(f"{settings.BITRIX_OAUTH_URL}/oauth/token/", data=payload, timeout=10)
     except requests.exceptions.RequestException:
+        if raise_request_exception:
+            raise
         return False
         
     try:

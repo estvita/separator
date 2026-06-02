@@ -8,6 +8,7 @@ import requests
 from celery import shared_task
 
 from .models import App, PartnerApp, Waba, Phone, Template, Error, Ctwa, CtwaEvents
+from .retry import RETRY_KWARGS, TRANSIENT_ERRORS
 import separator.waba.utils as utils
 
 from separator.users.models import User
@@ -33,6 +34,8 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
     try:
         resp = utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/phone_numbers")
         phone_numbers = resp.get('data', {})
+    except TRANSIENT_ERRORS:
+        raise
     except Exception as e:
         try:
             bitrix_tasks.send_messages.delay(
@@ -65,6 +68,8 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
         try:
             biz_data = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
             is_on_biz_app = biz_data.get("is_on_biz_app")
+        except TRANSIENT_ERRORS:
+            raise
         except Exception:
             raise
 
@@ -77,6 +82,8 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
             }
             try:
                 utils.call_api(waba=waba, endpoint=f"{phone_id}/register", method="post", payload=payload)
+            except TRANSIENT_ERRORS:
+                raise
             except Exception:
                 raise
 
@@ -122,7 +129,7 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
         raise Exception(f"Phone number {target_phone_number} not found in WABA {waba.waba_id}")
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def force_sync_waba_phones(waba_id):
     waba = Waba.objects.select_related("app", "owner").get(id=waba_id)
     _onboard_waba_assets(
@@ -134,7 +141,7 @@ def force_sync_waba_phones(waba_id):
     )
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def transcribe_voice_message(
     phone_id,
     app_instance_id,
@@ -260,7 +267,7 @@ def exchange_embedded_signup_code(request_id, app_id):
     return current_data, app, access_token, wabas
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def add_waba_phone(request_id, app_id):
     current_data, app, access_token, wabas = exchange_embedded_signup_code(request_id, app_id)
     
@@ -295,7 +302,7 @@ def add_waba_phone(request_id, app_id):
             _onboard_waba_assets(waba, user=user, register=app.register)
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def add_partner_waba_phone(request_id, app_id):
     current_data = redis_client.json().get(request_id, "$")
     current_data = current_data[0]
@@ -351,7 +358,7 @@ def add_partner_waba_phone(request_id, app_id):
         waba_subscription.delay(waba.id)
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def hosted_partner_added(app_id, waba_id, owner_business_id):
     app = App.objects.filter(id=app_id, hosted=True).first()
     if not app:
@@ -387,7 +394,7 @@ def hosted_partner_added(app_id, waba_id, owner_business_id):
     _onboard_waba_assets(waba, user=None, register=app.register)
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def add_phone_number_to_waba(waba_id, phone_number):
     waba = Waba.objects.select_related("app", "owner").filter(waba_id=waba_id).first()
     if not waba:
@@ -405,7 +412,7 @@ def add_phone_number_to_waba(waba_id, phone_number):
     )
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def register_phone(phone_id):
     phone = Phone.objects.select_related("waba").filter(id=phone_id).first()
     if not phone or not phone.waba:
@@ -418,7 +425,7 @@ def register_phone(phone_id):
     return utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/register", method="post", payload=payload)
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def send_single_message(template, recipient, id, components=None, broadcast_id=None):
     try:
         phone = Phone.objects.get(id=id)
@@ -459,6 +466,8 @@ def send_single_message(template, recipient, id, components=None, broadcast_id=N
                 )
                 TemplateBroadcast.objects.filter(id=broadcast_id).update(status="sent")
             return resp
+        except TRANSIENT_ERRORS:
+            raise
         except Exception as e:
             err = None
             if e.args and isinstance(e.args[0], dict):
@@ -476,7 +485,7 @@ def send_single_message(template, recipient, id, components=None, broadcast_id=N
         raise
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def send_message(template, recipients, id, components=None, broadcast_id=None):
     task_ids = []
     for recipient in recipients:
@@ -496,7 +505,7 @@ def send_message(template, recipients, id, components=None, broadcast_id=None):
         "tasks": task_ids,
     }
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def call_management(id):
     phone = Phone.objects.filter(id=id).first()
     payload = {
@@ -547,12 +556,14 @@ def call_management(id):
         except ValueError:
             raise
 
+    except TRANSIENT_ERRORS:
+        raise
     except Exception as e:
         raw_error = e.args[0] if e.args else None
         raise Exception(raw_error or str(e)) from e
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def waba_subscription(waba_id):
     waba = Waba.objects.select_related("app", "partner_app").filter(id=waba_id).first()
     if not waba or not waba.app:
@@ -570,7 +581,7 @@ def waba_subscription(waba_id):
     return utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/subscribed_apps", method=method, payload=payload)
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def delete_template(template_id, owner_id=None):
     template = Template.objects.filter(id=template_id).first()
     if not template:
@@ -590,7 +601,7 @@ def delete_template(template_id, owner_id=None):
     return remote_result
 
 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def send_ctwa_conversion(ctwa_id, event="Purchase", custom_data=None):
     try:
         ctwa = Ctwa.objects.select_related('waba').get(id=ctwa_id)
@@ -614,6 +625,8 @@ def send_ctwa_conversion(ctwa_id, event="Purchase", custom_data=None):
                 waba.save(update_fields=['dataset'])
             else:
                 raise Exception(f"Dataset for WABA {waba.waba_id} was not returned by Facebook")
+        except TRANSIENT_ERRORS:
+            raise
         except Exception:
             raise
 
@@ -649,5 +662,7 @@ def send_ctwa_conversion(ctwa_id, event="Purchase", custom_data=None):
         )
         # ctwa.delete()
         return resp
+    except TRANSIENT_ERRORS:
+        raise
     except Exception:
         raise

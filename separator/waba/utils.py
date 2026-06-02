@@ -11,7 +11,7 @@ import mimetypes
 from urllib.parse import urlparse, urlencode
 from datetime import datetime
 
-from django.db import OperationalError, models
+from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.conf import settings
@@ -23,6 +23,7 @@ import separator.bitrix.tasks as bitrix_tasks
 import separator.bitrix.utils as bitrix_utils
 
 from separator.waba.bot import bot_processor
+from separator.waba.retry import RETRY_KWARGS, TRANSIENT_ERRORS
 
 from .models import (
     App,
@@ -224,6 +225,87 @@ def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", p
         return resp.json() if resp.content else {}
     except Exception:
         raise
+
+
+def _multipart_stream(boundary, fields, file_name, filename, mime_type, chunks):
+    boundary_bytes = boundary.encode("utf-8")
+    for name, value in fields.items():
+        yield b"--" + boundary_bytes + b"\r\n"
+        yield f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode("utf-8")
+        yield str(value).encode("utf-8")
+        yield b"\r\n"
+
+    safe_filename = str(filename or "file").replace('"', "")
+    yield b"--" + boundary_bytes + b"\r\n"
+    yield (
+        f'Content-Disposition: form-data; name="{file_name}"; filename="{safe_filename}"\r\n'
+        f"Content-Type: {mime_type or 'application/octet-stream'}\r\n\r\n"
+    ).encode("utf-8")
+    for chunk in chunks:
+        if chunk:
+            yield chunk
+    yield b"\r\n--" + boundary_bytes + b"--\r\n"
+
+
+def upload_media_url_for_phone(phone, file_url, filename, source_url=None, mime_type=None):
+    waba = phone.waba if phone else None
+    if not phone or not waba:
+        return {"error": True, "message": "not phone or not waba"}
+
+    if phone.date_end and timezone.now() > phone.date_end:
+        return {"error": True, "message": "phone tariff expired"}
+
+    if not phone.phone_id:
+        return {"error": True, "message": "not phone phone_id"}
+
+    source_url = source_url or file_url
+    try:
+        cached_id = get_cached_media_id_for_phone(phone, source_url)
+        if cached_id:
+            return {"id": cached_id}
+
+        app = waba.app
+        headers = {"Authorization": f"Bearer {waba.access_token}"}
+        base_url = f"{API_URL}/v{app.api_version}.0"
+        endpoint = f"{base_url}/{phone.phone_id}/media"
+        boundary = f"----separator-{uuid.uuid4().hex}"
+
+        with requests.get(file_url, stream=True, timeout=(10, 60)) as upstream:
+            upstream.raise_for_status()
+            upload_mime_type = mime_type or upstream.headers.get("Content-Type") or "application/octet-stream"
+            body = _multipart_stream(
+                boundary,
+                {"messaging_product": "whatsapp"},
+                "file",
+                filename,
+                upload_mime_type,
+                upstream.iter_content(chunk_size=64 * 1024),
+            )
+            response = requests.post(
+                endpoint,
+                data=body,
+                headers={
+                    **headers,
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                },
+                timeout=(10, 300),
+            )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            try:
+                error_details = response.json()
+            except Exception:
+                error_details = {"error": response.text}
+            raise Exception(error_details) from e
+
+        result = response.json() if response.content else {}
+        if isinstance(result, dict) and result.get("id"):
+            cache_media_id_for_phone(phone, result["id"], source_url=source_url)
+        return result
+    except Exception as e:
+        return {"error": True, "message": str(e)}
 
 
 def get_hosted_business_token(app: App, owner_business_id: str):
@@ -1174,9 +1256,7 @@ def _build_fallback_body_parameters(template, text):
 
 @shared_task(
     queue='waba_messages',
-    autoretry_for=(OperationalError, requests.RequestException),
-    default_retry_delay=5,
-    max_retries=5
+    **RETRY_KWARGS,
 )
 def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
     return event_processing(raw_body, signature, app_id, host)
@@ -1184,9 +1264,7 @@ def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
 
 @shared_task(
     queue='waba',
-    autoretry_for=(OperationalError, requests.RequestException),
-    default_retry_delay=5,
-    max_retries=5,
+    **RETRY_KWARGS,
 )
 def read_status(waba_id=None, phone_id=None, message_id=None):
     if not waba_id or not phone_id or not message_id:
@@ -1222,9 +1300,7 @@ def _queue_waba_read_status(waba, phone, message_id):
 
 @shared_task(
     queue='waba',
-    autoretry_for=(OperationalError, requests.RequestException),
-    default_retry_delay=5,
-    max_retries=5
+    **RETRY_KWARGS,
 )
 def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     if not raw_body:
@@ -1883,7 +1959,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
                 try:
                     file_url = get_file(media_url, filename, appinstance, phone.waba, media_id=media_id, phone=phone)
-                except requests.RequestException:
+                except TRANSIENT_ERRORS:
                     raise
                 except Exception as e:
                     file_url = None
@@ -1937,7 +2013,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     return send_result
 
 
-@shared_task(queue='waba')
+@shared_task(queue='waba', **RETRY_KWARGS)
 def save_approved_templates(id):
     try:
         waba = Waba.objects.get(id=id)

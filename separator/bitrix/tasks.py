@@ -6,13 +6,14 @@ import requests
 from copy import deepcopy
 from urllib.parse import urljoin
 from celery import shared_task
-from django.core.exceptions import ObjectDoesNotExist
+from celery.exceptions import Retry
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 
 from .crest import BitrixAccessDeniedError, call_method, refresh_token
 from .models import ApiCall, AppInstance, Credential, Feature, FeatureGrant
+from .retry import RETRY_KWARGS, TRANSIENT_ERRORS
 
 from separator.waba.models import Phone
 from separator.waweb.models import Session
@@ -121,22 +122,16 @@ def build_lead_title(site, code, fallback, **context):
         return fallback.format(**context)
 
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
-def call_api(self, id, method, payload, b24_user=None):
+@shared_task(queue='bitrix', **RETRY_KWARGS)
+def call_api(id, method, payload, b24_user=None):
     # Keep this wrapper aligned with the historical default behavior of call_method().
     # Changing its implicit admin-mode semantics breaks existing install/runtime flows
     # that call bitrix_tasks.call_api(...) without extra flags.
-    try:
-        app_instance = AppInstance.objects.get(id=id)
-        resp = call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
-        return resp
-    except BitrixAccessDeniedError:
-        raise
-    except (ObjectDoesNotExist, Exception) as exc:
-        raise self.retry(exc=exc)
+    app_instance = AppInstance.objects.get(id=id)
+    return call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
 
 
-@shared_task(queue="bitrix")
+@shared_task(queue="bitrix", **RETRY_KWARGS)
 def dispatch_api_call(api_call_id):
     api_call = ApiCall.objects.select_related("app").get(id=api_call_id)
     payload = api_call.payload or {}
@@ -165,7 +160,7 @@ def dispatch_api_call(api_call_id):
     }
 
 
-@shared_task(queue="bitrix")
+@shared_task(queue="bitrix", **RETRY_KWARGS)
 def register_feature(app_instance_id, feature_id, placement_code=None, force=False):
     app_instance = AppInstance.objects.select_related("app", "portal", "owner").get(id=app_instance_id)
     feature = Feature.objects.prefetch_related("apps").get(id=feature_id)
@@ -198,7 +193,7 @@ def register_feature(app_instance_id, feature_id, placement_code=None, force=Fal
     return responses[0] if len(responses) == 1 else responses
 
 
-@shared_task(queue="bitrix")
+@shared_task(queue="bitrix", **RETRY_KWARGS)
 def apply_feature_now(feature_id):
     feature = Feature.objects.prefetch_related("apps").get(id=feature_id)
 
@@ -225,7 +220,7 @@ def apply_feature_now(feature_id):
         "queued": queued,
     }
 
-@shared_task(queue='bitrix')
+@shared_task(queue='bitrix', **RETRY_KWARGS)
 def upd_refresh_token(period):
     now = timezone.now()
     credentials = Credential.objects.all()
@@ -235,10 +230,10 @@ def upd_refresh_token(period):
             credential.refresh_date < now - timedelta(days=period)
         )
         if need_refresh:
-            refresh_token(credential)
+            refresh_token(credential, raise_request_exception=True)
 
 
-@shared_task(queue='bitrix')
+@shared_task(queue='bitrix', **RETRY_KWARGS)
 def get_app_info(instance_id=None):
     if instance_id is None:
         app_instance_ids = AppInstance.objects.filter(
@@ -280,7 +275,7 @@ def get_app_info(instance_id=None):
 
 
 # Регистрация SMS-провайдера
-@shared_task(queue='bitrix')
+@shared_task(queue='bitrix', **RETRY_KWARGS)
 def messageservice_add(app_instance_id, entity_id, service):
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
@@ -296,6 +291,8 @@ def messageservice_add(app_instance_id, entity_id, service):
             if entity.sms_service:
                 try:
                     providers = call_method(app_instance, "messageservice.sender.list", admin=True)
+                except TRANSIENT_ERRORS:
+                    raise
                 except Exception as e:
                     raise Exception(f"list providers fail: {e}")
                 
@@ -318,8 +315,8 @@ def messageservice_add(app_instance_id, entity_id, service):
         raise
 
 
-@shared_task(queue='bitrix', bind=True)
-def save_ctwa(self, instace_id, ctwa_id, chat_id, source_id=None):
+@shared_task(queue='bitrix', **RETRY_KWARGS)
+def save_ctwa(instace_id, ctwa_id, chat_id, source_id=None):
     try:
         app_instance = AppInstance.objects.get(id=instace_id)
         dialog_data = call_method(app_instance, "imopenlines.dialog.get", {"CHAT_ID": chat_id})
@@ -355,6 +352,8 @@ def save_ctwa(self, instace_id, ctwa_id, chat_id, source_id=None):
                 "fields": fields
             })
         
+    except TRANSIENT_ERRORS:
+        raise
     except Exception as e:
         logger.error(f"Error in save_ctwa: {e}")
         pass
@@ -416,8 +415,12 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
         return results
 
+    except BitrixAccessDeniedError:
+        raise
     except requests.exceptions.ReadTimeout as e:
         if attachments:
+            # Future improvement: add Redis idempotency by message_id and mark this state as "unknown".
+            # Then retries for attachments can be enabled without risking duplicate Bitrix messages.
             raise BitrixSendMessagesReadTimeout(
                 "Bitrix send_messages timed out with attachments; retry skipped to avoid duplicates"
             ) from e
@@ -426,7 +429,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
         raise self.retry(exc=e)
 
 
-@shared_task(queue='bitrix')
+@shared_task(queue='bitrix', **RETRY_KWARGS)
 def prepare_lead(user_id, lead_title):
     user = User.objects.filter(id=user_id).first()
     if not user:
@@ -516,7 +519,7 @@ def delete_temp_file(file_path):
             raise Exception(f"Error deleting temp file {file_path}: {e}")
 
 
-@shared_task(queue='bitrix')
+@shared_task(queue='bitrix', **RETRY_KWARGS)
 def check_tariffs(*days):
     """
     Check expiration for service subscriptions and feature grants.
@@ -573,6 +576,8 @@ def check_tariffs(*days):
                     resp = prepare_lead(record.owner.id, title)
                     if resp and isinstance(resp, dict) and 'result' in resp:
                         redis_client.setex(redis_key, ttl, resp['result'])
+                except Retry:
+                    raise
                 except Exception as e:
                     print(e)
 
@@ -603,5 +608,7 @@ def check_tariffs(*days):
                 resp = prepare_lead(owner.id, title)
                 if resp and isinstance(resp, dict) and 'result' in resp:
                     redis_client.setex(redis_key, ttl, resp['result'])
+            except Retry:
+                raise
             except Exception as e:
                 print(e)

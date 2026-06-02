@@ -5,6 +5,7 @@ from django.utils import timezone
 from separator.users.models import Message
 
 from separator.waba.models import Phone, Bot, Ctwa
+from separator.waba.retry import RETRY_KWARGS, TRANSIENT_ERRORS
 from separator.waba.tasks import send_ctwa_conversion
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
@@ -35,7 +36,7 @@ def _send_template_text(waba_bot, user_phone, code, default=""):
     return _send_bot_text(waba_bot, user_phone, _message_text(code, default))
 
 
-@shared_task(queue='default')
+@shared_task(queue='default', **RETRY_KWARGS)
 def bot_processor(data, bot_id):
     waba_bot = Bot.objects.filter(id=bot_id).first()
     if not waba_bot:
@@ -192,6 +193,8 @@ def bot_processor(data, bot_id):
                     conversion_result = send_ctwa_conversion.run(str(ctwa.id))
                     if not conversion_result:
                         raise Exception("Facebook did not return a conversion response")
+                except TRANSIENT_ERRORS:
+                    raise
                 except Exception:
                     responses.append(_send_template_text(
                         waba_bot,
@@ -212,6 +215,8 @@ def bot_processor(data, bot_id):
                     conversion_result = send_ctwa_conversion.run(str(ctwa.id), event="OrderCanceled")
                     if not conversion_result:
                         raise Exception("Facebook did not return a conversion response")
+                except TRANSIENT_ERRORS:
+                    raise
                 except Exception:
                     responses.append(_send_template_text(
                         waba_bot,

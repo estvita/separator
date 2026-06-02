@@ -1,7 +1,6 @@
 import base64
 import ast
 import json
-import time
 import logging
 import re
 import uuid
@@ -12,7 +11,7 @@ from django.core import signing
 from django.core.signing import TimestampSigner
 from urllib.parse import unquote
 from datetime import timedelta
-from django.db import transaction, OperationalError
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib import messages
@@ -31,6 +30,7 @@ import separator.waweb.tasks as waweb_tasks
 
 from .models import App, AppInstance, Bitrix, Line, VerificationCode, Connector, Credential, Events
 from .models import User as B24_user
+from .retry import RETRY_KWARGS, TRANSIENT_ERRORS
 
 import separator.bitrix.tasks as bitrix_tasks
 import separator.bitbot.router as bitbot_router
@@ -41,12 +41,69 @@ if settings.ASTERX_SERVER:
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
+WABA_IMAGE_MAX_SIZE = 5 * 1024 * 1024
+WABA_MEDIA_MAX_SIZE = 16 * 1024 * 1024
+WABA_DOCUMENT_MAX_SIZE = 100 * 1024 * 1024
+
+WABA_IMAGE_MIME_TYPES = {"image/jpeg", "image/png"}
+WABA_AUDIO_MIME_TYPES = {"audio/aac", "audio/amr", "audio/mpeg", "audio/mp4"}
+WABA_VIDEO_MIME_TYPES = {"video/3gpp", "video/mp4"}
+WABA_STREAM_UPLOAD_ATTEMPTS = 3
+
 
 def _normalize_phone_value(value):
     if not value:
         return []
     digits = re.sub(r"\D", "", str(value))
     return [f"+{digits}", digits] if digits else []
+
+
+def _parse_file_size(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _get_waba_file_type(file):
+    mime_type = (file.get("mime") or "").split(";", 1)[0].strip().lower()
+    file_size = _parse_file_size(file.get("size"))
+
+    if file_size is not None and file_size > WABA_DOCUMENT_MAX_SIZE:
+        return "link"
+
+    if mime_type in WABA_IMAGE_MIME_TYPES and (file_size is None or file_size <= WABA_IMAGE_MAX_SIZE):
+        return "image"
+
+    if mime_type in WABA_AUDIO_MIME_TYPES and (file_size is None or file_size <= WABA_MEDIA_MAX_SIZE):
+        return "audio"
+
+    if mime_type in WABA_VIDEO_MIME_TYPES and (file_size is None or file_size <= WABA_MEDIA_MAX_SIZE):
+        return "video"
+
+    return "document"
+
+
+def _upload_waba_file_with_retries(phone, file):
+    last_result = None
+    for attempt in range(1, WABA_STREAM_UPLOAD_ATTEMPTS + 1):
+        logger.info(
+            "B24->WABA file streaming upload attempt %s/%s: %s %s",
+            attempt,
+            WABA_STREAM_UPLOAD_ATTEMPTS,
+            file.get("name"),
+            file.get("link"),
+        )
+        last_result = waba.upload_media_url_for_phone(
+            phone,
+            file["link"],
+            file["name"],
+            source_url=file["link"],
+            mime_type=file.get("mime"),
+        )
+        if last_result and "id" in last_result:
+            return last_result
+    return last_result
 
 
 def _find_ctwa_for_bizproc(appinstance, ctwa_id=None, client_phone=None):
@@ -476,6 +533,9 @@ def extract_files(data):
         link_key = f"data[MESSAGES][0][message][files][{i}][link]"
         download_link_key = f"data[MESSAGES][0][message][files][{i}][downloadLink]"
         type_key = f"data[MESSAGES][0][message][files][{i}][type]"
+        mime_key = f"data[MESSAGES][0][message][files][{i}][mime]"
+        size_key = f"data[MESSAGES][0][message][files][{i}][size]"
+        sizef_key = f"data[MESSAGES][0][message][files][{i}][sizef]"
 
         # Проверяем, существуют ли такие ключи в словаре
         if name_key in data and (download_link_key in data or link_key in data):
@@ -487,6 +547,9 @@ def extract_files(data):
                     "download_link": data.get(download_link_key),
                     "source_link": data.get(link_key),
                     "type": data.get(type_key),
+                    "mime": data.get(mime_key),
+                    "size": data.get(size_key),
+                    "sizef": data.get(sizef_key),
                 },
             )
             i += 1
@@ -1104,89 +1167,88 @@ def send_delivery_status(appinstance_id, connector_code, line_id, chat_id, messa
     bitrix_tasks.call_api.delay(appinstance_id, "imconnector.send.status.delivery", status_data)
 
 
-@shared_task(queue='bitrix')
+@shared_task(queue='bitrix', **RETRY_KWARGS)
 def bizproc_processor(data):
-    access_token = data.get("auth[access_token]")
-    application_token = data.get("auth[application_token]")
     try:
-        app = get_app(access_token)
-    except Exception as e:
-        raise Exception(f"App not found: {e}")
-    try:
-        appinstance = AppInstance.objects.filter(application_token=application_token).first()
-    except Exception as e:        
-        raise Exception(f"AppInstance not found for token {application_token}: {e}")
+        access_token = data.get("auth[access_token]")
+        application_token = data.get("auth[application_token]")
+        try:
+            app = get_app(access_token)
+        except requests.RequestException:
+            raise
+        except Exception as e:
+            raise Exception(f"App not found: {e}")
+        try:
+            appinstance = AppInstance.objects.filter(application_token=application_token).first()
+        except TRANSIENT_ERRORS:
+            raise
+        except Exception as e:
+            raise Exception(f"AppInstance not found for token {application_token}: {e}")
 
-    if not appinstance:
-        raise Exception(f"AppInstance not found for token {application_token}")
-    
-    if appinstance and appinstance.app and appinstance.app.save_events:
-        Events.objects.create(
-            app=appinstance.app,
-            portal=appinstance.portal,
-            content=json.dumps(data, ensure_ascii=False, default=str),
-        )
-    
-    code = str(data.get("code") or "").strip()
-    if not code:
-        raise Exception("Missing bizproc code")
-
-    grant = appinstance.get_feature_grant(code)
-    if grant:
-        if grant.feature and not grant.feature.active:
-            raise Exception(f"Feature {code} is inactive")
-        if grant.date_end and grant.date_end <= timezone.now():
-            raise Exception(f"Feature {code} subscription expired")
-
-    if code == "separator_auto_finish_chat":
-        return bitrix_tasks.auto_finish_chat(appinstance.id, data)
-
-    if code == "separator_ctwa_tracker":
-        ctwa_id = data.get("properties[ctwa_id]")
-        client_phone = data.get("properties[client_phone]")
-        ctwa = _find_ctwa_for_bizproc(appinstance, ctwa_id=ctwa_id, client_phone=client_phone)
-        if not ctwa:
-            raise Exception("ctwa not found")
-
-        custom_data = {}
-
-        amount_raw = data.get("properties[amount]")
-        if amount_raw:
-            try:
-                custom_data["value"] = float(amount_raw)
-            except ValueError:
-                pass
-
-        currency_raw = data.get("properties[currency]")
-        if currency_raw:
-            custom_data["currency"] = str(currency_raw).strip()
-
-        event_name_raw = data.get("properties[event_name]")
-        event_name = str(event_name_raw).strip() if event_name_raw else ""
-        if event_name:
-            waba_tasks.send_ctwa_conversion.delay(
-                str(ctwa.id),
-                event=event_name,
-                custom_data=custom_data,
+        if not appinstance:
+            raise Exception(f"AppInstance not found for token {application_token}")
+        
+        if appinstance and appinstance.app and appinstance.app.save_events:
+            Events.objects.create(
+                app=appinstance.app,
+                portal=appinstance.portal,
+                content=json.dumps(data, ensure_ascii=False, default=str),
             )
-        return
+        
+        code = str(data.get("code") or "").strip()
+        if not code:
+            raise Exception("Missing bizproc code")
 
-    raise Exception(f"Unhandled bizproc code {code}")
+        grant = appinstance.get_feature_grant(code)
+        if grant:
+            if grant.feature and not grant.feature.active:
+                raise Exception(f"Feature {code} is inactive")
+            if grant.date_end and grant.date_end <= timezone.now():
+                raise Exception(f"Feature {code} subscription expired")
+
+        if code == "separator_auto_finish_chat":
+            return bitrix_tasks.auto_finish_chat(appinstance.id, data)
+
+        if code == "separator_ctwa_tracker":
+            ctwa_id = data.get("properties[ctwa_id]")
+            client_phone = data.get("properties[client_phone]")
+            ctwa = _find_ctwa_for_bizproc(appinstance, ctwa_id=ctwa_id, client_phone=client_phone)
+            if not ctwa:
+                raise Exception("ctwa not found")
+
+            custom_data = {}
+
+            amount_raw = data.get("properties[amount]")
+            if amount_raw:
+                try:
+                    custom_data["value"] = float(amount_raw)
+                except ValueError:
+                    pass
+
+            currency_raw = data.get("properties[currency]")
+            if currency_raw:
+                custom_data["currency"] = str(currency_raw).strip()
+
+            event_name_raw = data.get("properties[event_name]")
+            event_name = str(event_name_raw).strip() if event_name_raw else ""
+            if event_name:
+                waba_tasks.send_ctwa_conversion.delay(
+                    str(ctwa.id),
+                    event=event_name,
+                    custom_data=custom_data,
+                )
+            return
+
+        raise Exception(f"Unhandled bizproc code {code}")
+    except TRANSIENT_ERRORS:
+        raise
 
 
-@shared_task(queue='bitrix', bind=True, max_retries=5)
-def sms_processor(self, data, service):
+@shared_task(queue='bitrix', **RETRY_KWARGS)
+def sms_processor(data, service):
     application_token = data.get("auth[application_token]")
     manager_id = data.get("auth[user_id]")
     message_id = data.get("message_id")
-    app_instance = AppInstance.objects.filter(application_token=application_token).first()
-
-    if app_instance and app_instance.app and app_instance.app.save_events:
-        Events.objects.create(
-            app=app_instance.app,
-            portal=app_instance.portal,
-            content=json.dumps(data, ensure_ascii=False, default=str),
-        )
 
     def _build_waba_message(target, body, line_id=None, phone_num=None):
         message = {
@@ -1230,6 +1292,15 @@ def sms_processor(self, data, service):
         )
 
     try:
+        app_instance = AppInstance.objects.filter(application_token=application_token).first()
+
+        if app_instance and app_instance.app and app_instance.app.save_events:
+            Events.objects.create(
+                app=app_instance.app,
+                portal=app_instance.portal,
+                content=json.dumps(data, ensure_ascii=False, default=str),
+            )
+
         if not app_instance:
             raise Exception("app not found")
 
@@ -1290,18 +1361,14 @@ def sms_processor(self, data, service):
             _send_waba_error_to_openline(send_result)
             raise ValueError(send_result)
         return send_result
-    except requests.RequestException as e:
-        countdown = min(60 * (2 ** self.request.retries), 600)
-        raise self.retry(exc=e, countdown=countdown)
-    except OperationalError as e:
-        countdown = min(5 * (2 ** self.request.retries), 60)
-        raise self.retry(exc=e, countdown=countdown)
+    except TRANSIENT_ERRORS:
+        raise
     except Exception:
         raise
 
 
-@shared_task(queue='bitrix', bind=True, max_retries=5)
-def event_processor(self, data):
+@shared_task(queue='bitrix', **RETRY_KWARGS)
+def event_processor(data):
     try:
         event = data.get("event").upper()
         domain = data.get("auth[domain]")
@@ -1522,57 +1589,78 @@ def event_processor(self, data):
                     media_caption = text.strip() if text else ""
                     for file in files:
                         uploaded_id = None
+                        waba_file_type = _get_waba_file_type(file)
                         try:
-                            if not appinstance.fileAsUrl:
+                            if waba_file_type == "link":
+                                logger.info("B24->WABA file as link: %s %s", file.get("name"), file.get("link"))
+                            elif appinstance.fileAsUrl:
+                                logger.info("B24->WABA file as URL: %s %s", file.get("name"), file.get("link"))
+                            else:
                                 # Reuse media uploaded from the same file URL before downloading it.
                                 uploaded_id = waba.get_cached_media_id_for_phone(phone, file["link"])
-                            f_content = None
-                            # Simple retry logic for file download
-                            if not appinstance.fileAsUrl and not uploaded_id:
-                                for attempt in range(3):
-                                    try:
-                                        f_content = requests.get(file["link"], timeout=(10, 60))
-                                        if f_content.status_code == 200:
-                                            break
-                                    except requests.RequestException:
-                                        if attempt == 2:
-                                            raise
-                                        time.sleep(1)
-
-                            if not appinstance.fileAsUrl and not uploaded_id and f_content and f_content.status_code == 200:
-                                up_res = waba.upload_media_for_phone(
-                                    phone,
-                                    f_content.content,
-                                    f_content.headers.get("Content-Type", ""),
-                                    file["name"],
-                                    source_url=file["link"],
-                                )
+                                if uploaded_id:
+                                    logger.info("B24->WABA file cached media id: %s %s", file.get("name"), uploaded_id)
+                            if waba_file_type != "link" and not appinstance.fileAsUrl and not uploaded_id:
+                                up_res = _upload_waba_file_with_retries(phone, file)
                                 if up_res and "id" in up_res:
                                     uploaded_id = up_res["id"]
+                                    logger.info("B24->WABA file streaming uploaded: %s %s", file.get("name"), uploaded_id)
+                                else:
+                                    logger.error("B24->WABA file streaming upload failed: %s %s", file.get("name"), up_res)
                         except Exception as e:
                             logger.error(f"Upload failed: {e}")
 
                         # Определяем тип файла и добавляем его к сообщению
-                        if file["type"] == "image":
+                        if waba_file_type == "link":
+                            message["type"] = "text"
+                            link = file.get("source_link") or file.get("link") or file.get("download_link") or ""
+                            body_parts = [
+                                part for part in [
+                                    file.get("name"),
+                                    file.get("sizef"),
+                                    link,
+                                ] if part
+                            ]
+                            body = "\n".join(body_parts)
+                            if media_caption:
+                                body = f"{media_caption}\n{body}" if body else media_caption
+                            message["text"] = {"body": body}
+                        elif waba_file_type == "image":
                             message["type"] = "image"
                             if uploaded_id:
                                 message["image"] = {"id": uploaded_id}
                             else:
+                                if not appinstance.fileAsUrl:
+                                    logger.info("B24->WABA file fallback as URL: %s %s", file.get("name"), file.get("link"))
                                 message["image"] = {"link": file["link"]}
                             if media_caption:
                                 message["image"]["caption"] = media_caption
-                        elif file["type"] in ["file", "video", "audio"]:
+                        elif waba_file_type == "video":
+                            message["type"] = "video"
+                            if uploaded_id:
+                                message["video"] = {"id": uploaded_id}
+                            else:
+                                if not appinstance.fileAsUrl:
+                                    logger.info("B24->WABA file fallback as URL: %s %s", file.get("name"), file.get("link"))
+                                message["video"] = {"link": file["link"]}
+                            if media_caption:
+                                message["video"]["caption"] = media_caption
+                        elif waba_file_type == "audio":
+                            message["type"] = "audio"
+                            if uploaded_id:
+                                message["audio"] = {"id": uploaded_id}
+                            else:
+                                if not appinstance.fileAsUrl:
+                                    logger.info("B24->WABA file fallback as URL: %s %s", file.get("name"), file.get("link"))
+                                message["audio"] = {"link": file["link"]}
+                        elif waba_file_type == "document":
                             message["type"] = "document"
                             if uploaded_id:
-                                message["document"] = {
-                                    "id": uploaded_id,
-                                    "filename": file["name"],
-                                }
+                                message["document"] = {"id": uploaded_id, "filename": file["name"]}
                             else:
-                                message["document"] = {
-                                    "link": file["link"],
-                                    "filename": file["name"],
-                                }
+                                if not appinstance.fileAsUrl:
+                                    logger.info("B24->WABA file fallback as URL: %s %s", file.get("name"), file.get("link"))
+                                message["document"] = {"link": file["link"], "filename": file["name"]}
                             if media_caption:
                                 message["document"]["caption"] = media_caption
 
@@ -1676,12 +1764,8 @@ def event_processor(self, data):
         elif event == "ONAPPUNINSTALL":
             appinstance.delete()
 
-    except requests.RequestException as e:
-        countdown = min(60 * (2 ** self.request.retries), 600)
-        raise self.retry(exc=e, countdown=countdown)
-    except OperationalError as e:
-        countdown = min(5 * (2 ** self.request.retries), 60)
-        raise self.retry(exc=e, countdown=countdown)
+    except TRANSIENT_ERRORS:
+        raise
     except Exception:
         raise
 
