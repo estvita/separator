@@ -9,8 +9,6 @@ from urllib.parse import urlparse
 
 from separator.bitrix.models import Bitrix
 import separator.bitrix.utils as utils
-from separator.waba.models import Ctwa
-from separator.waba.tasks import send_ctwa_conversion
 
 
 class PortalViewSet(CreateModelMixin, GenericViewSet):
@@ -67,27 +65,4 @@ class BizprocViewSet(GenericViewSet, CreateModelMixin):
         data = request.data
         utils.bizproc_processor.delay(data)
         return Response("ok")
-    
-class ConversionViewSet(GenericViewSet, CreateModelMixin):
-    renderer_classes = [JSONRenderer]
 
-    def get_queryset(self):
-        return Bitrix.objects.none()
-
-    def create(self, request, *args, **kwargs):
-        separator_id = request.query_params.get('separator-id')
-        event_name = request.query_params.get('event_name')
-        member_id = request.data.get('auth[member_id]')
-
-        if separator_id and member_id:
-            try:
-                ctwa = Ctwa.objects.select_related('waba').get(id=separator_id)
-                Bitrix.objects.get(member_id=member_id)
-
-                if ctwa.waba.owner == request.user:
-                    if event_name and str(event_name).strip():
-                        send_ctwa_conversion.delay(separator_id, event=event_name)
-            except (Ctwa.DoesNotExist, Bitrix.DoesNotExist):
-                pass
-                
-        return Response("ok")

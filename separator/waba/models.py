@@ -10,10 +10,15 @@ from separator.bitrix.models import Bitrix, Line
 from separator.freepbx.models import Server, Extension
 
 class App(models.Model):
+    class AuthFlow(models.TextChoices):
+        POPUP = "popup", "Popup"
+        MANUAL = "manual", "Manual"
+        HOSTED = "hosted", "Hosted"
+
     name = models.CharField(max_length=255, default="separator.biz")
     showObaForm = models.BooleanField(default=False, help_text="Show Official Business Account application form")
     events = models.BooleanField(default=False, help_text="Chek for save inbound events")
-    hosted = models.BooleanField(default=False, help_text="Enable Hosted Embedded Signup flow")
+    auth_flow = models.CharField(max_length=20, choices=AuthFlow.choices, default=AuthFlow.POPUP)
     business_app_onboarding = models.BooleanField(
         default=False,
         help_text="Enable WhatsApp Business App onboarding/coexistence Embedded Signup flow",

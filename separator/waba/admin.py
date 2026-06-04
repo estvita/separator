@@ -54,8 +54,7 @@ class AppAdmin(admin.ModelAdmin):
         "verify_token",
         "api_version",
         "es_version",
-        "session_info_version",
-        "business_app_onboarding",
+        "auth_flow",
     )
 
 

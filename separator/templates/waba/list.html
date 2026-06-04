@@ -99,15 +99,196 @@
     <p>{% trans "You don't have any connected sessions." %}</p>
   {% endif %}
 
-  <button type="button" class="btn btn-primary connect-btn" id="add-waba-number" data-url="{% url 'embedded_signup_link' %}">{% trans "Add number" %}</button>
-    <a href="{% url 'broadcast-page' %}" class="btn btn-secondary connect-btn me-2">{% trans "Broadcasts" %}</a>
-    <a href="{% url 'waba-interactive' %}" class="btn btn-secondary connect-btn me-2">{% trans "Interactive messages" %}</a>
+  <div class="d-flex flex-wrap gap-2">
+    <button
+      type="button"
+      class="btn btn-primary connect-btn"
+      id="add-waba-number"
+      data-url="{% url 'embedded_signup_link' %}"
+      data-popup-callback-url="{% url 'embedded_signup_popup_callback' %}"
+      data-popup-message-url="{% url 'embedded_signup_popup_message' %}"
+      data-csrf-token="{{ csrf_token }}"
+    >{% trans "Add number" %}</button>
+    <a href="{% url 'broadcast-page' %}" class="btn btn-secondary connect-btn">{% trans "Broadcasts" %}</a>
+    <a href="{% url 'waba-interactive' %}" class="btn btn-secondary connect-btn">{% trans "Interactive messages" %}</a>
     {% if request.user.integrator %}
-      <a href="{% url 'waba-partner' %}" class="btn btn-secondary connect-btn me-2">{% trans "Partner apps" %}</a>
+      <a href="{% url 'waba-partner' %}" class="btn btn-secondary connect-btn">{% trans "Partner apps" %}</a>
     {% endif %}
+  </div>
 
 </div>
+<script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
 <script>
+let wabaPopupRequestId = null;
+let wabaPopupCode = null;
+let wabaPopupSession = null;
+let wabaPopupCallbackUrl = null;
+let wabaPopupMessageUrl = null;
+let wabaPopupSubmitting = false;
+let wabaPopupMessageSubmitting = false;
+
+function waitForFacebookSdk() {
+  return new Promise(function (resolve, reject) {
+    let attempts = 0;
+    const timer = window.setInterval(function () {
+      attempts += 1;
+      if (window.FB) {
+        window.clearInterval(timer);
+        resolve();
+      }
+      if (attempts > 100) {
+        window.clearInterval(timer);
+        reject(new Error('Facebook SDK is not loaded'));
+      }
+    }, 100);
+  });
+}
+
+function submitPopupSignup() {
+  if (!wabaPopupRequestId || !wabaPopupCode || !wabaPopupSession || !wabaPopupCallbackUrl) {
+    return;
+  }
+  if (wabaPopupSubmitting) {
+    return;
+  }
+  wabaPopupSubmitting = true;
+
+  fetch(wabaPopupCallbackUrl, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.getElementById('add-waba-number').dataset.csrfToken
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      request_id: wabaPopupRequestId,
+      code: wabaPopupCode,
+      session: wabaPopupSession
+    })
+  })
+    .then(function (response) {
+      return response.json().then(function (data) {
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to complete authorization');
+        }
+        return data;
+      });
+    })
+    .then(function () {
+      window.location.reload();
+    })
+    .catch(function (error) {
+      wabaPopupSubmitting = false;
+      showPopupMessage(error.message);
+    });
+}
+
+function showPopupMessage(message) {
+  if (wabaPopupMessageSubmitting) {
+    return;
+  }
+  wabaPopupMessageSubmitting = true;
+  const button = document.getElementById('add-waba-number');
+  const url = wabaPopupMessageUrl || button.dataset.popupMessageUrl;
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-CSRFToken': button.dataset.csrfToken
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({ message: message })
+  })
+    .finally(function () {
+      window.location.reload();
+    });
+}
+
+function popupEventMessage(data) {
+  if (data.event === 'CANCEL') {
+    if (data.data && data.data.error_message) {
+      return data.data.error_message;
+    }
+    if (data.data && data.data.current_step) {
+      return 'Embedded Signup was cancelled on step: ' + data.data.current_step;
+    }
+    return 'Embedded Signup was cancelled.';
+  }
+  if (data.event === 'ERROR') {
+    if (data.data && data.data.error_message) {
+      return data.data.error_message;
+    }
+    return 'Embedded Signup failed.';
+  }
+  return null;
+}
+
+window.addEventListener('message', function (event) {
+  if (!event.origin.endsWith('facebook.com')) {
+    return;
+  }
+  try {
+    const data = JSON.parse(event.data);
+    if (data.type === 'WA_EMBEDDED_SIGNUP' && data.event === 'FINISH') {
+      wabaPopupSession = data.data;
+      submitPopupSignup();
+      return;
+    }
+    if (data.type === 'WA_EMBEDDED_SIGNUP') {
+      const message = popupEventMessage(data);
+      if (message) {
+        showPopupMessage(message);
+      }
+    }
+  } catch (error) {
+    return;
+  }
+});
+
+function startPopupSignup(data, callbackUrl, messageUrl) {
+  wabaPopupRequestId = data.request_id;
+  wabaPopupCode = null;
+  wabaPopupSession = null;
+  wabaPopupCallbackUrl = callbackUrl;
+  wabaPopupMessageUrl = messageUrl;
+  wabaPopupSubmitting = false;
+  wabaPopupMessageSubmitting = false;
+
+  waitForFacebookSdk()
+    .then(function () {
+      FB.init({
+        appId: data.app_id,
+        autoLogAppEvents: true,
+        xfbml: true,
+        version: data.api_version
+      });
+
+      const extras = data.extras || {};
+      if (!extras.setup) {
+        extras.setup = {};
+      }
+
+      FB.login(function (response) {
+        if (response.authResponse && response.authResponse.code) {
+          wabaPopupCode = response.authResponse.code;
+          submitPopupSignup();
+        } else {
+          showPopupMessage('Authorization code is missing');
+        }
+      }, {
+        config_id: data.config_id,
+        response_type: 'code',
+        override_default_response_type: true,
+        extras: extras
+      });
+    })
+    .catch(function (error) {
+      showPopupMessage(error.message);
+    });
+}
+
 document.getElementById('add-waba-number').addEventListener('click', function () {
   const button = this;
   const popup = window.open('about:blank', '_blank');
@@ -126,7 +307,12 @@ document.getElementById('add-waba-number').addEventListener('click', function ()
       });
     })
     .then(function (data) {
-      if (popup) {
+      if (data.flow === 'popup') {
+        if (popup) {
+          popup.close();
+        }
+        startPopupSignup(data, button.dataset.popupCallbackUrl, button.dataset.popupMessageUrl);
+      } else if (popup) {
         popup.opener = null;
         popup.location = data.url;
       } else {
@@ -137,7 +323,7 @@ document.getElementById('add-waba-number').addEventListener('click', function ()
       if (popup) {
         popup.close();
       }
-      alert(error.message);
+      showPopupMessage(error.message);
     })
     .finally(function () {
       button.disabled = false;

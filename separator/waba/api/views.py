@@ -1,10 +1,13 @@
 import logging
 import json
 import requests
+import redis
 
 from django.conf import settings
+from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.mixins import CreateModelMixin
@@ -13,9 +16,17 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from separator.waba.models import App, PartnerApp, Waba, Phone
-from separator.waba.utils import build_embedded_signup_link, event_processing, messages_processing
+from separator.waba import tasks as waba_tasks
+from separator.waba.utils import (
+    build_embedded_signup_link,
+    build_hosted_embedded_signup_link,
+    build_popup_embedded_signup_config,
+    event_processing,
+    messages_processing,
+)
 
 logger = logging.getLogger("waba")
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 
 PARTNER_PROXY_ROUTES = {
@@ -288,10 +299,94 @@ def embedded_signup_link(request):
             return Response({"error": "Partner app not found"}, status=404)
 
     try:
+        domain = request.get_host().split(':')[0]
+        app = partner_app.app if partner_app else App.objects.filter(sites__domain__iexact=domain).first()
+        if not app:
+            raise App.DoesNotExist
+
+        if partner_app:
+            url = build_embedded_signup_link(request, request.user, partner_app=partner_app)
+            return Response({"url": url})
+
+        if app.auth_flow == App.AuthFlow.HOSTED:
+            return Response({
+                "flow": app.auth_flow,
+                "url": build_hosted_embedded_signup_link(app),
+            })
+        if app.auth_flow == App.AuthFlow.POPUP:
+            data = build_popup_embedded_signup_config(request, request.user, partner_app=partner_app)
+            data["flow"] = app.auth_flow
+            return Response(data)
+
         url = build_embedded_signup_link(request, request.user, partner_app=partner_app)
     except App.DoesNotExist:
         domain = request.get_host().split(':')[0]
         return Response({"error": f"App not found for domain {domain}"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
-    return Response({"url": url})
+    return Response({"flow": App.AuthFlow.MANUAL, "url": url})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def embedded_signup_popup_message(request):
+    message = request.data.get("message") or _("Embedded Signup was cancelled.")
+    messages.error(request, message)
+    return Response({"ok": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def embedded_signup_popup_callback(request):
+    request_id = request.data.get("request_id")
+    code = request.data.get("code")
+    session = request.data.get("session") or {}
+    logger.info(
+        "Popup callback received: request_id=%s user_id=%s has_code=%s waba_id=%s phone_number_id=%s business_id=%s",
+        request_id,
+        getattr(request.user, "id", None),
+        bool(code),
+        session.get("waba_id"),
+        session.get("phone_number_id"),
+        session.get("business_id"),
+    )
+    if not request_id:
+        return Response({"error": "Request ID is missing"}, status=400)
+    if not code:
+        return Response({"error": "Authorization code is missing"}, status=400)
+    if not session.get("waba_id") or not session.get("phone_number_id"):
+        return Response({"error": "Popup session data is missing"}, status=400)
+
+    existing = redis_client.json().get(request_id)
+    if not existing:
+        return Response({"error": "Request data is missing"}, status=404)
+    if str(existing.get("user")) != str(request.user.id):
+        return Response({"error": "permission denied"}, status=403)
+
+    app_id = existing.get("app")
+    app = App.objects.filter(client_id=app_id, auth_flow=App.AuthFlow.POPUP).first()
+    if not app:
+        return Response({"error": "Popup app not found"}, status=404)
+
+    state_lock_key = f"{request_id}:used"
+    if not redis_client.set(state_lock_key, "1", nx=True, ex=7200):
+        return Response({"error": "Request has already been used"}, status=400)
+
+    redis_client.json().set(request_id, "$.code", code)
+    redis_client.json().set(request_id, "$.popup_session", session)
+    waba_tasks.add_popup_phone.delay(request_id, app_id)
+    messages.success(request, _('The number has been successfully added. It will appear here in a few minutes.'))
+
+    logger.info(
+        "Popup callback scheduled: request_id=%s user_id=%s waba_id=%s phone_number_id=%s",
+        request_id,
+        getattr(request.user, "id", None),
+        session.get("waba_id"),
+        session.get("phone_number_id"),
+    )
+    return Response({
+        "ok": True,
+        "scheduled": True,
+        "waba_id": session.get("waba_id"),
+        "phone_number_id": session.get("phone_number_id"),
+    })

@@ -11,6 +11,11 @@ Works with Login Flow Logic https://developers.facebook.com/docs/facebook-login/
   + **Client id** – from fb App Settings > Basic  > App ID
   + **Client secret** – from fb App Settings > Basic  > App secret  
   + **Access token** – permanent or temporary token  
+  + **Auth flow** – onboarding method used by the `/waba/` page:
+    + **Popup** – Embedded Signup v4 through the Facebook JavaScript SDK. The browser receives `waba_id`, `phone_number_id` and `code`; Separator adds only the selected phone number.
+    + **Manual** – redirect flow through Facebook OAuth and `/waba/callback/`.
+    + **Hosted** – Meta Hosted Embedded Signup URL. The result is processed from the `account_update / PARTNER_ADDED` webhook.
+  + **Business app onboarding** – adds Embedded Signup `extras.featureType=whatsapp_business_app_onboarding` for WhatsApp Business App coexistence onboarding.
   + After saving, in the WABA list copy the **Verify token** for the desired account
 
 
@@ -34,8 +39,20 @@ Works with Login Flow Logic https://developers.facebook.com/docs/facebook-login/
 + Select the previously created WABA object  
 + Select the **App instance** (Bitrix portal) to which the WABA number will be linked  
 + Check the **Sms service** checkbox if you want to register this number as an [SMS provider](messageservice.md)  
++ **File proxy** – if enabled, inbound media files are proxied to Bitrix by URL instead of being saved as temporary files in Separator. If disabled, Separator downloads media and stores a temporary file.
 + If everything is set up correctly, the connector in the Contact Center will turn green, and the line `separator_your_number` will be attached.  
 ![ok](img/waba_ok.png)
+
+## Partner applications
+
+Partner applications are configured in **WABA → Partner apps**.
+
++ **Owner** – integrator user that owns connected partner WABAs.
++ **App** – WABA App used for onboarding.
++ **Webhook URL** – partner callback URL for proxied webhook subscriptions.
++ **Redirect URL** – URL where Separator redirects the customer after partner onboarding.
+
+Partner onboarding always uses the manual redirect flow, regardless of the App **Auth flow** setting. This keeps the existing partner flow compatible: Separator receives the callback, exchanges the code, links the WABA to `partner_app.owner`, stores `partner_app` on the WABA, and redirects the customer to the partner `redirect_url`.
 
 ## WABA Usage Notes
 
@@ -75,6 +92,32 @@ template-hello_world+en_US+file_link:https://file_link.url|value1|value2
 https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/components#properties-4
 
 template-hello_world+button_param:test-value
+
+### Interactive messages
+
+Interactive messages are managed on `/waba/interactive/`.
+
+Supported types:
+
++ Reply buttons
++ List
++ CTA URL
++ Call button
++ Call permission request
+
+Each saved interactive message gets a shortcode:
+
+```
+interactive+INTERACTIVE_ID
+```
+
+If the interactive message has variables, the shortcode includes examples:
+
+```
+interactive+INTERACTIVE_ID+name:value|name2:value2
+```
+
+Use this shortcode from Bitrix Open Lines or SMS-like message input to send the configured interactive payload.
 
 # WhatsApp Cloud API SIP Trunk Activation (receiving calls on a telephony server, e.g. Asterisk)
 

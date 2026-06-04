@@ -95,6 +95,45 @@ TEMPLATE_COMPONENT_PREFETCHES = (
 
 
 def build_embedded_signup_link(request, user, partner_app=None):
+    app, request_id, domain, extras = create_embedded_signup_request(request, user, partner_app=partner_app)
+    params = {
+        'client_id': app.client_id,
+        'config_id': app.config_id,
+        'response_type': 'code',
+        'override_default_response_type': 'true',
+        'redirect_uri': f'https://{domain}/waba/callback/',
+        'state': request_id,
+        'extras': json.dumps(extras)
+    }
+    return f'https://www.facebook.com/v{app.api_version}.0/dialog/oauth?{urlencode(params)}'
+
+
+def build_hosted_embedded_signup_link(app):
+    params = {
+        "app_id": app.client_id,
+        "config_id": app.config_id,
+    }
+    if app.business_app_onboarding:
+        params["extras"] = json.dumps({
+            "version": app.es_version,
+            "sessionInfoVersion": app.session_info_version,
+            "featureType": "whatsapp_business_app_onboarding",
+        })
+    return f"https://business.facebook.com/messaging/whatsapp/onboard/?{urlencode(params)}"
+
+
+def build_popup_embedded_signup_config(request, user, partner_app=None):
+    app, request_id, _domain, extras = create_embedded_signup_request(request, user, partner_app=partner_app)
+    return {
+        "request_id": request_id,
+        "app_id": app.client_id,
+        "config_id": app.config_id,
+        "api_version": f"v{app.api_version}.0",
+        "extras": extras,
+    }
+
+
+def create_embedded_signup_request(request, user, partner_app=None):
     user_id = user.id
     request_id = str(uuid.uuid4())
 
@@ -117,16 +156,8 @@ def build_embedded_signup_link(request, user, partner_app=None):
     }
     if app.business_app_onboarding:
         extras["featureType"] = "whatsapp_business_app_onboarding"
-    params = {
-        'client_id': app.client_id,
-        'config_id': app.config_id,
-        'response_type': 'code',
-        'override_default_response_type': 'true',
-        'redirect_uri': f'https://{domain}/waba/callback/',
-        'state': request_id,
-        'extras': json.dumps(extras)
-    }
-    return f'https://www.facebook.com/v{app.api_version}.0/dialog/oauth?{urlencode(params)}'
+
+    return app, request_id, domain, extras
 
 
 def prefetch_template_components(queryset):
@@ -1374,7 +1405,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             hosted_waba_id = waba_info.get("waba_id")
             owner_business_id = waba_info.get("owner_business_id")
 
-            app = App.objects.filter(client_id=hosted_app_id, hosted=True).first()
+            app = App.objects.filter(client_id=hosted_app_id, auth_flow=App.AuthFlow.HOSTED).first()
             if not app:
                 raise Exception(f"Hosted app not found or disabled: {hosted_app_id}")
             if not hosted_waba_id or not owner_business_id:

@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import requests
+import logging
 from celery import shared_task
 
 from .models import App, PartnerApp, Waba, Phone, Template, Error, Ctwa, CtwaEvents
@@ -20,39 +21,32 @@ from django.utils import timezone
 
 
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+logger = logging.getLogger("waba")
 
 
 def _normalize_phone_number(phone_number):
     return '+' + ''.join(filter(str.isdigit, phone_number or ''))
 
 
-def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=None, save_templates=True, create_lead=True):
+def _onboard_waba_assets(
+    waba,
+    user=None,
+    register=True,
+    target_phone_number=None,
+    target_phone_id=None,
+    save_templates=True,
+    create_lead=True,
+):
     # Common post-token onboarding for Embedded Signup and Hosted Embedded Signup.
     if save_templates:
         utils.save_approved_templates.delay(waba.id)
 
-    try:
-        resp = utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/phone_numbers")
-        phone_numbers = resp.get('data', {})
-    except TRANSIENT_ERRORS:
-        raise
-    except Exception as e:
-        try:
-            bitrix_tasks.send_messages.delay(
-                app_instance_id,
-                user_phone,
-                f"[color=#ff0000]Transcription error: {e}[/color]",
-                connector_code,
-                line_id,
-                pushName=push_name,
-                message_id=f"{message_id}:transcription:error" if message_id else None,
-                manager_id=0,
-            )
-        except Exception:
-            pass
-        raise
+    resp = utils.call_api(waba=waba, endpoint=f"{waba.waba_id}/phone_numbers")
+    phone_numbers = resp.get('data', {})
+
 
     target_phone_number = _normalize_phone_number(target_phone_number) if target_phone_number else None
+    target_phone_id = str(target_phone_id) if target_phone_id else None
     matched_target = False
 
     for phone_data in phone_numbers:
@@ -61,17 +55,15 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
         pin = f"{random.randint(0, 999999):06d}"
         phone_number = phone_data.get('display_phone_number')
         normalized_phone_number = _normalize_phone_number(phone_number)
+        if target_phone_id and str(phone_id) != target_phone_id:
+            continue
         if target_phone_number and normalized_phone_number != target_phone_number:
             continue
-        matched_target = True
+        if target_phone_id or target_phone_number:
+            matched_target = True
 
-        try:
-            biz_data = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
-            is_on_biz_app = biz_data.get("is_on_biz_app")
-        except TRANSIENT_ERRORS:
-            raise
-        except Exception:
-            raise
+        biz_data = utils.call_api(waba=waba, endpoint=f"{phone_id}?fields=is_on_biz_app,platform_type")
+        is_on_biz_app = biz_data.get("is_on_biz_app")
 
         if is_on_biz_app and biz_data.get("platform_type") == "CLOUD_API":
             phone_type = "app"
@@ -84,8 +76,17 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
                 utils.call_api(waba=waba, endpoint=f"{phone_id}/register", method="post", payload=payload)
             except TRANSIENT_ERRORS:
                 raise
-            except Exception:
-                raise
+            except Exception as e:
+                error_data = e.args[0] if e.args and isinstance(e.args[0], dict) else {}
+                error = error_data.get("error") if isinstance(error_data, dict) else {}
+                if isinstance(error, dict) and error.get("code") == 133005:
+                    logger.warning(
+                        "WABA phone register skipped by PIN mismatch: waba_id=%s phone_id=%s",
+                        waba.waba_id,
+                        phone_id,
+                    )
+                else:
+                    raise
 
         phone = Phone.objects.filter(phone=normalized_phone_number).first()
         if phone:
@@ -102,7 +103,7 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
             if update_fields:
                 phone.save(update_fields=update_fields)
         else:
-            phone, created = Phone.objects.get_or_create(
+            phone, _created = Phone.objects.get_or_create(
                 phone_id=phone_id,
                 defaults={
                     "waba": waba,
@@ -125,8 +126,9 @@ def _onboard_waba_assets(waba, user=None, register=True, target_phone_number=Non
             phone.date_end = get_trial(user, "waba")
             phone.save()
 
-    if target_phone_number and not matched_target:
-        raise Exception(f"Phone number {target_phone_number} not found in WABA {waba.waba_id}")
+    if (target_phone_id or target_phone_number) and not matched_target:
+        target = target_phone_id or target_phone_number
+        raise Exception(f"Phone {target} not found in WABA {waba.waba_id}")
 
 
 @shared_task(queue='waba', **RETRY_KWARGS)
@@ -233,7 +235,20 @@ def transcribe_voice_message(
             pushName=push_name,
             message_id=f"{message_id}:transcription" if message_id else None,
         )
-    except Exception:
+    except Exception as e:
+        try:
+            bitrix_tasks.send_messages.delay(
+                app_instance_id,
+                user_phone,
+                f"[color=#ff0000]Transcription error: {e}[/color]",
+                connector_code,
+                line_id,
+                pushName=push_name,
+                message_id=f"{message_id}:transcription:error" if message_id else None,
+                manager_id=0,
+            )
+        except Exception:
+            pass
         raise
     finally:
         for path in (input_path, converted_path):
@@ -245,7 +260,7 @@ def transcribe_voice_message(
 
 
 # https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
-def exchange_embedded_signup_code(request_id, app_id):
+def exchange_embedded_signup_code(request_id, app_id, include_redirect_uri=True):
     current_data = redis_client.json().get(request_id, "$")
     current_data = current_data[0]
     app = App.objects.filter(client_id=app_id).first()
@@ -255,8 +270,9 @@ def exchange_embedded_signup_code(request_id, app_id):
         "client_id": app.client_id,
         "client_secret": app.client_secret,
         "code": current_data.get('code'),
-        "redirect_uri": f'https://{host}/waba/callback/'
     }
+    if include_redirect_uri:
+        payload["redirect_uri"] = f'https://{host}/waba/callback/'
 
     response = utils.call_api(app=app, endpoint="oauth/access_token", method="post", payload=payload)
     access_token = response.get('access_token')
@@ -267,6 +283,80 @@ def exchange_embedded_signup_code(request_id, app_id):
     return current_data, app, access_token, wabas
 
 
+def _upsert_waba(app, access_token, waba_id, owner=None, partner_app=None, subscribed=None):
+    if subscribed is None:
+        subscribed = app.subscribe
+
+    updated = False
+    waba, created = Waba.objects.get_or_create(
+        waba_id=waba_id,
+        defaults={
+            'app': app,
+            'partner_app': partner_app,
+            'access_token': access_token,
+            'owner': owner,
+            'subscribed': subscribed,
+        }
+    )
+    if not created:
+        update_fields = []
+        if waba.app_id != app.id:
+            waba.app = app
+            update_fields.append("app")
+        partner_app_id = getattr(partner_app, "id", None)
+        if waba.partner_app_id != partner_app_id:
+            waba.partner_app = partner_app
+            update_fields.append("partner_app")
+        if waba.access_token != access_token:
+            waba.access_token = access_token
+            update_fields.append("access_token")
+        owner_id = getattr(owner, "id", None)
+        if waba.owner_id != owner_id:
+            waba.owner = owner
+            update_fields.append("owner")
+        if waba.subscribed != subscribed:
+            waba.subscribed = subscribed
+            update_fields.append("subscribed")
+        if update_fields:
+            waba.save(update_fields=update_fields)
+            updated = True
+    return waba, created, updated
+
+
+def onboard_embedded_signup_waba(app, access_token, user, waba_id, target_phone_id=None):
+    waba, _created, _updated = _upsert_waba(app, access_token, waba_id, owner=user)
+    _onboard_waba_assets(waba, user=user, register=app.register, target_phone_id=target_phone_id)
+    return waba
+
+
+@shared_task(queue='waba', **RETRY_KWARGS)
+def add_popup_phone(request_id, app_id):
+    current_data, app, access_token, wabas = exchange_embedded_signup_code(
+        request_id,
+        app_id,
+        include_redirect_uri=False,
+    )
+    session = current_data.get("popup_session") or {}
+    waba_id = session.get("waba_id")
+    phone_number_id = session.get("phone_number_id")
+    if not waba_id:
+        raise Exception("Popup session WABA ID is missing")
+    if not phone_number_id:
+        raise Exception("Popup session phone number ID is missing")
+    if wabas and waba_id not in wabas:
+        raise Exception("Popup WABA ID is not available in exchanged token")
+
+    user = User.objects.get(id=current_data.get('user'))
+    waba = onboard_embedded_signup_waba(
+        app,
+        access_token,
+        user,
+        waba_id,
+        target_phone_id=phone_number_id,
+    )
+    return {"waba_id": waba.waba_id, "phone_number_id": phone_number_id}
+
+
 @shared_task(queue='waba', **RETRY_KWARGS)
 def add_waba_phone(request_id, app_id):
     current_data, app, access_token, wabas = exchange_embedded_signup_code(request_id, app_id)
@@ -274,32 +364,7 @@ def add_waba_phone(request_id, app_id):
     if wabas:
         user = User.objects.get(id=current_data.get('user'))
         for waba_id in wabas:
-            waba, created = Waba.objects.get_or_create(
-                waba_id=waba_id,
-                defaults={
-                    'app': app,
-                    'access_token': access_token,
-                    'owner': user,
-                    'subscribed': app.subscribe,
-                }
-            )
-            if not created:
-                update_fields = []
-                if waba.app_id != app.id:
-                    waba.app = app
-                    update_fields.append("app")
-                if waba.access_token != access_token:
-                    waba.access_token = access_token
-                    update_fields.append("access_token")
-                if waba.owner_id != user.id:
-                    waba.owner = user
-                    update_fields.append("owner")
-                if waba.subscribed != app.subscribe:
-                    waba.subscribed = app.subscribe
-                    update_fields.append("subscribed")
-                if update_fields:
-                    waba.save(update_fields=update_fields)
-            _onboard_waba_assets(waba, user=user, register=app.register)
+            onboard_embedded_signup_waba(app, access_token, user, waba_id)
 
 
 @shared_task(queue='waba', **RETRY_KWARGS)
@@ -321,37 +386,15 @@ def add_partner_waba_phone(request_id, app_id):
         raise Exception("Partner signup data is missing")
 
     waba_id = wabas[0]
-    waba, created = Waba.objects.get_or_create(
-        waba_id=waba_id,
-        defaults={
-            'app': app,
-            'partner_app': partner_app,
-            'access_token': access_token,
-            'owner': partner_app.owner,
-            'subscribed': True,
-        }
+    waba, created, updated = _upsert_waba(
+        app,
+        access_token,
+        waba_id,
+        owner=partner_app.owner,
+        partner_app=partner_app,
+        subscribed=True,
     )
-    queue_subscription = not created
-    update_fields = []
-    if not created:
-        if waba.app_id != app.id:
-            waba.app = app
-            update_fields.append("app")
-        if waba.partner_app_id != partner_app.id:
-            waba.partner_app = partner_app
-            update_fields.append("partner_app")
-        if waba.access_token != access_token:
-            waba.access_token = access_token
-            update_fields.append("access_token")
-        if waba.owner_id != partner_app.owner_id:
-            waba.owner = partner_app.owner
-            update_fields.append("owner")
-        if not waba.subscribed:
-            waba.subscribed = True
-            update_fields.append("subscribed")
-        if update_fields:
-            waba.save(update_fields=update_fields)
-            queue_subscription = False
+    queue_subscription = not created and not updated
 
     _onboard_waba_assets(waba, user=partner_app.owner, register=app.register)
     if queue_subscription:
@@ -360,37 +403,14 @@ def add_partner_waba_phone(request_id, app_id):
 
 @shared_task(queue='waba', **RETRY_KWARGS)
 def hosted_partner_added(app_id, waba_id, owner_business_id):
-    app = App.objects.filter(id=app_id, hosted=True).first()
+    app = App.objects.filter(id=app_id, auth_flow=App.AuthFlow.HOSTED).first()
     if not app:
         raise Exception(f"Hosted app not found: {app_id}")
     if not waba_id or not owner_business_id:
         raise Exception(f"Hosted payload is missing waba_id or owner_business_id: {waba_id}, {owner_business_id}")
 
     access_token = utils.get_hosted_business_token(app, owner_business_id)
-    waba, created = Waba.objects.get_or_create(
-        waba_id=waba_id,
-        defaults={
-            "app": app,
-            "access_token": access_token,
-            "owner": None,
-            "subscribed": app.subscribe,
-        }
-    )
-
-    update_fields = []
-    if not created:
-        if waba.app_id != app.id:
-            waba.app = app
-            update_fields.append("app")
-        if waba.access_token != access_token:
-            waba.access_token = access_token
-            update_fields.append("access_token")
-        if waba.subscribed != app.subscribe:
-            waba.subscribed = app.subscribe
-            update_fields.append("subscribed")
-        if update_fields:
-            waba.save(update_fields=update_fields)
-
+    waba, _created, _updated = _upsert_waba(app, access_token, waba_id)
     _onboard_waba_assets(waba, user=None, register=app.register)
 
 

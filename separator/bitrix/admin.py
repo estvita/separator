@@ -54,6 +54,21 @@ class UserInline(admin.TabularInline):
     user_link.short_description = "User"
 
 
+class LineInline(admin.TabularInline):
+    model = Line
+    fields = ("line_link", "line_id", "name", "connector")
+    readonly_fields = ("line_link", "line_id", "name", "connector")
+    extra = 0
+    can_delete = False
+
+    def line_link(self, obj):
+        if obj.pk:
+            url = reverse("admin:bitrix_line_change", args=[obj.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.pk)
+        return "-"
+    line_link.short_description = "Line"
+
+
 class CredentialInline(admin.TabularInline):
     model = Credential
     fk_name = 'app_instance'
@@ -185,7 +200,7 @@ class ConnectorAdmin(admin.ModelAdmin):
 
 @admin.register(Bitrix)
 class BitrixAdmin(admin.ModelAdmin):
-    inlines = [UserInline, AppInstanceInline, FeatureGrantInline]
+    inlines = [UserInline, AppInstanceInline, LineInline, FeatureGrantInline]
     autocomplete_fields = ['owner']
     list_display = ("domain", "owner", "license", "license_expired")
     search_fields = ("domain", "member_id", "owner__email")
@@ -199,7 +214,7 @@ class AppInstanceAdmin(admin.ModelAdmin):
     autocomplete_fields = ['owner', "portal"]
     list_display = ("app", "owner", "portal_link", "status")
     search_fields = ("id", "application_token", "app__name", "portal__domain")
-    list_filter = ("app", "status", "auth_status")
+    list_filter = ("app", "fileAsUrl", "status", "auth_status")
 
     def portal_link(self, obj):
         if obj.portal:

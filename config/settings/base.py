@@ -273,6 +273,10 @@ CSRF_COOKIE_HTTPONLY = True
 # X_FRAME_OPTIONS = "DENY"
 X_FRAME_OPTIONS = "ALLOWALL"
 
+# Required for Meta Embedded Signup popup flow.
+# Context: https://github.com/estvita/separator/issues/2#issuecomment-4562199729
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
+
 # EMAIL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
