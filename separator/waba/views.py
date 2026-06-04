@@ -943,6 +943,8 @@ def waba_view(request):
             phone.expiring_soon = True
         else:
             phone.expiring_soon = False
+    domain = request.get_host().split(':')[0]
+    waba_app = App.objects.filter(sites__domain__iexact=domain).first()
     return render(request, "waba/list.html", {
         "phones": phones,
         "waba_lines": lines,
@@ -950,6 +952,7 @@ def waba_view(request):
         "days": days,
         "portals": portals,
         "selected_portal_id": selected_portal_id,
+        "waba_auth_flow": waba_app.auth_flow if waba_app else "",
     })
 
 

@@ -108,6 +108,7 @@
       data-popup-callback-url="{% url 'embedded_signup_popup_callback' %}"
       data-popup-message-url="{% url 'embedded_signup_popup_message' %}"
       data-csrf-token="{{ csrf_token }}"
+      data-auth-flow="{{ waba_auth_flow }}"
     >{% trans "Add number" %}</button>
     <a href="{% url 'broadcast-page' %}" class="btn btn-secondary connect-btn">{% trans "Broadcasts" %}</a>
     <a href="{% url 'waba-interactive' %}" class="btn btn-secondary connect-btn">{% trans "Interactive messages" %}</a>
@@ -291,7 +292,7 @@ function startPopupSignup(data, callbackUrl, messageUrl) {
 
 document.getElementById('add-waba-number').addEventListener('click', function () {
   const button = this;
-  const popup = window.open('about:blank', '_blank');
+  const popup = button.dataset.authFlow === 'popup' ? null : window.open('about:blank', '_blank');
   button.disabled = true;
 
   fetch(button.dataset.url, {
