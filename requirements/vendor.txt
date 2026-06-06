@@ -5,3 +5,4 @@ wagtailcodeblock
 django-hijack
 django-recaptcha
 flower
+django-health-check

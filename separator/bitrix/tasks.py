@@ -4,7 +4,6 @@ import redis
 import logging
 import requests
 from copy import deepcopy
-from urllib.parse import urljoin
 from celery import shared_task
 from celery.exceptions import Retry
 from django.conf import settings
@@ -39,40 +38,8 @@ def _feature_owner(app_instance):
     return None
 
 
-def _render_feature_value(value, context):
-    if isinstance(value, dict):
-        return {key: _render_feature_value(item, context) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_render_feature_value(item, context) for item in value]
-    if isinstance(value, str):
-        try:
-            return value.format(**context)
-        except Exception:
-            return value
-    return value
-
-
-def _normalize_handler_url(value, base_url):
-    if not isinstance(value, str) or not value:
-        return value
-    if value.startswith(("http://", "https://")):
-        return value
-    return urljoin(base_url, value.lstrip("/"))
-
-
-def _build_feature_payloads(feature, app_instance, placement_code=None):
-    site_domain = str(app_instance.app.site).strip().strip("/") if app_instance.app and app_instance.app.site else ""
-    app_base_url = f"https://{site_domain}/" if site_domain else ""
-    context = {
-        "app_base_url": app_base_url.rstrip("/"),
-        "site_domain": site_domain,
-        "app_instance_id": app_instance.id,
-        "portal_domain": app_instance.portal.domain if app_instance.portal else "",
-        "portal_protocol": app_instance.portal.protocol if app_instance.portal else "https",
-        "placement": placement_code or "",
-    }
+def _build_feature_payloads(feature, placement_code=None):
     raw_payload = deepcopy(feature.payload or {})
-    raw_payload = _render_feature_value(raw_payload, context)
 
     if isinstance(raw_payload, dict):
         payloads = [raw_payload]
@@ -87,16 +54,8 @@ def _build_feature_payloads(feature, app_instance, placement_code=None):
             raise Exception(f"Feature {feature.id} payload item {index} must be a JSON object")
 
         payload = dict(payload)
-        if feature.code and (len(payloads) == 1 or "CODE" not in payload):
-            payload["CODE"] = feature.code
-        if placement_code and "PLACEMENT" not in payload:
+        if placement_code:
             payload["PLACEMENT"] = placement_code
-        if feature.method == "placement.bind" and feature.name and "TITLE" not in payload:
-            payload["TITLE"] = feature.name
-
-        for key in ("HANDLER", "PLACEMENT_HANDLER"):
-            if key in payload:
-                payload[key] = _normalize_handler_url(payload[key], app_base_url)
 
         prepared_payloads.append(payload)
 
@@ -172,7 +131,7 @@ def register_feature(app_instance_id, feature_id, placement_code=None, force=Fal
             f"Feature {feature.id} is not linked to app {app_instance.app_id}"
         )
 
-    payloads = _build_feature_payloads(feature, app_instance, placement_code=placement_code)
+    payloads = _build_feature_payloads(feature, placement_code=placement_code)
     responses = []
     for payload in payloads:
         responses.append(call_method(app_instance, feature.method, payload, timeout=30))
@@ -303,7 +262,7 @@ def messageservice_add(app_instance_id, entity_id, service):
                     "CODE": code,
                     "NAME": code,
                     "TYPE": "SMS",
-                    "HANDLER": f"https://{domain}/api/bitrix/sms/?service={service}",
+                    "HANDLER": app_instance.app.get_bitrix_sms_handler_url(service),
                 }
                 return call_method(app_instance, "messageservice.sender.add", payload, admin=True)
             else:

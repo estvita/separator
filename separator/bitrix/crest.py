@@ -127,7 +127,7 @@ def call_method(appinstance: AppInstance,
                             portal.save()
                         except Exception:
                             pass
-                    raise BitrixAccessDeniedError()
+                    raise BitrixAccessDeniedError(response.text)
                 elif error == "expired_token" and not refresh_attempted:
                     refreshed = refresh_token(credential)
                     if refreshed:
@@ -155,7 +155,7 @@ def call_method(appinstance: AppInstance,
                                 portal.save()
                             except Exception:
                                 pass
-                        raise BitrixAccessDeniedError()
+                        raise BitrixAccessDeniedError(response.text)
                     last_exc = Exception(f"Access error: instance {appinstance.id} {resp_data}")
                     break
                 except ValueError:
@@ -164,7 +164,7 @@ def call_method(appinstance: AppInstance,
                         portal.save()
                     except Exception:
                         pass
-                    raise BitrixAccessDeniedError()
+                    raise BitrixAccessDeniedError(response.text)
             else:
                 last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
                                 f"status {response.status_code}, response: {response.text}")

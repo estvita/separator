@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from urllib.parse import urlencode, urljoin
 from django.utils.translation import gettext_lazy as _
 from django.contrib.sites.models import Site
 from django.db import models
@@ -42,7 +43,7 @@ class App(models.Model):
         Site, on_delete=models.SET_NULL, related_name="apps", blank=True, null=True
     )
     name = models.CharField(max_length=255, blank=True, unique=False)
-    handler = models.CharField(max_length=1000, blank=True)
+    handler = models.CharField(max_length=1000, blank=True, help_text="Base URL")
     page_url = models.CharField(max_length=255, blank=True, default="/")
     autologin = models.BooleanField(default=True)
     min_version = models.PositiveIntegerField(default=0)
@@ -57,12 +58,27 @@ class App(models.Model):
     def __str__(self):
         return self.name
 
-    def get_bitrix_handler_url(self):
+    def get_base_handler_url(self):
         if self.handler:
-            return self.handler
+            return self.handler.rstrip("/") + "/"
         if self.site:
-            return f"https://{self.site}/api/bitrix/"
+            return f"https://{self.site}/"
         return ""
+
+    def get_bitrix_handler_url(self):
+        base_url = self.get_base_handler_url()
+        if not base_url:
+            return ""
+        return urljoin(base_url, "api/bitrix/")
+
+    def get_bitrix_sms_handler_url(self, service=None):
+        base_url = self.get_base_handler_url()
+        if not base_url:
+            return ""
+        handler_url = urljoin(base_url, "api/bitrix/sms/")
+        if service:
+            handler_url = f"{handler_url}?{urlencode({'service': service})}"
+        return handler_url
 
 
 class Bitrix(models.Model):

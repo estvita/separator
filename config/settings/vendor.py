@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "wagtail.contrib.typed_table_block",
     "hijack",
     "hijack.contrib.admin",
+    "health_check",
     "separator.home",
     "separator.tariff",
 ] + INSTALLED_APPS
@@ -39,6 +40,7 @@ ACCOUNT_FORMS = {
 
 RECAPTCHA_PUBLIC_KEY = env("RECAPTCHA_PUBLIC_KEY", default="")
 RECAPTCHA_PRIVATE_KEY = env("RECAPTCHA_PRIVATE_KEY", default="")
+HEALTH_CHECK_TOKEN = env("HEALTH_CHECK_TOKEN", default="health_check")
 
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "wagtail.contrib.settings.context_processors.settings",
