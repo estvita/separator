@@ -357,6 +357,13 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-task_send_sent_event
 CELERY_TASK_SEND_SENT_EVENT = True
 
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
+# Решение проблемы RabbitMQ 4.x согласно PR #10290:
+CELERY_CONTROL_QUEUE_EXCLUSIVE = True
+CELERY_EVENT_QUEUE_EXCLUSIVE = True
+
 CELERY_TASK_DEFAULT_QUEUE = "default"
 
 CELERY_QUEUES = (
@@ -368,10 +375,6 @@ CELERY_QUEUES = (
     Queue('waba_messages'),
     Queue('bitbot'),
 )
-
-# Решение проблемы RabbitMQ 4.x согласно PR #10290:
-CELERY_CONTROL_QUEUE_EXCLUSIVE = True
-CELERY_EVENT_QUEUE_EXCLUSIVE = True
 
 
 # django-allauth

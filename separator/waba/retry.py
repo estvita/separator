@@ -1,15 +1,18 @@
 import requests
-from django.db import InterfaceError, OperationalError
+from django.db import InterfaceError, OperationalError, DatabaseError
 from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import ReadOnlyError as RedisReadOnlyError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 
 TRANSIENT_ERRORS = (
     requests.RequestException,
     OperationalError,
+    DatabaseError,
     InterfaceError,
     RedisConnectionError,
     RedisTimeoutError,
+    RedisReadOnlyError,
 )
 
 RETRY_KWARGS = {
