@@ -21,7 +21,7 @@ def send_message(session_id, recipient, content, cont_type="string", caption=Non
     try:
         session = Session.objects.get(session=session_id)
         if session.date_end and timezone.now() > session.date_end:
-            raise Exception({'tariff has expired'})
+            return "subscription has expired"
         server = session.server
         headers = {"apikey": session.apikey or server.api_key}
         cleaned = re.sub(r'\D', '', recipient)
@@ -140,14 +140,14 @@ def event_processor(event_data):
 
     elif event in ["messages.upsert", "send.message"]:
         if session.date_end and timezone.now() > session.date_end:
-            raise Exception({'tariff has expired'})
+            return "subscription has expired"
         
         message = data.get('message', {})
         key_data = data.get('key', {})
         message_id = key_data.get('id')
 
         if redis_client.exists(f'waweb:{message_id}'):
-            raise Exception({'loop message'})
+            return "loop message"
 
         fromme = key_data.get('fromMe')
         sender = event_data.get('sender')

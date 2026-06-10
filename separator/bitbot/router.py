@@ -275,9 +275,9 @@ def process_event_payload(data):
 
         chatbot = get_chatbot(data, bot_id=bot_id, application_token=application_token)
         if not chatbot:
-            raise LookupError(f"Bot {bot_id} not found")
+            return f"Bot {bot_id} not found"
         if chatbot.date_end and timezone.now() > chatbot.date_end:
-            raise Exception({"license has expired"})
+            return "license has expired"
 
         # Get admin token from credentials
         credential = chatbot.app_instance.credentials.filter(user__admin=True).first()

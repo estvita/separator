@@ -464,7 +464,7 @@ def auto_finish_chat(instance_id, data):
             chat_id = chat_data.get("result")
             return call_method(app_instance, "imopenlines.operator.another.finish", {"CHAT_ID": chat_id}, admin=True)
         else:
-            raise Exception(f"chat not found: {chat_data}")
+            return f"chat not found: {chat_data}"
     except Exception:
         raise
 
@@ -473,7 +473,7 @@ def delete_temp_file(file_path):
     if os.path.exists(file_path):
         try:
             os.remove(file_path)
-            raise Exception(f"Deleted temp file: {file_path}")
+            return f"Deleted temp file: {file_path}"
         except Exception as e:
             raise Exception(f"Error deleting temp file {file_path}: {e}")
 

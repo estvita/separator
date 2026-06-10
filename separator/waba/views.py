@@ -172,7 +172,7 @@ def phone_details(request, phone_id):
         "owner",
         "line__portal",
         "line__connector",
-        "waba__app",
+        "waba__app__sip_server",
     ).filter(phone_id=phone_id).first()
     if not phone:
         raise Http404
@@ -316,7 +316,9 @@ def phone_details(request, phone_id):
                         phone.sip_hostname = sip_hostname
                         phone.sip_port = sip_port
                     else:
-                        sip_server = get_current_sip_server(request)
+                        sip_server = phone.waba.app.sip_server if phone.waba and phone.waba.app else None
+                        if not sip_server:
+                            raise Exception(_("FreePBX Server not connected"))
                         phone.sip_hostname = sip_server.domain
                         phone.sip_port = sip_server.sip_port
 

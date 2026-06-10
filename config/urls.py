@@ -99,7 +99,6 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
             f"health/{settings.HEALTH_CHECK_TOKEN}/",
             HealthCheckView.as_view(
                 checks=[
-                    "health_check.Cache",
                     "health_check.Database",
                     "health_check.Storage",
                     (

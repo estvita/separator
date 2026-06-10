@@ -1202,9 +1202,9 @@ def bizproc_processor(data):
         grant = appinstance.get_feature_grant(code)
         if grant:
             if grant.feature and not grant.feature.active:
-                raise Exception(f"Feature {code} is inactive")
+                return f"Feature {code} is inactive"
             if grant.date_end and grant.date_end <= timezone.now():
-                raise Exception(f"Feature {code} subscription expired")
+                return f"Feature {code} subscription expired"
 
         if code == "separator_auto_finish_chat":
             return bitrix_tasks.auto_finish_chat(appinstance.id, data)
@@ -1214,7 +1214,7 @@ def bizproc_processor(data):
             client_phone = data.get("properties[client_phone]")
             ctwa = _find_ctwa_for_bizproc(appinstance, ctwa_id=ctwa_id, client_phone=client_phone)
             if not ctwa:
-                raise Exception("ctwa not found")
+                return "ctwa not found"
 
             custom_data = {}
 
@@ -1341,7 +1341,7 @@ def sms_processor(data, service):
             send_result = _send_waba_direct(message_to, message_body)
             if "error" in (send_result or {}):
                 _send_waba_error_to_openline(send_result)
-                raise ValueError(send_result)
+                return send_result
             if phone.ChatFromSms and line:
                 bitrix_tasks.send_messages(
                     app_instance.id,
@@ -1359,7 +1359,7 @@ def sms_processor(data, service):
 
         if "error" in (send_result or {}):
             _send_waba_error_to_openline(send_result)
-            raise ValueError(send_result)
+            return send_result
         return send_result
     except TRANSIENT_ERRORS:
         raise
@@ -1517,7 +1517,7 @@ def event_processor(data):
                 excludes_raw = appinstance.exclude or ''
                 excludes = [e.strip() for e in excludes_raw.split(",") if e.strip()]
                 if any(ex.lower() in text.lower() for ex in excludes):
-                    raise Exception("message filtered")
+                    return "message filtered"
                 text = text.replace("[br]", "\n")
                 text = re.sub(r"\[/?[a-zA-Z*][a-zA-Z0-9*]*\]|\[[a-zA-Z0-9\s]+=[^\]]+\]", "", text)
                 command_lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -1542,7 +1542,7 @@ def event_processor(data):
                 if not phone:
                     error_result = {"error": True, "message": "WABA phone not found for Bitrix line"}
                     send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id)
-                    raise Exception(error_result["message"])
+                    return error_result["message"]
 
                 if not files and command_text in ["#wa_block", "#wa_unblock"]:
                     try:
@@ -1606,7 +1606,7 @@ def event_processor(data):
                                     uploaded_id = up_res["id"]
                                     logger.info("B24->WABA file streaming uploaded: %s %s", file.get("name"), uploaded_id)
                                 else:
-                                    logger.error("B24->WABA file streaming upload failed: %s %s", file.get("name"), up_res)
+                                    logger.info("B24->WABA file streaming upload failed: %s %s", file.get("name"), up_res)
                         except Exception as e:
                             logger.error(f"Upload failed: {e}")
 
@@ -1667,13 +1667,13 @@ def event_processor(data):
                         send_result = waba.send_message_from_phone(phone, message)
                         if "error" in (send_result or {}):
                             send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                            raise ValueError(send_result)
+                            return send_result
 
                 else:
                     send_result = waba.send_message_from_phone(phone, message)
                     if "error" in (send_result or {}):
                         send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                        raise ValueError(send_result)
+                        return send_result
 
             elif connector.service == "waweb":
                 try:

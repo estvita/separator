@@ -360,6 +360,12 @@ CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "socket_timeout": 5,
+    "socket_connect_timeout": 5,
+    "retry_on_timeout": True,
+}
+
 # Решение проблемы RabbitMQ 4.x согласно PR #10290:
 CELERY_CONTROL_QUEUE_EXCLUSIVE = True
 CELERY_EVENT_QUEUE_EXCLUSIVE = True

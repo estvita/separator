@@ -1549,10 +1549,10 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     
     elif field == 'messages':
         if not appinstance or not phone.line_id or not phone.line.connector_id:
-            raise Exception("WABA phone is not connected to Bitrix line")
+            return "WABA phone is not connected to Bitrix line"
 
         if phone.date_end and timezone.now() > phone.date_end:
-            raise Exception(f"subscription ended")
+            return "subscription ended"
 
         messages = value.get("messages", [])
         filename = None
@@ -1950,7 +1950,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
     elif field == 'smb_message_echoes':
         if not appinstance or not phone.line_id or not phone.line.connector_id:
-            raise Exception("WABA phone is not connected to Bitrix line")
+            return "WABA phone is not connected to Bitrix line"
 
         text = None
         attach= None
