@@ -1369,8 +1369,8 @@ def sms_processor(self, data, service):
         raise
 
 
-@shared_task(queue='bitrix', **RETRY_KWARGS)
-def event_processor(data):
+@shared_task(bind=True, queue='bitrix', **RETRY_KWARGS)
+def event_processor(self, data):
     try:
         event = data.get("event").upper()
         domain = data.get("auth[domain]")
@@ -1668,14 +1668,16 @@ def event_processor(data):
 
                         send_result = waba.send_message_from_phone(phone, message)
                         if "error" in (send_result or {}):
-                            send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                            return send_result
+                            if self.request.retries >= self.max_retries:
+                                send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
+                            raise requests.RequestException(send_result)
 
                 else:
                     send_result = waba.send_message_from_phone(phone, message)
                     if "error" in (send_result or {}):
-                        send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                        return send_result
+                        if self.request.retries >= self.max_retries:
+                            send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
+                        raise requests.RequestException(send_result)
 
             elif connector.service == "waweb":
                 try:
