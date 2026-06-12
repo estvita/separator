@@ -1290,7 +1290,12 @@ def _build_fallback_body_parameters(template, text):
     **RETRY_KWARGS,
 )
 def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
-    return event_processing(raw_body, signature, app_id, host)
+    result = event_processing(raw_body, signature, app_id, host)
+    if isinstance(result, list):
+        for item in result:
+            if isinstance(item, dict) and item.get("SUCCESS") is False:
+                raise Exception(result)
+    return result
 
 
 @shared_task(

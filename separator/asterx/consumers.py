@@ -2,10 +2,8 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from django.utils import timezone
 from django.conf import settings
 from channels.db import database_sync_to_async
-from rest_framework.authtoken.models import Token
 from channels.generic.websocket import AsyncWebsocketConsumer
 from .models import Server, Context
 from separator.bitrix.models import User as BitrixUser, Credential

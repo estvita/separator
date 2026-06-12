@@ -1276,7 +1276,7 @@ def sms_processor(data, service):
 
     def _send_waba_direct(target, body):
         if not phone:
-            raise Exception("WABA phone not found")
+            return "WABA phone not found"
         message = _build_waba_message(target, body, line_id=phone.line.line_id if phone.line_id else None)
         return waba.send_message_from_phone(phone, message)
 
