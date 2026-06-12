@@ -1244,8 +1244,8 @@ def bizproc_processor(data):
         raise
 
 
-@shared_task(queue='bitrix', **RETRY_KWARGS)
-def sms_processor(data, service):
+@shared_task(bind=True, queue='bitrix', **RETRY_KWARGS)
+def sms_processor(self, data, service):
     application_token = data.get("auth[application_token]")
     manager_id = data.get("auth[user_id]")
     message_id = data.get("message_id")
@@ -1340,9 +1340,10 @@ def sms_processor(data, service):
         if service == "waba":
             send_result = _send_waba_direct(message_to, message_body)
             if "error" in (send_result or {}):
-                _send_waba_error_to_openline(send_result)
-                return send_result
-            if phone.ChatFromSms and line:
+                if self.request.retries >= self.max_retries:
+                    _send_waba_error_to_openline(send_result)
+                raise requests.RequestException(send_result)
+            if phone and phone.ChatFromSms and line:
                 bitrix_tasks.send_messages(
                     app_instance.id,
                     message_to,
@@ -1358,8 +1359,9 @@ def sms_processor(data, service):
                                                      line.connector.code, line.line_id, manager_id=manager_id)
 
         if "error" in (send_result or {}):
-            _send_waba_error_to_openline(send_result)
-            return send_result
+            if self.request.retries >= self.max_retries:
+                _send_waba_error_to_openline(send_result)
+            raise requests.RequestException(send_result)
         return send_result
     except TRANSIENT_ERRORS:
         raise
