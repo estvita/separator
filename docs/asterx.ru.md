@@ -127,6 +127,18 @@ server {
 
 Когда `ASTERX_SERVER=True`, контейнер `asterx` автоматически запустит сервер Daphne. Если установлено значение `False`, контейнер будет находиться в режиме ожидания.
 
+### WebSocket heartbeat
+
+Для очистки зависших WebSocket-каналов AsterX использует `group_expiry` и heartbeat от коннектора. Коннектор должен отправлять `{"event": "heartbeat"}` чаще, чем значение `ASTERX_GROUP_EXPIRY`.
+
+Переменные окружения:
+
+```
+ASTERX_REDIS_URL=redis://redis:6379/1
+ASTERX_GROUP_EXPIRY=600
+ASTERX_ACTIVE_CHANNEL_TTL=1200
+```
+
 ```
 daphne -b 0.0.0.0 -p 8000 config.asgi:application
 ```

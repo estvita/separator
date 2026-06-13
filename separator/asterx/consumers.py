@@ -3,10 +3,19 @@ import logging
 import uuid
 from pathlib import Path
 from django.conf import settings
+from redis import asyncio as redis
+from redis.exceptions import RedisError
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from .models import Server, Context
 from separator.bitrix.models import User as BitrixUser, Credential
+
+redis_client = redis.Redis.from_url(
+    settings.ASTERX_REDIS_URL,
+    decode_responses=True,
+    socket_timeout=5,
+    socket_connect_timeout=5,
+)
 
 receive_logger = logging.getLogger("asterx.receive")
 if not receive_logger.handlers:
@@ -21,6 +30,9 @@ if not receive_logger.handlers:
     receive_logger.propagate = False
 
 class ServerAuthConsumer(AsyncWebsocketConsumer):
+    def active_channel_key(self):
+        return f"asterx:active_channel:{self.server_id}"
+
     async def connect(self):
         query = self.scope['query_string'].decode()
         server_id = None
@@ -40,6 +52,8 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             return
 
         self.server_id = str(server_uuid)
+        self.group_name = f"server_{self.server_id}"
+        self.authorized = False
         self.server = await database_sync_to_async(
             lambda: Server.objects.filter(id=server_uuid).first()
         )()
@@ -75,6 +89,12 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
+        if data.get("event") == "heartbeat":
+            if self.authorized:
+                await self.channel_layer.group_add(self.group_name, self.channel_name)
+                await self.store_active_channel()
+            return
+
         # 3. Проверить/обработать клиентские данные (core_info)
         # ожидаем хотя бы entity_id и pbx_uuid
         entity_id = data.get("entity_id")
@@ -82,13 +102,12 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
         version = data.get("version")
         system = data.get("system")
 
-        self.group_name = f"server_{self.server_id}"
         if not self.server.setup_complete:
             # 4. setup_complete == False: записать поля и отметить сервер
             await self.save_server_data(
                 version, system, entity_id, pbx_uuid
             )
-            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self.activate_channel()
             await self.mark_setup_complete()
             server_data = await self.get_server_and_instance_data()
             if server_data:
@@ -100,7 +119,7 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             if (str(self.server.entity_id) == str(entity_id) and
                 str(self.server.pbx_uuid) == str(pbx_uuid)):
                 await self.save_server_data(version, system)
-                await self.channel_layer.group_add(self.group_name, self.channel_name)
+                await self.activate_channel()
                 server_data = await self.get_server_and_instance_data()
                 if server_data:
                     await self.send(text_data=json.dumps(server_data))
@@ -112,6 +131,44 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
                     {"error": "This license is linked to a different server."}
                 ))
                 await self.close()
+
+    async def activate_channel(self):
+        old_channel = None
+        try:
+            old_channel = await redis_client.get(self.active_channel_key())
+        except RedisError:
+            receive_logger.exception("Failed to read active channel for server_id=%s", self.server_id)
+        if old_channel and old_channel != self.channel_name:
+            await self.channel_layer.group_discard(self.group_name, old_channel)
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.store_active_channel()
+        self.authorized = True
+
+    async def store_active_channel(self):
+        try:
+            await redis_client.set(
+                self.active_channel_key(),
+                self.channel_name,
+                ex=settings.ASTERX_ACTIVE_CHANNEL_TTL,
+            )
+        except RedisError:
+            receive_logger.exception("Failed to store active channel for server_id=%s", self.server_id)
+
+    async def clear_active_channel(self):
+        try:
+            await redis_client.eval(
+                """
+                if redis.call("get", KEYS[1]) == ARGV[1] then
+                    return redis.call("del", KEYS[1])
+                end
+                return 0
+                """,
+                1,
+                self.active_channel_key(),
+                self.channel_name,
+            )
+        except RedisError:
+            receive_logger.exception("Failed to clear active channel for server_id=%s", self.server_id)
 
     async def process_contexts(self, contexts):
         if contexts:
@@ -211,5 +268,6 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
+            await self.clear_active_channel()
     async def send_event(self, event):
         await self.send(text_data=json.dumps(event["message"]))

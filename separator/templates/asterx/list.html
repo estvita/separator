@@ -52,7 +52,7 @@
     <thead>
       <tr>
       <th>{% trans "Name" %}</th>
-      <th>{% trans "Installed" %}</th>
+      <th>{% trans "Status" %}</th>
       <th>{% trans "ID" %}</th>
       <th>{% trans "Expiry Date" %}</th>
       <th>{% trans "Bitrix24" %}</th>
@@ -67,7 +67,15 @@
             {{ server.name }}
           </a>
           </td>
-        <td>{{server.setup_complete}}</td>
+        <td>
+          {% if server.connection_status == "connected" %}
+            <span class="badge bg-success">{% trans "Connected" %}</span>
+          {% elif server.connection_status == "disconnected" %}
+            <span class="badge bg-danger">{% trans "Disconnected" %}</span>
+          {% else %}
+            <span class="badge bg-secondary">{% trans "Not installed" %}</span>
+          {% endif %}
+        </td>
         <td>{{ server.id }}</td>
         <td>
           {% if server.date_end %}

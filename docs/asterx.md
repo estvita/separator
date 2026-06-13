@@ -121,3 +121,15 @@ server {
 ```
 
 When `ASTERX_SERVER=True`, the `asterx` container will automatically start the Daphne server. If set to `False`, the container will remain idle.
+
+### WebSocket heartbeat
+
+AsterX uses `group_expiry` and connector heartbeats to clean stale WebSocket channels. The connector must send `{"event": "heartbeat"}` more often than `ASTERX_GROUP_EXPIRY`.
+
+Environment variables:
+
+```
+ASTERX_REDIS_URL=redis://redis:6379/1
+ASTERX_GROUP_EXPIRY=600
+ASTERX_ACTIVE_CHANNEL_TTL=1200
+```

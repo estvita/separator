@@ -30,6 +30,9 @@ OLX_CHECK_ATTEMTS = env("OLX_CHECK_ATTEMTS", default=10)
 CHECK_PHONE_NUMBER = env.bool("CHECK_PHONE_NUMBER", False)
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+ASTERX_REDIS_URL = env("ASTERX_REDIS_URL", default=REDIS_URL)
+ASTERX_GROUP_EXPIRY = env.int("ASTERX_GROUP_EXPIRY", default=300)
+ASTERX_ACTIVE_CHANNEL_TTL = env.int("ASTERX_ACTIVE_CHANNEL_TTL", default=360)
 
 SALT_KEY = env("SALT_KEY")
 
@@ -129,7 +132,13 @@ if ASTERX_SERVER:
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [env("REDIS_URL", default="redis://localhost:6379/0")],
+                "hosts": [{
+                    "address": ASTERX_REDIS_URL,
+                    "socket_timeout": 10,
+                    "socket_connect_timeout": 5,
+                }],
+                "prefix": "asterx",
+                "group_expiry": ASTERX_GROUP_EXPIRY,
             },
         },
     }

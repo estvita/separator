@@ -9,9 +9,40 @@ from django.forms import ModelForm, modelformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from redis import Redis
+from redis.exceptions import RedisError
 from separator.decorators import user_message
 from separator.asterx.models import Server, Context, Settings
 from separator.bitrix.models import User as BitrixUser, Credential, AppInstance, Bitrix
+
+
+def attach_connection_statuses(servers):
+    active_keys = {
+        str(server.id): f"asterx:active_channel:{server.id}"
+        for server in servers
+        if server.setup_complete
+    }
+    active_values = {}
+    if active_keys:
+        try:
+            redis_client = Redis.from_url(
+                settings.ASTERX_REDIS_URL,
+                decode_responses=True,
+                socket_timeout=2,
+                socket_connect_timeout=2,
+            )
+            values = redis_client.mget(list(active_keys.values()))
+            active_values = dict(zip(active_keys.keys(), values))
+        except RedisError:
+            active_values = {}
+
+    for server in servers:
+        if not server.setup_complete:
+            server.connection_status = "not_installed"
+        elif active_values.get(str(server.id)):
+            server.connection_status = "connected"
+        else:
+            server.connection_status = "disconnected"
 
 
 def get_portal_settings(member_id):
@@ -143,6 +174,8 @@ def server_list(request):
         Q(owner=request.user) |
         Q(settings__app_instance__portal__users__owner=request.user, settings__app_instance__portal__users__admin=True)
     ).distinct()
+    servers = list(servers)
+    attach_connection_statuses(servers)
     user_message(request, "asterx_info")
 
     return render(
