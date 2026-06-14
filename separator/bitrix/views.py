@@ -1,6 +1,8 @@
 import os
 import json
 import uuid
+import time
+import logging
 import requests
 from datetime import timedelta
 
@@ -28,6 +30,7 @@ from separator.decorators import login_message_required
 
 from django.contrib.auth import get_user_model, login, logout
 User = get_user_model()
+logger = logging.getLogger("django")
 
 
 
@@ -490,23 +493,44 @@ def proxy_waba_media_file(request):
     if not phone or not phone.waba_id:
         raise Http404("Phone does not exist")
 
-    try:
-        media_info = waba_utils.call_api(waba=phone.waba, endpoint=media_id)
-        media_url = media_info.get("url") if isinstance(media_info, dict) else None
-        if not media_url:
-            raise Http404("Media URL does not exist")
+    upstream = None
+    attempts = 3
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            media_info = waba_utils.call_api(waba=phone.waba, endpoint=media_id)
+            media_url = media_info.get("url") if isinstance(media_info, dict) else None
+            if not media_url:
+                raise Http404("Media URL does not exist")
 
-        upstream = requests.get(
-            media_url,
-            headers={"Authorization": f"Bearer {phone.waba.access_token}"},
-            timeout=(10, 60),
-            stream=True,
+            upstream = requests.get(
+                media_url,
+                headers={"Authorization": f"Bearer {phone.waba.access_token}"},
+                timeout=(10, 60),
+                stream=True,
+            )
+            upstream.raise_for_status()
+            break
+        except Http404:
+            raise
+        except requests.RequestException as exc:
+            last_error = exc
+            if upstream is not None:
+                upstream.close()
+                upstream = None
+            if attempt < attempts:
+                time.sleep(attempt)
+
+    if upstream is None:
+        logger.error(
+            "WABA media proxy failed: media_id=%s phone_id=%s filename=%s error=%s",
+            media_id,
+            phone_id,
+            filename,
+            last_error,
+            exc_info=True,
         )
-        upstream.raise_for_status()
-    except Http404:
-        raise
-    except requests.RequestException:
-        return HttpResponse("Media proxy failed", status=502)
+        return HttpResponse(f"Media proxy failed", status=502)
 
     def stream():
         try:
