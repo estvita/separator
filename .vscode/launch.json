@@ -45,5 +45,32 @@
             "console": "integratedTerminal",
             "args": ["-A", "config.celery_app", "flower"]
         },
+        {
+            "name": "Webhook Buffer",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "gunicorn",
+            "console": "integratedTerminal",
+            "args": [
+                "separator.webhook_buffer.wsgi:application",
+                "--bind",
+                "0.0.0.0:9000",
+                "--workers",
+                "1",
+                "--timeout",
+                "10"
+            ],
+            "envFile": "${workspaceFolder}/.env",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Webhook Buffer Worker",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "separator.webhook_buffer.worker",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
     ]
 }
