@@ -1,5 +1,4 @@
 import base64
-import ast
 import json
 import logging
 import re
@@ -132,25 +131,9 @@ def format_waba_error(send_result):
         return ""
 
     error_msg = send_result.get("message", "Unknown error")
-    error_data = error_msg if isinstance(error_msg, dict) else None
-
-    if error_data is None and isinstance(error_msg, str):
-        for candidate in [error_msg, error_msg.split(": ", 1)[1] if ": " in error_msg else ""]:
-            if not candidate:
-                continue
-            try:
-                parsed = ast.literal_eval(candidate)
-            except Exception:
-                continue
-            if isinstance(parsed, dict):
-                error_data = parsed
-                break
-
-    if isinstance(error_data, dict):
-        if error_data.get("error"):
-            return waba.error_message({"errors": [error_data["error"]], "recipient_id": "Error"})
-        if error_data.get("errors"):
-            return waba.error_message({"errors": error_data["errors"], "recipient_id": "Error"})
+    error_data = waba.extract_error_data(send_result)
+    if error_data:
+        return waba.error_message({"errors": [error_data], "recipient_id": "Error"})
 
     return str(error_msg)
 
@@ -174,6 +157,12 @@ def send_waba_error_to_openline(app_instance_id, user_phone, error_result, conne
         connector_code,
         line_id,
     )
+
+
+def raise_waba_send_error(send_result):
+    if not waba.is_retry_enabled_for_error(send_result):
+        raise waba.WabaNonRetryableError(send_result)
+    raise requests.RequestException(send_result)
 
 
 logger = logging.getLogger("django")
@@ -1342,7 +1331,7 @@ def sms_processor(self, data, service):
             if "error" in (send_result or {}):
                 if self.request.retries >= self.max_retries:
                     _send_waba_error_to_openline(send_result)
-                raise requests.RequestException(send_result)
+                raise_waba_send_error(send_result)
             if phone and phone.ChatFromSms and line:
                 bitrix_tasks.send_messages(
                     app_instance.id,
@@ -1361,7 +1350,7 @@ def sms_processor(self, data, service):
         if "error" in (send_result or {}):
             if self.request.retries >= self.max_retries:
                 _send_waba_error_to_openline(send_result)
-            raise requests.RequestException(send_result)
+            raise_waba_send_error(send_result)
         return send_result
     except TRANSIENT_ERRORS:
         raise
@@ -1670,14 +1659,14 @@ def event_processor(self, data):
                         if "error" in (send_result or {}):
                             if self.request.retries >= self.max_retries:
                                 send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                            raise requests.RequestException(send_result)
+                            raise_waba_send_error(send_result)
 
                 else:
                     send_result = waba.send_message_from_phone(phone, message)
                     if "error" in (send_result or {}):
                         if self.request.retries >= self.max_retries:
                             send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                        raise requests.RequestException(send_result)
+                        raise_waba_send_error(send_result)
 
             elif connector.service == "waweb":
                 try:

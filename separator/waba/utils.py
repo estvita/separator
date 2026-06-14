@@ -1,5 +1,6 @@
 import re
 import os
+import ast
 import json
 import hmac
 import uuid
@@ -47,6 +48,95 @@ API_URL = settings.FACEBOOK_API_URL
 logger = logging.getLogger("django")
 # Add timeouts to prevent hanging if Redis is unavailable
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
+
+
+class WabaNonRetryableError(Exception):
+    pass
+
+
+def extract_error_data(data):
+    if not isinstance(data, dict):
+        return {}
+
+    if isinstance(data.get("error"), dict):
+        return data["error"]
+
+    errors = data.get("errors") or []
+    if errors and isinstance(errors[0], dict):
+        return errors[0]
+
+    message = data.get("message")
+    candidates = []
+    if isinstance(message, dict):
+        candidates.append(message)
+    elif isinstance(message, str):
+        candidates.append(message)
+        if ": " in message:
+            candidates.append(message.split(": ", 1)[1])
+
+    for candidate in candidates:
+        if isinstance(candidate, dict):
+            if isinstance(candidate.get("error"), dict):
+                return candidate["error"]
+            return candidate
+
+        for parser in (ast.literal_eval, json.loads):
+            try:
+                parsed = parser(candidate)
+            except Exception:
+                continue
+            if isinstance(parsed, dict):
+                if isinstance(parsed.get("error"), dict):
+                    return parsed["error"]
+                return parsed
+
+    return {}
+
+
+def save_error_data(error_data):
+    code = error_data.get("code")
+    if code is None:
+        return None
+
+    fb_message = error_data.get("message") or error_data.get("title") or ""
+    fb_details = (error_data.get("error_data") or {}).get("details", "")
+    error_obj, _ = Error.objects.get_or_create(
+        code=code,
+        subcode=error_data.get("error_subcode"),
+        defaults={
+            "type": error_data.get("type"),
+            "message": fb_message,
+            "details": fb_details,
+        },
+    )
+
+    update_fields = []
+    if error_data.get("type") and error_obj.type != error_data.get("type"):
+        error_obj.type = error_data.get("type")
+        update_fields.append("type")
+    if fb_message and not error_obj.message:
+        error_obj.message = fb_message
+        update_fields.append("message")
+    if fb_details and not error_obj.details:
+        error_obj.details = fb_details
+        update_fields.append("details")
+    if update_fields:
+        error_obj.save(update_fields=update_fields)
+
+    return error_obj
+
+
+def is_retry_enabled_for_error(data):
+    error_data = extract_error_data(data)
+    if not error_data:
+        return True
+
+    try:
+        error_obj = save_error_data(error_data)
+    except Exception:
+        return True
+
+    return True if error_obj is None else error_obj.retry
 
 
 def _media_cache_key(phone, kind, value):
@@ -793,24 +883,20 @@ def template_category_update(entry):
     
 
 def error_message(data):
-    error = (data.get('errors') or [{}])[0]
-    code = error.get("code")
+    error = extract_error_data(data)
     fb_message = error.get("message") or error.get("title") or ""
     fb_details = (error.get("error_data") or {}).get("details", "")
     recipient = data.get('recipient_id') or data.get('from')
 
     try:
-        error_obj, created = Error.objects.get_or_create(
-            code=code,
-            defaults={"message": fb_message, "details": fb_details}
-        )
+        error_obj = save_error_data(error)
 
-        if error_obj.original:
+        if error_obj and error_obj.original:
             return str(data)
         
         out_message = f"Error for: {recipient}:\n" \
-                    f"{error_obj.message or fb_message}\n" \
-                    f"{error_obj.details or fb_details}"
+                    f"{error_obj.message if error_obj else fb_message}\n" \
+                    f"{error_obj.details if error_obj else fb_details}"
         return out_message
     except Exception:
         return f"Error for: {recipient}: {fb_message} {fb_details}"
@@ -1290,12 +1376,7 @@ def _build_fallback_body_parameters(template, text):
     **RETRY_KWARGS,
 )
 def messages_processing(raw_body=None, signature=None, app_id=None, host=None):
-    result = event_processing(raw_body, signature, app_id, host)
-    if isinstance(result, list):
-        for item in result:
-            if isinstance(item, dict) and item.get("SUCCESS") is False:
-                raise Exception(result)
-    return result
+    return event_processing(raw_body, signature, app_id, host)
 
 
 @shared_task(
@@ -1837,9 +1918,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 if fb_status == "failed":
                     fallback_triggered = False
                     try:
-                        error_data = (item.get('errors') or [{}])[0]
-                        error_code = error_data.get("code")
-                        error_obj = Error.objects.filter(code=error_code).first()
+                        error_data = extract_error_data(item)
+                        error_obj = save_error_data(error_data)
                         if error_obj and error_obj.fallback:
                             saved_text = redis_client.get(f"wamid:{wamid}")
                             if saved_text:

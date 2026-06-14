@@ -365,6 +365,12 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
             resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=request_timeout)
             result = resp.get("result", {})
             results = result.get("DATA", {}).get("RESULT", [])
+        failed_results = [
+            result_item for result_item in results
+            if isinstance(result_item, dict) and result_item.get("SUCCESS") is False
+        ]
+        if failed_results:
+            raise Exception(resp)
         for result_item in results:
             chat_session = result_item.get("session", {})
             if chat_session:

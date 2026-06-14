@@ -366,12 +366,17 @@ class Event(models.Model):
 
 class Error(models.Model):
     code = models.PositiveIntegerField()
+    subcode = models.PositiveIntegerField(null=True, blank=True)
+    type = models.CharField(max_length=255, null=True, blank=True)
     original = models.BooleanField(default=True)
     fallback = models.BooleanField(default=False)
+    retry = models.BooleanField(default=True)
     details = models.TextField(null=True, blank=True)
     message = models.TextField(null=True, blank=True)
     
     def __str__(self):
+        if self.subcode:
+            return f"{self.code}:{self.subcode}"
         return f"{self.code}"
 
 

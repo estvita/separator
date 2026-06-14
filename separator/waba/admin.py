@@ -254,9 +254,9 @@ class EventAdmin(admin.ModelAdmin):
 
 @admin.register(Error)
 class ErrorAdmin(admin.ModelAdmin):
-    list_display = ("code", "original", "fallback", "message")
-    search_fields = ("code", "details", "message")
-    list_filter = ("original", "fallback")
+    list_display = ("code", "subcode", "type", "retry", "original", "fallback", "message")
+    search_fields = ("code", "subcode", "type", "details", "message")
+    list_filter = ("retry", "original", "fallback", "type")
 
 
 @admin.register(Ctwa)

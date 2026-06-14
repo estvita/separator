@@ -1,4 +1,5 @@
 import requests
+from kombu.exceptions import OperationalError as KombuOperationalError
 from django.db import InterfaceError, OperationalError, DatabaseError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ReadOnlyError as RedisReadOnlyError
@@ -13,6 +14,7 @@ TRANSIENT_ERRORS = (
     RedisConnectionError,
     RedisTimeoutError,
     RedisReadOnlyError,
+    KombuOperationalError,
 )
 
 RETRY_KWARGS = {

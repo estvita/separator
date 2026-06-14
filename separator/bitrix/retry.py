@@ -1,4 +1,5 @@
 import requests
+from kombu.exceptions import OperationalError as KombuOperationalError
 from django.conf import settings
 from django.db import InterfaceError, OperationalError, DatabaseError
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -18,6 +19,7 @@ TRANSIENT_ERRORS = (
     RedisConnectionError,
     RedisTimeoutError,
     RedisReadOnlyError,
+    KombuOperationalError,
     *_asterx_errors,
 )
 
