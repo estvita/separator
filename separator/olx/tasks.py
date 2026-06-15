@@ -3,7 +3,6 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.conf import settings
 import requests
-import redis
 from celery import shared_task
 
 import separator.bitrix.tasks as bitrix_tasks
@@ -22,7 +21,6 @@ from .models import (
 from .utils import deactivate_task
 
 logger = logging.getLogger("django")
-redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 
 def _partner_request(user, method, path, **kwargs):
@@ -375,7 +373,6 @@ def send_message(chat_id, text, files=None):
         if message_id > olx_thread.last_message_id:
             olx_thread.last_message_id = message_id
             olx_thread.save(update_fields=["last_message_id"])
-        redis_client.set(f'olx:{threadid}', message_id)
     else:
         raise Exception(f"OLX send message failed: {response.status_code} {response.text}")
 

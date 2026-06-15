@@ -1583,10 +1583,15 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             if not phone:
                 raise Exception(f"phone_number not found {phone_number}")
             if phone.line_id:
-                appinstance = bitrix_utils.get_line_app_instance(phone.line, "waba")
-                appinstance.host = host
-                if appinstance.has_active_feature("separator_ctwa_tracker"):
-                    ctwa_enabled = True
+                try:
+                    appinstance = bitrix_utils.get_line_app_instance(phone.line, "waba")
+                except bitrix_utils.AppInstance.DoesNotExist:
+                    appinstance = None
+
+                if appinstance:
+                    appinstance.host = host
+                    if appinstance.has_active_feature("separator_ctwa_tracker"):
+                        ctwa_enabled = True
         except Exception:
             raise
         

@@ -159,6 +159,25 @@ def send_waba_error_to_openline(app_instance_id, user_phone, error_result, conne
     )
 
 
+def is_waba_tariff_expired_error(send_result):
+    message = str((send_result or {}).get("message", "")).lower()
+    return "tariff expired" in message
+
+
+def handle_waba_send_error(task, send_result, app_instance_id, user_phone, connector_code, line_id):
+    if "error" not in (send_result or {}):
+        return False
+
+    if is_waba_tariff_expired_error(send_result):
+        send_waba_error_to_openline(app_instance_id, user_phone, send_result, connector_code, line_id)
+        return True
+
+    if task.request.retries >= task.max_retries:
+        send_waba_error_to_openline(app_instance_id, user_phone, send_result, connector_code, line_id)
+
+    raise_waba_send_error(send_result)
+
+
 def raise_waba_send_error(send_result):
     if not waba.is_retry_enabled_for_error(send_result):
         raise waba.WabaNonRetryableError(send_result)
@@ -1328,10 +1347,15 @@ def sms_processor(self, data, service):
 
         if service == "waba":
             send_result = _send_waba_direct(message_to, message_body)
-            if "error" in (send_result or {}):
-                if self.request.retries >= self.max_retries:
-                    _send_waba_error_to_openline(send_result)
-                raise_waba_send_error(send_result)
+            if handle_waba_send_error(
+                self,
+                send_result,
+                app_instance.id,
+                message_to,
+                line.connector.code,
+                line.line_id,
+            ):
+                return send_result
             if phone and phone.ChatFromSms and line:
                 bitrix_tasks.send_messages(
                     app_instance.id,
@@ -1656,17 +1680,13 @@ def event_processor(self, data):
                                 message["document"]["caption"] = media_caption
 
                         send_result = waba.send_message_from_phone(phone, message)
-                        if "error" in (send_result or {}):
-                            if self.request.retries >= self.max_retries:
-                                send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                            raise_waba_send_error(send_result)
+                        if handle_waba_send_error(self, send_result, appinstance.id, chat, connector.code, line_id):
+                            return send_result
 
                 else:
                     send_result = waba.send_message_from_phone(phone, message)
-                    if "error" in (send_result or {}):
-                        if self.request.retries >= self.max_retries:
-                            send_waba_error_to_openline(appinstance.id, chat, send_result, connector.code, line_id)
-                        raise_waba_send_error(send_result)
+                    if handle_waba_send_error(self, send_result, appinstance.id, chat, connector.code, line_id):
+                        return send_result
 
             elif connector.service == "waweb":
                 try:
