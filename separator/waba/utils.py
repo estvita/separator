@@ -1371,6 +1371,13 @@ def _build_fallback_body_parameters(template, text):
     return [{"type": "text", "text": text}]
 
 
+def send_bitrix_message_from_waba(*args, **kwargs):
+    if getattr(settings, "WABA_SEND_BITRIX_MESSAGES_ASYNC", False):
+        task = bitrix_tasks.send_messages.delay(*args, **kwargs)
+        return {"queued": True, "task_id": task.id}
+    return bitrix_tasks.send_messages(*args, **kwargs)
+
+
 @shared_task(
     queue='waba_messages',
     **RETRY_KWARGS,
@@ -1796,7 +1803,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         dt = datetime.fromtimestamp(expiration)
                         expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
                     msg = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
-                    return bitrix_tasks.send_messages(
+                    return send_bitrix_message_from_waba(
                         appinstance.id,
                         user_identy,
                         msg,
@@ -1860,7 +1867,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         "name": filename
                     }
                 ]
-                send_result = bitrix_tasks.send_messages(
+                send_result = send_bitrix_message_from_waba(
                     appinstance.id,
                     user_identy,
                     caption,
@@ -2013,7 +2020,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             if not ctwa_enabled:
                 ctwa_id = None
                 source_id = None
-            send_result = bitrix_tasks.send_messages(
+            send_result = send_bitrix_message_from_waba(
                 appinstance.id,
                 user_identy,
                 text,
@@ -2119,7 +2126,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 raise Exception(f"Unsupported smb_message_echoes message_type: {message_type}")
 
             if text or attach:
-                return bitrix_tasks.send_messages(
+                return send_bitrix_message_from_waba(
                     appinstance.id,
                     user_identy,
                     text,
