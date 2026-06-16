@@ -1519,11 +1519,12 @@ def event_processor(self, data):
             
             quoted_msg_id = None
             if text:
-                # Поиск ID цитируемого сообщения (wamid.ID.ext)
-                match = re.search(r"wamid\.([a-zA-Z0-9_]+)\.", text)
+                match = re.search(r"wamid\.([a-zA-Z0-9_]+)-", text)
+                if not match:
+                    # Legacy format: wamid.ID.ext
+                    match = re.search(r"wamid\.([a-zA-Z0-9_]+)\.", text)
                 if match:
                     short_id = match.group(1)
-                    # Lookup full message ID from Redis
                     full_id = redis_client.get(f"wamid:{short_id}")
                     if full_id:
                         quoted_msg_id = full_id.decode('utf-8')

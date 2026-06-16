@@ -1371,6 +1371,11 @@ def _build_fallback_body_parameters(template, text):
     return [{"type": "text", "text": text}]
 
 
+def _build_wamid_filename(media_id, extension, original_filename=None):
+    display_name = original_filename or f"file.{extension}"
+    return f"wamid.{media_id}-{display_name}"
+
+
 def send_bitrix_message_from_waba(*args, **kwargs):
     if getattr(settings, "WABA_SEND_BITRIX_MESSAGES_ASYNC", False):
         task = bitrix_tasks.send_messages.delay(*args, **kwargs)
@@ -1715,16 +1720,14 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 media_url = media_data.get("url")
                 original_filename = media_data.get("filename")
                 extension = _resolve_media_extension(media_data.get("mime_type"), original_filename)
-                filename = f"wamid.{media_id}.{extension}"
+                filename = _build_wamid_filename(media_id, extension, original_filename)
                            
                 caption = media_data.get("caption") or ""
-                if original_filename:
-                    caption = f"{original_filename} {caption}"
                 caption = caption.strip() if caption else None
                 
-                # Store mapping media_id -> message_id in Redis (expire 3 months)
+                # Store mapping media_id -> message_id in Redis (expire 30 days)
                 try:
-                    redis_client.set(f"wamid:{media_id}", message_id, ex=7776000)
+                    redis_client.set(f"wamid:{media_id}", message_id, ex=30 * 24 * 60 * 60)
                 except Exception:
                     pass
 
@@ -2090,11 +2093,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
                 original_filename = media_data.get("filename")
                 extension = _resolve_media_extension(media_data.get("mime_type"), original_filename)
-                filename = f"wamid.{media_id}.{extension}"
+                filename = _build_wamid_filename(media_id, extension, original_filename)
                 
                 text = media_data.get("caption") or ""
-                if original_filename:
-                    text = f"{original_filename} {text}"
                 text = text.strip() if text else None
 
                 try:
