@@ -168,7 +168,7 @@ def handle_waba_send_error(task, send_result, app_instance_id, user_phone, conne
     if "error" not in (send_result or {}):
         return False
 
-    if is_waba_tariff_expired_error(send_result):
+    if is_waba_tariff_expired_error(send_result) or not waba.is_retry_enabled_for_error(send_result):
         send_waba_error_to_openline(app_instance_id, user_phone, send_result, connector_code, line_id)
         return True
 
@@ -1347,6 +1347,8 @@ def sms_processor(self, data, service):
 
         if service == "waba":
             send_result = _send_waba_direct(message_to, message_body)
+            if not phone or not line:
+                return send_result
             if handle_waba_send_error(
                 self,
                 send_result,
