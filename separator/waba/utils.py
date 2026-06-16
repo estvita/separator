@@ -1867,6 +1867,18 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         "name": filename
                     }
                 ]
+                if caption and getattr(settings, "WABA_SEND_MEDIA_CAPTION_SEPARATELY", False):
+                    send_bitrix_message_from_waba(
+                        appinstance.id,
+                        user_identy,
+                        caption,
+                        phone.line.connector.code,
+                        phone.line.line_id,
+                        pushName=user_name,
+                        message_id=f"{message_id}:caption",
+                        chat_url=source_url,
+                    )
+                    caption = None
                 send_result = send_bitrix_message_from_waba(
                     appinstance.id,
                     user_identy,
