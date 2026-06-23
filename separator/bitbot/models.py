@@ -27,12 +27,12 @@ class Connector(models.Model):
     )
     provider = models.ForeignKey(Provider, on_delete=models.SET_NULL, related_name="connectors", null=True)
     url = models.URLField(max_length=1020, blank=True, null=True)
-    key = EncryptedCharField(max_length=2000)
+    key = EncryptedCharField(max_length=2000, blank=True, null=True)
 
     def __str__(self):
         return f"{str(self.id)} - {self.provider}"
 
-# https://apidocs.bitrix24.com/api-reference/chat-bots/imbot-register.html
+# https://apidocs.bitrix24.ru/api-reference/chat-bots/chat-bots-v2/imbot.v2/bots/bot-register.html
 class ChatBot(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
@@ -42,12 +42,7 @@ class ChatBot(models.Model):
     app_instance = models.ForeignKey(AppInstance, on_delete=models.SET_NULL, related_name="chatbots", null=True)
     name = models.CharField(max_length=255, default="BitBot")
     bot_id = models.PositiveIntegerField(default=0)
-    bot_type = models.CharField(max_length=1, default="O", help_text=_("B, O or S"))
-    batch_delay = models.PositiveIntegerField(
-        _("Batch delay"),
-        default=10,
-        help_text=_("Delay in seconds before sending accumulated messages. 0 disables batching."),
-    )
+    bot_type = models.CharField(max_length=20, default="openline", help_text=_("bot, openline or supervisor"))
 
     def __str__(self):
         return f"{self.name} - {self.id}"

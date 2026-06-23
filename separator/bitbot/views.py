@@ -16,6 +16,10 @@ from separator.bitrix.models import User as BitrixUser, Bitrix
 
 CommandLangFormSet = formset_factory(CommandLangForm, extra=1, can_delete=True)
 
+def bitrix_bool(value):
+    return value == "Y"
+
+
 class BotListView(LoginRequiredMixin, ListView):
     model = ChatBot
     template_name = "bitbot/list.html"
@@ -125,21 +129,25 @@ class BotEditView(LoginRequiredMixin, View):
                     bot.owner = request.user
                 bot.save()
                 if bot.bot_id == 0:
-                    domain = bot.app_instance.app.site.domain
-                    event_handler = f"https://{domain}/api/bitrix/"
-                    if bot.connector.provider and bot.connector.provider.type == "custom" and bot.connector.url:
-                        event_handler = bot.connector.url
+                    webhook_url = (bot.connector.url or "").strip()
+                    if not webhook_url:
+                        messages.error(request, _("Connector URL is required for bot events."))
+                        return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
                     payload = {
-                        "CODE": f"bitbot_{bot.id}",
-                        "TYPE": bot.bot_type,
-                        "EVENT_HANDLER": event_handler,
-                        "PROPERTIES": {
-                            "NAME": bot.name,
+                        "fields": {
+                            "code": f"bitbot_{bot.id}",
+                            "type": bot.bot_type,
+                            "eventMode": "webhook",
+                            "webhookUrl": webhook_url,
+                            "isSupportOpenline": bot.bot_type == "openline",
+                            "properties": {
+                                "name": bot.name,
+                            },
                         },
                     }
                     try:
-                        resp = call_method(bot.app_instance, "imbot.register", payload)
-                        bot.bot_id = resp.get("result")
+                        resp = call_method(bot.app_instance, "imbot.v2.Bot.register", payload)
+                        bot.bot_id = resp.get("result", {}).get("bot", {}).get("id", 0)
                         bot.save()
                     except Exception as e:
                         messages.error(request, e)
@@ -190,20 +198,29 @@ class BotEditView(LoginRequiredMixin, View):
 
                 # Регистрация команды в Bitrix:
                 if cmd.command_id == 0:
-                    domain = bot.app_instance.app.site.domain
+                    title = {}
+                    params = {}
+                    for cd in valid_translations:
+                        language = cd["language"].strip()
+                        title[language] = cd["title"].strip()
+                        command_params = (cd.get("params") or "").strip()
+                        if command_params:
+                            params[language] = command_params
+
                     payload = {
-                        "BOT_ID": bot.bot_id,
-                        "COMMAND": cmd.command,
-                        "COMMON": cmd.common, "HIDDEN": cmd.hidden, "EXTRANET_SUPPORT": cmd.extranet,
-                        "EVENT_COMMAND_ADD": f"https://{domain}/api/bitrix/",
-                        "LANG": [
-                            {"LANGUAGE_ID": cd["language"].strip(), "TITLE": cd["title"].strip(), "PARAMS": (cd.get("params") or "").strip()}
-                            for cd in valid_translations
-                        ],
+                        "botId": bot.bot_id,
+                        "fields": {
+                            "command": cmd.command,
+                            "common": bitrix_bool(cmd.common),
+                            "hidden": bitrix_bool(cmd.hidden),
+                            "extranetSupport": bitrix_bool(cmd.extranet),
+                            "title": title,
+                            "params": params,
+                        },
                     }
                     try:
-                        resp = call_method(bot.app_instance, "imbot.command.register", payload)
-                        cmd.command_id = int(resp["result"]); cmd.save(update_fields=["command_id"])
+                        resp = call_method(bot.app_instance, "imbot.v2.Command.register", payload)
+                        cmd.command_id = int(resp["result"]["command"]["id"]); cmd.save(update_fields=["command_id"])
                         messages.success(request, _("Command added."))
                         return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
                     except Exception as e:
@@ -222,7 +239,10 @@ class BotEditView(LoginRequiredMixin, View):
             # Удаление команды на портале Bitrix:
             if cmd.command_id:
                 try:
-                    resp = call_method(bot.app_instance, "imbot.command.unregister", {"COMMAND_ID": cmd.command_id})
+                    resp = call_method(bot.app_instance, "imbot.v2.Command.unregister", {
+                        "botId": bot.bot_id,
+                        "commandId": cmd.command_id,
+                    })
                     cmd.delete()
                     messages.success(request, resp)
                 except Exception as e:
@@ -233,7 +253,7 @@ class BotEditView(LoginRequiredMixin, View):
         if "delete_bot" in request.POST and bot:
             if bot.bot_id:
                 try:
-                    resp = call_method(bot.app_instance, "imbot.unregister", {"BOT_ID": bot.bot_id})
+                    resp = call_method(bot.app_instance, "imbot.v2.Bot.unregister", {"botId": bot.bot_id})
                     bot.delete()
                     messages.success(request, resp)
                 except Exception as e:

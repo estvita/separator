@@ -374,7 +374,12 @@ def send_message(chat_id, text, files=None):
             olx_thread.last_message_id = message_id
             olx_thread.save(update_fields=["last_message_id"])
     else:
-        raise Exception(f"OLX send message failed: {response.status_code} {response.text}")
+        try:
+            error = response.json().get("error", {})
+            error_text = error.get("detail") or error.get("title") or response.text
+        except ValueError:
+            error_text = response.text
+        raise Exception(f"OLX send message failed: {response.status_code} {error_text}")
 
     return response.json()
 

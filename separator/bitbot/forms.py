@@ -8,6 +8,7 @@ class ConnectorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['url'].required = False
+        self.fields['key'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -25,7 +26,7 @@ class ConnectorForm(forms.ModelForm):
         widgets = {
             'provider': forms.Select(attrs={'class': 'form-control'}),
             'key': forms.PasswordInput(attrs={'class': 'form-control'}),
-            'url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': _('Optional')}),
+            'url': forms.URLInput(attrs={'class': 'form-control'}),
         }
 
 class ChatBotForm(forms.ModelForm):
@@ -35,13 +36,12 @@ class ChatBotForm(forms.ModelForm):
     )
     class Meta:
         model = ChatBot
-        fields = ['name', 'bot_type', 'app_instance', 'connector', 'batch_delay']
+        fields = ['name', 'bot_type', 'app_instance', 'connector']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'bot_type': forms.Select(choices=[("O", _("Open Lines")), ("B", _("Chat Bot")), ("S", _("Supervisor"))],
+            'bot_type': forms.Select(choices=[("openline", _("Open Lines")), ("bot", _("Chat Bot")), ("supervisor", _("Supervisor"))],
                                      attrs={'class': 'form-control'}),
             'connector': forms.Select(attrs={'class': 'form-control'}),
-            'batch_delay': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
         }
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user")
