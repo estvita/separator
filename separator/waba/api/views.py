@@ -22,6 +22,7 @@ from separator.waba.utils import (
     build_hosted_embedded_signup_link,
     build_popup_embedded_signup_config,
     event_processing,
+    get_api_credentials,
     messages_processing,
 )
 
@@ -187,9 +188,10 @@ def partner_graph_proxy(request, object_id, endpoint=""):
 
     endpoint = (endpoint or "").strip("/")
     graph_path = f"{object_id}/{endpoint}" if endpoint else object_id
-    graph_url = f"{settings.FACEBOOK_API_URL}/v{waba.app.api_version}.0/{graph_path}"
+    meta_app, access_token = get_api_credentials(waba=waba)
+    graph_url = f"{settings.FACEBOOK_API_URL}/v{meta_app.api_version}.0/{graph_path}"
     headers = {
-        "Authorization": f"Bearer {waba.access_token}",
+        "Authorization": f"Bearer {access_token}",
     }
     content_type = request.headers.get("Content-Type")
     if content_type:

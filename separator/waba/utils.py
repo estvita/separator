@@ -310,12 +310,18 @@ def serialize_templates_for_frontend(templates, stringify_ids=False):
     return data
 
 
-def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None, files=None, data=None):
-    if not app and waba:
-        access_token = waba.access_token
+def get_api_credentials(app: App=None, waba: Waba=None):
+    if waba:
         app = waba.app
-    else:
-        access_token = app.access_token
+        if app and app.fallback_app_id:
+            fallback_app = app.fallback_app
+            return fallback_app, fallback_app.access_token
+        return app, waba.access_token
+    return app, app.access_token
+
+
+def call_api(app: App=None, waba: Waba=None, endpoint: str=None, method="get", payload=None, file_url=None, files=None, data=None):
+    app, access_token = get_api_credentials(app=app, waba=waba)
     headers = {"Authorization": f"Bearer {access_token}"}
     base_url = f"{API_URL}/v{app.api_version}.0"
     timeout = (10, 60)
@@ -385,8 +391,8 @@ def upload_media_url_for_phone(phone, file_url, filename, source_url=None, mime_
         if cached_id:
             return {"id": cached_id}
 
-        app = waba.app
-        headers = {"Authorization": f"Bearer {waba.access_token}"}
+        app, access_token = get_api_credentials(waba=waba)
+        headers = {"Authorization": f"Bearer {access_token}"}
         base_url = f"{API_URL}/v{app.api_version}.0"
         endpoint = f"{base_url}/{phone.phone_id}/media"
         boundary = f"----separator-{uuid.uuid4().hex}"

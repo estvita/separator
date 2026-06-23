@@ -50,6 +50,7 @@ class App(models.Model):
         unique=True,
     )
     sip_server = models.ForeignKey(Server, on_delete=models.SET_NULL, blank=True, null=True)
+    fallback_app = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="fallback_apps",)
     def __str__(self):
         return f"{self.client_id} ({self.name})"
 
