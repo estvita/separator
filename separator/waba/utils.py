@@ -1953,6 +1953,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     try:
                         error_data = extract_error_data(item)
                         error_obj = save_error_data(error_data)
+                        error_code = error_data.get("code")
                         if error_obj and error_obj.fallback:
                             saved_text = redis_client.get(f"wamid:{wamid}")
                             if saved_text:
