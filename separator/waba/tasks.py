@@ -603,11 +603,13 @@ def waba_subscription(waba_id):
 
 @shared_task(queue='waba', **RETRY_KWARGS)
 def fallback_subscription(waba_id, primary_app_id, fallback_app_id, subscribe=True):
-    waba = Waba.objects.filter(id=waba_id, app_id=primary_app_id).first()
+    waba = Waba.objects.prefetch_related("phones").filter(id=waba_id, app_id=primary_app_id).first()
     primary_app = App.objects.filter(id=primary_app_id).first()
     fallback_app = App.objects.filter(id=fallback_app_id).first()
     if not waba or not primary_app or not fallback_app:
         return
+    if not waba.subscribed:
+        return {"status": "skipped", "reason": "waba subscription disabled"}
 
     if subscribe and primary_app.fallback_app_id != fallback_app_id:
         return {"status": "skipped", "reason": "fallback changed"}
@@ -615,11 +617,14 @@ def fallback_subscription(waba_id, primary_app_id, fallback_app_id, subscribe=Tr
         return {"status": "skipped", "reason": "fallback active"}
 
     method = "post" if subscribe else "delete"
-    return utils.call_api(
+    result = utils.call_api(
         app=fallback_app,
         endpoint=f"{waba.waba_id}/subscribed_apps",
         method=method,
     )
+    for phone in waba.phones.filter(calling="enabled"):
+        call_management.delay(phone.id)
+    return result
 
 
 @shared_task(queue='waba', **RETRY_KWARGS)

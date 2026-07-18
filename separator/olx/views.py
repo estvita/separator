@@ -197,7 +197,11 @@ def olx_account_adverts(request, account_id):
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "sync_adverts":
-            response = _sync_account_adverts(olx_user)
+            try:
+                response = _sync_account_adverts(olx_user)
+            except Exception as e:
+                messages.error(request, f"OLX adverts sync failed: {e}")
+                return redirect("olx-account-adverts", account_id=olx_user.id)
             if response.status_code == 200:
                 messages.success(request, "OLX adverts synchronized.")
             else:

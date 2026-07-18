@@ -172,9 +172,14 @@ def refresh_token(olx_user_id):
         user.attempts += 1
         user.save()
         deactivate_task(user.olx_id)
+        try:
+            error = get_token.json()
+            error_text = error.get("error_human_title") or error.get("error_description") or get_token.text
+        except ValueError:
+            error_text = get_token.text
         raise Exception(
             f"OLX refresh token failed for user {olx_user_id}: "
-            f"{get_token.status_code} {get_token.text}"
+            f"{get_token.status_code} {error_text}"
         )
     return get_token.status_code
 

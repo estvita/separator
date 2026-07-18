@@ -1801,53 +1801,56 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 text = format_contacts(contacts)
 
             elif message_type == "interactive":
-                interactive = message.get("interactive", {})
-                interactive_type = interactive.get("type")
-                if interactive_type == "call_permission_reply":
-                    reply = interactive.get("call_permission_reply", {})
-                    responce = reply.get("response", "expiration_timestamp")
-                    expiration = ""
-                    expiration = reply.get("expiration_timestamp", "")
-                    if expiration:
-                        dt = datetime.fromtimestamp(expiration)
-                        expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
-                    msg = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
-                    return send_bitrix_message_from_waba(
-                        appinstance.id,
-                        user_identy,
-                        msg,
-                        phone.line.connector.code,
-                        phone.line.line_id,
-                        manager_id=0,
-                    )
-                elif interactive_type == "nfm_reply":
-                    text = _format_nfm_reply(interactive)
-                    attach = _build_nfm_reply_attachment(appinstance, interactive, message_timestamp)
-                elif interactive_type == "button_reply":
-                    reply = interactive.get("button_reply", {})
-                    title = reply.get("title")
-                    reply_id = reply.get("id")
-                    lines = []
-                    if title:
-                        lines.append(title)
-                    if reply_id:
-                        lines.append(f"ID: {reply_id}")
-                    text = "\n".join(lines) if lines else None
-                elif interactive_type == "list_reply":
-                    reply = interactive.get("list_reply", {})
-                    title = reply.get("title")
-                    description = reply.get("description")
-                    reply_id = reply.get("id")
-                    lines = []
-                    if title:
-                        lines.append(title)
-                    if description:
-                        lines.append(description)
-                    if reply_id:
-                        lines.append(f"ID: {reply_id}")
-                    text = "\n".join(lines) if lines else None
+                if message.get("errors"):
+                    text = f"[color=#ff0000]{error_message(message)}[/color]"
                 else:
-                    raise Exception(f"Unsupported interactive_type: {interactive_type}")
+                    interactive = message.get("interactive", {})
+                    interactive_type = interactive.get("type")
+                    if interactive_type == "call_permission_reply":
+                        reply = interactive.get("call_permission_reply", {})
+                        responce = reply.get("response", "expiration_timestamp")
+                        expiration = ""
+                        expiration = reply.get("expiration_timestamp", "")
+                        if expiration:
+                            dt = datetime.fromtimestamp(expiration)
+                            expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
+                        msg = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
+                        return send_bitrix_message_from_waba(
+                            appinstance.id,
+                            user_identy,
+                            msg,
+                            phone.line.connector.code,
+                            phone.line.line_id,
+                            manager_id=0,
+                        )
+                    elif interactive_type == "nfm_reply":
+                        text = _format_nfm_reply(interactive)
+                        attach = _build_nfm_reply_attachment(appinstance, interactive, message_timestamp)
+                    elif interactive_type == "button_reply":
+                        reply = interactive.get("button_reply", {})
+                        title = reply.get("title")
+                        reply_id = reply.get("id")
+                        lines = []
+                        if title:
+                            lines.append(title)
+                        if reply_id:
+                            lines.append(f"ID: {reply_id}")
+                        text = "\n".join(lines) if lines else None
+                    elif interactive_type == "list_reply":
+                        reply = interactive.get("list_reply", {})
+                        title = reply.get("title")
+                        description = reply.get("description")
+                        reply_id = reply.get("id")
+                        lines = []
+                        if title:
+                            lines.append(title)
+                        if description:
+                            lines.append(description)
+                        if reply_id:
+                            lines.append(f"ID: {reply_id}")
+                        text = "\n".join(lines) if lines else None
+                    else:
+                        raise Exception(f"Unsupported interactive_type: {interactive_type}")
 
             elif message_type == "edit":
                 edit_data = message.get("edit", {})
@@ -1856,6 +1859,16 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 if edited_type == "text":
                     edited_text = (edited_message.get("text") or {}).get("body")
                     text = f"📝: {edited_text}" if edited_text else "Edited:"
+                elif edited_type == "image":
+                    media_data = edited_message.get("image", {})
+                    media_id = media_data["id"]
+                    media_url = media_data.get("url")
+                    original_filename = media_data.get("filename")
+                    extension = _resolve_media_extension(media_data.get("mime_type"), original_filename)
+                    filename = _build_wamid_filename(media_id, extension, original_filename)
+                    caption = media_data.get("caption") or ""
+                    caption = f"📝: {caption.strip()}" if caption.strip() else "📝"
+                    file_url = get_file(media_url, filename, appinstance, phone.waba, media_id=media_id, phone=phone)
                 else:
                     raise Exception(f"Unsupported edit.message type: {edited_type}")
 
@@ -2055,7 +2068,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 ctwa_id=ctwa_id,
                 source_id=source_id,
             )
-            if message_type not in ["unsupported", "system"]:
+            if message_type not in ["unsupported", "system"] and not message.get("errors"):
                 _queue_waba_read_status(waba, phone, message_id)
             if referral_body:
                 bitrix_tasks.send_messages.delay(
