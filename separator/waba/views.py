@@ -2,10 +2,12 @@ import json
 import redis
 import logging
 import ast
+import secrets
 from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model, login
 from django.db import transaction
 from django.db.models import Q, OuterRef, Subquery, CharField
 from django.core.paginator import Paginator
@@ -36,6 +38,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+WABA_OPEN_TOKEN_TTL = 300
 WABA_STATUS_FIELDS = (
     "name,timezone_id,message_template_namespace,account_review_status,"
     "business_verification_status,country,ownership_type,primary_business_location,"
@@ -947,6 +950,11 @@ def waba_view(request):
             phone.expiring_soon = False
     domain = request.get_host().split(':')[0]
     waba_app = App.objects.filter(sites__domain__iexact=domain).first()
+    waba_open_url = ""
+    if waba_app and waba_app.auth_flow == App.AuthFlow.POPUP:
+        token = secrets.token_urlsafe(32)
+        redis_client.setex(f"waba_open_token:{token}", WABA_OPEN_TOKEN_TTL, request.user.id)
+        waba_open_url = f"{reverse('waba-open')}?{urlencode({'token': token})}"
     return render(request, "waba/list.html", {
         "phones": phones,
         "waba_lines": lines,
@@ -955,7 +963,23 @@ def waba_view(request):
         "portals": portals,
         "selected_portal_id": selected_portal_id,
         "waba_auth_flow": waba_app.auth_flow if waba_app else "",
+        "waba_open_url": waba_open_url,
     })
+
+
+def waba_open(request):
+    token = request.GET.get("token")
+    user_id = redis_client.get(f"waba_open_token:{token}") if token else None
+    if not user_id:
+        return redirect(f"{settings.LOGIN_URL}?next={reverse('waba')}")
+
+    redis_client.delete(f"waba_open_token:{token}")
+    user = get_user_model().objects.filter(id=int(user_id)).first()
+    if not user:
+        return redirect(f"{settings.LOGIN_URL}?next={reverse('waba')}")
+
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return redirect("waba")
 
 
 def build_redirect_with_params(url, params):

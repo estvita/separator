@@ -30,6 +30,25 @@ from wagtailcodeblock.blocks import CodeBlock
 from separator.tariff.models import Tariff, Service
 
 
+class SpoilerBlock(blocks.StructBlock):
+    title = blocks.CharBlock(label="Spoiler Title", help_text="Clickable text to reveal the spoiler.")
+    content = blocks.RichTextBlock(label="Hidden Content")
+
+    class Meta:
+        template = "home/blocks/spoiler.html"
+        icon = "arrow-down"
+        label = "Spoiler"
+
+
+class GapBlock(blocks.StructBlock):
+    height = blocks.IntegerBlock(label="Height, px", min_value=0, max_value=300, default=32)
+
+    class Meta:
+        template = "home/blocks/gap.html"
+        icon = "arrows-up-down"
+        label = "Gap"
+
+
 class HomePage(Page):
     body = RichTextField(blank=True)
     menu_title = models.CharField(blank=True, max_length=150)
@@ -51,6 +70,8 @@ class ArticlePage(Page):
         ("rich_text", blocks.RichTextBlock()),
         ("code", CodeBlock(label="Code")),
         ('html', blocks.RawHTMLBlock()),
+        ("spoiler", SpoilerBlock()),
+        ("gap", GapBlock()),
         ("table", TypedTableBlock([
             ('text', blocks.CharBlock(required=False)),
             ('numeric', blocks.FloatBlock(required=False)),
@@ -136,6 +157,8 @@ class FormPage(AbstractEmailForm):
     thank_you_text = RichTextField(blank=True)
     body = StreamField([
         ("rich_text", blocks.RichTextBlock()),
+        ("form", blocks.StaticBlock(label="Form", admin_text="Form")),
+        ("gap", GapBlock()),
         ("table", TypedTableBlock([
             ('text', blocks.CharBlock(required=False)),
             ('numeric', blocks.FloatBlock(required=False)),
@@ -152,7 +175,6 @@ class FormPage(AbstractEmailForm):
 
     content_panels = AbstractEmailForm.content_panels + [
         FormSubmissionsPanel(),
-        FieldPanel('intro'),
         FieldPanel('body'),
         InlinePanel('form_fields'),
         FieldPanel('thank_you_text'),
@@ -164,3 +186,6 @@ class FormPage(AbstractEmailForm):
             FieldPanel('subject'),
         ], "Email"),
     ]
+
+    def has_form_block(self):
+        return any(block.block_type == "form" for block in self.body)

@@ -33,6 +33,16 @@ def _connection_error_status(exc):
     return -1
 
 
+def _response_json(response, b24_method):
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid Bitrix JSON response for {b24_method}: "
+            f"status {response.status_code}, response: {response.text[:500]}"
+        ) from exc
+
+
 def call_method(appinstance: AppInstance, 
                 b24_method: str, 
                 data: dict=None, 
@@ -115,10 +125,10 @@ def call_method(appinstance: AppInstance,
                         portal.save()
                     except Exception:
                         pass
-                return response.json()
+                return _response_json(response, b24_method)
 
             elif response.status_code == 401:
-                resp = response.json()
+                resp = _response_json(response, b24_method)
                 error = resp.get("error", "")
                 if error == "ACCESS_DENIED":
                     if not portal.license_expired:
@@ -143,11 +153,11 @@ def call_method(appinstance: AppInstance,
                     except Exception:
                         pass
                 
-                last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {response.json()}")
+                last_exc = Exception(f"Unauthorized error: instance {appinstance.id} {resp}")
                 break
             elif response.status_code == 403:
                 try:
-                    resp_data = response.json()
+                    resp_data = _response_json(response, b24_method)
                     if resp_data.get("error") == "ACCESS_DENIED":
                         if not portal.license_expired:
                             portal.license_expired = True

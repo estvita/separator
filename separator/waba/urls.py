@@ -4,6 +4,7 @@ from .api import views as api_views
 
 urlpatterns = [
     path('', views.waba_view, name='waba'),
+    path('open/', views.waba_open, name='waba-open'),
     path('partner/', views.partner_apps, name='waba-partner'),
     path('partner/<uuid:partner_app_id>/', views.partner_app_edit, name='waba-partner-edit'),
     path('callback/', views.facebook_callback, name='facebook_callback'),

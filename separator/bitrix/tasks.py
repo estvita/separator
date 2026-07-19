@@ -20,6 +20,7 @@ from separator.olx.models import OlxUser
 from separator.users.models import Message, User
 from separator.bitbot.models import ChatBot
 from separator.asterx.models import Server as AsterxServer
+from separator.freepbx.models import Extension as FreepbxExtension
 
 logger = logging.getLogger("django")
 
@@ -506,6 +507,7 @@ def check_tariffs(*days):
         (OlxUser, 'date_end', 'olx_id', 'olx'),
         (ChatBot, 'date_end', 'name', 'bitbot'),
         (AsterxServer, 'date_end', 'name', 'asterx'),
+        (FreepbxExtension, 'date_end', 'number', 'wa_calls'),
     ]
 
     for days in days_list:
@@ -527,6 +529,10 @@ def check_tariffs(*days):
                     continue
 
                 identifier = getattr(record, id_field, 'Unknown')
+                if Model is FreepbxExtension:
+                    phone = Phone.objects.filter(sip_extensions=record).first()
+                    if phone:
+                        identifier = phone.phone
                 expiration_str = record.date_end.strftime('%d.%m.%Y')
                 title = build_lead_title(
                     record.owner.site if record.owner else None,

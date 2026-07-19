@@ -1,0 +1,8 @@
+{% load wagtailcore_tags %}
+
+<details class="spoiler">
+    <summary>{{ value.title }}</summary>
+    <div class="spoiler-content">
+        {{ value.content|richtext }}
+    </div>
+</details>

@@ -177,6 +177,9 @@ def get_owner(request, app=None, portal=None):
         if request.user.is_authenticated:
             owner_user = request.user
         else:
+            user_name = ""
+            user_last_name = ""
+            user_phone = None
             try:
                 user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
                 user_data.raise_for_status()
@@ -185,23 +188,25 @@ def get_owner(request, app=None, portal=None):
                 user_last_name = user_data.get("LAST_NAME")
                 user_email = user_data.get("EMAIL")
                 user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
-
-                from separator.users.tasks import get_site
-                
-                owner_user, created = User.objects.get_or_create(
-                    email=user_email,
-                    defaults={
-                        "name": f"{user_name} {user_last_name}".strip(),
-                        "first_name": user_name,
-                        "last_name": user_last_name,
-                        "phone_number": user_phone,
-                        "site": get_site(request)
-                    }
-                )
-
             except Exception as e:
                 print("Error", e)
-                return None
+                user_email = None
+
+            if not user_email:
+                user_email = f"bitrix-{portal.id}-{b24_user.user_id}@local"
+
+            from separator.users.tasks import get_site
+            
+            owner_user, created = User.objects.get_or_create(
+                email=user_email,
+                defaults={
+                    "name": f"{user_name} {user_last_name}".strip() or f"Bitrix user {b24_user.user_id}",
+                    "first_name": user_name,
+                    "last_name": user_last_name,
+                    "phone_number": user_phone,
+                    "site": get_site(request)
+                }
+            )
         b24_user.owner = owner_user
         b24_user.save()
 
