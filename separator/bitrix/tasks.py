@@ -190,7 +190,13 @@ def upd_refresh_token(period):
             credential.refresh_date < now - timedelta(days=period)
         )
         if need_refresh:
-            refresh_token(credential, raise_request_exception=True)
+            upd_cred_token.delay(credential.id)
+
+
+@shared_task(queue='bitrix', **RETRY_KWARGS)
+def upd_cred_token(credential_id):
+    credential = Credential.objects.get(id=credential_id)
+    refresh_token(credential, raise_request_exception=True)
 
 
 @shared_task(queue='bitrix', **RETRY_KWARGS)
