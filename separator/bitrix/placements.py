@@ -130,6 +130,10 @@ def settings_connector(request, user):
     )
 
 
+def templates(request):
+    return render(request, "bitrix/placements/templates.html")
+
+
 class WabaPlacementModule:
     BLOCKS = [
         {"id": "templates", "label": _("Templates")},

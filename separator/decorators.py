@@ -9,7 +9,7 @@ def user_message(request, code=None, message_type='info'):
     if code:
         host = request.get_host().split(':')[0]
         site = Site.objects.filter(domain=host).first()
-        message = Message.objects.filter(code=code, site=site).first()
+        message = Message.objects.filter(code=code, sites=site).first()
         if message:
             msg_func = getattr(messages, message_type, messages.warning)
             msg_func(request, message.message)

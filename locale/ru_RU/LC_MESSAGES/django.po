@@ -1483,8 +1483,8 @@ msgid "You can submit an application for Official Business Account status."
 msgstr ""
 "Вы можете подать заявку на получение статуса официального бизнес-аккаунта."
 
-msgid "FreePBX Server not connected"
-msgstr "Сервер FreePBX не подключен"
+msgid "Server not connected"
+msgstr "Сервер не подключен"
 
 msgid "SIP extension creation failed."
 msgstr "Ошибка создания SIP аккаунта"

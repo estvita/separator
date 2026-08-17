@@ -192,7 +192,7 @@ def server_list(request):
 class ServerEditForm(ModelForm):
     class Meta:
         model = Server
-        fields = ['name', 'settings']
+        fields = ['name', 'settings', 'setup_complete']
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)

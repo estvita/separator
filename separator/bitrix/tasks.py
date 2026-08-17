@@ -20,7 +20,7 @@ from separator.olx.models import OlxUser
 from separator.users.models import Message, User
 from separator.bitbot.models import ChatBot
 from separator.asterx.models import Server as AsterxServer
-from separator.freepbx.models import Extension as FreepbxExtension
+from separator.voip.models import Extension as FreepbxExtension
 
 logger = logging.getLogger("django")
 
@@ -74,7 +74,7 @@ def _feature_date_end(app_instance, code, existing_grant=None):
 
 
 def build_lead_title(site, code, fallback, **context):
-    template = Message.objects.filter(site=site, code=code).first() if site else None
+    template = Message.objects.filter(sites=site, code=code).first() if site else None
     text = template.message if template and template.message else fallback
     try:
         return text.format(**context)

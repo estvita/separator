@@ -10,7 +10,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
 django.setup()
 
 # Import all models AFTER django.setup()
-from separator.freepbx.models import Server as FreepbxServer, Extension as FreepbxExtension
+from separator.voip.models import Server as VoipServer, Extension as VoipExtension
 from separator.bitrix.models import App as BitrixApp, Credential as BitrixCredential
 from separator.waba.models import App as WabaApp, Waba as WabaAccount
 from separator.waweb.models import Server as WawebServer, Session as WawebSession
@@ -20,8 +20,8 @@ from separator.olx.models import OlxApp, OlxUser
 def run():
     # List of (Model, [fields])
     targets = [
-        (FreepbxServer, ['client_id', 'client_secret']),
-        (FreepbxExtension, ['password']),
+        (VoipServer, ['client_id', 'client_secret']),
+        (VoipExtension, ['password']),
         (BitrixApp, ['client_secret']),
         (BitrixCredential, ['access_token', 'refresh_token']),
         (WabaApp, ['client_secret', 'access_token']),

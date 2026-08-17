@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from encrypted_fields.fields import EncryptedCharField
 
 from separator.bitrix.models import Bitrix, Line
-from separator.freepbx.models import Server, Extension
+from separator.voip.models import Server, Extension
 
 class App(models.Model):
     class AuthFlow(models.TextChoices):

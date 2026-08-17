@@ -1432,7 +1432,7 @@ msgstr ""
 msgid "You can submit an application for Official Business Account status."
 msgstr ""
 
-msgid "FreePBX Server not connected"
+msgid "Server not connected"
 msgstr ""
 
 msgid "SIP extension creation failed."

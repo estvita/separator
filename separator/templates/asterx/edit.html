@@ -20,6 +20,10 @@
 <form method="post">
     {% csrf_token %}
     <p>
+        <label for="{{ form.setup_complete.id_for_label }}">{% trans "Installed" %}</label>
+        {{ form.setup_complete }}
+    </p>
+    <p>
         {{ form.name.label_tag }}
         {{ form.name }}
     </p>

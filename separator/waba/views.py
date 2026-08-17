@@ -33,7 +33,7 @@ import separator.waba.bitrix as waba_bitrix
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
 
-from separator.freepbx.tasks import create_extension_task
+from separator.voip.tasks import create_extension_task
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ def get_current_sip_server(request):
     domain = request.get_host().split(':')[0]
     app = App.objects.filter(sites__domain__iexact=domain).first()
     if not app or not app.sip_server:
-        raise Exception(_("FreePBX Server not connected"))
+        raise Exception(_("Server not connected"))
     return app.sip_server
 
 
@@ -282,6 +282,13 @@ def phone_details(request, phone_id):
 
             messages.success(request, _('Template availability updated.'))
             return redirect_to_phone_tab("templates")
+        elif action == "sync_templates":
+            if not phone.waba_id:
+                messages.error(request, _("WABA account is not connected to this phone."))
+            else:
+                waba_utils.save_approved_templates.delay(phone.waba_id)
+                messages.success(request, _("Template sync has been queued."))
+            return redirect_to_phone_tab("templates")
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
             allowed_call_dest = {choice[0] for choice in Phone.CALL_DEST}
@@ -321,7 +328,7 @@ def phone_details(request, phone_id):
                     else:
                         sip_server = phone.waba.app.sip_server if phone.waba and phone.waba.app else None
                         if not sip_server:
-                            raise Exception(_("FreePBX Server not connected"))
+                            raise Exception(_("Server not connected"))
                         phone.sip_hostname = sip_server.domain
                         phone.sip_port = sip_server.sip_port
 

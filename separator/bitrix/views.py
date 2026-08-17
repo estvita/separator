@@ -278,6 +278,8 @@ def process_placement(request):
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return placements.settings_connector(request, user)
+        if service == "templates":
+            return placements.templates(request)
         if service == "waba":
             return placements.WabaPlacementModule(app=app, portal=portal, appinstance=appinstance).handle(request)
         return redirect("/")

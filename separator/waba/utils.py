@@ -1961,8 +1961,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 if broadcast_recipient:
                     continue
 
+                fallback_triggered = False
                 if fb_status == "failed":
-                    fallback_triggered = False
                     try:
                         error_data = extract_error_data(item)
                         error_obj = save_error_data(error_data)
@@ -1998,7 +1998,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                             msg = f"[color=#ff0000]Error occurred: {resp}[/color]"
                                         else:
                                             msg = f"[color=#00ff00]The message was sent using the default template due to error {error_code}[/color]"
-                                            message_obj = Message.objects.filter(site__domain=host, code="default_template").first()
+                                            message_obj = Message.objects.filter(sites__domain=host, code="default_template").first()
                                             if message_obj:
                                                 msg = f"[color=#00ff00]{message_obj.message} {error_code}[/color]"
                                         bitrix_tasks.send_messages.delay(
@@ -2041,7 +2041,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         #     payload = {"USER_ID": bitrix_user_id, "MESSAGE": out_message}
                         #     bitrix_tasks.call_api.delay(appinstance.id, "im.notify.system.add", payload)
                         
-                        if sms_message_id and fb_status in ["failed"]:
+                        if sms_message_id and fb_status in ["failed"] and not fallback_triggered:
                             status_data = {
                                 "CODE": phone.line.connector.code,
                                 "MESSAGE_ID": sms_message_id,

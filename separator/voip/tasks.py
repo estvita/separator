@@ -47,6 +47,8 @@ class PbxClient:
         waba_phone = Phone.objects.get(id=phone_id)
         if not waba_phone.waba or not waba_phone.waba.app:
             raise Exception("App not assigned to Phone")
+        if settings.VOIP_SERVER_OPENSIPS:
+            return self.create_opensips_extension(waba_phone)
         phone = waba_phone.phone
         phone = ''.join(filter(str.isdigit, str(phone)))
         phone = f"+{phone}"
@@ -127,10 +129,49 @@ class PbxClient:
         finish_create.delay(url, waba_phone.id, ext)
         return extension
 
-@shared_task
-def create_extension_task(phone_id):
-    pbx = PbxClient()
-    return pbx.create_extension(phone_id)
+    def create_opensips_extension(self, waba_phone):
+        self.app = waba_phone.waba.app
+        self.server = getattr(self.app, "sip_server", None)
+        if not self.server:
+            raise Exception("SIP Server not connected to WA APP")
+
+        meta_phone = ''.join(filter(str.isdigit, str(waba_phone.phone)))
+        data = {
+            "domain": self.server.domain,
+            "meta_phone": meta_phone,
+            "password": waba_phone.sip_user_password,
+        }
+        url = f"https://{self.server.domain}/cp/connector.php"
+
+        try:
+            resp = requests.post(url, json=data, timeout=20)
+            resp.raise_for_status()
+            resp_data = resp.json()
+        except requests.exceptions.RequestException as exc:
+            response = getattr(exc, "response", None)
+            raise Exception(meta_phone, response.text if response else str(exc))
+
+        internal_number = resp_data.get("internal_number")
+        password = resp_data.get("password")
+        if not internal_number or not password:
+            raise Exception(meta_phone, resp_data)
+
+        date_end = None
+        if "separator.tariff" in settings.INSTALLED_APPS:
+            from separator.tariff.utils import get_trial
+            date_end = get_trial(waba_phone.owner, "sip_ext")
+
+        extension = Extension.objects.create(
+            owner=waba_phone.owner,
+            server=self.server,
+            number=int(internal_number),
+            password=password,
+            date_end=date_end
+        )
+        waba_phone.sip_extensions = extension
+        waba_phone.save()
+        return extension
+
 
 @shared_task
 def finish_create(url, phone_id, ext):
@@ -181,3 +222,9 @@ def finish_create(url, phone_id, ext):
         return reload.json()
     except requests.exceptions.RequestException:
         raise Exception(phone, reload.json())
+
+
+@shared_task
+def create_extension_task(phone_id):
+    pbx = PbxClient()
+    return pbx.create_extension(phone_id)

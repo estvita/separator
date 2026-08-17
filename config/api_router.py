@@ -7,7 +7,7 @@ from separator.users.api.views import UserViewSet
 from separator.waba.api.views import WabaWebhook
 from separator.waweb.api.views import EventsHandler
 from separator.asterx.api.views import AsterxHandler
-from separator.freepbx.api.views import ExtViewSet
+from separator.voip.api.views import ExtViewSet
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 

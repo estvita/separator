@@ -36,6 +36,9 @@ ASTERX_REDIS_URL = env("ASTERX_REDIS_URL", default=REDIS_URL)
 ASTERX_GROUP_EXPIRY = env.int("ASTERX_GROUP_EXPIRY", default=300)
 ASTERX_ACTIVE_CHANNEL_TTL = env.int("ASTERX_ACTIVE_CHANNEL_TTL", default=360)
 
+VOIP_SERVER_OPENSIPS = env.bool("VOIP_SERVER_OPENSIPS", default=True)
+
+
 SALT_KEY = env("SALT_KEY")
 
 # GENERAL
@@ -119,7 +122,7 @@ LOCAL_APPS = [
     "separator.olx",
     "separator.waweb",
     "separator.asterx",
-    "separator.freepbx",
+    "separator.voip",
     "separator.bitbot"
 ]
 

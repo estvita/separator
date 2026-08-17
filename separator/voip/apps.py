@@ -1,6 +1,7 @@
 from django.apps import AppConfig
 
 
-class FreepbxConfig(AppConfig):
+class VoipConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'separator.freepbx'
+    name = 'separator.voip'
+    label = 'freepbx'

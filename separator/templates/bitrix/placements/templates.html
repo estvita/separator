@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Templates</title>
+    <script src="//api.bitrix24.com/api/v1/"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 12px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+<p>This section is still under development.</p>
+<pre id="interface">Loading...</pre>
+
+<script>
+(function () {
+    function showInterface(result) {
+        console.log(result);
+        document.getElementById('interface').textContent = JSON.stringify(result, null, 2);
+    }
+
+    if (!window.BX24 || typeof BX24.init !== 'function') {
+        document.getElementById('interface').textContent = 'BX24 is not available';
+        return;
+    }
+
+    BX24.init(function () {
+        BX24.placement.getInterface(showInterface);
+    });
+})();
+</script>
+</body>
+</html>

@@ -311,7 +311,7 @@ class ApiCallAdmin(admin.ModelAdmin):
                 raise ValueError("app_instance is required")
 
             call_kwargs = {"admin": True} if obj.admin else {}
-            result = call_method(obj.app_instance, obj.method, payload, **call_kwargs)
+            result = call_method(obj.app_instance, obj.method, payload, **call_kwargs, timeout=(3, 15))
             result_json = json.dumps(result, ensure_ascii=False, indent=2, default=str)
             self.message_user(
                 request,

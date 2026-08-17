@@ -4,6 +4,8 @@ FreePBX используется в качестве шлюза для SIP тр�
 
 ## Порядок подключения FreePBX к серверу separator
 
+Установить VOIP_SERVER_OPENSIPS=False
+
 Подробная инструкция: [FreePBX GraphQL Provisioning Tutorial](https://sangomakb.atlassian.net/wiki/spaces/FCD/pages/10354832/FreePBX+GraphQL+Provisioning+Tutorial)
 
 ### Шаги

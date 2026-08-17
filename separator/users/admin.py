@@ -165,8 +165,14 @@ class UserAdmin(*bases):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ("id", "code", "owner", "site")
+    list_display = ("id", "code", "sites_list")
+    filter_horizontal = ("sites",)
     list_per_page = 30
+
+    def sites_list(self, obj):
+        return ", ".join(obj.sites.values_list("domain", flat=True))
+
+    sites_list.short_description = "Sites"
 
 @admin.register(SiteProfile)
 class SiteProfileAdmin(admin.ModelAdmin):

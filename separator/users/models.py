@@ -55,8 +55,7 @@ class User(AbstractUser):
     
 
 class Message(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    site = models.ForeignKey(Site, on_delete=models.SET_NULL, related_name="messages", blank=True, null=True)
+    sites = models.ManyToManyField(Site, related_name="messages", blank=True)
     code = models.CharField(max_length=255)
     message = models.TextField()
 

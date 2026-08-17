@@ -106,7 +106,15 @@
     >
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <h3 class="mb-0">{% trans "Template list" %}</h3>
-        <a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">{% trans "Add New" %}</a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <form method="POST" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="sync_templates">
+            <input type="hidden" name="tab" value="templates">
+            <button type="submit" class="btn btn-secondary btn-sm">{% trans "Refresh templates" %}</button>
+          </form>
+          <a target="_blank" href="https://business.facebook.com/latest/whatsapp_manager/message_templates">{% trans "Add New" %}</a>
+        </div>
       </div>
       <form method="POST" class="mb-3" id="templates-form">
         {% csrf_token %}
@@ -374,11 +382,15 @@
 
         <div id="extension_block" class="mb-3">
           {% if phone.sip_extensions %}
-          <div class="card" style="max-width: 300px;">
+          <div class="card w-100" style="max-width: 420px;">
             <div class="card-header">
               {% trans "SIP Extension Info" %}
             </div>
             <div class="card-body">
+              <div class="mb-2">
+                <strong>{% trans "Expiry Date" %}:</strong>
+                <span class="text-monospace small">{{ phone.sip_extensions.date_end }}</span>
+              </div>
               <div class="mb-2">
                 <strong>{% trans "Server" %}:</strong>
                 <span class="text-monospace small">{{ phone.sip_extensions.server.domain }}</span>
@@ -389,11 +401,38 @@
               </div>
               <div class="mb-2">
                 <strong>{% trans "Password" %}:</strong>
-                <span class="text-monospace small">{{ phone.sip_extensions.password }}</span>
-              </div>
-              <div class="mb-2">
-                <strong>{% trans "Expiry Date" %}:</strong>
-                <span class="text-monospace small">{{ phone.sip_extensions.date_end }}</span>
+                <div class="input-group mt-1">
+                  <input
+                    type="password"
+                    class="form-control form-control-sm"
+                    id="sip_extension_password"
+                    value="{{ phone.sip_extensions.password }}"
+                    readonly
+                  >
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    id="toggle_sip_extension_password"
+                    title="{% trans 'Show password' %}"
+                    aria-label="{% trans 'Show password' %}"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <path d="M8 3.5c-3.3 0-5.5 3-6.2 4 .7 1 2.9 4 6.2 4s5.5-3 6.2-4c-.7-1-2.9-4-6.2-4Zm0 6.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Zm0-1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    id="copy_sip_extension_password"
+                    title="{% trans 'Copy' %}"
+                    aria-label="{% trans 'Copy' %}"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <path d="M5 1.5A1.5 1.5 0 0 1 6.5 0h6A1.5 1.5 0 0 1 14 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 5 9.5v-8Zm1.5-.5a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h6a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-6Z"/>
+                      <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H4v1h-.5a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h6a.5.5 0 0 0 .5-.5V12h1v.5A1.5 1.5 0 0 1 9.5 14h-6A1.5 1.5 0 0 1 2 12.5v-8Z"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -579,6 +618,29 @@
       if (callDestInput) {
         callDestInput.addEventListener("change", toggleCallingBlocks);
         toggleCallingBlocks();
+      }
+
+      var copySipPasswordButton = document.getElementById("copy_sip_extension_password");
+      var toggleSipPasswordButton = document.getElementById("toggle_sip_extension_password");
+      var sipPasswordInput = document.getElementById("sip_extension_password");
+      if (toggleSipPasswordButton && sipPasswordInput) {
+        toggleSipPasswordButton.addEventListener("click", function () {
+          var isHidden = sipPasswordInput.type === "password";
+          sipPasswordInput.type = isHidden ? "text" : "password";
+          toggleSipPasswordButton.title = isHidden ? "{% trans 'Hide password' %}" : "{% trans 'Show password' %}";
+          toggleSipPasswordButton.setAttribute("aria-label", toggleSipPasswordButton.title);
+        });
+      }
+
+      if (copySipPasswordButton && sipPasswordInput) {
+        copySipPasswordButton.addEventListener("click", function () {
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(sipPasswordInput.value);
+          } else {
+            sipPasswordInput.select();
+            document.execCommand("copy");
+          }
+        });
       }
     })();
   </script>
