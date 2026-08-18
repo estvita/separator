@@ -12,6 +12,7 @@ from django.db import transaction
 from django.db.models import Q, OuterRef, Subquery, CharField
 from django.core.paginator import Paginator
 from django.urls import reverse
+from django.conf import settings
 
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponseBadRequest
@@ -157,9 +158,13 @@ def ensure_voximplant(phone, context, ext):
     if phone.voximplant_id:
         return
 
+    server = ext.server.domain
+    if settings.VOIP_SERVER_OPENSIPS:
+        server = f"{server}:{ext.server.sip_port};transport=tls"
+
     payload = {
         "TITLE": f"{phone.phone} WhatsApp",
-        "SERVER": ext.server.domain,
+        "SERVER": server,
         "LOGIN": ext.number,
         "PASSWORD": ext.password
     }
