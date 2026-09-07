@@ -283,3 +283,5 @@ test.py
 docker-compose.vendor.yml
 .vscode/settings.json
 .codex
+.agents
+skills-lock.json

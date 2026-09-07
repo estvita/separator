@@ -528,6 +528,9 @@ def send_message(template, recipients, id, components=None, broadcast_id=None):
 @shared_task(queue='waba', **RETRY_KWARGS)
 def call_management(id):
     phone = Phone.objects.filter(id=id).first()
+    if phone and phone.type == "app":
+        return {"status": "skipped", "reason": "app phone"}
+
     payload = {
         "calling": {
             "status": phone.calling,

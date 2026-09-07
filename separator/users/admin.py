@@ -17,6 +17,8 @@ from separator.bitrix.models import Bitrix, AppInstance
 from separator.waweb.models import Session
 from separator.olx.models import OlxUser
 from separator.waba.models import Phone
+from separator.asterx.models import Server as AsterxServer
+from separator.bitbot.models import ChatBot
 
 
 bases = (auth_admin.UserAdmin,)
@@ -36,7 +38,7 @@ class OlxUserInline(admin.TabularInline):
     extra = 0
     can_delete = False
     fields = ("olx_link", "date_end", "status")
-    readonly_fields = ("olx_link", "date_end", "status")
+    readonly_fields = ("olx_link", "status")
 
     def olx_link(self, obj):
         if obj.id:
@@ -49,7 +51,7 @@ class PhoneInline(admin.TabularInline):
     extra = 0
     can_delete = False
     fields = ("phone_link", "phone_id", "date_end")
-    readonly_fields = ("phone_link", "phone_id", "date_end")
+    readonly_fields = ("phone_link", "phone_id")
 
     def phone_link(self, obj):
         if obj.id:
@@ -70,6 +72,38 @@ class WaWebInline(admin.TabularInline):
             url = reverse("admin:%s_session_change" % obj._meta.app_label, args=[obj.id])
             return format_html('<a href="{}">{}</a>', url, obj.phone)
         return ""
+
+
+class AsterxServerInline(admin.TabularInline):
+    model = AsterxServer
+    extra = 0
+    can_delete = False
+    fields = ("server_link", "date_end")
+    readonly_fields = ("server_link",)
+
+    def server_link(self, obj):
+        if obj.id:
+            url = reverse("admin:%s_server_change" % obj._meta.app_label, args=[obj.id])
+            return format_html('<a href="{}">{}</a>', url, obj.name)
+        return ""
+
+    server_link.short_description = "AsterX"
+
+
+class ChatBotInline(admin.TabularInline):
+    model = ChatBot
+    extra = 0
+    can_delete = False
+    fields = ("chatbot_link", "date_end")
+    readonly_fields = ("chatbot_link",)
+
+    def chatbot_link(self, obj):
+        if obj.id:
+            url = reverse("admin:%s_chatbot_change" % obj._meta.app_label, args=[obj.id])
+            return format_html('<a href="{}">{}</a>', url, obj.name)
+        return ""
+
+    chatbot_link.short_description = "BitBot"
 
 
 class AppInstanceInline(admin.TabularInline):
@@ -109,7 +143,15 @@ class TokenAdmin(admin.ModelAdmin):
 
 @admin.register(User)
 class UserAdmin(*bases):
-    inlines = [BitrixInline, AppInstanceInline, WaWebInline, PhoneInline, OlxUserInline]
+    inlines = [
+        BitrixInline,
+        AppInstanceInline,
+        AsterxServerInline,
+        ChatBotInline,
+        WaWebInline,
+        PhoneInline,
+        OlxUserInline,
+    ]
     form = UserAdminChangeForm
     add_form = UserAdminCreationForm
     readonly_fields = getattr(auth_admin.UserAdmin, "readonly_fields", ()) + ("token_link",)
