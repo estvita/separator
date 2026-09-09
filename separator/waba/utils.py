@@ -1587,6 +1587,31 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
     if field == 'template_category_update':
         return template_category_update(entry)
+
+    broadcast_recipient_wamids = set()
+    if field == 'messages':
+        for item in value.get("statuses", []):
+            fb_status = item.get("status")
+            wamid = item.get("id")
+            if not wamid or not fb_status:
+                continue
+            try:
+                broadcast_recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
+                if not broadcast_recipient:
+                    continue
+                broadcast_recipient_wamids.add(wamid)
+                previous_status = broadcast_recipient.status
+                if previous_status != fb_status:
+                    update_fields = {"status": fb_status}
+                    if fb_status == "failed":
+                        update_fields["error_json"] = item
+                    TemplateBroadcastRecipient.objects.filter(id=broadcast_recipient.id).update(**update_fields)
+                    if fb_status == "delivered" and previous_status != "delivered":
+                        TemplateBroadcast.objects.filter(id=broadcast_recipient.broadcast_id).update(
+                            delivered_count=models.F("delivered_count") + 1
+                        )
+            except Exception:
+                pass
     
     metadata = value.get("metadata", {})
     if metadata:    
@@ -1939,26 +1964,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 fb_status = item.get("status")
                 wamid = item.get("id")
                 out_message = None
-                broadcast_recipient = None
 
-                if wamid and fb_status:
-                    try:
-                        broadcast_recipient = TemplateBroadcastRecipient.objects.filter(wamid=wamid).first()
-                        if broadcast_recipient:
-                            previous_status = broadcast_recipient.status
-                            if previous_status != fb_status:
-                                update_fields = {"status": fb_status}
-                                if fb_status == "failed":
-                                    update_fields["error_json"] = item
-                                TemplateBroadcastRecipient.objects.filter(id=broadcast_recipient.id).update(**update_fields)
-                                if fb_status == "delivered" and previous_status != "delivered":
-                                    TemplateBroadcast.objects.filter(id=broadcast_recipient.broadcast_id).update(
-                                        delivered_count=models.F("delivered_count") + 1
-                                    )
-                    except Exception:
-                        pass
-
-                if broadcast_recipient:
+                if wamid in broadcast_recipient_wamids:
                     continue
 
                 fallback_triggered = False
