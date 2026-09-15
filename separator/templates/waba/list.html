@@ -233,7 +233,10 @@ window.addEventListener('message', function (event) {
   }
   try {
     const data = JSON.parse(event.data);
-    if (data.type === 'WA_EMBEDDED_SIGNUP' && data.event === 'FINISH') {
+    if (
+      data.type === 'WA_EMBEDDED_SIGNUP'
+      && ['FINISH', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'].includes(data.event)
+    ) {
       wabaPopupSession = data.data;
       submitPopupSignup();
       return;

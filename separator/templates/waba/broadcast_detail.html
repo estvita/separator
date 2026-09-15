@@ -12,6 +12,14 @@
     {% trans "Delivered" %}: {{ broadcast.delivered_count }},
     {% trans "Status" %}: {{ broadcast.status }}
   </p>
+  <p class="mb-2">
+    {% trans "Launch time" %}:
+    {% if broadcast.scheduled_task_id %}
+      {{ broadcast.scheduled_at|date:"d.m.Y H:i" }}
+    {% else %}
+      {{ broadcast.created_at|date:"d.m.Y H:i" }}
+    {% endif %}
+  </p>
   {% if broadcast.status == "pending" and broadcast.scheduled_at %}
     <form method="post" class="mb-3">
       {% csrf_token %}
