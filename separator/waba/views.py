@@ -19,6 +19,7 @@ from django.http import Http404, HttpResponseBadRequest
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.db.models.functions import Cast
+from django_celery_beat.models import ClockedSchedule, PeriodicTask
 from rest_framework.authtoken.models import Token
 
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
@@ -654,15 +655,21 @@ def broadcast_page(request):
                     for recipient in recipients
                 ])
                 if scheduled_at and scheduled_at > timezone.now():
-                    async_result = waba_tasks.send_message.apply_async(
-                        args=[template_obj.id, recipients, phone.id],
-                        kwargs={
+                    clocked_schedule = ClockedSchedule.objects.create(
+                        clocked_time=scheduled_at,
+                    )
+                    periodic_task = PeriodicTask.objects.create(
+                        name=f"waba-broadcast-{broadcast.id}",
+                        task=waba_tasks.send_message.name,
+                        clocked=clocked_schedule,
+                        one_off=True,
+                        args=json.dumps([template_obj.id, recipients, phone.id]),
+                        kwargs=json.dumps({
                             "components": components_payload,
                             "broadcast_id": broadcast.id,
-                        },
-                        eta=scheduled_at,
+                        }),
                     )
-                    broadcast.scheduled_task_id = async_result.id
+                    broadcast.scheduled_task_id = str(periodic_task.id)
                     broadcast.save(update_fields=["scheduled_task_id"])
                     messages.success(request, _('The mailing has been scheduled.'))
                 else:
@@ -712,11 +719,9 @@ def broadcast_details(request, broadcast_id):
         if action == "cancel_broadcast":
             if broadcast.status == "pending":
                 if broadcast.scheduled_task_id:
-                    try:
-                        from celery import current_app
-                        current_app.control.revoke(broadcast.scheduled_task_id, terminate=False)
-                    except Exception:
-                        pass
+                    PeriodicTask.objects.filter(
+                        id=broadcast.scheduled_task_id,
+                    ).update(enabled=False)
                 broadcast.status = "cancelled"
                 broadcast.save(update_fields=["status"])
                 TemplateBroadcastRecipient.objects.filter(

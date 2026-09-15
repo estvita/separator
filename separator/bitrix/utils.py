@@ -1747,7 +1747,7 @@ def event_processor(self, data):
         # AsterX
         elif event == "ONEXTERNALCALLSTART":
             try:
-                pbx = Server.objects.filter(settings__app_instance=appinstance).first()
+                pbxs = Server.objects.filter(settings__app_instance=appinstance)
                 b24_user_id = data.get('data[USER_ID]')
                 phone_number = data.get('data[PHONE_NUMBER_INTERNATIONAL]')
                 call_id = data.get('data[CALL_ID]')
@@ -1757,7 +1757,8 @@ def event_processor(self, data):
                     'phone_number': phone_number,
                     'call_id': call_id,
                 }
-                send_call_info(pbx.id, payload)
+                for pbx in pbxs:
+                    send_call_info(pbx.id, payload)
             except Exception as e:
                 raise
         
