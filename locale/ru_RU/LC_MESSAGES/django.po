@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 20:45+0500\n"
+"POT-Creation-Date: 2026-09-19 12:00+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,6 +48,9 @@ msgstr "Отправлять голосовую почту"
 
 msgid "Find a manager in Bitrix and connect with him"
 msgstr "Искать отвественного менеджера и соединять с ним"
+
+msgid "Call first to client, after to operator"
+msgstr ""
 
 msgid "My PBX"
 msgstr "АТС"
@@ -362,8 +365,9 @@ msgstr "Срок действия"
 msgid "Not Set"
 msgstr "Не задано"
 
-#, fuzzy
-#| msgid "Bitrix24"
+msgid "Installed"
+msgstr "Установлен"
+
 msgid "Bitrix"
 msgstr "Битрикс24"
 
@@ -411,6 +415,12 @@ msgstr "Соединять с менеджером"
 
 msgid "Send VoiceMail"
 msgstr "Отправлять голосовую почту"
+
+msgid "Timeout"
+msgstr "Время ожидания ответа (сек)"
+
+msgid "Call client first"
+msgstr "Звонить сначала клиенту"
 
 msgid "Name"
 msgstr "Название"
@@ -1007,6 +1017,9 @@ msgstr "Подробности рассылки"
 msgid "Broadcast"
 msgstr "Рассылка"
 
+msgid "Launch time"
+msgstr "Время запуска"
+
 msgid "Stop scheduled broadcast"
 msgstr "Отменить рассылку"
 
@@ -1154,10 +1167,8 @@ msgstr ""
 msgid "Redirect URL"
 msgstr ""
 
-#, fuzzy
-#| msgid "Action"
 msgid "Active"
-msgstr "Действие"
+msgstr "Активен"
 
 msgid "App ID"
 msgstr ""
@@ -1174,13 +1185,11 @@ msgstr ""
 msgid "Redirect"
 msgstr ""
 
-
 msgid "No partner applications yet."
 msgstr "Нет приложений"
 
 msgid "Edit partner app"
 msgstr ""
-
 
 msgid "Delete partner app?"
 msgstr "Удалить приложение?"
@@ -1193,6 +1202,9 @@ msgstr "Список шаблонов"
 
 msgid "Calling Settings"
 msgstr "Настройки звонков"
+
+msgid "Refresh templates"
+msgstr "Обновить шаблоны"
 
 msgid "Default"
 msgstr "по умолчанию"
@@ -1293,6 +1305,9 @@ msgstr "Сервер"
 msgid "Login"
 msgstr "Логин"
 
+msgid "Show password"
+msgstr "Показывать пароль"
+
 msgid "No extension assigned"
 msgstr "Нет привязанных SIP аккаунтов"
 
@@ -1352,6 +1367,9 @@ msgstr "Отправить заявку"
 
 msgid "Delete selected templates from Facebook and local database?"
 msgstr "Удалить выбранные шаблоны с сервера Facebook?"
+
+msgid "Hide password"
+msgstr "Скрыть пароль"
 
 #, python-format
 msgid "Create a page in %(title)s"
@@ -1503,6 +1521,12 @@ msgstr ""
 
 msgid "Template availability updated."
 msgstr ""
+
+msgid "WABA account is not connected to this phone."
+msgstr "Аккаунт WABA не подключен для этого номера."
+
+msgid "Template sync has been queued."
+msgstr "Обновление списка шаблонов добавлено в очередь"
 
 #, fuzzy
 #| msgid "Call destination"

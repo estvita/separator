@@ -43,6 +43,16 @@
         {{ settings_form.vm_send }}
       </div>
 
+      <div class="mb-3">
+        <b>{% trans "Timeout" %}</b>:
+        {{ settings_form.timeout }}
+      </div>
+
+      <div class="mb-3">
+        <b>{% trans "Call client first" %}</b>:
+        {{ settings_form.client_first }}
+      </div>
+
       <button type="submit" name="save_settings" class="btn btn-success">{% trans "Save" %}</button>
     </form>
   {% endif %}

@@ -258,6 +258,8 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             "vm_send": settings.vm_send,
             "smart_route": settings.smart_route,
             "default_user_id": settings.default_user_id,
+            "timeout": settings.timeout,
+            "client_first": settings.client_first,
         }
 
     @database_sync_to_async

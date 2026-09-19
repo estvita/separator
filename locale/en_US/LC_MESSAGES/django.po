@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 20:45+0500\n"
+"POT-Creation-Date: 2026-09-19 12:00+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -44,6 +44,9 @@ msgid "Send VoiceMail to B24"
 msgstr ""
 
 msgid "Find a manager in Bitrix and connect with him"
+msgstr ""
+
+msgid "Call first to client, after to operator"
 msgstr ""
 
 msgid "My PBX"
@@ -352,6 +355,9 @@ msgstr ""
 msgid "Not Set"
 msgstr ""
 
+msgid "Installed"
+msgstr ""
+
 msgid "Bitrix"
 msgstr ""
 
@@ -398,6 +404,12 @@ msgid "Forwarding to manager"
 msgstr ""
 
 msgid "Send VoiceMail"
+msgstr ""
+
+msgid "Timeout"
+msgstr ""
+
+msgid "Call client first"
 msgstr ""
 
 msgid "Name"
@@ -973,6 +985,9 @@ msgstr ""
 msgid "Broadcast"
 msgstr ""
 
+msgid "Launch time"
+msgstr ""
+
 msgid "Stop scheduled broadcast"
 msgstr ""
 
@@ -1150,6 +1165,9 @@ msgstr ""
 msgid "Calling Settings"
 msgstr ""
 
+msgid "Refresh templates"
+msgstr ""
+
 msgid "Default"
 msgstr ""
 
@@ -1243,6 +1261,9 @@ msgstr ""
 msgid "Login"
 msgstr ""
 
+msgid "Show password"
+msgstr ""
+
 msgid "No extension assigned"
 msgstr ""
 
@@ -1301,6 +1322,9 @@ msgid "Submit application"
 msgstr ""
 
 msgid "Delete selected templates from Facebook and local database?"
+msgstr ""
+
+msgid "Hide password"
 msgstr ""
 
 #, python-format
@@ -1449,6 +1473,12 @@ msgid "Template deletion queued: %(count)s"
 msgstr ""
 
 msgid "Template availability updated."
+msgstr ""
+
+msgid "WABA account is not connected to this phone."
+msgstr ""
+
+msgid "Template sync has been queued."
 msgstr ""
 
 msgid "Invalid call destination"

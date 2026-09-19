@@ -36,6 +36,10 @@ class Settings(models.Model):
         default=False,
         help_text=_("Find a manager in Bitrix and connect with him")
     )
+    timeout = models.PositiveBigIntegerField(default=20)
+    client_first = models.BooleanField(
+        default=False, 
+        help_text=_("Call first to client, after to operator"))
 
     def __str__(self):
         return str(self.app_instance)

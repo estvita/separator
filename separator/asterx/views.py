@@ -91,10 +91,21 @@ class SettingsForm(forms.ModelForm):
         required=False,
         label="Forwarding to manager"
     )
+    timeout = forms.IntegerField(
+        min_value=0,
+        label="Timeout"
+    )
+    client_first = forms.BooleanField(
+        required=False,
+        label="Call client first"
+    )
 
     class Meta:
         model = Settings
-        fields = ['default_user_id', 'show_card', 'crm_create', 'vm_send', 'smart_route']
+        fields = [
+            'default_user_id', 'show_card', 'crm_create', 'vm_send',
+            'smart_route', 'timeout', 'client_first'
+        ]
 
 @login_required
 def server_list(request):
@@ -161,6 +172,8 @@ def server_list(request):
                             "vm_send": portal_settings.vm_send,
                             "smart_route": portal_settings.smart_route,
                             "default_user_id": portal_settings.default_user_id,
+                            "timeout": portal_settings.timeout,
+                            "client_first": portal_settings.client_first,
                         }}
                     )
                 messages.success(request, 'Settings saved and sent to client!')
@@ -265,6 +278,8 @@ def edit_asterx(request, server_id):
                         "crm_create": settings.crm_create,
                         "vm_send": settings.vm_send,
                         "default_user_id": settings.default_user_id,
+                        "timeout": settings.timeout,
+                        "client_first": settings.client_first,
                     }
                 else:
                     payload = {
@@ -332,6 +347,8 @@ def app_settings(request, id):
                         "vm_send": settings_instance.vm_send,
                         "smart_route": settings_instance.smart_route,
                         "default_user_id": settings_instance.default_user_id,
+                        "timeout": settings_instance.timeout,
+                        "client_first": settings_instance.client_first,
                     }}
                 )
 
