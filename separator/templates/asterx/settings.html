@@ -52,6 +52,11 @@
       {{ form.client_first }}
     </div>
 
+    <div class="mb-3">
+      <b>{% trans "Send all failed call statuses to Bitrix" %}</b>:
+      {{ form.all_statuses }}
+    </div>
+
     <button type="submit" class="btn btn-success">{% trans "Save" %}</button>
     <a href="{% url 'asterx' %}" class="btn btn-secondary">{% trans "Back" %}</a>
   </form>

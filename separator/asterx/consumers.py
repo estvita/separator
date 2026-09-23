@@ -260,6 +260,7 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
             "default_user_id": settings.default_user_id,
             "timeout": settings.timeout,
             "client_first": settings.client_first,
+            "all_statuses": settings.all_statuses,
         }
 
     @database_sync_to_async

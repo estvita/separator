@@ -53,6 +53,11 @@
         {{ settings_form.client_first }}
       </div>
 
+      <div class="mb-3">
+        <b>{% trans "Send all failed call statuses to Bitrix" %}</b>:
+        {{ settings_form.all_statuses }}
+      </div>
+
       <button type="submit" name="save_settings" class="btn btn-success">{% trans "Save" %}</button>
     </form>
   {% endif %}

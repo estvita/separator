@@ -40,6 +40,9 @@ class Settings(models.Model):
     client_first = models.BooleanField(
         default=False, 
         help_text=_("Call first to client, after to operator"))
+    all_statuses= models.BooleanField(
+        default=False, 
+        help_text=_("Send all failed call statuses to Bitrix"))
 
     def __str__(self):
         return str(self.app_instance)

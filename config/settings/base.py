@@ -377,6 +377,8 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_BROKER_TRANSPORT_OPTIONS = {
     "socket_timeout": 5,
     "socket_connect_timeout": 5,
+    "socket_keepalive": True,
+    "health_check_interval": 15,
     "retry_on_timeout": True,
 }
 

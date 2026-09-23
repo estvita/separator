@@ -32,7 +32,6 @@ from .models import User as B24_user
 from .retry import RETRY_KWARGS, TRANSIENT_ERRORS
 
 import separator.bitrix.tasks as bitrix_tasks
-import separator.bitbot.router as bitbot_router
 
 if settings.ASTERX_SERVER:
     from separator.asterx.models import Server
@@ -1773,10 +1772,6 @@ def event_processor(self, data):
                 send_call_info(pbx.id, payload)
             except Exception as e:
                 raise
-
-        # BitBot
-        elif event in ["ONIMBOTMESSAGEADD", "ONIMCOMMANDADD", "ONIMBOTJOINCHAT"]:
-            bitbot_router.event_processor.delay(data)
 
         elif event == "ONAPPUNINSTALL":
             appinstance.delete()

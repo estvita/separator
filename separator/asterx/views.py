@@ -99,12 +99,16 @@ class SettingsForm(forms.ModelForm):
         required=False,
         label="Call client first"
     )
+    all_statuses = forms.BooleanField(
+        required=False,
+        label="Send all failed call statuses to Bitrix"
+    )
 
     class Meta:
         model = Settings
         fields = [
             'default_user_id', 'show_card', 'crm_create', 'vm_send',
-            'smart_route', 'timeout', 'client_first'
+            'smart_route', 'timeout', 'client_first', 'all_statuses'
         ]
 
 @login_required
@@ -174,6 +178,7 @@ def server_list(request):
                             "default_user_id": portal_settings.default_user_id,
                             "timeout": portal_settings.timeout,
                             "client_first": portal_settings.client_first,
+                            "all_statuses": portal_settings.all_statuses,
                         }}
                     )
                 messages.success(request, 'Settings saved and sent to client!')
@@ -280,6 +285,7 @@ def edit_asterx(request, server_id):
                         "default_user_id": settings.default_user_id,
                         "timeout": settings.timeout,
                         "client_first": settings.client_first,
+                        "all_statuses": settings.all_statuses,
                     }
                 else:
                     payload = {
@@ -349,6 +355,7 @@ def app_settings(request, id):
                         "default_user_id": settings_instance.default_user_id,
                         "timeout": settings_instance.timeout,
                         "client_first": settings_instance.client_first,
+                        "all_statuses": settings_instance.all_statuses,
                     }}
                 )
 
