@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-19 12:00+0500\n"
+"POT-Creation-Date: 2026-09-23 16:37+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -51,6 +51,9 @@ msgstr "Искать отвественного менеджера и соеди
 
 msgid "Call first to client, after to operator"
 msgstr ""
+
+msgid "Send all failed call statuses to Bitrix"
+msgstr "Отрпавлять расширенные статусы"
 
 msgid "My PBX"
 msgstr "АТС"

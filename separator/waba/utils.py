@@ -2078,13 +2078,16 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             if message_type not in ["unsupported", "system"] and not message.get("errors"):
                 _queue_waba_read_status(waba, phone, message_id)
             if referral_body:
-                bitrix_tasks.send_messages.delay(
-                    appinstance.id,
-                    user_identy,
-                    referral_body,
-                    phone.line.connector.code,
-                    phone.line.line_id,
-                    manager_id=0,
+                bitrix_tasks.send_messages.apply_async(
+                    args=(
+                        appinstance.id,
+                        user_identy,
+                        referral_body,
+                        phone.line.connector.code,
+                        phone.line.line_id,
+                    ),
+                    kwargs={"manager_id": 0},
+                    countdown=5,
                 )
 
     elif field == 'smb_message_echoes':
