@@ -92,6 +92,47 @@ def call_api(id, method, payload, b24_user=None):
 
 
 @shared_task(queue="bitrix", **RETRY_KWARGS)
+def register_voximplant_sip(phone_id, app_instance_id):
+    phone = Phone.objects.select_related("sip_extensions__server").get(id=phone_id)
+    if phone.call_dest != "b24":
+        return {"status": "skipped", "reason": "call destination changed"}
+
+    extension = phone.sip_extensions
+    if not extension or not extension.server:
+        raise Exception("SIP extension is not configured")
+
+    server = extension.server.domain
+    if settings.VOIP_SERVER_OPENSIPS:
+        server = f"{server}:{extension.server.sip_port};transport=tls"
+
+    payload = {
+        "TITLE": f"{phone.phone} WhatsApp",
+        "SERVER": server,
+        "LOGIN": extension.number,
+        "PASSWORD": extension.password,
+    }
+    app_instance = AppInstance.objects.get(id=app_instance_id)
+    response = call_method(app_instance, "voximplant.sip.add", payload, timeout=10)
+    result = response.get("result", {})
+    voximplant_id = result.get("ID")
+    voximplant_reg_id = result.get("REG_ID")
+    if not voximplant_id or not voximplant_reg_id:
+        raise Exception("Bitrix did not return Voximplant registration IDs")
+
+    updated = Phone.objects.filter(
+        id=phone_id,
+        call_dest="b24",
+    ).update(
+        voximplant_id=int(voximplant_id),
+        voximplant_reg_id=int(voximplant_reg_id),
+    )
+    if not updated:
+        raise
+
+    return result
+
+
+@shared_task(queue="bitrix", **RETRY_KWARGS)
 def dispatch_api_call(api_call_id):
     api_call = ApiCall.objects.select_related("app").get(id=api_call_id)
     payload = api_call.payload or {}

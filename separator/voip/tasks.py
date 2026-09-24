@@ -161,15 +161,25 @@ class PbxClient:
             from separator.tariff.utils import get_trial
             date_end = get_trial(waba_phone.owner, "sip_ext")
 
-        extension = Extension.objects.create(
-            owner=waba_phone.owner,
-            server=self.server,
+        extension, created = Extension.objects.get_or_create(
             number=int(internal_number),
-            password=password,
-            date_end=date_end
+            defaults={
+                "owner": waba_phone.owner,
+                "server": self.server,
+                "password": password,
+                "date_end": date_end,
+            },
         )
+        if not created:
+            linked_phone = Phone.objects.filter(sip_extensions=extension).exclude(id=waba_phone.id).first()
+            if linked_phone:
+                raise Exception(f"Extension {internal_number} is already linked to another WABA phone")
+
+            extension.password = password
+            extension.save(update_fields=["password"])
+
         waba_phone.sip_extensions = extension
-        waba_phone.save()
+        waba_phone.save(update_fields=["sip_extensions"])
         return extension
 
 

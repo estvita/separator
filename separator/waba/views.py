@@ -155,26 +155,6 @@ def ensure_phone_extension(phone):
     return phone.sip_extensions
 
 
-def ensure_voximplant(phone, context, ext):
-    if phone.voximplant_id:
-        return
-
-    server = ext.server.domain
-    if settings.VOIP_SERVER_OPENSIPS:
-        server = f"{server}:{ext.server.sip_port};transport=tls"
-
-    payload = {
-        "TITLE": f"{phone.phone} WhatsApp",
-        "SERVER": server,
-        "LOGIN": ext.number,
-        "PASSWORD": ext.password
-    }
-    resp = bitrix_tasks.call_api(context["app_instance"].id, "voximplant.sip.add", payload)
-    result = resp.get("result", {})
-    phone.voximplant_id = int(result.get("ID"))
-    phone.voximplant_reg_id = int(result.get("REG_ID"))
-    phone.save(update_fields=["voximplant_id", "voximplant_reg_id"])
-
 @login_required
 def phone_details(request, phone_id):
     phone = Phone.objects.select_related(
@@ -317,6 +297,8 @@ def phone_details(request, phone_id):
                     phone.calling = "disabled"
                     phone.save(update_fields=list(update_fields))
                     waba_tasks.call_management.delay(phone.id)
+                    delete_voximplant(phone)
+                    phone.save(update_fields=["voximplant_id", "voximplant_reg_id"])
 
                 else:
                     phone.calling = "enabled"
@@ -355,9 +337,12 @@ def phone_details(request, phone_id):
                         delete_voximplant(phone)
                         phone.save(update_fields=["voximplant_id", "voximplant_reg_id"])
                     elif call_dest == "b24":
-                        ext = ensure_phone_extension(phone)
+                        ensure_phone_extension(phone)
                         context = waba_bitrix.get_waba_context_for_phone(phone)
-                        ensure_voximplant(phone, context, ext)
+                        transaction.on_commit(
+                            lambda phone_id=phone.id, app_instance_id=context["app_instance"].id:
+                            bitrix_tasks.register_voximplant_sip.delay(phone_id, app_instance_id)
+                        )
 
                 if call_dest == "disabled":
                     messages.info(request, _("Voice calls feature is disabled"))

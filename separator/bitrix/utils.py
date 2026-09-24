@@ -702,9 +702,9 @@ def _build_file_header_component(file_url, appinstance=None, line_id=None, phone
                 )
                 if up_res and "id" in up_res:
                     uploaded_id = up_res["id"]
-        except Exception as e:
-            logger.error(f"Template media upload failed: {e}")
-
+        except Exception:
+            pass
+            
     file_param = {"type": waba_file_type}
     if uploaded_id:
         file_param[waba_file_type] = {"id": uploaded_id}
