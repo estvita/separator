@@ -383,7 +383,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 {
                     "user": {
                         "phone": user_phone,
-                        "name": pushName or user_phone,
+                        "name": pushName or "No name",
                         "id": user_id or user_phone,
                         "skip_phone_validate": 'Y',
                         "picture": {
