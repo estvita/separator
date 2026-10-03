@@ -1531,10 +1531,6 @@ def event_processor(self, data):
                         # Fallback: try using the ID directly if not found in Redis (legacy behavior)
                         quoted_msg_id = short_id
 
-                excludes_raw = appinstance.exclude or ''
-                excludes = [e.strip() for e in excludes_raw.split(",") if e.strip()]
-                if any(ex.lower() in text.lower() for ex in excludes):
-                    return "message filtered"
                 text = text.replace("[br]", "\n")
                 text = re.sub(r"\[/?[a-zA-Z*][a-zA-Z0-9*]*\]|\[[a-zA-Z0-9\s]+=[^\]]+\]", "", text)
                 command_lines = [line.strip() for line in text.splitlines() if line.strip()]

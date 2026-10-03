@@ -545,6 +545,9 @@ def call_management(id):
                     }
                 ]
             }
+        },
+        "audio": {
+            "additional_codecs": ["PCMA", "PCMU"] if phone.additional_codecs else []
         }
     }
     try:

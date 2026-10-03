@@ -353,6 +353,21 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="update_calling">
         <input type="hidden" name="tab" value="calls">
+        <div class="form-check mb-3">
+          <input
+            type="checkbox"
+            class="form-check-input"
+            id="additional_codecs"
+            name="additional_codecs"
+            {% if phone.additional_codecs %}checked{% endif %}
+          >
+          <label class="form-check-label" for="additional_codecs">
+            {% trans "Additional codecs" %}
+          </label>
+          <small class="form-text text-muted">
+            {% trans "Enable PCMA and PCMU codecs" %}
+          </small>
+        </div>
         <div class="form-group mb-3">
           <label for="call_dest">{% trans "Call destination" %}</label>
           <select class="form-control" id="call_dest" name="call_dest" required>

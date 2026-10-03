@@ -286,12 +286,14 @@ def phone_details(request, phone_id):
                 previous_calling = {
                     "calling": phone.calling,
                     "call_dest": phone.call_dest,
+                    "additional_codecs": phone.additional_codecs,
                     "sip_status": phone.sip_status,
                     "sip_hostname": phone.sip_hostname,
                     "sip_port": phone.sip_port,
                 }
-                update_fields = {"calling", "call_dest"}
+                update_fields = {"calling", "call_dest", "additional_codecs"}
                 phone.call_dest = call_dest
+                phone.additional_codecs = request.POST.get("additional_codecs") == "on"
 
                 if call_dest == "disabled":
                     phone.calling = "disabled"

@@ -52,9 +52,9 @@
 
     <!-- Фильтр по сервисам -->
     <div class="d-flex align-items-center mb-3 tariff-filters">
-        <label for="service-filter" class="me-2 mb-0">{% trans "Select service:" %}</label>
+        <label for="service-filter" class="me-2 mb-0">{% trans "App:" %}</label>
         <select id="service-filter" class="form-select w-auto me-3">
-            <option value="all">{% trans "All services" %}</option>
+            <option value="all">{% trans "All" %}</option>
             {% for service in services %}
                 <option value="{{ service.name }}">{{ service.name }}</option>
             {% endfor %}

@@ -120,7 +120,7 @@ class TariffPage(Page):
         context = super().get_context(request)
         wagtail_site = WagtailSite.find_for_request(request)
         django_site = DjangoSite.objects.get(domain=wagtail_site.hostname)
-        context["tariffs"] = Tariff.objects.filter(site=django_site)
+        context["tariffs"] = Tariff.objects.filter(site=django_site).order_by("service__name")
         context["services"] = Service.objects.filter(tariffs__site=django_site).distinct()
         return context
 

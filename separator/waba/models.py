@@ -147,14 +147,16 @@ class Phone(models.Model):
         ('ext', 'SIP Extension'),
         ('pbx', 'SIP Server'),
     ]
+
     call_dest = models.CharField(max_length=10, choices=CALL_DEST, default="disabled", blank=True)
     calling = models.CharField(max_length=10, choices=STATUS_CHOICES, default="disabled", blank=True)
     srtp_key_exchange_protocol = models.CharField(max_length=10, choices=STRP_PROTOCOL, default="SDES", blank=True)
     callback_permission_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="enabled", blank=True)
     sip_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="enabled", blank=True)
     sip_user_password = models.CharField(max_length=250, null=True, blank=True, help_text="Whatsapp Cloud SIP Password")
-    sip_hostname = models.CharField(max_length=200, default="voip.gulin.kz", blank=True)
+    sip_hostname = models.CharField(max_length=200, blank=True)
     sip_port = models.PositiveIntegerField(default=5061, blank=True)
+    additional_codecs = models.BooleanField(default=False, help_text="Enable PCMA, PCMU")
     sip_extensions = models.ForeignKey(Extension, on_delete=models.SET_NULL, null=True, blank=True)
     voximplant_id = models.PositiveIntegerField(blank=True, null=True)
     voximplant_reg_id = models.PositiveIntegerField(blank=True, null=True)
