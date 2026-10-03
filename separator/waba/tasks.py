@@ -544,10 +544,10 @@ def call_management(id):
                         "port": phone.sip_port
                     }
                 ]
+            },
+            "audio": {
+                "additional_codecs": ["PCMA", "PCMU"] if phone.additional_codecs else []
             }
-        },
-        "audio": {
-            "additional_codecs": ["PCMA", "PCMU"] if phone.additional_codecs else []
         }
     }
     try:
