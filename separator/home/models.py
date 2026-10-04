@@ -1,4 +1,6 @@
 from django.db import models
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 from modelcluster.fields import ParentalKey
 from wagtail.models import (
     DraftStateMixin,
@@ -27,7 +29,81 @@ from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 from wagtailcodeblock.blocks import CodeBlock
 
-from separator.tariff.models import Tariff, Service
+
+
+class Service(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    code = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Tariff(models.Model):
+    PERIOD_CHOICES = [
+        ("day", _("Day")),
+        ("month", _("Month")),
+        ("year", _("Year")),
+    ]
+
+    CURRENCY_CHOICES = [
+        ("USD", _("US Dollar")),
+        ("EUR", _("Euro")),
+        ("RUB", _("Ruble")),
+        ("KZT", _("Tenge")),
+    ]
+
+    site = models.ForeignKey(
+        DjangoSite,
+        on_delete=models.SET_NULL,
+        related_name="home_tariffs",
+        blank=True,
+        null=True,
+    )
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.CASCADE,
+        related_name="tariffs",
+        blank=True,
+        null=True,
+    )
+    is_trial = models.BooleanField(default=False)
+    self_hosted = models.BooleanField(default=False)
+    price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    currency = models.CharField(
+        max_length=10,
+        choices=CURRENCY_CHOICES,
+        blank=True,
+        null=True,
+    )
+    duration = models.PositiveIntegerField(blank=True, null=True)
+    period = models.CharField(
+        max_length=10,
+        choices=PERIOD_CHOICES,
+        default="day",
+        blank=True,
+        null=True,
+    )
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.service.name
+
+
+class Trial(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="home_trials",
+    )
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.CASCADE,
+        related_name="trials",
+    )
+
+    def __str__(self):
+        return str(self.id)
 
 
 class SpoilerBlock(blocks.StructBlock):
@@ -47,6 +123,42 @@ class GapBlock(blocks.StructBlock):
         template = "home/blocks/gap.html"
         icon = "arrows-up-down"
         label = "Gap"
+
+
+def get_service_choices():
+    return Service.objects.order_by("name").values_list("id", "name")
+
+
+class TariffBlock(blocks.StructBlock):
+    service = blocks.ChoiceBlock(
+        choices=get_service_choices,
+        required=False,
+        label="Service",
+        help_text="Leave empty to display all services.",
+    )
+
+    def get_context(self, value, parent_context=None):
+        context = super().get_context(value, parent_context=parent_context)
+        request = context["request"]
+        wagtail_site = WagtailSite.find_for_request(request)
+        django_site = DjangoSite.objects.get(domain=wagtail_site.hostname)
+        selected_service_id = value.get("service")
+
+        tariffs = Tariff.objects.filter(site=django_site)
+        if selected_service_id:
+            tariffs = tariffs.filter(service_id=selected_service_id)
+
+        context["tariffs"] = tariffs.order_by("service__name")
+        context["services"] = Service.objects.filter(
+            tariffs__site=django_site,
+        ).distinct()
+        context["show_filters"] = not selected_service_id
+        return context
+
+    class Meta:
+        template = "home/blocks/tariffs.html"
+        icon = "list-ul"
+        label = "Tariffs"
 
 
 class HomePage(Page):
@@ -72,6 +184,7 @@ class ArticlePage(Page):
         ('html', blocks.RawHTMLBlock()),
         ("spoiler", SpoilerBlock()),
         ("gap", GapBlock()),
+        ("tariffs", TariffBlock()),
         ("table", TypedTableBlock([
             ('text', blocks.CharBlock(required=False)),
             ('numeric', blocks.FloatBlock(required=False)),

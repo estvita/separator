@@ -1,0 +1,168 @@
+{% load i18n %}
+
+<div class="tariff-block">
+    <style>
+        .tariff-block table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .tariff-block th,
+        .tariff-block td {
+            border: 2px solid black;
+            padding: 10px;
+            text-align: center;
+        }
+        .tariff-block th {
+            background-color: #f2f2f2;
+        }
+        .tariff-block tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .tariff-block .tariff-filters {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .tariff-block .tariff-filters .form-check {
+            min-width: 0;
+        }
+        @media (max-width: 600px) {
+            .tariff-block .tariff-filters {
+                align-items: flex-start !important;
+            }
+            .tariff-block .tariff-service-label,
+            .tariff-block .tariff-service-filter {
+                width: 100% !important;
+                margin-right: 0 !important;
+            }
+            .tariff-block .tariff-filters .form-check {
+                margin-right: 0 !important;
+            }
+        }
+    </style>
+
+    {% if show_filters %}
+        <div class="d-flex align-items-center mb-3 tariff-filters">
+            <label class="me-2 mb-0 tariff-service-label">
+                {% trans "App:" %}
+                <select class="form-select w-auto me-3 tariff-service-filter">
+                    <option value="all">{% trans "All" %}</option>
+                    {% for service in services %}
+                        <option value="{{ service.name }}">{{ service.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="form-check mb-0 me-3">
+                <input class="form-check-input tariff-trial-filter" type="checkbox">
+                <span class="form-check-label">{% trans "Trial" %}</span>
+            </label>
+            <label class="form-check mb-0">
+                <input class="form-check-input tariff-self-hosted-filter" type="checkbox">
+                <span class="form-check-label">{% trans "Self-hosted" %}</span>
+            </label>
+        </div>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>{% trans "App" %}</th>
+                <th>{% trans "Trial" %}</th>
+                <th>{% trans "Price" %}</th>
+                <th>{% trans "Currency" %}</th>
+                <th>{% trans "Period" %}</th>
+                <th>{% trans "Description" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tariff in tariffs %}
+                <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
+                    <td>{{ tariff.service.name }}</td>
+                    <td>{% if tariff.is_trial %}✅ {% trans "Yes" %} {% else %}❌ {% trans "No" %} {% endif %}</td>
+                    <td>{{ tariff.price }}</td>
+                    <td>{{ tariff.get_currency_display }}</td>
+                    <td>{{ tariff.duration }}/{{ tariff.get_period_display }}</td>
+                    <td>{{ tariff.description }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6">{% trans "No tariffs yet" %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if show_filters %}
+        <script>
+            (function () {
+                var block = document.currentScript.closest(".tariff-block");
+                var serviceFilter = block.querySelector(".tariff-service-filter");
+                var trialFilter = block.querySelector(".tariff-trial-filter");
+                var selfHostedFilter = block.querySelector(".tariff-self-hosted-filter");
+                var rows = block.querySelectorAll(".tariff-row");
+
+                function updateURL(service, isTrial, isSelfHosted) {
+                    var url = new URL(window.location);
+                    if (service && service !== "all") {
+                        url.searchParams.set("service", service);
+                    } else {
+                        url.searchParams.delete("service");
+                    }
+
+                    if (isTrial) {
+                        url.searchParams.set("trial", "true");
+                    } else {
+                        url.searchParams.delete("trial");
+                    }
+
+                    if (isSelfHosted) {
+                        url.searchParams.set("self_hosted", "true");
+                    } else {
+                        url.searchParams.delete("self_hosted");
+                    }
+
+                    window.history.replaceState({}, "", url);
+                }
+
+                function updateVisibility() {
+                    var selectedService = serviceFilter.value;
+                    var showTrialOnly = trialFilter.checked;
+                    var showSelfHostedOnly = selfHostedFilter.checked;
+
+                    rows.forEach(function (row) {
+                        var matchesService = selectedService === "all" || row.dataset.service === selectedService;
+                        var matchesTrial = !showTrialOnly || row.dataset.isTrial === "true";
+                        var matchesSelfHosted = !showSelfHostedOnly || row.dataset.selfHosted === "true";
+                        row.style.display = matchesService && matchesTrial && matchesSelfHosted ? "" : "none";
+                    });
+
+                    updateURL(selectedService, showTrialOnly, showSelfHostedOnly);
+                }
+
+                function initFromURL() {
+                    var urlParams = new URLSearchParams(window.location.search);
+                    var serviceParam = urlParams.get("service") || urlParams.get("servise");
+
+                    if (serviceParam) {
+                        var optionExists = Array.from(serviceFilter.options).some(function (option) {
+                            return option.value === serviceParam;
+                        });
+                        if (optionExists) {
+                            serviceFilter.value = serviceParam;
+                        }
+                    }
+
+                    trialFilter.checked = urlParams.get("trial") === "true";
+                    selfHostedFilter.checked = urlParams.get("self_hosted") === "true";
+                    updateVisibility();
+                }
+
+                serviceFilter.addEventListener("change", updateVisibility);
+                trialFilter.addEventListener("change", updateVisibility);
+                selfHostedFilter.addEventListener("change", updateVisibility);
+                initFromURL();
+            }());
+        </script>
+    {% endif %}
+</div>
