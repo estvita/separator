@@ -212,32 +212,6 @@ class ArticlePage(Page):
         return self.menu_title if self.menu_title else self.title
 
 
-class TariffPage(Page):
-    menu_title = models.CharField(blank=True, max_length=150)
-    body = StreamField([
-        ("rich_text", blocks.RichTextBlock()),
-    ], blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel("body"),
-    ]
-
-    promote_panels = Page.promote_panels + [
-        FieldPanel("menu_title"),
-    ]
-
-    def get_menu_title(self):
-        return self.menu_title if self.menu_title else self.title
-
-    def get_context(self, request):
-        context = super().get_context(request)
-        wagtail_site = WagtailSite.find_for_request(request)
-        django_site = DjangoSite.objects.get(domain=wagtail_site.hostname)
-        context["tariffs"] = Tariff.objects.filter(site=django_site).order_by("service__name")
-        context["services"] = Service.objects.filter(tariffs__site=django_site).distinct()
-        return context
-
-
 @register_snippet
 class FooterText(
     DraftStateMixin,

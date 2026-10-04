@@ -17,7 +17,7 @@
         {% if page_types %}
             <ul class="listing">
                 {% for verbose_name, app_label, model_name, page_description in page_types %}
-                    {% if request.user.is_superuser or model_name != "homepage" and model_name != "tariffpage" and model_name != "formpage" %}
+                    {% if request.user.is_superuser or model_name != "homepage" and model_name != "formpage" %}
                         <li>
                             <div class="row row-flush">
                                 <div class="col8">

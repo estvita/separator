@@ -25,7 +25,6 @@ INSTALLED_APPS = [
     "hijack.contrib.admin",
     "health_check",
     "separator.home",
-    "separator.tariff",
 ] + INSTALLED_APPS
 
 MIDDLEWARE = MIDDLEWARE + [
