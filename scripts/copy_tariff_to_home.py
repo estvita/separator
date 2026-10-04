@@ -90,8 +90,8 @@ def parse_args():
     )
     parser.add_argument(
         "--settings",
-        default="config.settings.production",
-        help="Django settings module (default: config.settings.production)",
+        default="config.settings.vendor",
+        help="Django settings module (default: config.settings.vendor)",
     )
     return parser.parse_args()
 

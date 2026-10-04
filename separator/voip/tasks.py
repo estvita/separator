@@ -113,8 +113,8 @@ class PbxClient:
             raise Exception(phone, resp_fetch.json())
         
         date_end = None
-        if "separator.tariff" in settings.INSTALLED_APPS:
-            from separator.tariff.utils import get_trial
+        if "separator.home" in settings.INSTALLED_APPS:
+            from separator.home.utils import get_trial
             date_end = get_trial(waba_phone.owner, "sip_ext")
 
         extension = Extension.objects.create(
@@ -157,8 +157,8 @@ class PbxClient:
             raise Exception(meta_phone, resp_data)
 
         date_end = None
-        if "separator.tariff" in settings.INSTALLED_APPS:
-            from separator.tariff.utils import get_trial
+        if "separator.home" in settings.INSTALLED_APPS:
+            from separator.home.utils import get_trial
             date_end = get_trial(waba_phone.owner, "sip_ext")
 
         extension, created = Extension.objects.get_or_create(

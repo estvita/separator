@@ -99,8 +99,8 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                         refresh_token=refresh_token,
                         owner=request.user,
                     )
-                    if "separator.tariff" in apps and not olx_acc.date_end:
-                        from separator.tariff.utils import get_trial
+                    if "separator.home" in apps and not olx_acc.date_end:
+                        from separator.home.utils import get_trial
                         olx_acc.date_end = get_trial(request.user, "olx")
                     olx_acc.save()
                     messages.success(request, "OLX Account successfully added")

@@ -69,7 +69,7 @@ def _feature_date_end(app_instance, code, existing_grant=None):
     owner = _feature_owner(app_instance)
     if not owner or not code:
         return None
-    from separator.tariff.utils import get_trial
+    from separator.home.utils import get_trial
     return get_trial(owner, code)
 
 

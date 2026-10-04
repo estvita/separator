@@ -214,8 +214,8 @@ class ServerAuthConsumer(AsyncWebsocketConsumer):
     def mark_setup_complete(self):
         self.server.setup_complete = True
 
-        if "separator.tariff" in settings.INSTALLED_APPS and not self.server.date_end:
-            from separator.tariff.utils import get_trial
+        if "separator.home" in settings.INSTALLED_APPS and not self.server.date_end:
+            from separator.home.utils import get_trial
             self.server.date_end = get_trial(self.server.owner, "asterx")
         self.server.save()
 

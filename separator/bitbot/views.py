@@ -152,8 +152,8 @@ class BotEditView(LoginRequiredMixin, View):
                     except Exception as e:
                         messages.error(request, e)
                 
-                if not bot.date_end and "separator.tariff" in settings.INSTALLED_APPS:
-                    from separator.tariff.utils import get_trial
+                if not bot.date_end and "separator.home" in settings.INSTALLED_APPS:
+                    from separator.home.utils import get_trial
                     bot.date_end = get_trial(bot.owner, "bitbot")
                     bot.save()
 

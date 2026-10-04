@@ -43,15 +43,13 @@
 
     {% if show_filters %}
         <div class="d-flex align-items-center mb-3 tariff-filters">
-            <label class="me-2 mb-0 tariff-service-label">
-                {% trans "App:" %}
-                <select class="form-select w-auto me-3 tariff-service-filter">
-                    <option value="all">{% trans "All" %}</option>
-                    {% for service in services %}
-                        <option value="{{ service.name }}">{{ service.name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
+            <span class="mb-0 tariff-service-label">{% trans "App:" %}</span>
+            <select class="form-select w-auto tariff-service-filter">
+                <option value="all">{% trans "All" %}</option>
+                {% for service in services %}
+                    <option value="{{ service.name }}">{{ service.name }}</option>
+                {% endfor %}
+            </select>
 
             <label class="form-check mb-0 me-3">
                 <input class="form-check-input tariff-trial-filter" type="checkbox">

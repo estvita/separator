@@ -126,8 +126,8 @@ def event_processor(event_data):
                     url = f"{other_session.server.url.rstrip('/')}/instance/delete/{other_session.session}"
                     requests.delete(url, headers=headers)
 
-            if not session.date_end and "separator.tariff" in settings.INSTALLED_APPS:
-                from separator.tariff.utils import get_trial
+            if not session.date_end and "separator.home" in settings.INSTALLED_APPS:
+                from separator.home.utils import get_trial
                 session.date_end = get_trial(session.owner, "waweb")
             
             # create lead in b24
