@@ -1,0 +1,17 @@
+{% load wagtailcore_tags %}
+
+{% if subpages %}
+    <ul class="subpages-block">
+        {% for item in subpages %}
+            <li class="subpages-block__item" style="--subpage-level: {{ item.level }};">
+                <a class="subpages-block__link" href="{% pageurl item.page %}">
+                    <span class="subpages-block__icon" aria-hidden="true"></span>
+                    <span class="subpages-block__title">{{ item.page.title }}</span>
+                    <time class="subpages-block__date" datetime="{{ item.page.first_published_at|date:'Y-m-d' }}">
+                        {{ item.page.first_published_at|date:"d.m.Y" }}
+                    </time>
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

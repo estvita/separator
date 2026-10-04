@@ -161,6 +161,47 @@ class TariffBlock(blocks.StructBlock):
         label = "Tariffs"
 
 
+class SubpagesBlock(blocks.StructBlock):
+    target_page = blocks.PageChooserBlock(
+        required=False,
+        label=_("Target page"),
+        help_text=_("If not selected, the current page is used."),
+    )
+    first_level_only = blocks.BooleanBlock(
+        required=False,
+        default=False,
+        label=_("Display only first-level pages"),
+    )
+
+    def get_context(self, value, parent_context=None):
+        context = super().get_context(value, parent_context=parent_context)
+        target_page = value.get("target_page") or context.get("page")
+
+        subpages = []
+        if target_page:
+            if value.get("first_level_only"):
+                pages = target_page.get_children()
+            else:
+                pages = target_page.get_descendants()
+
+            pages = pages.live().public().order_by("path")
+            subpages = [
+                {
+                    "page": page,
+                    "level": page.depth - target_page.depth - 1,
+                }
+                for page in pages
+            ]
+
+        context["subpages"] = subpages
+        return context
+
+    class Meta:
+        template = "home/blocks/subpages.html"
+        icon = "list-ul"
+        label = _("Subpages")
+
+
 class HomePage(Page):
     body = RichTextField(blank=True)
     menu_title = models.CharField(blank=True, max_length=150)
@@ -185,6 +226,7 @@ class ArticlePage(Page):
         ("spoiler", SpoilerBlock()),
         ("gap", GapBlock()),
         ("tariffs", TariffBlock()),
+        ("subpages", SubpagesBlock()),
         ("table", TypedTableBlock([
             ('text', blocks.CharBlock(required=False)),
             ('numeric', blocks.FloatBlock(required=False)),

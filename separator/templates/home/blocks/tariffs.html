@@ -1,46 +1,6 @@
 {% load i18n %}
 
 <div class="tariff-block">
-    <style>
-        .tariff-block table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        .tariff-block th,
-        .tariff-block td {
-            border: 2px solid black;
-            padding: 10px;
-            text-align: center;
-        }
-        .tariff-block th {
-            background-color: #f2f2f2;
-        }
-        .tariff-block tbody tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .tariff-block .tariff-filters {
-            flex-wrap: wrap;
-            gap: 0.75rem;
-        }
-        .tariff-block .tariff-filters .form-check {
-            min-width: 0;
-        }
-        @media (max-width: 600px) {
-            .tariff-block .tariff-filters {
-                align-items: flex-start !important;
-            }
-            .tariff-block .tariff-service-label,
-            .tariff-block .tariff-service-filter {
-                width: 100% !important;
-                margin-right: 0 !important;
-            }
-            .tariff-block .tariff-filters .form-check {
-                margin-right: 0 !important;
-            }
-        }
-    </style>
-
     {% if show_filters %}
         <div class="d-flex align-items-center mb-3 tariff-filters">
             <span class="mb-0 tariff-service-label">{% trans "App:" %}</span>
