@@ -370,7 +370,8 @@ def save_ctwa(instace_id, ctwa_id, chat_id, source_id=None):
 def send_messages(self, app_instance_id, user_phone, text, connector,
                   line, pushName=None,
                   message_id=None, attachments=None, profilepic_url=None,
-                  chat_id=None, chat_url=None, user_id=None, ctwa_id=None, source_id=None, manager_id=None):
+                  chat_id=None, chat_url=None, user_id=None, ctwa_id=None, source_id=None, manager_id=None,
+                  referral_body=None):
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
         # BSUIDs from WhatsApp usernames include dots (for example, US.xxx), phone numbers do not.
@@ -383,7 +384,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 {
                     "user": {
                         "phone": user_phone,
-                        "name": pushName or "No name",
+                        "name": pushName or " ",
                         "id": user_id or user_phone,
                         "skip_phone_validate": 'Y',
                         "picture": {
@@ -403,6 +404,19 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 }
             ],
         }
+        if referral_body:
+            bitrix_msg["MESSAGES"].append({
+                "user": {
+                    "id": user_id or user_phone,
+                },
+                "chat": {
+                    "id": chat_id or user_phone,
+                },
+                "message": {
+                    "text": referral_body,
+                    "user_id": 0,
+                },
+            })
         request_timeout = 300 if attachments else 30
         resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=request_timeout)
 
