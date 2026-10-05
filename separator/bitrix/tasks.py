@@ -433,14 +433,21 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
         ]
         if failed_results:
             raise Exception(resp)
+        ctwa_chat_ids = set()
         for result_item in results:
             chat_session = result_item.get("session", {})
             if chat_session:
                 chat_id = chat_session.get("CHAT_ID")
                 # https://developers.facebook.com/docs/marketing-api/conversions-api/business-messaging/#ads-that-click-to-whatsapp
-                if app_instance.has_active_feature("separator_ctwa_tracker") and chat_id and (ctwa_id or source_id is not None):
+                if (
+                    app_instance.has_active_feature("separator_ctwa_tracker")
+                    and chat_id
+                    and chat_id not in ctwa_chat_ids
+                    and (ctwa_id or source_id is not None)
+                ):
                     save_ctwa.delay(app_instance_id, ctwa_id, chat_id, source_id=source_id)
-        return results
+                    ctwa_chat_ids.add(chat_id)
+        return resp
 
     except BitrixAccessDeniedError:
         raise
