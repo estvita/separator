@@ -466,28 +466,35 @@ def phone_details(request, phone_id):
                     request.session[verification_session_key] = True
                     return redirect_to_phone_tab("status")
                 try:
-                    waba_utils.call_api(
+                    verification_result = waba_utils.call_api(
                         waba=phone.waba,
                         endpoint=f"{phone.phone_id}/verify_code",
                         method="post",
                         payload={"code": code},
                     )
-                    request.session.pop(verification_session_key, None)
-                    waba_tasks.register_phone.delay(phone.id)
-                    messages.success(request, _("Phone number has been verified. Registration has been queued."))
                 except Exception as e:
                     request.session[verification_session_key] = True
-                    messages.error(request, format_meta_user_error(e))
+                    messages.error(request, str(e))
+                else:
+                    request.session.pop(verification_session_key, None)
+                    try:
+                        registration_result = waba_tasks.register_phone(phone.id)
+                    except Exception as e:
+                        messages.success(request, str(verification_result))
+                        messages.error(request, str(e))
+                    else:
+                        messages.success(request, str(verification_result))
+                        messages.success(request, str(registration_result))
             return redirect_to_phone_tab("status")
         elif action == "register_phone":
             if not phone.waba or not phone.waba.app:
                 messages.error(request, _("App is not connected to this phone WABA account."))
             else:
                 try:
-                    waba_tasks.register_phone.delay(phone.id)
-                    messages.success(request, _("Phone registration has been queued."))
+                    result = waba_tasks.register_phone(phone.id)
+                    messages.success(request, str(result))
                 except Exception as e:
-                    messages.error(request, format_meta_user_error(e))
+                    messages.error(request, str(e))
             return redirect_to_phone_tab("status")
         elif action == "submit_oba_application":
             if not phone.waba or not phone.waba.app:
