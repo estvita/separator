@@ -239,8 +239,42 @@ table, th, td {
 
 .subpages-block {
   list-style: none;
-  margin: 1rem 0;
+  margin: 0;
   padding: 0;
+}
+
+.subpages-block-container {
+  margin: 1rem 0;
+}
+
+.subpages-block__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem 8.5rem;
+  gap: 1rem;
+  padding: 0 .75rem .375rem calc(1.25rem + .75rem);
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.subpages-block__sort {
+  padding: .25rem 0;
+  border: 0;
+  background: none;
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: .875rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.subpages-block__sort:hover,
+.subpages-block__sort:focus {
+  color: var(--bs-link-color, #0d6efd);
+}
+
+.subpages-block__sort-indicator {
+  display: inline-block;
+  margin-left: .25rem;
+  min-width: .75rem;
 }
 
 .subpages-block__item {
@@ -267,8 +301,9 @@ table, th, td {
 }
 
 .subpages-block__link {
-  display: flex;
-  gap: .625rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem 8.5rem;
+  gap: 1rem;
   align-items: center;
   padding: .625rem .75rem;
   border-radius: .375rem;
@@ -279,6 +314,13 @@ table, th, td {
 
 .subpages-block__link:hover {
   background-color: rgba(var(--bs-primary-rgb), .08);
+}
+
+.subpages-block__page {
+  display: flex;
+  gap: .625rem;
+  align-items: center;
+  min-width: 0;
 }
 
 .subpages-block__icon {
@@ -308,23 +350,30 @@ table, th, td {
 }
 
 .subpages-block__date {
-  margin-left: auto;
   color: var(--bs-secondary-color, #6c757d);
   font-size: .875rem;
   white-space: nowrap;
 }
 
 @media (max-width: 575.98px) {
-  .subpages-block__link {
-    flex-wrap: wrap;
+  .subpages-block__header {
+    grid-template-columns: 1fr 1fr;
+    padding-left: calc(1.25rem + .75rem);
   }
 
-  .subpages-block__title {
-    flex: 1 1 calc(100% - 1.5rem);
+  .subpages-block__header-spacer {
+    display: none;
+  }
+
+  .subpages-block__link {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .subpages-block__page {
+    grid-column: 1 / -1;
   }
 
   .subpages-block__date {
-    flex-basis: 100%;
-    margin-left: 1.5rem;
+    padding-left: 1.5rem;
   }
 }

@@ -26,7 +26,6 @@
         <thead>
             <tr>
                 <th>{% trans "App" %}</th>
-                <th>{% trans "Trial" %}</th>
                 <th>{% trans "Price" %}</th>
                 <th>{% trans "Currency" %}</th>
                 <th>{% trans "Period" %}</th>
@@ -37,7 +36,6 @@
             {% for tariff in tariffs %}
                 <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
                     <td>{{ tariff.service.name }}</td>
-                    <td>{% if tariff.is_trial %}✅ {% trans "Yes" %} {% else %}❌ {% trans "No" %} {% endif %}</td>
                     <td>{{ tariff.price }}</td>
                     <td>{{ tariff.get_currency_display }}</td>
                     <td>{{ tariff.duration }}/{{ tariff.get_period_display }}</td>
@@ -45,7 +43,7 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="6">{% trans "No tariffs yet" %}</td>
+                    <td colspan="5">{% trans "No tariffs yet" %}</td>
                 </tr>
             {% endfor %}
         </tbody>
