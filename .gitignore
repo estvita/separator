@@ -285,3 +285,4 @@ docker-compose.vendor.yml
 .codex
 .agents
 skills-lock.json
+AGENTS.md

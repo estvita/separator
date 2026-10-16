@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load home_tags i18n %}
 
 <div class="tariff-block">
     {% if show_filters %}
@@ -22,32 +22,34 @@
         </div>
     {% endif %}
 
-    <table>
-        <thead>
-            <tr>
-                <th>{% trans "App" %}</th>
-                <th>{% trans "Price" %}</th>
-                <th>{% trans "Currency" %}</th>
-                <th>{% trans "Period" %}</th>
-                <th>{% trans "Description" %}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for tariff in tariffs %}
-                <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
-                    <td>{{ tariff.service.name }}</td>
-                    <td>{{ tariff.price }}</td>
-                    <td>{{ tariff.get_currency_display }}</td>
-                    <td>{{ tariff.duration }}/{{ tariff.get_period_display }}</td>
-                    <td>{{ tariff.description }}</td>
-                </tr>
-            {% empty %}
+    <div class="tariff-table-wrap">
+        <table>
+            <thead>
                 <tr>
-                    <td colspan="5">{% trans "No tariffs yet" %}</td>
+                    <th>{% trans "App" %}</th>
+                    <th>{% trans "Price" %}</th>
+                    <th>{% trans "Currency" %}</th>
+                    <th>{% trans "Period" %}</th>
+                    <th>{% trans "Description" %}</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for tariff in tariffs %}
+                    <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
+                        <td>{{ tariff.service.name }}</td>
+                        <td>{{ tariff.price|space_thousands }}</td>
+                        <td>{{ tariff.get_currency_display }}</td>
+                        <td>{% if tariff.duration and tariff.period %}{{ tariff.duration }}/{{ tariff.get_period_display }}{% endif %}</td>
+                        <td>{{ tariff.description }}</td>
+                    </tr>
+                {% empty %}
+                    <tr class="tariff-table-empty">
+                        <td colspan="5">{% trans "No tariffs yet" %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     {% if show_filters %}
         <script>
