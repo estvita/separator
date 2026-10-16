@@ -38,7 +38,7 @@
                     <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
                         <td>{{ tariff.service.name }}</td>
                         <td>{{ tariff.price|space_thousands }}</td>
-                        <td>{{ tariff.get_currency_display }}</td>
+                        <td>{% if tariff.currency %}{{ tariff.get_currency_display }}{% endif %}</td>
                         <td>{% if tariff.duration and tariff.period %}{{ tariff.duration }}/{{ tariff.get_period_display }}{% endif %}</td>
                         <td>{{ tariff.description }}</td>
                     </tr>

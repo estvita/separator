@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models.functions import Lower
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from modelcluster.fields import ParentalKey
@@ -151,7 +152,7 @@ class TariffBlock(blocks.StructBlock):
         context["tariffs"] = tariffs.order_by("service__name")
         context["services"] = Service.objects.filter(
             tariffs__site=django_site,
-        ).distinct()
+        ).distinct().order_by(Lower("name"), "id")
         context["show_filters"] = not selected_service_id
         return context
 
