@@ -149,7 +149,11 @@ class TariffBlock(blocks.StructBlock):
         if selected_service_id:
             tariffs = tariffs.filter(service_id=selected_service_id)
 
-        context["tariffs"] = tariffs.order_by("service__name")
+        context["tariffs"] = tariffs.order_by(
+            Lower("service__name"),
+            models.F("price").asc(nulls_last=True),
+            "id",
+        )
         context["services"] = Service.objects.filter(
             tariffs__site=django_site,
         ).distinct().order_by(Lower("name"), "id")
