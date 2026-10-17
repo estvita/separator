@@ -242,21 +242,30 @@ table, th, td {
   border-bottom: 0;
 }
 
-.tariff-block td:first-child,
-.tariff-block td:nth-child(2) {
+.tariff-block td:first-child {
   font-weight: 600;
+}
+
+.tariff-block td:first-child,
+.tariff-block td:nth-child(2),
+.tariff-block td:nth-child(3) {
+  white-space: nowrap;
 }
 
 .tariff-block td:nth-child(2),
 .tariff-block td:nth-child(3),
 .tariff-block td:nth-child(4) {
-  white-space: nowrap;
+  color: var(--bs-secondary-color, #6c757d);
 }
 
-.tariff-block td:nth-child(3),
-.tariff-block td:nth-child(4),
-.tariff-block td:nth-child(5) {
-  color: var(--bs-secondary-color, #6c757d);
+.tariff-block .tariff-service-heading th {
+  padding: .7rem 1rem;
+  color: var(--bs-body-color, #212529);
+  background: rgba(var(--bs-primary-rgb, 13, 110, 253), .065);
+  font-size: .875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .tariff-block .tariff-table-empty td {

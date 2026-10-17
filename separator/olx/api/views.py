@@ -107,7 +107,7 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
 
                     # create lead in b24
                     if not request.user.integrator:
-                        from separator.bitrix.tasks import prepare_lead
+                        from separator.home.tasks import prepare_lead
                         prepare_lead.delay(request.user.id, f'New OLX: {olx_id}')
                 
                 return redirect("olx-accounts")

@@ -1535,7 +1535,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             .values_list("phone", flat=True)
                         )
                         numbers_text = ", ".join(dict.fromkeys(numbers)) or "no linked numbers"
-                        lead_title = bitrix_tasks.build_lead_title(
+                        import separator.home.tasks as home_tasks
+                        lead_title = home_tasks.build_lead_title(
                             waba.owner.site if waba.owner_id else None,
                             "partner_app_uninstalled",
                             "WABA {waba_id} uninstalled with numbers {numbers}",
@@ -1543,7 +1544,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             waba_id=waba.waba_id,
                             numbers=numbers_text,
                         )
-                        bitrix_tasks.prepare_lead.delay(waba.owner_id, lead_title)
+                        home_tasks.prepare_lead.delay(waba.owner_id, lead_title)
 
                     if settings.WABA_AUTO_DELETE_ENTITIES:
                         waba.delete()

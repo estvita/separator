@@ -26,28 +26,51 @@
         <table>
             <thead>
                 <tr>
-                    <th>{% trans "App" %}</th>
                     <th>{% trans "Price" %}</th>
                     <th>{% trans "Currency" %}</th>
                     <th>{% trans "Period" %}</th>
                     <th>{% trans "Description" %}</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for tariff in tariffs %}
-                    <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
-                        <td>{{ tariff.service.name }}</td>
-                        <td>{{ tariff.price|space_thousands }}</td>
-                        <td>{% if tariff.currency %}{{ tariff.get_currency_display }}{% endif %}</td>
-                        <td>{% if tariff.duration and tariff.period %}{{ tariff.duration }}/{{ tariff.get_period_display }}{% endif %}</td>
-                        <td>{{ tariff.description }}</td>
-                    </tr>
+            {% if show_filters %}
+                {% regroup tariffs by service as tariff_groups %}
+                {% for group in tariff_groups %}
+                    <tbody class="tariff-service-group">
+                        <tr class="tariff-service-heading">
+                            <th colspan="4" scope="rowgroup">{{ group.grouper.name }}</th>
+                        </tr>
+                        {% for tariff in group.list %}
+                            <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
+                                <td>{{ tariff.price|space_thousands }}</td>
+                                <td>{% if tariff.currency %}{{ tariff.get_currency_display }}{% endif %}</td>
+                                <td>{% if tariff.duration and tariff.period %}{{ tariff.duration }}/{{ tariff.get_period_display }}{% endif %}</td>
+                                <td>{{ tariff.description }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
                 {% empty %}
-                    <tr class="tariff-table-empty">
-                        <td colspan="5">{% trans "No tariffs yet" %}</td>
-                    </tr>
+                    <tbody>
+                        <tr class="tariff-table-empty">
+                            <td colspan="4">{% trans "No tariffs yet" %}</td>
+                        </tr>
+                    </tbody>
                 {% endfor %}
-            </tbody>
+            {% else %}
+                <tbody>
+                    {% for tariff in tariffs %}
+                        <tr class="tariff-row" data-service="{{ tariff.service.name }}" data-is-trial="{{ tariff.is_trial|yesno:'true,false' }}" data-self-hosted="{{ tariff.self_hosted|yesno:'true,false' }}">
+                            <td>{{ tariff.price|space_thousands }}</td>
+                            <td>{% if tariff.currency %}{{ tariff.get_currency_display }}{% endif %}</td>
+                            <td>{% if tariff.duration and tariff.period %}{{ tariff.duration }}/{{ tariff.get_period_display }}{% endif %}</td>
+                            <td>{{ tariff.description }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr class="tariff-table-empty">
+                            <td colspan="4">{% trans "No tariffs yet" %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            {% endif %}
         </table>
     </div>
 
@@ -59,6 +82,7 @@
                 var trialFilter = block.querySelector(".tariff-trial-filter");
                 var selfHostedFilter = block.querySelector(".tariff-self-hosted-filter");
                 var rows = block.querySelectorAll(".tariff-row");
+                var serviceGroups = block.querySelectorAll(".tariff-service-group");
 
                 function updateURL(service, isTrial, isSelfHosted) {
                     var url = new URL(window.location);
@@ -93,6 +117,13 @@
                         var matchesTrial = !showTrialOnly || row.dataset.isTrial === "true";
                         var matchesSelfHosted = !showSelfHostedOnly || row.dataset.selfHosted === "true";
                         row.style.display = matchesService && matchesTrial && matchesSelfHosted ? "" : "none";
+                    });
+
+                    serviceGroups.forEach(function (group) {
+                        var hasVisibleRows = Array.from(group.querySelectorAll(".tariff-row")).some(function (row) {
+                            return row.style.display !== "none";
+                        });
+                        group.style.display = hasVisibleRows ? "" : "none";
                     });
 
                     updateURL(selectedService, showTrialOnly, showSelfHostedOnly);

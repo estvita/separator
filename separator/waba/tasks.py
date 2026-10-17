@@ -118,7 +118,7 @@ def _onboard_waba_assets(
 
         if user and create_lead:
             # create lead in b24
-            from separator.bitrix.tasks import prepare_lead
+            from separator.home.tasks import prepare_lead
             prepare_lead.delay(user.id, f'New WhatsApp Cloud: {phone_number}')
 
         if user and "separator.home" in settings.INSTALLED_APPS and not phone.date_end:

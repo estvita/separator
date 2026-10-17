@@ -19,7 +19,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
 
 from .crest import call_method
-from .tasks import call_api, prepare_lead
+from .tasks import call_api
+from separator.home.tasks import prepare_lead
 from .utils import get_b24_user, get_instances, get_app, get_line_app_instance
 from .forms import BitrixPortalForm, VerificationCodeForm
 import separator.bitrix.placements as placements

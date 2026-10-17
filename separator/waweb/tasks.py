@@ -132,7 +132,7 @@ def event_processor(event_data):
             
             # create lead in b24
             if session.phone != number and not session.owner.integrator:
-                from separator.bitrix.tasks import prepare_lead
+                from separator.home.tasks import prepare_lead
                 prepare_lead.delay(session.owner.id, f'New WhatsApp Web: {number}')            
             
             session.phone = number
