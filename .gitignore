@@ -286,3 +286,4 @@ docker-compose.vendor.yml
 .agents
 skills-lock.json
 AGENTS.md
+test/

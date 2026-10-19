@@ -36,7 +36,7 @@
       {% with path=request.path %}
         {% if path|slice:":4" == "/en/" %}
           {% with ru_url=path|slice:"3:" en_url=path %}
-            <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
+            <select class="form-select form-select-sm" aria-label="{% translate 'Language' %}" onchange="if (this.value) { window.location.href = this.value; }">
               {% for lang in languages %}
                 {% if lang.code|lower|slice:":2" == "en" %}
                   <option value="{{ en_url }}"{% if lang.code == LANGUAGE_CODE %} selected{% endif %}>{{ lang.name_local }}</option>
@@ -48,7 +48,7 @@
           {% endwith %}
         {% else %}
           {% with ru_url=path en_url="/en"|add:path %}
-            <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
+            <select class="form-select form-select-sm" aria-label="{% translate 'Language' %}" onchange="if (this.value) { window.location.href = this.value; }">
               {% for lang in languages %}
                 {% if lang.code|lower|slice:":2" == "en" %}
                   <option value="{{ en_url }}"{% if lang.code == LANGUAGE_CODE %} selected{% endif %}>{{ lang.name_local }}</option>

@@ -1,7 +1,7 @@
-{% load wagtailcore_tags %}
+{% load i18n wagtailcore_tags %}
 
 <li class="nav-item dropdown ms-2">
-  <select class="form-select form-select-sm" onchange="if (this.value) { window.location.href = this.value; }">
+  <select class="form-select form-select-sm" aria-label="{% translate 'Language' %}" onchange="if (this.value) { window.location.href = this.value; }">
     <option value="{% pageurl page %}" selected>
       {{ page.locale.language_name_local }}
     </option>
