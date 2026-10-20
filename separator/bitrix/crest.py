@@ -50,7 +50,7 @@ def call_method(appinstance: AppInstance,
                 verify=True,
                 admin=True,
                 b24_user_id=None,
-                timeout=30):
+                timeout=(10, 30)):
     if data is None:
         data = {}
     

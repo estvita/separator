@@ -67,7 +67,7 @@ def call_api(id, method, payload, b24_user=None):
     # Changing its implicit admin-mode semantics breaks existing install/runtime flows
     # that call bitrix_tasks.call_api(...) without extra flags.
     app_instance = AppInstance.objects.get(id=id)
-    return call_method(app_instance, method, payload, b24_user_id=b24_user, timeout=10)
+    return call_method(app_instance, method, payload, b24_user_id=b24_user)
 
 
 @shared_task(queue="bitrix", **RETRY_KWARGS)
@@ -91,7 +91,7 @@ def register_voximplant_sip(phone_id, app_instance_id):
         "PASSWORD": extension.password,
     }
     app_instance = AppInstance.objects.get(id=app_instance_id)
-    response = call_method(app_instance, "voximplant.sip.add", payload, timeout=10)
+    response = call_method(app_instance, "voximplant.sip.add", payload)
     result = response.get("result", {})
     voximplant_id = result.get("ID")
     voximplant_reg_id = result.get("REG_ID")
@@ -155,7 +155,7 @@ def register_feature(app_instance_id, feature_id, placement_code=None, force=Fal
     payloads = _build_feature_payloads(feature, placement_code=placement_code)
     responses = []
     for payload in payloads:
-        responses.append(call_method(app_instance, feature.method, payload, timeout=30))
+        responses.append(call_method(app_instance, feature.method, payload))
 
     code = str(feature.code or "").strip() or None
     if code:
@@ -396,7 +396,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                     "user_id": 0,
                 },
             })
-        request_timeout = 300 if attachments else 30
+        request_timeout = (10, 300)
         resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=request_timeout)
 
         result = resp.get("result", {})
