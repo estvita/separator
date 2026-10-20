@@ -19,10 +19,6 @@ import separator.home.tasks as home_tasks
 
 logger = logging.getLogger("django")
 
-class BitrixSendMessagesReadTimeout(Exception):
-    pass
-
-
 def _feature_owner(app_instance):
     if app_instance.owner_id:
         return app_instance.owner
@@ -435,12 +431,6 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
     except BitrixAccessDeniedError:
         raise
     except requests.exceptions.ReadTimeout as e:
-        if attachments:
-            # Future improvement: add Redis idempotency by message_id and mark this state as "unknown".
-            # Then retries for attachments can be enabled without risking duplicate Bitrix messages.
-            raise BitrixSendMessagesReadTimeout(
-                "Bitrix send_messages timed out with attachments; retry skipped to avoid duplicates"
-            ) from e
         raise self.retry(exc=e)
     except Exception as e:
         raise self.retry(exc=e)
