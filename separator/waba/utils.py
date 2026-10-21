@@ -1639,6 +1639,15 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         except Exception:
             raise
         
+    if waba and waba.app and field in ("messages", "smb_message_echoes"):
+        skip_types = {item.strip() for item in (waba.app.skip_type or "").split(",") if item.strip()}
+        message_key = "messages" if field == "messages" else "message_echoes"
+        if skip_types and message_key in value:
+            value[message_key] = [
+                message for message in value[message_key]
+                if message.get("type") not in skip_types
+            ]
+
     # ctwa bot
     bot = Bot.objects.filter(phone=phone).first()
     if bot and field == 'messages':
@@ -1828,7 +1837,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
             elif message_type == "interactive":
                 if message.get("errors"):
-                    text = f"[color=#ff0000]{error_message(message)}[/color]"
+                    error_text = error_message(message)
+                    text = None if phone.skip_errors else f"[color=#ff0000]{error_text}[/color]"
                 else:
                     interactive = message.get("interactive", {})
                     interactive_type = interactive.get("type")
@@ -1903,7 +1913,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                  text = reaction.get("emoji")
 
             elif message_type == "unsupported":
-                text = f"[color=#ff0000]{error_message(message)}[/color]"
+                error_text = error_message(message)
+                text = None if phone.skip_errors else f"[color=#ff0000]{error_text}[/color]"
 
             else:
                 raise Exception(f"Unsupported message type")
@@ -2001,7 +2012,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                                     }
                                     resp = call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/messages", method="post", payload=payload)
                                     fallback_triggered = True
-                                    if user_identy and appinstance:
+                                    if user_identy and appinstance and (not phone.skip_errors or "error" not in resp):
                                         if "error" in resp:
                                             msg = f"[color=#ff0000]Error occurred: {resp}[/color]"
                                         else:
@@ -2024,7 +2035,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         try:
                             out_message = error_message(item)
                             user_identy = item.get("recipient_id")
-                            if user_identy and appinstance:
+                            if user_identy and appinstance and not phone.skip_errors:
                                 bitrix_tasks.send_messages.delay(
                                     appinstance.id,
                                     user_identy,
@@ -2153,7 +2164,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     raise Exception(f"Unsupported edit.message type: {edited_type}")
 
             elif message_type == "unsupported":
-                text = f"[color=#ff0000]{error_message(message)}[/color]"
+                error_text = error_message(message)
+                text = None if phone.skip_errors else f"[color=#ff0000]{error_text}[/color]"
 
             else:
                 raise Exception(f"Unsupported smb_message_echoes message_type: {message_type}")

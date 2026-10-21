@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-03 09:43+0500\n"
+"POT-Creation-Date: 2026-10-21 16:43+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -290,6 +290,18 @@ msgid "Ruble"
 msgstr ""
 
 msgid "Tenge"
+msgstr ""
+
+msgid "Target page"
+msgstr ""
+
+msgid "If not selected, the current page is used."
+msgstr ""
+
+msgid "Display only first-level pages"
+msgstr ""
+
+msgid "Subpages"
 msgstr ""
 
 msgid "Sign In"
@@ -739,7 +751,7 @@ msgstr ""
 msgid "Updated"
 msgstr ""
 
-msgid "Thank you, message sent"
+msgid "Published"
 msgstr ""
 
 msgid "App:"
@@ -754,9 +766,6 @@ msgstr ""
 msgid "Self-hosted"
 msgstr ""
 
-msgid "Service"
-msgstr ""
-
 msgid "Price"
 msgstr ""
 
@@ -769,13 +778,10 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-msgid "Yes"
-msgstr ""
-
-msgid "No"
-msgstr ""
-
 msgid "No tariffs yet"
+msgstr ""
+
+msgid "Thank you, message sent"
 msgstr ""
 
 msgid "My Profile"
@@ -1072,6 +1078,12 @@ msgstr ""
 msgid "Global"
 msgstr ""
 
+msgid "Yes"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
 msgid "Delete interactive message?"
 msgstr ""
 
@@ -1217,6 +1229,9 @@ msgid "Enable SMS provider in Bitrix."
 msgstr ""
 
 msgid "Send SMS through Bitrix open lines."
+msgstr ""
+
+msgid "Hide Meta errors in Bitrix open lines"
 msgstr ""
 
 msgid "Automatically send read receipts to WhatsApp."
@@ -1520,12 +1535,6 @@ msgid "Verification code has been requested."
 msgstr ""
 
 msgid "Enter verification code."
-msgstr ""
-
-msgid "Phone number has been verified. Registration has been queued."
-msgstr ""
-
-msgid "Phone registration has been queued."
 msgstr ""
 
 msgid "Official Business Account application is not available."

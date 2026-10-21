@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-03 09:43+0500\n"
+"POT-Creation-Date: 2026-10-21 16:43+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -297,6 +297,18 @@ msgstr "Рубль"
 
 msgid "Tenge"
 msgstr "Тенге"
+
+msgid "Target page"
+msgstr ""
+
+msgid "If not selected, the current page is used."
+msgstr ""
+
+msgid "Display only first-level pages"
+msgstr ""
+
+msgid "Subpages"
+msgstr ""
 
 msgid "Sign In"
 msgstr "Войти"
@@ -771,8 +783,8 @@ msgstr "Получить код"
 msgid "Updated"
 msgstr "Обновить"
 
-msgid "Thank you, message sent"
-msgstr ""
+msgid "Published"
+msgstr "опубликовано"
 
 msgid "App:"
 msgstr "Приложение"
@@ -786,9 +798,6 @@ msgstr "Пробный"
 msgid "Self-hosted"
 msgstr ""
 
-msgid "Service"
-msgstr "Услуга"
-
 msgid "Price"
 msgstr "Цена"
 
@@ -801,14 +810,11 @@ msgstr "Период"
 msgid "Description"
 msgstr "Описание"
 
-msgid "Yes"
-msgstr "Да"
-
-msgid "No"
-msgstr "Нет"
-
 msgid "No tariffs yet"
 msgstr "Тарифов пока нет"
+
+msgid "Thank you, message sent"
+msgstr ""
 
 msgid "My Profile"
 msgstr "Профиль"
@@ -1104,6 +1110,12 @@ msgstr "Интерактивные сообщения"
 msgid "Global"
 msgstr ""
 
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
 msgid "Delete interactive message?"
 msgstr "Удалить интерактивное сообщение?"
 
@@ -1262,6 +1274,9 @@ msgstr "Активирвоать СМС провайдер"
 
 msgid "Send SMS through Bitrix open lines."
 msgstr "Отправка SMS открывает чат в ОЛ"
+
+msgid "Hide Meta errors in Bitrix open lines"
+msgstr "Не отправлять ошибки из FB в чат"
 
 msgid "Automatically send read receipts to WhatsApp."
 msgstr "Помечать сообщения как прочитанные в WhatsApp при получении в ОЛ"
@@ -1570,12 +1585,6 @@ msgstr "Код подтверждения запрошен."
 
 msgid "Enter verification code."
 msgstr "Введите код подтверждения."
-
-msgid "Phone number has been verified. Registration has been queued."
-msgstr "Номер телефона подтвержден. Регистрация поставлена в очередь."
-
-msgid "Phone registration has been queued."
-msgstr "Регистрация номера поставлена в очередь."
 
 #, fuzzy
 #| msgid "Official Business Account application"

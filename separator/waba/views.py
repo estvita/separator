@@ -357,6 +357,7 @@ def phone_details(request, phone_id):
             return redirect_to_phone_tab("calls")
         elif action == "update_bitrix":
             sms_service = request.POST.get("sms_service") == "on"
+            skip_errors = request.POST.get("skip_errors") == "on"
             chat_from_sms = request.POST.get("ChatFromSms") == "on"
             read_receipts = request.POST.get("read_receipts") == "on"
             transcribe_model = request.POST.get("transcribe_model") or phone.transcribe_model
@@ -366,6 +367,7 @@ def phone_details(request, phone_id):
             available_in_b24 = request.POST.get("availableInB24") == "on"
             available_to_b24_admins = request.POST.get("availabletoB24admins") == "on"
             sms_service_changed = phone.sms_service != sms_service
+            skip_errors_changed = phone.skip_errors != skip_errors
             chat_from_sms_changed = phone.ChatFromSms != chat_from_sms
             read_receipts_changed = phone.read_receipts != read_receipts
             transcribe_model_changed = phone.transcribe_model != transcribe_model
@@ -374,6 +376,7 @@ def phone_details(request, phone_id):
 
             if (
                 sms_service_changed
+                or skip_errors_changed
                 or chat_from_sms_changed
                 or read_receipts_changed
                 or transcribe_model_changed
@@ -381,6 +384,7 @@ def phone_details(request, phone_id):
                 or available_to_b24_admins_changed
             ):
                 phone.sms_service = sms_service
+                phone.skip_errors = skip_errors
                 phone.ChatFromSms = chat_from_sms
                 phone.read_receipts = read_receipts
                 phone.transcribe_model = transcribe_model
@@ -389,6 +393,8 @@ def phone_details(request, phone_id):
                 update_fields = []
                 if sms_service_changed:
                     update_fields.append("sms_service")
+                if skip_errors_changed:
+                    update_fields.append("skip_errors")
                 if chat_from_sms_changed:
                     update_fields.append("ChatFromSms")
                 if read_receipts_changed:

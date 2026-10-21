@@ -148,11 +148,19 @@ def send_error_to_openline(app_instance_id, user_phone, error_msg, connector_cod
     )
 
 
-def send_waba_error_to_openline(app_instance_id, user_phone, error_result, connector_code, line_id):
+def send_waba_error_to_openline(app_instance_id, user_phone, error_result, connector_code, line_id, phone=None):
+    error_msg = format_waba_error(error_result)
+    if (
+        phone
+        and phone.skip_errors
+        and not is_waba_tariff_expired_error(error_result)
+        and waba.extract_error_data(error_result)
+    ):
+        return
     send_error_to_openline(
         app_instance_id,
         user_phone,
-        format_waba_error(error_result),
+        error_msg,
         connector_code,
         line_id,
     )
@@ -163,16 +171,16 @@ def is_waba_tariff_expired_error(send_result):
     return "tariff expired" in message
 
 
-def handle_waba_send_error(task, send_result, app_instance_id, user_phone, connector_code, line_id):
+def handle_waba_send_error(task, send_result, app_instance_id, user_phone, connector_code, line_id, phone=None):
     if "error" not in (send_result or {}):
         return False
 
     if is_waba_tariff_expired_error(send_result) or not waba.is_retry_enabled_for_error(send_result):
-        send_waba_error_to_openline(app_instance_id, user_phone, send_result, connector_code, line_id)
+        send_waba_error_to_openline(app_instance_id, user_phone, send_result, connector_code, line_id, phone=phone)
         return True
 
     if task.request.retries >= task.max_retries:
-        send_waba_error_to_openline(app_instance_id, user_phone, send_result, connector_code, line_id)
+        send_waba_error_to_openline(app_instance_id, user_phone, send_result, connector_code, line_id, phone=phone)
 
     raise_waba_send_error(send_result)
 
@@ -1296,6 +1304,7 @@ def sms_processor(self, data, service):
             error_result,
             line.connector.code,
             line.line_id,
+            phone=phone,
         )
 
     try:
@@ -1355,6 +1364,7 @@ def sms_processor(self, data, service):
                 message_to,
                 line.connector.code,
                 line.line_id,
+                phone=phone,
             ):
                 return send_result
             if phone and phone.ChatFromSms and line:
@@ -1588,7 +1598,7 @@ def event_processor(self, data):
                         message.update(parse_interactive_code(interactive_str, appinstance=appinstance, phone=phone))
                     except Exception as e:
                         error_result = {"error": True, "message": str(e)}
-                        send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id)
+                        send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id, phone=phone)
                         raise
 
                 elif hashtag_interactive := _get_hashtag_interactive(text, appinstance):
@@ -1678,12 +1688,12 @@ def event_processor(self, data):
                                 message["document"]["caption"] = media_caption
 
                         send_result = waba.send_message_from_phone(phone, message)
-                        if handle_waba_send_error(self, send_result, appinstance.id, chat, connector.code, line_id):
+                        if handle_waba_send_error(self, send_result, appinstance.id, chat, connector.code, line_id, phone=phone):
                             return send_result
 
                 else:
                     send_result = waba.send_message_from_phone(phone, message)
-                    if handle_waba_send_error(self, send_result, appinstance.id, chat, connector.code, line_id):
+                    if handle_waba_send_error(self, send_result, appinstance.id, chat, connector.code, line_id, phone=phone):
                         return send_result
 
             elif connector.service == "waweb":

@@ -49,6 +49,7 @@ class App(models.Model):
         editable=False,
         unique=True,
     )
+    skip_type = models.CharField(max_length=1020, editable=True, default='revoke', help_text="do not process msg types")
     sip_server = models.ForeignKey(Server, on_delete=models.SET_NULL, blank=True, null=True)
     fallback_app = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="fallback_apps",)
     def __str__(self):
@@ -110,6 +111,7 @@ class Phone(models.Model):
     pin = models.CharField(max_length=6, default="000000")
     phone_id = models.CharField(max_length=50, unique=True)
     sms_service = models.BooleanField(default=True)
+    skip_errors = models.BooleanField(default=False, help_text="Do not send errors from FB to Bitrix")
     ChatFromSms = models.BooleanField(default=False)
     read_receipts = models.BooleanField(default=False)
     file_proxy = models.BooleanField(default=True, help_text="Proxy inbound files to Bitrix instead of saving temp files")
