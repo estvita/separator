@@ -277,20 +277,14 @@
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="sms_service" name="sms_service" {% if phone.sms_service %}checked{% endif %}>
           <label class="form-check-label" for="sms_service">
-            `sms_service`
-          </label>
-          <div class="form-text">
             {% trans "Enable SMS provider in Bitrix." %}
-          </div>
+          </label>
         </div>
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="ChatFromSms" name="ChatFromSms" {% if phone.ChatFromSms %}checked{% endif %}>
           <label class="form-check-label" for="ChatFromSms">
-            `ChatFromSms`
-          </label>
-          <div class="form-text">
             {% trans "Send SMS through Bitrix open lines." %}
-          </div>
+          </label>
         </div>
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="skip_errors" name="skip_errors" {% if phone.skip_errors %}checked{% endif %}>
@@ -301,36 +295,27 @@
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="read_receipts" name="read_receipts" {% if phone.read_receipts %}checked{% endif %}>
           <label class="form-check-label" for="read_receipts">
-            `read_receipts`
-          </label>
-          <div class="form-text">
             {% trans "Automatically send read receipts to WhatsApp." %}
-          </div>
+          </label>
         </div>
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="availableInB24" name="availableInB24" {% if phone.availableInB24 %}checked{% endif %}>
           <label class="form-check-label" for="availableInB24">
-            `availableInB24`
-          </label>
-          <div class="form-text">
             {% trans "Show this number in the Bitrix widget." %}
-          </div>
+          </label>
         </div>
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="availabletoB24admins" name="availabletoB24admins" {% if phone.availabletoB24admins %}checked{% endif %}>
           <label class="form-check-label" for="availabletoB24admins">
-            `availabletoB24admins`
-          </label>
-          <div class="form-text">
             {% trans "Allow Bitrix portal admins to access this number." %}
-          </div>
+          </label>
         </div>
         <div class="form-group mb-3">
-          <label for="tokens">Transcribe tokens</label>
+          <label for="tokens">{% trans "Transcribe tokens" %}</label>
           <input type="number" min="0" class="form-control" id="tokens" value="{{ phone.tokens }}" readonly>
         </div>
         <div class="form-group mb-3">
-          <label for="transcribe_model">Transcribe model</label>
+          <label for="transcribe_model">{% trans "Transcribe model" %}</label>
           <select class="form-control" id="transcribe_model" name="transcribe_model">
             {% for value, label in transcribe_model_choices %}
               <option value="{{ value }}" {% if phone.transcribe_model == value %}selected{% endif %}>{{ label }}</option>
@@ -368,11 +353,8 @@
             {% if phone.additional_codecs %}checked{% endif %}
           >
           <label class="form-check-label" for="additional_codecs">
-            {% trans "Additional codecs" %}
-          </label>
-          <small class="form-text text-muted">
             {% trans "Enable PCMA and PCMU codecs" %}
-          </small>
+          </label>
         </div>
         <div class="form-group mb-3">
           <label for="call_dest">{% trans "Call destination" %}</label>
