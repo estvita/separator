@@ -34,6 +34,13 @@ def prepare_lead(user_id, lead_title):
     user = User.objects.filter(id=user_id).first()
     if not user:
         raise Exception("user not found")
+    email = (user.email or "").strip()
+    if email.lower().startswith("bitrix-") and email.lower().endswith("@local"):
+        email = ""
+    phone = str(user.phone_number) if user.phone_number else ""
+    if not email and not phone:
+        return
+
     site = user.site
     if not site:
         raise Exception(f"site for {user.email} not found")
@@ -43,13 +50,16 @@ def prepare_lead(user_id, lead_title):
     vendor_instance = AppInstance.objects.filter(owner=owner, app__vendor=True).first()
     if not vendor_instance:
         raise Exception(f"vendor instance for vendor {owner.email} not found")
-    client_filter = {"email": user.email}
-    if user.phone_number:
+    if email and phone:
         client_filter = {
             "logic": "OR",
-            "0": {"phone": str(user.phone_number)},
-            "1": {"email": user.email}
+            "0": {"phone": phone},
+            "1": {"email": email}
         }
+    elif phone:
+        client_filter = {"phone": phone}
+    else:
+        client_filter = {"email": email}
     payload = {
         "filter": {
             "0": client_filter,
@@ -71,14 +81,16 @@ def prepare_lead(user_id, lead_title):
         lead_data["fields"]["CONTACT_IDS"] = contact_ids
     else:
         lead_data["fields"]["NAME"] = user.name
-        lead_data["fields"]["EMAIL"] = [{
-            "VALUE": user.email,
-            "VALUE_TYPE": "WORK"
-        }]
-        lead_data["fields"]["PHONE"] = [{
-            "VALUE": str(user.phone_number),
-            "VALUE_TYPE": "MOBILE"
-        }]
+        if email:
+            lead_data["fields"]["EMAIL"] = [{
+                "VALUE": email,
+                "VALUE_TYPE": "WORK"
+            }]
+        if phone:
+            lead_data["fields"]["PHONE"] = [{
+                "VALUE": phone,
+                "VALUE_TYPE": "MOBILE"
+            }]
 
     return call_method(vendor_instance, "crm.lead.add", lead_data)
 
