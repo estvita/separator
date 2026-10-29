@@ -1586,12 +1586,12 @@ def event_processor(self, data):
                     message["context"] = {"message_id": quoted_msg_id}
 
                 # Обработка шаблонных сообщений
-                if "template+" in text:
+                if text.startswith("template+"):
                     template_start = text.index("template+")
                     template_str = text[template_start:]
                     message.update(parse_template_code(template_str, appinstance=appinstance, line_id=line_id))
 
-                elif "interactive+" in text:
+                elif text.startswith("interactive+"):
                     interactive_start = text.index("interactive+")
                     interactive_str = text[interactive_start:]
                     try:

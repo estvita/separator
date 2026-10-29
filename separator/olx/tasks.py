@@ -354,8 +354,8 @@ def send_message(chat_id, text, files=None):
     payload = {"text": text}
     if files:
         payload.update({
-            "text": "files",
-            "attachments": [{"url": file["link"]} for file in files]
+            "text": text or "files",
+            "attachments": [{"url": file.get("source_link")} for file in files]
         })
 
     response = requests.post(api_url, headers=headers, json=payload)
