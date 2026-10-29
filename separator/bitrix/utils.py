@@ -1713,7 +1713,16 @@ def event_processor(self, data):
                 try:
                     send_result = olx_tasks.send_message(chat, text, files)
                 except Exception as e:
-                    send_error_to_openline(appinstance.id, chat, str(e), connector.code, line_id)
+                    bitrix_tasks.send_messages.delay(
+                        appinstance.id,
+                        None,
+                        f"[color=#ff0000]{e}[/color]",
+                        connector.code,
+                        line_id,
+                        chat_id=chat,
+                        user_id=chat.rsplit("-", 1)[-1],
+                        manager_id=0,
+                    )
                     raise
 
             send_delivery_status(appinstance.id, connector_code, line_id, chat_id, message_id)
