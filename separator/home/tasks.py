@@ -356,24 +356,24 @@ def update_bitrix_deal(
 @shared_task(queue="bitrix", **RETRY_KWARGS)
 def confirm_bitrix_deal(
     app_instance_id,
-    act_number,
+    doc_number,
     act_field,
     confirmation_field,
     processed_ttl,
 ):
-    confirmed_key = f"gmail:confirmed:{act_number}"
+    confirmed_key = f"gmail:confirmed:{doc_number}"
     if redis_client.exists(confirmed_key):
         return {
             "status": "skipped",
             "reason": "already_confirmed",
-            "act_number": act_number,
+            "doc_number": doc_number,
         }
 
     app_instance = AppInstance.objects.select_related("owner", "owner__site", "portal").get(
         id=app_instance_id,
     )
     try:
-        deal_id = redis_client.get(f"gmail:{act_number}")
+        deal_id = redis_client.get(f"gmail:{doc_number}")
         if deal_id is not None:
             deal_id = int(deal_id)
         else:
@@ -382,7 +382,7 @@ def confirm_bitrix_deal(
                 "crm.item.list",
                 {
                     "entityTypeId": 2,
-                    "filter": {act_field: act_number},
+                    "filter": {act_field: doc_number},
                     "select": ["id"],
                     "useOriginalUfNames": "Y",
                 },
@@ -393,11 +393,7 @@ def confirm_bitrix_deal(
                 else None
             )
             if not isinstance(items, list) or len(items) != 1:
-                raise Exception({
-                    "message": "Bitrix deal for act not found or is not unique",
-                    "act_number": act_number,
-                    "response": search_response,
-                })
+                return search_response
             deal_id = int(items[0]["id"])
 
         response = call_method(
@@ -415,7 +411,7 @@ def confirm_bitrix_deal(
         return {
             "status": "skipped",
             "reason": "license_expired",
-            "act_number": act_number,
+            "doc_number": doc_number,
         }
 
     result = response.get("result", {}) if isinstance(response, dict) else {}
@@ -423,11 +419,11 @@ def confirm_bitrix_deal(
         raise Exception({
             "message": "Bitrix deal confirmation failed",
             "deal_id": deal_id,
-            "act_number": act_number,
+            "doc_number": doc_number,
             "response": response,
         })
 
-    redis_client.setex(f"gmail:{act_number}", processed_ttl, deal_id)
+    redis_client.setex(f"gmail:{doc_number}", processed_ttl, deal_id)
     redis_client.setex(confirmed_key, processed_ttl, 1)
     return response
 
@@ -494,6 +490,12 @@ def check_gmail_messages(
     ).hexdigest()[:24]
     processed_ttl = (lookback_days + 1) * 24 * 60 * 60
     since = timezone.now().date() - timedelta(days=lookback_days)
+    incoming_search = (
+        "SINCE",
+        _imap_date(since),
+        "NOT", "X-GM-LABELS", r'"\\Sent"',
+        "NOT", "X-GM-LABELS", r'"\\Drafts"',
+    )
     stats = {
         "found": 0,
         "scheduled": 0,
@@ -515,7 +517,7 @@ def check_gmail_messages(
         if status != "OK":
             raise RuntimeError(f"Gmail label not found: {mailbox}")
 
-        status, response = connection.uid("search", None, "SINCE", _imap_date(since))
+        status, response = connection.uid("search", None, *incoming_search)
         if status != "OK":
             raise RuntimeError(f"Gmail search failed: {status}")
 
@@ -600,8 +602,7 @@ def check_gmail_messages(
             status, response = connection.uid(
                 "search",
                 None,
-                "SINCE",
-                _imap_date(since),
+                *incoming_search,
             )
             if status != "OK":
                 raise RuntimeError(f"Gmail confirmation search failed: {status}")
@@ -628,14 +629,14 @@ def check_gmail_messages(
                         stats["confirmation_skipped"] += 1
                         continue
 
-                    act_number = _extract_mask_value(body, pdf_value_mask)
-                    if not act_number:
+                    doc_number = _extract_mask_value(body, pdf_value_mask)
+                    if not doc_number:
                         stats["confirmation_skipped"] += 1
                         continue
 
-                    confirmed_key = f"gmail:confirmed:{act_number}"
+                    confirmed_key = f"gmail:confirmed:{doc_number}"
                     if (
-                        act_number in scheduled_acts
+                        doc_number in scheduled_acts
                         or redis_client.exists(confirmed_key)
                     ):
                         stats["confirmation_already_sent"] += 1
@@ -643,12 +644,12 @@ def check_gmail_messages(
 
                     confirm_bitrix_deal.delay(
                         app_instance_id,
-                        act_number,
+                        doc_number,
                         pdf_value_field,
                         confirmation_field,
                         processed_ttl,
                     )
-                    scheduled_acts.add(act_number)
+                    scheduled_acts.add(doc_number)
                     stats["confirmation_scheduled"] += 1
                 except Exception:
                     stats["confirmation_failed"] += 1
