@@ -1585,17 +1585,24 @@ def event_processor(self, data):
                 if quoted_msg_id:
                     message["context"] = {"message_id": quoted_msg_id}
 
-                # Обработка шаблонных сообщений
-                if text.startswith("template+"):
-                    template_start = text.index("template+")
-                    template_str = text[template_start:]
-                    message.update(parse_template_code(template_str, appinstance=appinstance, line_id=line_id))
+                shortcode_text = text
+                raw_text = data.get("data[MESSAGES][0][message][text]", "")
+                # Если после имени оператора нет [br] (например, идёт перевод строки),
+                # префикс не удалится и template+/interactive+ уйдёт обычным текстом.
+                # Возможное решение: получить имя в Bitrix по message.user_id и удалять
+                # префикс только при совпадении с именем в сообщении.
+                if re.match(r"^\[b\][^\[\]\r\n]+:\[/b\][ \t]*\[br\]", raw_text):
+                    body = text.partition("\n")[2].lstrip()
+                    if body.startswith(("template+", "interactive+")):
+                        shortcode_text = body
 
-                elif text.startswith("interactive+"):
-                    interactive_start = text.index("interactive+")
-                    interactive_str = text[interactive_start:]
+                # Обработка шаблонных сообщений
+                if shortcode_text.startswith("template+"):
+                    message.update(parse_template_code(shortcode_text, appinstance=appinstance, line_id=line_id))
+
+                elif shortcode_text.startswith("interactive+"):
                     try:
-                        message.update(parse_interactive_code(interactive_str, appinstance=appinstance, phone=phone))
+                        message.update(parse_interactive_code(shortcode_text, appinstance=appinstance, phone=phone))
                     except Exception as e:
                         error_result = {"error": True, "message": str(e)}
                         send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id, phone=phone)
