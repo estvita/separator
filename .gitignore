@@ -287,3 +287,4 @@ docker-compose.vendor.yml
 skills-lock.json
 AGENTS.md
 test/
+/separator/home/
