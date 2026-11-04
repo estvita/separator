@@ -130,8 +130,66 @@ def settings_connector(request, user):
     )
 
 
-def templates(request):
-    return render(request, "bitrix/placements/templates.html")
+def templates(request, appinstance):
+    template_name = "bitrix/placements/templates.html"
+    if not appinstance:
+        return render(request, template_name, {"widget_error": "Приложение портала не найдено."})
+    if request.POST.get("PLACEMENT") != "IM_TEXTAREA":
+        return render(request, template_name, {"widget_error": "Неверная точка встраивания."})
+
+    try:
+        options = json.loads(request.POST.get("PLACEMENT_OPTIONS") or "{}")
+    except (TypeError, ValueError):
+        options = {}
+    dialog_id = options.get("dialogId") if isinstance(options, dict) else None
+    if not isinstance(dialog_id, str) or not re.fullmatch(r"chat[1-9]\d*", dialog_id):
+        return render(request, template_name, {"widget_error": "Чат не найден."})
+
+    endpoint = f"{appinstance.portal.protocol}://{appinstance.portal.domain}/rest/imopenlines.dialog.get"
+    try:
+        response = requests.post(
+            endpoint,
+            json={"auth": request.POST.get("AUTH_ID"), "DIALOG_ID": dialog_id},
+            timeout=(10, 30),
+        )
+        response.raise_for_status()
+        response = response.json()
+    except (requests.RequestException, ValueError):
+        return render(request, template_name, {"widget_error": "Не удалось получить данные чата."})
+    if not isinstance(response, dict) or response.get("error"):
+        return render(request, template_name, {"widget_error": "Не удалось получить данные чата."})
+    dialog = response.get("result")
+    if not isinstance(dialog, dict) or dialog.get("entity_type") != "LINES":
+        return render(request, template_name, {"widget_error": "Это не чат открытой линии."})
+    if dialog.get("dialog_id") != dialog_id:
+        return render(request, template_name, {"widget_error": "Чат не найден."})
+
+    entity_parts = str(dialog.get("entity_id") or "").split("|", 3)
+    if len(entity_parts) != 4 or not all(entity_parts):
+        return render(request, template_name, {"widget_error": "Не удалось определить линию чата."})
+    connector_code, line_id = entity_parts[:2]
+    line = (
+        Line.objects.filter(
+            line_id=line_id,
+            portal=appinstance.portal,
+            connector__code=connector_code,
+            connector__service="waba",
+        )
+        .order_by("id")
+        .first()
+    )
+    phone = Phone.objects.filter(line=line).order_by("id").first() if line else None
+    if not phone or not phone.waba_id or not phone.availableInB24:
+        return render(request, template_name, {"widget_error": "Чат не связан с доступным номером WABA."})
+
+    widget = WabaPlacementModule(appinstance=appinstance)
+    return render(request, template_name, {
+        "dialog_id": dialog_id,
+        "templates_data": waba_utils.serialize_templates_for_frontend(
+            widget._templates_for_sender(phone), stringify_ids=True
+        ),
+        "interactives_data": widget._serialize_interactives(widget._interactives_for_portal(appinstance)),
+    })
 
 
 class WabaPlacementModule:

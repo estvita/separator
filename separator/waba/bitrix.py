@@ -147,4 +147,4 @@ def sync_waba_sms_sender(phone):
 
 
 def line_status_label(line):
-    return f"{line.name} ({line.line_id})"
+    return f"{line.name} ({line.line_id}, {line.portal.domain})"

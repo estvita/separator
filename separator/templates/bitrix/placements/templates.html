@@ -1,42 +1,270 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Templates</title>
-    <script src="//api.bitrix24.com/api/v1/"></script>
+    <title>{% trans "Templates" %}</title>
+    <script src="https://api.bitrix24.com/api/v1/"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 12px;
-        }
-
-        pre {
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
+        body { font-family: Arial, sans-serif; margin: 16px; color: #333; }
+        .row { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; }
+        select, input, button { width: 100%; box-sizing: border-box; font: inherit; }
+        select, input { padding: 8px; border: 1px solid #c8cdd3; border-radius: 4px; }
+        button { padding: 10px; border: 0; border-radius: 4px; background: #1f74d1; color: #fff; cursor: pointer; }
+        button:disabled { opacity: .5; cursor: default; }
+        #status { margin: 12px 0; white-space: pre-wrap; font-size: 13px; }
+        #warning { margin-bottom: 12px; color: #8a6d00; font-size: 13px; }
     </style>
 </head>
 <body>
-<p>This section is still under development.</p>
-<pre id="interface">Loading...</pre>
+{% if widget_error %}
+<div id="status" role="alert">{{ widget_error }}</div>
+{% else %}
+{{ templates_data|json_script:"chat-templates-data" }}
+{{ interactives_data|json_script:"chat-interactives-data" }}
+
+<div class="row">
+    <label for="messageType">Тип сообщения</label>
+    <select id="messageType">
+        <option value="template">{% trans "Template" %}</option>
+        <option value="interactive">{% trans "Interactive message" %}</option>
+    </select>
+</div>
+<div class="row" id="templateRow">
+    <label for="templateSelect">{% trans "Template" %}</label>
+    <select id="templateSelect"></select>
+</div>
+<div class="row" id="interactiveRow" hidden>
+    <label for="interactiveSelect">{% trans "Interactive message" %}</label>
+    <select id="interactiveSelect"></select>
+</div>
+<div id="parameters"></div>
+<div id="warning" hidden>Некоторые параметры этого шаблона недоступны при отправке из чата.</div>
+<div id="status" role="status"></div>
+<button id="sendButton" type="button" disabled>{% trans "Send" %}</button>
 
 <script>
 (function () {
-    function showInterface(result) {
-        console.log(result);
-        document.getElementById('interface').textContent = JSON.stringify(result, null, 2);
+    const dialogId = "{{ dialog_id|escapejs }}";
+    const templates = JSON.parse(document.getElementById('chat-templates-data').textContent);
+    const interactives = JSON.parse(document.getElementById('chat-interactives-data').textContent);
+    const typeNode = document.getElementById('messageType');
+    const templateNode = document.getElementById('templateSelect');
+    const interactiveNode = document.getElementById('interactiveSelect');
+    const fieldsNode = document.getElementById('parameters');
+    const warningNode = document.getElementById('warning');
+    const statusNode = document.getElementById('status');
+    const sendButton = document.getElementById('sendButton');
+    let ready = false;
+    let sending = false;
+
+    function setStatus(message, isError) {
+        statusNode.textContent = message || '';
+        statusNode.style.color = isError ? '#b00020' : '#333';
     }
 
+    function fillSelect(node, items, labelKey, emptyLabel) {
+        node.replaceChildren();
+        if (!items.length) {
+            node.add(new Option(emptyLabel, ''));
+            return;
+        }
+        items.forEach(function (item) {
+            node.add(new Option(item[labelKey], item.id));
+        });
+    }
+
+    function selectedItem() {
+        if (typeNode.value === 'interactive') {
+            return interactives.find(function (item) { return item.id === interactiveNode.value; });
+        }
+        return templates.find(function (item) { return item.id === templateNode.value; });
+    }
+
+    function addField(fields, key, label, value) {
+        fields.push({ key: key, label: label, value: value || '' });
+    }
+
+    function firstUrlButton(component) {
+        for (const button of component.buttons || []) {
+            if (String(button.type || '').toUpperCase() !== 'URL') {
+                continue;
+            }
+            if (!(button.named_params || []).length && !(button.positional_params || []).length) {
+                return null;
+            }
+            return button;
+        }
+        return null;
+    }
+
+    function templateFields(template) {
+        const fields = [];
+        let unsupported = false;
+        (template.components || []).forEach(function (component) {
+            const type = String(component.type || '').toUpperCase();
+            const format = String(component.format || '').toUpperCase();
+            if (type === 'BODY' || (type === 'HEADER' && format === 'TEXT')) {
+                (component.named_params || []).forEach(function (param) {
+                    addField(fields, 'named__' + component.id + '__' + param.name, type + ' ' + param.name);
+                });
+                (component.positional_params || []).forEach(function (param) {
+                    addField(fields, 'pos__' + component.id + '__' + param.position, type + ' ' + param.position);
+                });
+            }
+            if (type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(format)) {
+                addField(fields, 'media__' + component.id, format + ' URL');
+            }
+            if (type === 'HEADER' && format === 'LOCATION') {
+                unsupported = true;
+            }
+            if (type === 'BUTTONS') {
+                const button = firstUrlButton(component);
+                if (button) {
+                    addField(fields, 'button__' + button.id, 'URL ' + (Number(button.index) + 1));
+                }
+                const dynamicButtons = (component.buttons || []).filter(function (item) {
+                    return (item.named_params || []).length || (item.positional_params || []).length;
+                });
+                if (dynamicButtons.length > (button ? 1 : 0)) {
+                    unsupported = true;
+                }
+            }
+        });
+        return { fields: fields, unsupported: unsupported };
+    }
+
+    function interactiveFields(interactive) {
+        const fields = [];
+        (interactive.variables || []).forEach(function (variable) {
+            addField(fields, 'variable__' + variable.name, variable.name);
+        });
+        return { fields: fields, unsupported: false };
+    }
+
+    function renderFields() {
+        fieldsNode.replaceChildren();
+        const item = selectedItem();
+        const config = item ? (typeNode.value === 'template' ? templateFields(item) : interactiveFields(item)) : { fields: [], unsupported: false };
+        config.fields.forEach(function (field) {
+            const row = document.createElement('div');
+            row.className = 'row';
+            const label = document.createElement('label');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = field.key;
+            input.dataset.key = field.key;
+            input.value = field.value;
+            label.htmlFor = field.key;
+            label.textContent = field.label;
+            row.append(label, input);
+            fieldsNode.appendChild(row);
+        });
+        warningNode.hidden = !config.unsupported;
+        sendButton.disabled = !ready || sending || !item;
+    }
+
+    function fieldValue(key) {
+        const input = Array.from(fieldsNode.querySelectorAll('input')).find(function (node) {
+            return node.dataset.key === key;
+        });
+        return input ? input.value.trim() : '';
+    }
+
+    function templateCode(template) {
+        const segments = [];
+        (template.components || []).forEach(function (component) {
+            const type = String(component.type || '').toUpperCase();
+            const format = String(component.format || '').toUpperCase();
+            if (type === 'BODY' || (type === 'HEADER' && format === 'TEXT')) {
+                (component.named_params || []).forEach(function (param) {
+                    const value = fieldValue('named__' + component.id + '__' + param.name);
+                    if (value) {
+                        segments.push(param.name + ':' + value);
+                    }
+                });
+                (component.positional_params || []).forEach(function (param) {
+                    segments.push(fieldValue('pos__' + component.id + '__' + param.position) || '-');
+                });
+            }
+            if (type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(format)) {
+                const mediaUrl = fieldValue('media__' + component.id);
+                if (mediaUrl) {
+                    segments.push('file_link:' + mediaUrl);
+                }
+            }
+            if (type === 'BUTTONS') {
+                const button = firstUrlButton(component);
+                const value = button && fieldValue('button__' + button.id);
+                if (value) {
+                    segments.push('button_param:' + value);
+                }
+            }
+        });
+        return 'template+' + template.id + (segments.length ? '+' + segments.join('|') : '');
+    }
+
+    function interactiveCode(interactive) {
+        const segments = [];
+        (interactive.variables || []).forEach(function (variable) {
+            const value = fieldValue('variable__' + variable.name);
+            if (value) {
+                segments.push(variable.name + ':' + value);
+            }
+        });
+        return 'interactive+' + interactive.id + (segments.length ? '+' + segments.join('|') : '');
+    }
+
+    function sendMessage() {
+        const item = selectedItem();
+        if (!ready || !item || sending) {
+            return;
+        }
+        const message = typeNode.value === 'template' ? templateCode(item) : interactiveCode(item);
+        sending = true;
+        sendButton.disabled = true;
+        setStatus('Добавляем сообщение в чат...');
+        BX24.callMethod('im.message.add', {
+            DIALOG_ID: dialogId,
+            MESSAGE: message,
+            SYSTEM: 'N',
+            URL_PREVIEW: 'N'
+        }, function (result) {
+            sending = false;
+            sendButton.disabled = !selectedItem();
+            if (result.error()) {
+                setStatus(result.error_description() || result.error(), true);
+                return;
+            }
+            setStatus('Сообщение добавлено в чат. Доставка обрабатывается.');
+        });
+    }
+
+    fillSelect(templateNode, templates, 'widget_label', 'Нет доступных шаблонов');
+    fillSelect(interactiveNode, interactives, 'label', 'Нет интерактивных сообщений');
+    typeNode.addEventListener('change', function () {
+        const isInteractive = typeNode.value === 'interactive';
+        document.getElementById('templateRow').hidden = isInteractive;
+        document.getElementById('interactiveRow').hidden = !isInteractive;
+        setStatus('');
+        renderFields();
+    });
+    templateNode.addEventListener('change', renderFields);
+    interactiveNode.addEventListener('change', renderFields);
+    sendButton.addEventListener('click', sendMessage);
+    renderFields();
     if (!window.BX24 || typeof BX24.init !== 'function') {
-        document.getElementById('interface').textContent = 'BX24 is not available';
+        setStatus('Битрикс24 недоступен.', true);
         return;
     }
-
     BX24.init(function () {
-        BX24.placement.getInterface(showInterface);
+        ready = true;
+        renderFields();
     });
 })();
 </script>
+{% endif %}
 </body>
 </html>

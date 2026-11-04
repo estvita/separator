@@ -169,10 +169,48 @@ body {
   margin: 0 auto;
 }
 
-table, th, td {
-    border: 1px solid #000;
-    border-collapse: collapse;
-    padding: 8px;
+.table {
+  width: 100%;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: .75rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bs-body-bg, #fff);
+  box-shadow: 0 .2rem .75rem rgba(33, 37, 41, .06);
+}
+
+.table > :not(caption) > * > * {
+  padding: .8rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--bs-border-color, #e9ecef);
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table > thead > tr > th {
+  color: var(--bs-secondary-color, #6c757d);
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .035em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.table > tbody > tr {
+  transition: background-color .15s ease;
+}
+
+.table > tbody > tr:hover > * {
+  background: rgba(var(--bs-primary-rgb, 13, 110, 253), .045);
+}
+
+.table > tbody > tr:last-child > * {
+  border-bottom: 0;
 }
 
 .spoiler {

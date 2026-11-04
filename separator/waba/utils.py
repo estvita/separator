@@ -304,6 +304,7 @@ def serialize_templates_for_frontend(templates, stringify_ids=False):
         data.append({
             "id": template_id,
             "label": f"{template.name} ({template.lang})",
+            "widget_label": f"{template.name} ({template.category.lower()}, {template.lang})",
             "lang": template.lang,
             "components": components_data,
         })

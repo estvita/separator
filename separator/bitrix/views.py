@@ -260,6 +260,8 @@ def process_placement(request):
             appinstance = AppInstance.objects.filter(app=app, portal=portal).first()
         if is_waba_action:
             return placements.WabaPlacementModule(app=app, portal=portal, appinstance=appinstance).handle(request)
+        if service == "templates":
+            return placements.templates(request, appinstance)
 
         try:
             user = get_owner(request, app=app, portal=portal)
@@ -279,8 +281,6 @@ def process_placement(request):
         placement = data.get("PLACEMENT")
         if placement == "SETTING_CONNECTOR":
             return placements.settings_connector(request, user)
-        if service == "templates":
-            return placements.templates(request)
         if service == "waba":
             return placements.WabaPlacementModule(app=app, portal=portal, appinstance=appinstance).handle(request)
         return redirect("/")
