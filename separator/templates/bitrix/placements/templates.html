@@ -1,6 +1,7 @@
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +15,7 @@
         select, input { padding: 8px; border: 1px solid #c8cdd3; border-radius: 4px; }
         button { padding: 10px; border: 0; border-radius: 4px; background: #1f74d1; color: #fff; cursor: pointer; }
         button:disabled { opacity: .5; cursor: default; }
+        #appLink { display: block; margin-bottom: 12px; font-size: 13px; }
         #status { margin: 12px 0; white-space: pre-wrap; font-size: 13px; }
         #warning { margin-bottom: 12px; color: #8a6d00; font-size: 13px; }
     </style>
@@ -22,11 +24,14 @@
 {% if widget_error %}
 <div id="status" role="alert">{{ widget_error }}</div>
 {% else %}
+{% if portal_app_url %}
+<a id="appLink" href="{{ portal_app_url }}" target="_blank" rel="noopener noreferrer">{% trans "Open app in Bitrix24" %}</a>
+{% endif %}
 {{ templates_data|json_script:"chat-templates-data" }}
 {{ interactives_data|json_script:"chat-interactives-data" }}
 
 <div class="row">
-    <label for="messageType">Тип сообщения</label>
+    <label for="messageType">{% trans "Message type" %}</label>
     <select id="messageType">
         <option value="template">{% trans "Template" %}</option>
         <option value="interactive">{% trans "Interactive message" %}</option>
@@ -41,12 +46,38 @@
     <select id="interactiveSelect"></select>
 </div>
 <div id="parameters"></div>
-<div id="warning" hidden>Некоторые параметры этого шаблона недоступны при отправке из чата.</div>
+<div id="warning" hidden>{% trans "Some parameters of this template are not available when sending from the chat." %}</div>
 <div id="status" role="status"></div>
 <button id="sendButton" type="button" disabled>{% trans "Send" %}</button>
 
+{% trans "Body" as label_body %}
+{% trans "Header" as label_header %}
+{% trans "Image" as label_image %}
+{% trans "Video" as label_video %}
+{% trans "Document" as label_document %}
+{% trans "GIF" as label_gif %}
+{% trans "URL" as label_url %}
+{% trans "Adding the message to the chat..." as message_adding %}
+{% trans "The message has been added to the chat. Delivery is being processed." as message_added %}
+{% trans "No templates available" as message_no_templates %}
+{% trans "No interactive messages available" as message_no_interactives %}
+{% trans "Bitrix24 is unavailable." as message_bitrix_unavailable %}
 <script>
 (function () {
+    const translations = {
+        body: "{{ label_body|escapejs }}",
+        header: "{{ label_header|escapejs }}",
+        image: "{{ label_image|escapejs }}",
+        video: "{{ label_video|escapejs }}",
+        document: "{{ label_document|escapejs }}",
+        gif: "{{ label_gif|escapejs }}",
+        url: "{{ label_url|escapejs }}",
+        addingMessage: "{{ message_adding|escapejs }}",
+        messageAdded: "{{ message_added|escapejs }}",
+        noTemplates: "{{ message_no_templates|escapejs }}",
+        noInteractives: "{{ message_no_interactives|escapejs }}",
+        bitrixUnavailable: "{{ message_bitrix_unavailable|escapejs }}"
+    };
     const dialogId = "{{ dialog_id|escapejs }}";
     const templates = JSON.parse(document.getElementById('chat-templates-data').textContent);
     const interactives = JSON.parse(document.getElementById('chat-interactives-data').textContent);
@@ -103,19 +134,26 @@
     function templateFields(template) {
         const fields = [];
         let unsupported = false;
+        const componentLabels = { BODY: translations.body, HEADER: translations.header };
+        const formatLabels = {
+            IMAGE: translations.image,
+            VIDEO: translations.video,
+            DOCUMENT: translations.document,
+            GIF: translations.gif
+        };
         (template.components || []).forEach(function (component) {
             const type = String(component.type || '').toUpperCase();
             const format = String(component.format || '').toUpperCase();
             if (type === 'BODY' || (type === 'HEADER' && format === 'TEXT')) {
                 (component.named_params || []).forEach(function (param) {
-                    addField(fields, 'named__' + component.id + '__' + param.name, type + ' ' + param.name);
+                    addField(fields, 'named__' + component.id + '__' + param.name, componentLabels[type] + ' ' + param.name);
                 });
                 (component.positional_params || []).forEach(function (param) {
-                    addField(fields, 'pos__' + component.id + '__' + param.position, type + ' ' + param.position);
+                    addField(fields, 'pos__' + component.id + '__' + param.position, componentLabels[type] + ' ' + param.position);
                 });
             }
             if (type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(format)) {
-                addField(fields, 'media__' + component.id, format + ' URL');
+                addField(fields, 'media__' + component.id, formatLabels[format] + ' ' + translations.url);
             }
             if (type === 'HEADER' && format === 'LOCATION') {
                 unsupported = true;
@@ -123,7 +161,7 @@
             if (type === 'BUTTONS') {
                 const button = firstUrlButton(component);
                 if (button) {
-                    addField(fields, 'button__' + button.id, 'URL ' + (Number(button.index) + 1));
+                    addField(fields, 'button__' + button.id, translations.url + ' ' + (Number(button.index) + 1));
                 }
                 const dynamicButtons = (component.buttons || []).filter(function (item) {
                     return (item.named_params || []).length || (item.positional_params || []).length;
@@ -225,7 +263,7 @@
         const message = typeNode.value === 'template' ? templateCode(item) : interactiveCode(item);
         sending = true;
         sendButton.disabled = true;
-        setStatus('Добавляем сообщение в чат...');
+        setStatus(translations.addingMessage);
         BX24.callMethod('im.message.add', {
             DIALOG_ID: dialogId,
             MESSAGE: message,
@@ -238,12 +276,12 @@
                 setStatus(result.error_description() || result.error(), true);
                 return;
             }
-            setStatus('Сообщение добавлено в чат. Доставка обрабатывается.');
+            setStatus(translations.messageAdded);
         });
     }
 
-    fillSelect(templateNode, templates, 'widget_label', 'Нет доступных шаблонов');
-    fillSelect(interactiveNode, interactives, 'label', 'Нет интерактивных сообщений');
+    fillSelect(templateNode, templates, 'widget_label', translations.noTemplates);
+    fillSelect(interactiveNode, interactives, 'label', translations.noInteractives);
     typeNode.addEventListener('change', function () {
         const isInteractive = typeNode.value === 'interactive';
         document.getElementById('templateRow').hidden = isInteractive;
@@ -256,7 +294,7 @@
     sendButton.addEventListener('click', sendMessage);
     renderFields();
     if (!window.BX24 || typeof BX24.init !== 'function') {
-        setStatus('Битрикс24 недоступен.', true);
+        setStatus(translations.bitrixUnavailable, true);
         return;
     }
     BX24.init(function () {

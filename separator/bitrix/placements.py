@@ -133,9 +133,9 @@ def settings_connector(request, user):
 def templates(request, appinstance):
     template_name = "bitrix/placements/templates.html"
     if not appinstance:
-        return render(request, template_name, {"widget_error": "Приложение портала не найдено."})
+        return render(request, template_name, {"widget_error": _("Portal application not found.")})
     if request.POST.get("PLACEMENT") != "IM_TEXTAREA":
-        return render(request, template_name, {"widget_error": "Неверная точка встраивания."})
+        return render(request, template_name, {"widget_error": _("Invalid placement.")})
 
     try:
         options = json.loads(request.POST.get("PLACEMENT_OPTIONS") or "{}")
@@ -143,7 +143,7 @@ def templates(request, appinstance):
         options = {}
     dialog_id = options.get("dialogId") if isinstance(options, dict) else None
     if not isinstance(dialog_id, str) or not re.fullmatch(r"chat[1-9]\d*", dialog_id):
-        return render(request, template_name, {"widget_error": "Чат не найден."})
+        return render(request, template_name, {"widget_error": _("Chat not found.")})
 
     endpoint = f"{appinstance.portal.protocol}://{appinstance.portal.domain}/rest/imopenlines.dialog.get"
     try:
@@ -155,18 +155,18 @@ def templates(request, appinstance):
         response.raise_for_status()
         response = response.json()
     except (requests.RequestException, ValueError):
-        return render(request, template_name, {"widget_error": "Не удалось получить данные чата."})
+        return render(request, template_name, {"widget_error": _("Failed to retrieve chat data.")})
     if not isinstance(response, dict) or response.get("error"):
-        return render(request, template_name, {"widget_error": "Не удалось получить данные чата."})
+        return render(request, template_name, {"widget_error": _("Failed to retrieve chat data.")})
     dialog = response.get("result")
     if not isinstance(dialog, dict) or dialog.get("entity_type") != "LINES":
-        return render(request, template_name, {"widget_error": "Это не чат открытой линии."})
+        return render(request, template_name, {"widget_error": _("This is not an open channel chat.")})
     if dialog.get("dialog_id") != dialog_id:
-        return render(request, template_name, {"widget_error": "Чат не найден."})
+        return render(request, template_name, {"widget_error": _("Chat not found.")})
 
     entity_parts = str(dialog.get("entity_id") or "").split("|", 3)
     if len(entity_parts) != 4 or not all(entity_parts):
-        return render(request, template_name, {"widget_error": "Не удалось определить линию чата."})
+        return render(request, template_name, {"widget_error": _("Failed to identify the chat line.")})
     connector_code, line_id = entity_parts[:2]
     line = (
         Line.objects.filter(
@@ -180,11 +180,12 @@ def templates(request, appinstance):
     )
     phone = Phone.objects.filter(line=line).order_by("id").first() if line else None
     if not phone or not phone.waba_id or not phone.availableInB24:
-        return render(request, template_name, {"widget_error": "Чат не связан с доступным номером WABA."})
+        return render(request, template_name, {"widget_error": _("The chat is not linked to an available WABA number.")})
 
     widget = WabaPlacementModule(appinstance=appinstance)
     return render(request, template_name, {
         "dialog_id": dialog_id,
+        "portal_app_url": widget._portal_app_url(appinstance, request.POST.get("AUTH_ID"), portal_only=True),
         "templates_data": waba_utils.serialize_templates_for_frontend(
             widget._templates_for_sender(phone), stringify_ids=True
         ),
@@ -893,7 +894,7 @@ class WabaPlacementModule:
         return self._action_response({"ok": False, "error": _("unknown action")})
 
     @staticmethod
-    def _portal_app_url(appinstance, auth_id=None):
+    def _portal_app_url(appinstance, auth_id=None, portal_only=False):
         portal_app_id = None
         if auth_id and appinstance and appinstance.portal:
             try:
@@ -913,6 +914,8 @@ class WabaPlacementModule:
 
         if portal_app_id and appinstance and appinstance.portal:
             return f"{appinstance.portal.protocol}://{appinstance.portal.domain}/marketplace/app/{portal_app_id}/"
+        if portal_only:
+            return ""
         return (appinstance.app.page_url if appinstance and appinstance.app else "") or "/"
 
     def _render_widget(self, request, data, appinstance, sender_phones):
