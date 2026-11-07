@@ -175,6 +175,16 @@ def call_method(appinstance: AppInstance,
                     except Exception:
                         pass
                     raise BitrixAccessDeniedError(response.text)
+            elif response.status_code == 410:
+                resp_data = _response_json(response, b24_method)
+                if resp_data.get("error") == "PORTAL_DELETED":
+                    if not portal.license_expired:
+                        portal.license_expired = True
+                        portal.save(update_fields=["license_expired"])
+                    raise BitrixAccessDeniedError(response.text)
+                last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
+                                     f"status {response.status_code}, response: {response.text}")
+                break
             else:
                 last_exc = Exception(f"Failed to call bitrix: {appinstance.portal.domain} "
                                 f"status {response.status_code}, response: {response.text}")

@@ -257,7 +257,7 @@ def get_app_info(instance_id=None):
                 home_tasks.prepare_lead.delay(app_instance.owner_id, lead_title)
             except Exception:
                 pass
-        raise
+        return {"status": "skipped", "reason": "license_expired"}
 
 
 # Регистрация SMS-провайдера
