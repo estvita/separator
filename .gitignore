@@ -273,6 +273,7 @@ dump.rdb
 
 ### Project template
 separator/media/
+private_media/
 
 .pytest_cache/
 .ipython/

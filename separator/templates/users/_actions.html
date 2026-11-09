@@ -1,0 +1,12 @@
+{% load i18n %}
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-primary" href="{% url 'users:update' %}" role="button">{% trans "My Info" %}</a>
+  <a class="btn btn-primary" href="{% url 'account_email' %}" role="button">{% trans "E-Mail" %}</a>
+  {% if request.user.has_usable_password %}
+    <a class="btn btn-primary" href="{% url 'account_change_password' %}" role="button">{% trans "Password" %}</a>
+  {% else %}
+    <a class="btn btn-primary" href="{% url 'account_set_password' %}" role="button">{% trans "Password" %}</a>
+  {% endif %}
+  <a class="btn btn-primary" href="{% url 'mfa_index' %}" role="button">MFA</a>
+</div>

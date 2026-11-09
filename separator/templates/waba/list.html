@@ -51,7 +51,7 @@
               {% endif %}
             </td>
             <td>
-            <a href="{% url 'phone-details' phone.phone_id %}">
+            <a href="{% url 'phone-details' phone.phone_id %}?tab=calls">
               {% if phone.calling == 'disabled' %}
                 {% trans "Disabled" %}
               {% else %}

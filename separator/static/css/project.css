@@ -12,6 +12,10 @@
   border-color: #eed3d7;
 }
 
+.account-page form {
+  max-width: 360px;
+}
+
 
 .responsive-object {
   position: relative;

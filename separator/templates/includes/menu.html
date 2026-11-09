@@ -16,6 +16,11 @@
     <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
   </li>
   {% endif %}
+  {% if DJANGO_SETTINGS_MODULE == 'config.settings.vendor' and 'separator.home' in INSTALLED_APPS %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'billing:index' %}">{% translate "Billing" %}</a>
+  </li>
+  {% endif %}
   <li class="nav-item">
     <a class="nav-link" href="{% url 'users:detail' request.user.pk %}">{% translate "My Profile" %}</a>
   </li>
@@ -29,6 +34,7 @@
     <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
   </li>
   {% endif %}
+  {% if not HIDE_LANGUAGE_SELECTOR %}
   {% if 'wagtail' in INSTALLED_APPS and page and page.pk %}
     {% include "includes/language_switcher.html" %}
   {% else %}
@@ -61,5 +67,6 @@
         {% endif %}
       {% endwith %}
     </li>
+  {% endif %}
   {% endif %}
 </ul>

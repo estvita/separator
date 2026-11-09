@@ -2,12 +2,11 @@
 # Copyright (C) 2025 Anton Gulin
 # Anton Gulin <toogulin@gmail.com>, 2025.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-21 16:43+0500\n"
+"POT-Creation-Date: 2026-11-08 19:17+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -50,7 +49,7 @@ msgid "Find a manager in Bitrix and connect with him"
 msgstr "Искать отвественного менеджера и соединять с ним"
 
 msgid "Call first to client, after to operator"
-msgstr ""
+msgstr "Сначала звонить клиенту, затем оператору"
 
 msgid "Send all failed call statuses to Bitrix"
 msgstr "Отрпавлять расширенные статусы"
@@ -76,10 +75,9 @@ msgstr "При звонке"
 msgid "On answer"
 msgstr "При ответе"
 
-#, fuzzy
 #| msgid "Create"
 msgid "Create CRM"
-msgstr "Создать"
+msgstr "Создавать запись в CRM"
 
 msgid "Server not found or not yet connected"
 msgstr "Сервер не найден или еще не подключен"
@@ -91,7 +89,7 @@ msgid "You already have an unconnected server!"
 msgstr "У вас уже есть неподключённый сервер!"
 
 msgid "Webhook URL is required for Custom API provider."
-msgstr ""
+msgstr "Для провайдера Custom API требуется URL вебхука."
 
 msgid "Bitrix24"
 msgstr "Битрикс24"
@@ -115,13 +113,13 @@ msgid "Optional"
 msgstr "Необязательно"
 
 msgid "bot, openline or supervisor"
-msgstr ""
+msgstr "bot, openline или supervisor"
 
 msgid "Y or N"
-msgstr ""
+msgstr "Y или N"
 
 msgid "en, ru, de.."
-msgstr ""
+msgstr "en, ru, de…"
 
 msgid "Connector saved."
 msgstr "Коннектор сохранен."
@@ -133,7 +131,7 @@ msgid "Connector deleted."
 msgstr "Коннектор удален."
 
 msgid "Connector URL is required for bot events."
-msgstr ""
+msgstr "Для событий бота требуется URL коннектора."
 
 msgid "Bot saved."
 msgstr "Бот сохранен."
@@ -182,6 +180,30 @@ msgstr "Линия не найдена"
 
 msgid "Connected"
 msgstr "Подключён"
+
+#| msgid "appinstance not found"
+msgid "Portal application not found."
+msgstr "Приложение портала не найдено."
+
+#| msgid "Invalid schedule time"
+msgid "Invalid placement."
+msgstr "Недопустимое размещение."
+
+#| msgid "Command not found."
+msgid "Chat not found."
+msgstr "Чат не найден."
+
+msgid "Failed to retrieve chat data."
+msgstr "Не удалось получить данные чата."
+
+msgid "This is not an open channel chat."
+msgstr "Это не чат открытой линии."
+
+msgid "Failed to identify the chat line."
+msgstr "Не удалось определить линию чата."
+
+msgid "The chat is not linked to an available WABA number."
+msgstr "Чат не связан с доступным номером WABA."
 
 msgid "Templates"
 msgstr "Шаблоны"
@@ -248,7 +270,7 @@ msgid "WABA interactive message sent"
 msgstr "Интерактивное сообщение WABA отправлено"
 
 msgid "unknown action"
-msgstr ""
+msgstr "неизвестное действие"
 
 msgid "Portal not found by code."
 msgstr "Портал по коду не найден."
@@ -277,6 +299,121 @@ msgstr "Портал не найден или уже закреплен за д�
 msgid "Administrator rights are required to edit the portal."
 msgstr "Для редактирования настроек нужны права администратора"
 
+msgid "Specify a Bitrix CRM file field."
+msgstr "Укажите файловое поле CRM Битрикс24."
+
+msgid "Could not check the Bitrix CRM file field."
+msgstr "Не удалось проверить файловое поле CRM Битрикс24."
+
+msgid "Select a single Bitrix CRM file field."
+msgstr "Выберите одно файловое поле CRM Битрикс24."
+
+#| msgid "Select a line"
+msgid "Select a payer."
+msgstr "Выберите плательщика."
+
+msgid "Choose between one and six months."
+msgstr "Выберите срок от одного до шести месяцев."
+
+msgid "Site must match the owner's site."
+msgstr "Сайт должен совпадать с сайтом владельца."
+
+#| msgid "Choose an action for the selected user number."
+msgid "Company must belong to the scheduler owner."
+msgstr "Компания должна принадлежать владельцу планировщика."
+
+msgid "No priced tariff is available for this period."
+msgstr "Для этого периода нет тарифа с ценой."
+
+msgid "Remove connections before changing the period."
+msgstr "Перед сменой периода удалите подключения."
+
+msgid "This connection already belongs to another active scheduler."
+msgstr "Это подключение уже входит в другой активный планировщик."
+
+msgid "Payer name"
+msgstr "Название плательщика"
+
+msgid "BIN/IIN"
+msgstr "БИН/ИИН"
+
+#| msgid "email address"
+msgid "Address"
+msgstr "Адрес"
+
+msgid "Payer"
+msgstr "Плательщик"
+
+msgid "Period"
+msgstr "Период"
+
+#| msgid "Month"
+msgid "Months"
+msgstr "Месяцы"
+
+#| msgid "Select a line"
+msgid "Select a payer"
+msgstr "Выберите плательщика"
+
+msgid "No payer"
+msgstr "Плательщик не указан"
+
+#| msgid "Connector"
+msgid "Connection ID"
+msgstr "ID подключения"
+
+#| msgid "Connector deleted."
+msgid "Connection type"
+msgstr "Тип подключения"
+
+#| msgid "Select a line"
+msgid "Select a connection type"
+msgstr "Выберите тип подключения"
+
+#| msgid "Select a line"
+msgid "Select a connection"
+msgstr "Выберите подключение"
+
+msgid "Unsupported connection type."
+msgstr "Неподдерживаемый тип подключения."
+
+#| msgid "session not found"
+msgid "Connection not found."
+msgstr "Подключение не найдено."
+
+msgid "Connection does not belong to you."
+msgstr "Подключение вам не принадлежит."
+
+#| msgid "WABA account is not connected to this phone."
+msgid "Calls are not active for this phone."
+msgstr "Звонки для этого номера не активны."
+
+msgid "Connection is already in this scheduler."
+msgstr "Подключение уже добавлено в этот планировщик."
+
+msgid "Connection already belongs to another active scheduler."
+msgstr "Подключение уже входит в другой активный планировщик."
+
+msgid ""
+"This connection has no valid end date and cannot be added to this scheduler."
+msgstr "У подключения нет корректной даты окончания, поэтому его нельзя добавить в этот планировщик."
+
+msgid "This connection has expired and cannot be added to this scheduler."
+msgstr "Срок действия подключения истёк, поэтому его нельзя добавить в этот планировщик."
+
+#, python-format
+msgid ""
+"This connection would renew until %(renewal)s, before the scheduler's "
+"billing date %(billing)s. Use a separate scheduler."
+msgstr "Подключение будет продлено до %(renewal)s, что раньше даты выставления счёта планировщиком %(billing)s. Используйте отдельный планировщик."
+
+msgid "A connection can only be added once."
+msgstr "Подключение можно добавить только один раз."
+
+#| msgid "Add at least one translation (language and title)."
+msgid "Add at least one connection."
+msgstr "Добавьте хотя бы одно подключение."
+
 msgid "Day"
 msgstr "День"
 
@@ -298,17 +435,333 @@ msgstr "Рубль"
 msgid "Tenge"
 msgstr "Тенге"
 
+msgid "A monthly tariff must last one month."
+msgstr "Месячный тариф должен действовать один месяц."
+
 msgid "Target page"
-msgstr ""
+msgstr "Целевая страница"
 
 msgid "If not selected, the current page is used."
-msgstr ""
+msgstr "Если не выбрать, будет использована текущая страница."
 
 msgid "Display only first-level pages"
-msgstr ""
+msgstr "Показывать только страницы первого уровня"
 
 msgid "Subpages"
-msgstr ""
+msgstr "Дочерние страницы"
+
+msgid "Lead"
+msgstr "Лид"
+
+msgid "Deal"
+msgstr "Сделка"
+
+msgid "Enter a 12-digit BIN/IIN."
+msgstr "Введите БИН/ИИН из 12 цифр."
+
+msgid "WABA phone"
+msgstr "Номер WABA"
+
+msgid "WABA calls"
+msgstr "Звонки WABA"
+
+msgid "OLX"
+msgstr "OLX"
+
+#| msgid "Your BitBots"
+msgid "BitBot"
+msgstr "BitBot"
+
+#| msgid "Your WhatsApp Web Numbers"
+msgid "WhatsApp Web"
+msgstr "WhatsApp Web"
+
+#| msgid "AsterX Servers"
+msgid "AsterX"
+msgstr "AsterX"
+
+msgid "Feature grant"
+msgstr "Доступ к функции"
+
+msgid "Issued"
+msgstr "Выставлен"
+
+msgid "Paid"
+msgstr "Оплачен"
+
+#| msgid "Cancel edit"
+msgid "Cancelled"
+msgstr "Отменён"
+
+#| msgid "Update"
+msgid "Updated"
+msgstr "Обновлён"
+
+msgid "Remove"
+msgstr "Удалить"
+
+#| msgid "Invalid schedule time"
+msgid "Invoice scheduler"
+msgstr "Планировщик счетов"
+
+msgid "Number"
+msgstr "Номер"
+
+msgid "External account ID"
+msgstr "ID внешнего аккаунта"
+
+msgid "Server"
+msgstr "Сервер"
+
+#| msgid "Expiry Date"
+msgid "Expiry date"
+msgstr "Дата окончания"
+
+msgid "Billing"
+msgstr "Счета"
+
+#| msgid "Calling Settings"
+msgid "Billing sections"
+msgstr "Разделы счетов"
+
+msgid "Payers"
+msgstr "Плательщики"
+
+msgid "Invoices"
+msgstr "Счета"
+
+#| msgid "Add advert"
+msgid "Add payer"
+msgstr "Добавить плательщика"
+
+msgid "Name"
+msgstr "Название"
+
+msgid "Price coefficient"
+msgstr "Коэффициент цены"
+
+msgid "Action"
+msgstr "Действие"
+
+msgid "Edit"
+msgstr "Редактировать"
+
+#| msgid "No adverts yet."
+msgid "No payers yet."
+msgstr "Плательщиков пока нет."
+
+#| msgid "Invalid schedule time"
+msgid "Invoice schedulers"
+msgstr "Планировщики счетов"
+
+#| msgid "Add number"
+msgid "Add scheduler"
+msgstr "Добавить планировщик"
+
+#| msgid "Connectors"
+msgid "Connections"
+msgstr "Подключения"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Active"
+msgstr "Активен"
+
+msgid "Stopped"
+msgstr "Остановлен"
+
+#| msgid "No adverts yet."
+msgid "No schedulers yet."
+msgstr "Планировщиков пока нет."
+
+#| msgid "Edit advert"
+msgid "Edit payer"
+msgstr "Редактировать плательщика"
+
+msgid "Save payer"
+msgstr "Сохранить плательщика"
+
+#| msgid "Cancel edit"
+msgid "Cancel"
+msgstr "Отменить"
+
+#| msgid "Create"
+msgid "Create now"
+msgstr "Создать сейчас"
+
+#| msgid "Stop scheduled broadcast"
+msgid "Stop scheduler"
+msgstr "Остановить планировщик"
+
+msgid "Resume scheduler"
+msgstr "Возобновить планировщик"
+
+#| msgid "Schedule time (optional)"
+msgid "Scheduler settings"
+msgstr "Настройки планировщика"
+
+#| msgid "Connector settings"
+msgid "Save settings"
+msgstr "Сохранить настройки"
+
+msgid "Next invoice date"
+msgstr "Дата следующего счёта"
+
+#| msgid "Stop scheduled broadcast"
+msgid "Not scheduled yet"
+msgstr "Пока не запланировано"
+
+msgid "Type"
+msgstr "Тип"
+
+#| msgid "Connector saved."
+msgid "Connection unavailable"
+msgstr "Подключение недоступно"
+
+#| msgid "No connectors"
+msgid "No connections yet."
+msgstr "Подключений пока нет."
+
+#| msgid "Add section"
+msgid "Add connections"
+msgstr "Добавить подключения"
+
+#| msgid "No available servers."
+msgid "No available connections"
+msgstr "Нет доступных подключений"
+
+msgid "Could not load connections"
+msgstr "Не удалось загрузить подключения"
+
+msgid "No priced tariff is available for the selected period."
+msgstr "Для выбранного периода нет тарифа с ценой."
+
+#| msgid "Add section"
+msgid "Add another connection"
+msgstr "Добавить ещё подключение"
+
+#| msgid "No connectors"
+msgid "Save connections"
+msgstr "Сохранить подключения"
+
+msgid "Created invoices"
+msgstr "Созданные счета"
+
+#| msgid "Refresh templates"
+msgid "Refresh list"
+msgstr "Обновить список"
+
+msgid "Amount"
+msgstr "Сумма"
+
+msgid "File"
+msgstr "Файл"
+
+msgid "Download PDF"
+msgstr "Скачать PDF"
+
+#| msgid "Cancel edit"
+msgid "Cancel invoice"
+msgstr "Отменить счёт"
+
+#| msgid "No adverts yet."
+msgid "No invoices yet."
+msgstr "Счетов пока нет."
+
+msgid "Create scheduler"
+msgstr "Создать планировщик"
+
+msgid "Published"
+msgstr "опубликовано"
+
+msgid "App:"
+msgstr "Приложение"
+
+msgid "All"
+msgstr "Все"
+
+msgid "Trial"
+msgstr "Пробный"
+
+msgid "Self-hosted"
+msgstr "На собственном сервере"
+
+msgid "Price"
+msgstr "Цена"
+
+msgid "Currency"
+msgstr "Валюта"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "No tariffs yet"
+msgstr "Тарифов пока нет"
+
+msgid "Send"
+msgstr "Отправить"
+
+msgid "Thank you, message sent"
+msgstr "Спасибо, сообщение отправлено."
+
+#| msgid "Connector saved."
+msgid "Payer saved."
+msgstr "Плательщик сохранён."
+
+msgid "Scheduler created."
+msgstr "Планировщик создан."
+
+msgid "Could not save the scheduler or reissue its invoice."
+msgstr "Не удалось сохранить планировщик или перевыставить счёт."
+
+msgid "Unpaid invoice reissued with updated settings."
+msgstr "Неоплаченный счёт перевыставлен с обновлёнными настройками."
+
+msgid "Scheduler saved."
+msgstr "Планировщик сохранён."
+
+#| msgid "Connector saved."
+msgid "Connections added."
+msgstr "Подключения добавлены."
+
+msgid "Add a connection before creating an invoice."
+msgstr "Добавьте подключение перед созданием счёта."
+
+msgid "Invoice settings and an HTML template are required."
+msgstr "Требуются настройки счетов и HTML-шаблон."
+
+msgid "Could not schedule invoice creation."
+msgstr "Не удалось запланировать создание счёта."
+
+msgid "Invoice creation queued."
+msgstr "Создание счёта поставлено в очередь."
+
+msgid "Scheduler stopped."
+msgstr "Планировщик остановлен."
+
+msgid "Add a connection before activating the scheduler."
+msgstr "Добавьте подключение перед запуском планировщика."
+
+msgid "A connection belongs to another active scheduler."
+msgstr "Подключение входит в другой активный планировщик."
+
+msgid "Scheduler resumed."
+msgstr "Планировщик возобновлён."
+
+msgid "An active scheduler needs at least one connection."
+msgstr "Для активного планировщика требуется хотя бы одно подключение."
+
+#| msgid "Connector saved."
+msgid "Connection removed."
+msgstr "Подключение удалено."
+
+#| msgid "Voice call"
+msgid "Invoice cancelled."
+msgstr "Счёт отменён."
+
+msgid "Only an issued invoice can be cancelled."
+msgstr "Отменить можно только выставленный счёт."
 
 msgid "Sign In"
 msgstr "Войти"
@@ -369,7 +822,7 @@ msgid "ID"
 msgstr "ID"
 
 msgid "Asterisk"
-msgstr ""
+msgstr "Asterisk"
 
 msgid "System"
 msgstr "Система"
@@ -397,9 +850,6 @@ msgstr "Контекст"
 
 msgid "Endpoint (example)"
 msgstr "Учётка (пример)"
-
-msgid "Type"
-msgstr "Тип"
 
 msgid "Save"
 msgstr "Сохранить"
@@ -437,16 +887,9 @@ msgstr "Время ожидания ответа (сек)"
 msgid "Call client first"
 msgstr "Звонить сначала клиенту"
 
-msgid "Name"
-msgstr "Название"
-
-msgid "Status"
-msgstr "Статус"
-
 msgid "Database"
 msgstr "База данных"
 
-#, fuzzy
 #| msgid "Not connected"
 msgid "Disconnected"
 msgstr "Не подключён"
@@ -469,9 +912,6 @@ msgstr "Редактировать настройки:"
 msgid "Back"
 msgstr "Назад"
 
-msgid "Edit"
-msgstr "Редактировать"
-
 msgid "Create"
 msgstr "Создать"
 
@@ -488,7 +928,7 @@ msgid "Provider"
 msgstr "Провайдер"
 
 msgid "URL"
-msgstr ""
+msgstr "URL"
 
 msgid "No connectors"
 msgstr "Нет коннекторов"
@@ -560,7 +1000,7 @@ msgid "Enable third-party cookies for this app to work."
 msgstr "Включите сторонние cookie-файлы для работы приложения."
 
 msgid "Chrome:"
-msgstr ""
+msgstr "Chrome:"
 
 msgid ""
 "Settings → Privacy & Security → Third-party cookies → Allow third-party "
@@ -570,7 +1010,7 @@ msgstr ""
 "Разрешить сторонние файлы cookie."
 
 msgid "Safari:"
-msgstr ""
+msgstr "Safari:"
 
 msgid "Safari → Preferences → Privacy → Uncheck 'Block all cookies'."
 msgstr ""
@@ -578,7 +1018,7 @@ msgstr ""
 "файлы cookie»"
 
 msgid "Firefox:"
-msgstr ""
+msgstr "Firefox:"
 
 msgid ""
 "Settings → Privacy & Security → Enhanced Tracking Protection → Standard."
@@ -614,20 +1054,72 @@ msgid "Add number"
 msgstr "Добавить номер"
 
 msgid "New OLX"
-msgstr ""
+msgstr "Новый аккаунт OLX"
 
 msgid "Changing the connected line may desynchronize existing chats. Continue?"
 msgstr ""
 "Смена подключенной линии может привести к рассинхрону существующих чатов. "
 "Продолжить?"
 
-msgid "WABA Widget"
-msgstr ""
+#| msgid "Available in Bitrix24"
+msgid "Open app in Bitrix24"
+msgstr "Открыть приложение в Битрикс24"
 
-#, fuzzy
+#| msgid "Message sent"
+msgid "Message type"
+msgstr "Тип сообщения"
+
+msgid ""
+"Some parameters of this template are not available when sending from the "
+"chat."
+msgstr "Некоторые параметры этого шаблона недоступны при отправке из чата."
+
+msgid "Body"
+msgstr "Тело"
+
+msgid "Header"
+msgstr "Заголовок"
+
+#| msgid "Images"
+msgid "Image"
+msgstr "Изображение"
+
+#| msgid "Video URL"
+msgid "Video"
+msgstr "Видео"
+
+#| msgid "Document URL"
+msgid "Document"
+msgstr "Документ"
+
+msgid "GIF"
+msgstr "GIF"
+
+msgid "Adding the message to the chat..."
+msgstr "Добавляем сообщение в чат..."
+
+#| msgid "The mailing has been added to the queue."
+msgid "The message has been added to the chat. Delivery is being processed."
+msgstr "Сообщение добавлено в чат. Идёт доставка."
+
+#| msgid "No templates found."
+msgid "No templates available"
+msgstr "Нет доступных шаблонов"
+
+#| msgid "No interactive messages found."
+msgid "No interactive messages available"
+msgstr "Нет доступных интерактивных сообщений"
+
+#| msgid "Bitrix24 Line"
+msgid "Bitrix24 is unavailable."
+msgstr "Битрикс24 недоступен."
+
+msgid "WABA Widget"
+msgstr "Виджет WABA"
+
 #| msgid "WhatsApp Cloud number settings"
 msgid "WhatsApp Cloud numbers were not found."
-msgstr "Настройки номера WhatsApp Cloud"
+msgstr "Номера WhatsApp Cloud не найдены."
 
 msgid "Close"
 msgstr "Закрыть"
@@ -646,12 +1138,6 @@ msgstr "Номер клиента"
 
 msgid "Add interactive"
 msgstr "Добавить интерактив"
-
-msgid "Send"
-msgstr "Отправить"
-
-msgid "Action"
-msgstr "Действие"
 
 msgid "Select values and click Send."
 msgstr "Выберите значения и нажмите «Отправить»"
@@ -708,7 +1194,7 @@ msgid "Portal"
 msgstr "Портал"
 
 msgid "App Owner"
-msgstr ""
+msgstr "Владелец приложения"
 
 msgid "Not assigned"
 msgstr "Не привязан"
@@ -719,43 +1205,39 @@ msgstr "ID линии"
 msgid "Deleting a line will remove it from the portal with all chats."
 msgstr "Удаление линии приведёт к удалению её с портала со всеми чатами!"
 
-#, fuzzy
 #| msgid "Application (status)"
 msgid "Applications"
-msgstr "Приложение (статус)"
+msgstr "Приложения"
 
-#, fuzzy
 #| msgid "Apply"
 msgid "App"
-msgstr "Применить"
+msgstr "Приложение"
 
 msgid "Owner"
-msgstr ""
+msgstr "Владелец"
 
 msgid "Features"
-msgstr ""
+msgstr "Функции"
 
 msgid "Feature"
-msgstr ""
+msgstr "Функция"
 
-#, fuzzy
 #| msgid "QR Code"
 msgid "Code"
-msgstr "QR-код"
+msgstr "Код"
 
-#, fuzzy
 #| msgid "Expiry Date"
 msgid "Expires At"
-msgstr "Срок действия"
+msgstr "Истекает"
 
 msgid "Unlimited"
-msgstr ""
+msgstr "Без ограничений"
 
 msgid "Back to Portals"
 msgstr "Вернуться к списку"
 
 msgid "This will delete the line from the portal with all chats. Continue?"
-msgstr ""
+msgstr "Линия будет удалена с портала вместе со всеми чатами. Продолжить?"
 
 msgid "Your Bitrix24"
 msgstr "Ваши Битрикс24"
@@ -777,44 +1259,6 @@ msgstr "Подтвердить"
 
 msgid "Get code"
 msgstr "Получить код"
-
-#, fuzzy
-#| msgid "Update"
-msgid "Updated"
-msgstr "Обновить"
-
-msgid "Published"
-msgstr "опубликовано"
-
-msgid "App:"
-msgstr "Приложение"
-
-msgid "All"
-msgstr "Все"
-
-msgid "Trial"
-msgstr "Пробный"
-
-msgid "Self-hosted"
-msgstr ""
-
-msgid "Price"
-msgstr "Цена"
-
-msgid "Currency"
-msgstr "Валюта"
-
-msgid "Period"
-msgstr "Период"
-
-msgid "Description"
-msgstr "Описание"
-
-msgid "No tariffs yet"
-msgstr "Тарифов пока нет"
-
-msgid "Thank you, message sent"
-msgstr ""
 
 msgid "My Profile"
 msgstr "Профиль"
@@ -940,10 +1384,10 @@ msgid "Return to application"
 msgstr "Вернуться в приложение"
 
 msgid "My Info"
-msgstr ""
+msgstr "Мои данные"
 
 msgid "E-Mail"
-msgstr ""
+msgstr "Электронная почта"
 
 msgid "Password"
 msgstr "Пароль"
@@ -1015,7 +1459,7 @@ msgid "Numbers"
 msgstr "Номера"
 
 msgid "Please заполните параметры шаблона."
-msgstr ""
+msgstr "Пожалуйста, заполните параметры шаблона."
 
 msgid "Broadcast details"
 msgstr "Подробности рассылки"
@@ -1036,7 +1480,7 @@ msgid "All statuses"
 msgstr "Все статусы"
 
 msgid "WAMID"
-msgstr ""
+msgstr "WAMID"
 
 msgid "Error JSON"
 msgstr "Ошибка"
@@ -1056,14 +1500,8 @@ msgstr "Переменные"
 msgid "Add variable"
 msgstr "Добавить переменную"
 
-msgid "Header"
-msgstr "Заголовок"
-
 msgid "Header value"
 msgstr "Значение заголовка"
-
-msgid "Body"
-msgstr "Тело"
 
 msgid "Footer"
 msgstr "Подвал"
@@ -1098,9 +1536,6 @@ msgstr "TTL в минутах"
 msgid "Payload"
 msgstr "Payload"
 
-msgid "Remove"
-msgstr "Удалить"
-
 msgid "Add row"
 msgstr "Добавить строку"
 
@@ -1108,7 +1543,7 @@ msgid "Interactive messages"
 msgstr "Интерактивные сообщения"
 
 msgid "Global"
-msgstr ""
+msgstr "Глобальный"
 
 msgid "Yes"
 msgstr "Да"
@@ -1127,9 +1562,6 @@ msgstr "Ваши номера WhatsApp Cloud"
 
 msgid "Expires in (days)"
 msgstr "Истекает в течение (дни)"
-
-msgid "Number"
-msgstr "Номер"
 
 msgid "Bitrix24 Line"
 msgstr "Линия Bitrix24"
@@ -1150,58 +1582,52 @@ msgid "You don't have any connected sessions."
 msgstr "У вас нет подключенных сессий."
 
 msgid "Partner apps"
-msgstr ""
+msgstr "Партнёрские приложения"
 
 msgid "WABA Partner Apps"
-msgstr ""
+msgstr "Партнёрские приложения WABA"
 
 msgid "API token"
-msgstr ""
+msgstr "API-токен"
 
-#, fuzzy
 #| msgid "Show Card"
 msgid "Show"
-msgstr "Показывать карточку"
+msgstr "Показать"
 
-#, fuzzy
 #| msgid "Reset"
 msgid "Reset token"
-msgstr "Сброс"
+msgstr "Сбросить токен"
 
-#, fuzzy
 #| msgid "Chek for Separator partner App"
 msgid "Create partner app"
-msgstr "Проверка партнерского приложения Separator"
+msgstr "Создать партнёрское приложение"
 
 msgid "Webhook URL"
-msgstr ""
+msgstr "URL вебхука"
 
 msgid "Redirect URL"
-msgstr ""
-
-msgid "Active"
-msgstr "Активен"
+msgstr "URL перенаправления"
 
 msgid "App ID"
-msgstr ""
+msgstr "ID приложения"
 
 msgid "Addresses"
-msgstr ""
+msgstr "Адреса"
 
 msgid "Verify token"
-msgstr ""
+msgstr "Токен проверки"
 
 msgid "Webhook"
-msgstr ""
+msgstr "Вебхук"
 
 msgid "Redirect"
-msgstr ""
+msgstr "Перенаправление"
 
 msgid "No partner applications yet."
 msgstr "Нет приложений"
 
 msgid "Edit partner app"
-msgstr ""
+msgstr "Редактировать партнёрское приложение"
 
 msgid "Delete partner app?"
 msgstr "Удалить приложение?"
@@ -1231,7 +1657,7 @@ msgid "No templates found."
 msgstr "Нет доступных шаблонов"
 
 msgid "CTWA list"
-msgstr ""
+msgstr "Список CTWA"
 
 msgid "Search"
 msgstr "Поиск"
@@ -1246,28 +1672,25 @@ msgid "Reset"
 msgstr "Сброс"
 
 msgid "Source type"
-msgstr ""
+msgstr "Тип источника"
 
 msgid "Source ID"
-msgstr ""
+msgstr "ID источника"
 
 msgid "Source URL"
-msgstr ""
+msgstr "URL источника"
 
-#, fuzzy
 #| msgid "Last Name"
 msgid "Last event"
-msgstr "Фамилия"
+msgstr "Последнее событие"
 
-#, fuzzy
 #| msgid "No recipients found."
 msgid "No CTWA records found."
-msgstr "Нет получателей"
+msgstr "Записи CTWA не найдены."
 
-#, fuzzy
 #| msgid "Add translation"
 msgid "CTWA pagination"
-msgstr "Добавить перевод"
+msgstr "Навигация по списку CTWA"
 
 msgid "Enable SMS provider in Bitrix."
 msgstr "Активирвоать СМС провайдер"
@@ -1287,11 +1710,15 @@ msgstr "Отображать номер в виджете Битрикс24"
 msgid "Allow Bitrix portal admins to access this number."
 msgstr "Предоставить доступ к настройкам номера всем администраторам"
 
+#| msgid "Translations"
+msgid "Transcribe tokens"
+msgstr "Токены транскрибации"
+
+msgid "Transcribe model"
+msgstr "Модель транскрибации"
+
 msgid "Calling settings are not available for WhatsApp Business App numbers."
 msgstr "Настройки звонков недоступны для номеров приложения WhatsApp Business."
-
-msgid "Additional codecs"
-msgstr "Дополнительные кодеки"
 
 msgid "Enable PCMA and PCMU codecs"
 msgstr "Активировать PCMA и PCMU"
@@ -1319,9 +1746,6 @@ msgstr "SIP порт"
 
 msgid "SIP Extension Info"
 msgstr "Данные SIP транка"
-
-msgid "Server"
-msgstr "Сервер"
 
 msgid "Login"
 msgstr "Логин"
@@ -1394,20 +1818,20 @@ msgstr "Скрыть пароль"
 
 #, python-format
 msgid "Create a page in %(title)s"
-msgstr ""
+msgstr "Создать страницу в «%(title)s»"
 
 msgid "Create a page in"
-msgstr ""
+msgstr "Создать страницу в"
 
 msgid "Choose which type of page you'd like to create."
-msgstr ""
+msgstr "Выберите тип страницы, которую хотите создать."
 
 msgid "Sorry, you cannot create a page at this location."
-msgstr ""
+msgstr "К сожалению, здесь нельзя создать страницу."
 
 #, python-format
 msgid "Pages using %(page_type)s"
-msgstr ""
+msgstr "Страницы типа %(page_type)s"
 
 msgid "Scan the QR code"
 msgstr "Сканируйте QR-код"
@@ -1471,7 +1895,7 @@ msgid "Information successfully updated"
 msgstr "Информация успешно обновлена"
 
 msgid "Embedded Signup was cancelled."
-msgstr ""
+msgstr "Встроенная регистрация отменена."
 
 msgid ""
 "The number has been successfully added. It will appear here in a few minutes."
@@ -1499,7 +1923,7 @@ msgid "Call permission request"
 msgstr "Запрос разрешения на звонок"
 
 msgid "Без имени"
-msgstr ""
+msgstr "Без имени"
 
 msgid "Phone is not registered"
 msgstr "Номер не зарегистрирован"
@@ -1528,20 +1952,19 @@ msgstr "Сервер не подключен"
 msgid "SIP extension creation failed."
 msgstr "Ошибка создания SIP аккаунта"
 
-#, fuzzy
 #| msgid "This number is already connected."
 msgid "This number is linked to another user."
-msgstr "Этот номер уже подключен."
+msgstr "Этот номер привязан к другому пользователю."
 
 msgid "The mailing has been added to the queue."
 msgstr "Рассылка добавлена в очередь"
 
 #, python-format
 msgid "Template deletion queued: %(count)s"
-msgstr ""
+msgstr "Удаление шаблонов поставлено в очередь: %(count)s."
 
 msgid "Template availability updated."
-msgstr ""
+msgstr "Доступность шаблонов обновлена."
 
 msgid "WABA account is not connected to this phone."
 msgstr "Аккаунт WABA не подключен для этого номера."
@@ -1549,13 +1972,12 @@ msgstr "Аккаунт WABA не подключен для этого номер
 msgid "Template sync has been queued."
 msgstr "Обновление списка шаблонов добавлено в очередь"
 
-#, fuzzy
 #| msgid "Call destination"
 msgid "Invalid call destination"
-msgstr "Направление звонка"
+msgstr "Недопустимое направление звонка."
 
 msgid "SIP Hostname and SIP Port are required"
-msgstr ""
+msgstr "Укажите адрес и порт SIP-сервера."
 
 msgid "Voice calls feature is disabled"
 msgstr "Голосовые вызовы отключены"
@@ -1566,13 +1988,13 @@ msgstr "Направление звонка активировано: %(dest)s"
 
 msgid ""
 "Bitrix portal is not connected for this phone, SMS provider sync was skipped."
-msgstr ""
+msgstr "Портал Битрикс24 не подключён к этому номеру; синхронизация SMS-провайдера пропущена."
 
 msgid "Bitrix settings updated."
-msgstr ""
+msgstr "Настройки Битрикс24 обновлены."
 
 msgid "No Bitrix settings were changed."
-msgstr ""
+msgstr "Настройки Битрикс24 не изменились."
 
 msgid "App is not connected to this phone WABA account."
 msgstr "Приложение не подключено к WABA этого номера."
@@ -1586,10 +2008,9 @@ msgstr "Код подтверждения запрошен."
 msgid "Enter verification code."
 msgstr "Введите код подтверждения."
 
-#, fuzzy
 #| msgid "Official Business Account application"
 msgid "Official Business Account application is not available."
-msgstr "Заявка на официальный бизнес-аккаунт"
+msgstr "Подача заявки на официальный бизнес-аккаунт недоступна."
 
 msgid ""
 "Official Business Account application is not available for WhatsApp Business "
@@ -1622,10 +2043,9 @@ msgstr "Нет доступных шаблонов"
 msgid "Invalid schedule time"
 msgstr "Неправильное время"
 
-#, fuzzy
 #| msgid "The mailing has been added to the queue."
 msgid "The mailing has been scheduled."
-msgstr "Рассылка добавлена в очередь"
+msgstr "Рассылка запланирована."
 
 msgid "Broadcast has been cancelled."
 msgstr "Рассылка отменена"
@@ -1636,41 +2056,35 @@ msgstr "Интерактивное сообщение сохранено."
 msgid "Interactive message deleted."
 msgstr "Интерактивное сообщение удалено."
 
-#, fuzzy
 #| msgid "This number is already connected."
 msgid "This waba is linked to another user"
-msgstr "Этот номер уже подключен."
+msgstr "Этот WABA-аккаунт привязан к другому пользователю."
 
 msgid "App is not connected to this WABA account."
-msgstr ""
+msgstr "Приложение не подключено к этому WABA-аккаунту."
 
-#, fuzzy
 #| msgid "Not connected"
 msgid "Line connected"
-msgstr "Не подключён"
+msgstr "Линия подключена."
 
 msgid "Only integrators can manage partner applications."
-msgstr ""
+msgstr "Управлять партнёрскими приложениями могут только интеграторы."
 
-#, fuzzy
 #| msgid "Phone registration has been queued."
 msgid "API token has been reset."
-msgstr "Регистрация номера поставлена в очередь."
+msgstr "API-токен сброшен."
 
-#, fuzzy
 #| msgid "Verification code has been requested."
 msgid "Partner application has been created."
-msgstr "Код подтверждения запрошен."
+msgstr "Партнёрское приложение создано."
 
-#, fuzzy
 #| msgid "Verification code has been requested."
 msgid "Partner application has been deleted."
-msgstr "Код подтверждения запрошен."
+msgstr "Партнёрское приложение удалено."
 
-#, fuzzy
 #| msgid "Phone registration has been queued."
 msgid "Partner application has been updated."
-msgstr "Регистрация номера поставлена в очередь."
+msgstr "Партнёрское приложение обновлено."
 
 msgid "Default settings for new sessions"
 msgstr "Настройки по умолчанию для новых сессий"
@@ -1691,7 +2105,7 @@ msgid "You must provide either a message or a file."
 msgstr "Вы должны написать сообщение или отправить файл"
 
 msgid "From WhatsApp"
-msgstr ""
+msgstr "Из WhatsApp"
 
 msgid "You must connect WhatsApp first."
 msgstr "Сначала необходимо подключить WhatsApp."
@@ -1714,3 +2128,6 @@ msgstr "Телефон не подключен. Необходимо произ�
 
 msgid "Message sending task created."
 msgstr "Задача на отправку сообщений создана."
+
+#~ msgid "Additional codecs"
+#~ msgstr "Дополнительные кодеки"

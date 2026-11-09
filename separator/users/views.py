@@ -1,5 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.conf import settings
 from django.db.models import QuerySet
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -31,7 +32,7 @@ class UserUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     def get_success_url(self) -> str:
         redirect_url = self.request.session.pop("redirect_after_profile_update", None)
         installed_app = self.request.session.pop("installed_app", None)
-        if installed_app and not self.request.user.integrator:
+        if installed_app and not self.request.user.integrator and "separator.home" in settings.INSTALLED_APPS:
             from separator.home.tasks import prepare_lead
             prepare_lead.delay(self.request.user.id, f'App installed: {installed_app}')
         if redirect_url:

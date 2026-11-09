@@ -1,5 +1,4 @@
 # ruff: noqa
-import os
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -84,41 +83,11 @@ urlpatterns += [
     ),
 ]
 
-if os.environ.get("DJANGO_SETTINGS_MODULE") == "config.settings.vendor":
-    from wagtail import urls as wagtail_urls
-    from wagtail.admin import urls as wagtailadmin_urls
-    from wagtail.documents import urls as wagtaildocs_urls
-    from wagtail.contrib.sitemaps.views import sitemap
-    from django.conf.urls.i18n import i18n_patterns
-    from health_check.views import HealthCheckView
-    from redis.asyncio import Redis as RedisClient
+if "separator.home" in settings.INSTALLED_APPS:
+    from separator.home.urls import urlpatterns as home_urlpatterns
 
-    urlpatterns += [
-        path('hijack/', include('hijack.urls')),
-        path(
-            f"health/{settings.HEALTH_CHECK_TOKEN}/",
-            HealthCheckView.as_view(
-                checks=[
-                    "health_check.Database",
-                    "health_check.Storage",
-                    (
-                        "health_check.contrib.redis.Redis",
-                        {
-                            "client_factory": lambda: RedisClient.from_url(settings.REDIS_URL),
-                        },
-                    ),
-                ],
-            ),
-        ),
-        path(settings.WAGTAIL_CMS_URL, include(wagtailadmin_urls)),
-        path("documents/", include(wagtaildocs_urls)),
-        path('sitemap.xml', sitemap),
-    ]
-    urlpatterns += i18n_patterns(
-        path("", include(wagtail_urls)),
-        prefix_default_language=False,
-    )
-    
+    urlpatterns += home_urlpatterns
+
 else:
     urlpatterns = i18n_patterns(
         path("", TemplateView.as_view(template_name="base.html"), name="home"),

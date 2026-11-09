@@ -130,11 +130,6 @@ def event_processor(event_data):
                 from separator.home.utils import get_trial
                 session.date_end = get_trial(session.owner, "waweb")
             
-            # create lead in b24
-            if session.phone != number and not session.owner.integrator:
-                from separator.home.tasks import prepare_lead
-                prepare_lead.delay(session.owner.id, f'New WhatsApp Web: {number}')            
-            
             session.phone = number
             session.save()
 

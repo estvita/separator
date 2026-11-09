@@ -66,3 +66,4 @@ class Message(models.Model):
 class SiteProfile(models.Model):
     site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name='profile')
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    hide_language_selector = models.BooleanField(default=False)

@@ -20,7 +20,6 @@ from django.utils.translation import gettext as _
 
 from .crest import call_method
 from .tasks import call_api
-from separator.home.tasks import prepare_lead
 from .utils import get_b24_user, get_instances, get_app, get_line_app_instance
 from .forms import BitrixPortalForm, VerificationCodeForm
 import separator.bitrix.placements as placements
@@ -390,8 +389,10 @@ def app_settings(request):
             login_redirect = autologin_owner(request, app, user, redirect_url=app_url)
             if login_redirect:
                 return login_redirect
-            if installed_app and user:
+            if installed_app and user and "separator.home" in settings.INSTALLED_APPS:
                 if user.phone_number and not user.integrator:
+                    from separator.home.tasks import prepare_lead
+
                     prepare_lead.delay(user.id, f"App installed: {app.name}")
                 else:
                     request.session["installed_app"] = installed_app

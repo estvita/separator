@@ -1528,7 +1528,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         if event == "PARTNER_APP_UNINSTALLED":
             try:
                 if waba:
-                    if waba.owner_id:
+                    if waba.owner_id and "separator.home" in settings.INSTALLED_APPS:
                         numbers = list(
                             waba.phones.exclude(phone__isnull=True)
                             .exclude(phone="")

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-21 16:43+0500\n"
+"POT-Creation-Date: 2026-11-08 19:17+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -178,6 +178,27 @@ msgstr ""
 msgid "Connected"
 msgstr ""
 
+msgid "Portal application not found."
+msgstr ""
+
+msgid "Invalid placement."
+msgstr ""
+
+msgid "Chat not found."
+msgstr ""
+
+msgid "Failed to retrieve chat data."
+msgstr ""
+
+msgid "This is not an open channel chat."
+msgstr ""
+
+msgid "Failed to identify the chat line."
+msgstr ""
+
+msgid "The chat is not linked to an available WABA number."
+msgstr ""
+
 msgid "Templates"
 msgstr ""
 
@@ -271,6 +292,109 @@ msgstr ""
 msgid "Administrator rights are required to edit the portal."
 msgstr ""
 
+msgid "Specify a Bitrix CRM file field."
+msgstr ""
+
+msgid "Could not check the Bitrix CRM file field."
+msgstr ""
+
+msgid "Select a single Bitrix CRM file field."
+msgstr ""
+
+msgid "Select a payer."
+msgstr ""
+
+msgid "Choose between one and six months."
+msgstr ""
+
+msgid "Site must match the owner's site."
+msgstr ""
+
+msgid "Company must belong to the scheduler owner."
+msgstr ""
+
+msgid "No priced tariff is available for this period."
+msgstr ""
+
+msgid "Remove connections before changing the period."
+msgstr ""
+
+msgid "This connection already belongs to another active scheduler."
+msgstr ""
+
+msgid "Payer name"
+msgstr ""
+
+msgid "BIN/IIN"
+msgstr ""
+
+msgid "Address"
+msgstr ""
+
+msgid "Payer"
+msgstr ""
+
+msgid "Period"
+msgstr ""
+
+msgid "Months"
+msgstr ""
+
+msgid "Select a payer"
+msgstr ""
+
+msgid "No payer"
+msgstr ""
+
+msgid "Connection ID"
+msgstr ""
+
+msgid "Connection type"
+msgstr ""
+
+msgid "Select a connection type"
+msgstr ""
+
+msgid "Select a connection"
+msgstr ""
+
+msgid "Unsupported connection type."
+msgstr ""
+
+msgid "Connection not found."
+msgstr ""
+
+msgid "Connection does not belong to you."
+msgstr ""
+
+msgid "Calls are not active for this phone."
+msgstr ""
+
+msgid "Connection is already in this scheduler."
+msgstr ""
+
+msgid "Connection already belongs to another active scheduler."
+msgstr ""
+
+msgid ""
+"This connection has no valid end date and cannot be added to this scheduler."
+msgstr ""
+
+msgid "This connection has expired and cannot be added to this scheduler."
+msgstr ""
+
+#, python-format
+msgid ""
+"This connection would renew until %(renewal)s, before the scheduler's "
+"billing date %(billing)s. Use a separate scheduler."
+msgstr ""
+
+msgid "A connection can only be added once."
+msgstr ""
+
+msgid "Add at least one connection."
+msgstr ""
+
 msgid "Day"
 msgstr ""
 
@@ -292,6 +416,9 @@ msgstr ""
 msgid "Tenge"
 msgstr ""
 
+msgid "A monthly tariff must last one month."
+msgstr ""
+
 msgid "Target page"
 msgstr ""
 
@@ -302,6 +429,285 @@ msgid "Display only first-level pages"
 msgstr ""
 
 msgid "Subpages"
+msgstr ""
+
+msgid "Lead"
+msgstr ""
+
+msgid "Deal"
+msgstr ""
+
+msgid "Enter a 12-digit BIN/IIN."
+msgstr ""
+
+msgid "WABA phone"
+msgstr ""
+
+msgid "WABA calls"
+msgstr ""
+
+msgid "OLX"
+msgstr ""
+
+msgid "BitBot"
+msgstr ""
+
+msgid "WhatsApp Web"
+msgstr ""
+
+msgid "AsterX"
+msgstr ""
+
+msgid "Feature grant"
+msgstr ""
+
+msgid "Issued"
+msgstr ""
+
+msgid "Paid"
+msgstr ""
+
+msgid "Cancelled"
+msgstr ""
+
+msgid "Updated"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Invoice scheduler"
+msgstr ""
+
+msgid "Number"
+msgstr ""
+
+msgid "External account ID"
+msgstr ""
+
+msgid "Server"
+msgstr ""
+
+msgid "Expiry date"
+msgstr ""
+
+msgid "Billing"
+msgstr ""
+
+msgid "Billing sections"
+msgstr ""
+
+msgid "Payers"
+msgstr ""
+
+msgid "Invoices"
+msgstr ""
+
+msgid "Add payer"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Price coefficient"
+msgstr ""
+
+msgid "Action"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "No payers yet."
+msgstr ""
+
+msgid "Invoice schedulers"
+msgstr ""
+
+msgid "Add scheduler"
+msgstr ""
+
+msgid "Connections"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "No schedulers yet."
+msgstr ""
+
+msgid "Edit payer"
+msgstr ""
+
+msgid "Save payer"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Create now"
+msgstr ""
+
+msgid "Stop scheduler"
+msgstr ""
+
+msgid "Resume scheduler"
+msgstr ""
+
+msgid "Scheduler settings"
+msgstr ""
+
+msgid "Save settings"
+msgstr ""
+
+msgid "Next invoice date"
+msgstr ""
+
+msgid "Not scheduled yet"
+msgstr ""
+
+msgid "Type"
+msgstr ""
+
+msgid "Connection unavailable"
+msgstr ""
+
+msgid "No connections yet."
+msgstr ""
+
+msgid "Add connections"
+msgstr ""
+
+msgid "No available connections"
+msgstr ""
+
+msgid "Could not load connections"
+msgstr ""
+
+msgid "No priced tariff is available for the selected period."
+msgstr ""
+
+msgid "Add another connection"
+msgstr ""
+
+msgid "Save connections"
+msgstr ""
+
+msgid "Created invoices"
+msgstr ""
+
+msgid "Refresh list"
+msgstr ""
+
+msgid "Amount"
+msgstr ""
+
+msgid "File"
+msgstr ""
+
+msgid "Download PDF"
+msgstr ""
+
+msgid "Cancel invoice"
+msgstr ""
+
+msgid "No invoices yet."
+msgstr ""
+
+msgid "Create scheduler"
+msgstr ""
+
+msgid "Published"
+msgstr ""
+
+msgid "App:"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Trial"
+msgstr ""
+
+msgid "Self-hosted"
+msgstr ""
+
+msgid "Price"
+msgstr ""
+
+msgid "Currency"
+msgstr ""
+
+msgid "Description"
+msgstr ""
+
+msgid "No tariffs yet"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Thank you, message sent"
+msgstr ""
+
+msgid "Payer saved."
+msgstr ""
+
+msgid "Scheduler created."
+msgstr ""
+
+msgid "Could not save the scheduler or reissue its invoice."
+msgstr ""
+
+msgid "Unpaid invoice reissued with updated settings."
+msgstr ""
+
+msgid "Scheduler saved."
+msgstr ""
+
+msgid "Connections added."
+msgstr ""
+
+msgid "Add a connection before creating an invoice."
+msgstr ""
+
+msgid "Invoice settings and an HTML template are required."
+msgstr ""
+
+msgid "Could not schedule invoice creation."
+msgstr ""
+
+msgid "Invoice creation queued."
+msgstr ""
+
+msgid "Scheduler stopped."
+msgstr ""
+
+msgid "Add a connection before activating the scheduler."
+msgstr ""
+
+msgid "A connection belongs to another active scheduler."
+msgstr ""
+
+msgid "Scheduler resumed."
+msgstr ""
+
+msgid "An active scheduler needs at least one connection."
+msgstr ""
+
+msgid "Connection removed."
+msgstr ""
+
+msgid "Invoice cancelled."
+msgstr ""
+
+msgid "Only an issued invoice can be cancelled."
 msgstr ""
 
 msgid "Sign In"
@@ -388,9 +794,6 @@ msgstr ""
 msgid "Endpoint (example)"
 msgstr ""
 
-msgid "Type"
-msgstr ""
-
 msgid "Save"
 msgstr ""
 
@@ -427,12 +830,6 @@ msgstr ""
 msgid "Call client first"
 msgstr ""
 
-msgid "Name"
-msgstr ""
-
-msgid "Status"
-msgstr ""
-
 msgid "Database"
 msgstr ""
 
@@ -455,9 +852,6 @@ msgid "Edit Settings"
 msgstr ""
 
 msgid "Back"
-msgstr ""
-
-msgid "Edit"
 msgstr ""
 
 msgid "Create"
@@ -601,6 +995,50 @@ msgstr ""
 msgid "Changing the connected line may desynchronize existing chats. Continue?"
 msgstr ""
 
+msgid "Open app in Bitrix24"
+msgstr ""
+
+msgid "Message type"
+msgstr ""
+
+msgid ""
+"Some parameters of this template are not available when sending from the "
+"chat."
+msgstr ""
+
+msgid "Body"
+msgstr ""
+
+msgid "Header"
+msgstr ""
+
+msgid "Image"
+msgstr ""
+
+msgid "Video"
+msgstr ""
+
+msgid "Document"
+msgstr ""
+
+msgid "GIF"
+msgstr ""
+
+msgid "Adding the message to the chat..."
+msgstr ""
+
+msgid "The message has been added to the chat. Delivery is being processed."
+msgstr ""
+
+msgid "No templates available"
+msgstr ""
+
+msgid "No interactive messages available"
+msgstr ""
+
+msgid "Bitrix24 is unavailable."
+msgstr ""
+
 msgid "WABA Widget"
 msgstr ""
 
@@ -623,12 +1061,6 @@ msgid "Client number"
 msgstr ""
 
 msgid "Add interactive"
-msgstr ""
-
-msgid "Send"
-msgstr ""
-
-msgid "Action"
 msgstr ""
 
 msgid "Select values and click Send."
@@ -746,42 +1178,6 @@ msgid "Confirm"
 msgstr ""
 
 msgid "Get code"
-msgstr ""
-
-msgid "Updated"
-msgstr ""
-
-msgid "Published"
-msgstr ""
-
-msgid "App:"
-msgstr ""
-
-msgid "All"
-msgstr ""
-
-msgid "Trial"
-msgstr ""
-
-msgid "Self-hosted"
-msgstr ""
-
-msgid "Price"
-msgstr ""
-
-msgid "Currency"
-msgstr ""
-
-msgid "Period"
-msgstr ""
-
-msgid "Description"
-msgstr ""
-
-msgid "No tariffs yet"
-msgstr ""
-
-msgid "Thank you, message sent"
 msgstr ""
 
 msgid "My Profile"
@@ -1024,13 +1420,7 @@ msgstr ""
 msgid "Add variable"
 msgstr ""
 
-msgid "Header"
-msgstr ""
-
 msgid "Header value"
-msgstr ""
-
-msgid "Body"
 msgstr ""
 
 msgid "Footer"
@@ -1066,9 +1456,6 @@ msgstr ""
 msgid "Payload"
 msgstr ""
 
-msgid "Remove"
-msgstr ""
-
 msgid "Add row"
 msgstr ""
 
@@ -1094,9 +1481,6 @@ msgid "Your WhatsApp Cloud numbers"
 msgstr ""
 
 msgid "Expires in (days)"
-msgstr ""
-
-msgid "Number"
 msgstr ""
 
 msgid "Bitrix24 Line"
@@ -1139,9 +1523,6 @@ msgid "Webhook URL"
 msgstr ""
 
 msgid "Redirect URL"
-msgstr ""
-
-msgid "Active"
 msgstr ""
 
 msgid "App ID"
@@ -1243,10 +1624,13 @@ msgstr ""
 msgid "Allow Bitrix portal admins to access this number."
 msgstr ""
 
-msgid "Calling settings are not available for WhatsApp Business App numbers."
+msgid "Transcribe tokens"
 msgstr ""
 
-msgid "Additional codecs"
+msgid "Transcribe model"
+msgstr ""
+
+msgid "Calling settings are not available for WhatsApp Business App numbers."
 msgstr ""
 
 msgid "Enable PCMA and PCMU codecs"
@@ -1274,9 +1658,6 @@ msgid "SIP Port"
 msgstr ""
 
 msgid "SIP Extension Info"
-msgstr ""
-
-msgid "Server"
 msgstr ""
 
 msgid "Login"

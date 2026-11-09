@@ -105,11 +105,6 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                     olx_acc.save()
                     messages.success(request, "OLX Account successfully added")
 
-                    # create lead in b24
-                    if not request.user.integrator:
-                        from separator.home.tasks import prepare_lead
-                        prepare_lead.delay(request.user.id, f'New OLX: {olx_id}')
-                
                 return redirect("olx-accounts")
 
             else:

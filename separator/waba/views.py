@@ -227,12 +227,37 @@ def phone_details(request, phone_id):
     active_tab = request.POST.get("tab") or request.GET.get("tab") or "templates"
     if active_tab not in {"templates", "ctwa", "bitrix", "calls", "status"}:
         active_tab = "templates"
+    waba_lines = []
+    instances = []
+    if active_tab == "bitrix":
+        portals, instances, _lines = bitrix_utils.get_instances(request, "waba")
+        instances = list(instances)
+        waba_lines = list(
+            Line.objects.filter(portal__in=portals)
+            .select_related("portal", "connector")
+            .order_by("portal__domain", "name", "line_id")
+        )
+        for line in waba_lines:
+            line.status_label = waba_bitrix.line_status_label(line)
 
     def redirect_to_phone_tab(tab_name):
         return redirect(f"{reverse('phone-details', kwargs={'phone_id': phone.phone_id})}?tab={tab_name}")
 
     if request.method == 'POST':
         action = request.POST.get('action')
+        if action == 'link_line':
+            line_id = request.POST.get('line_id')
+            allowed = {str(line.id) for line in waba_lines}
+            allowed.update(f"create__{instance.id}" for instance in instances)
+            if line_id not in allowed:
+                messages.error(request, _("Select a line"))
+            else:
+                try:
+                    waba_bitrix.relink_waba_phone(phone, line_id)
+                    messages.success(request, _("Line connected"))
+                except Exception as e:
+                    messages.error(request, str(e))
+            return redirect_to_phone_tab("bitrix")
         if action == 'send_message':
             template = request.POST.get('template')
             recipient_phones_raw = request.POST.get('recipient_phone')
@@ -262,8 +287,8 @@ def phone_details(request, phone_id):
 
             # Handle default template selection (only one per WABA)
             default_id = request.POST.get('default_template')
+            templates_qs.update(default=False)
             if default_id and default_id not in delete_ids:
-                templates_qs.update(default=False)
                 templates_qs.filter(id=default_id).update(default=True)
 
             messages.success(request, _('Template availability updated.'))
@@ -569,6 +594,8 @@ def phone_details(request, phone_id):
         'ctwa_status_options': ctwa_status_options,
         'ctwa_has_empty_status': ctwa_has_empty_status,
         'transcribe_model_choices': Phone.TRANSCRIBE_MODEL_CHOICES,
+        'waba_lines': waba_lines,
+        'instances': instances,
         'active_tab': active_tab,
     })
 
@@ -944,7 +971,18 @@ def waba_view(request):
         else:
             phone_id = request.POST.get("phone_id")
             line_id = request.POST.get("line_id")
-            phone = get_object_or_404(Phone, id=phone_id)
+            phone = get_object_or_404(phones, id=phone_id)
+            if (
+                not request.user.is_superuser
+                and phone.owner_id != request.user.id
+                and not (phone.owner_id and phone.availabletoB24admins)
+            ):
+                raise Http404
+            allowed_lines = {str(line.id) for line in lines}
+            allowed_lines.update(f"create__{instance.id}" for instance in instances)
+            if line_id not in allowed_lines:
+                messages.error(request, _("Select a line"))
+                return redirect("waba")
             try:
                 waba_bitrix.relink_waba_phone(phone, line_id)
                 messages.success(request, _("Line connected"))

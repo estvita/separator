@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
+{% block bodyclass %}account-page{% endblock bodyclass %}
+
 {% block main %}
+  {% include "users/_actions.html" %}
   {% block content %}
   {% endblock content %}
 {% endblock main %}

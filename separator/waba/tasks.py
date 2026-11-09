@@ -35,7 +35,6 @@ def _onboard_waba_assets(
     target_phone_number=None,
     target_phone_id=None,
     save_templates=True,
-    create_lead=True,
 ):
     # Common post-token onboarding for Embedded Signup and Hosted Embedded Signup.
     if save_templates:
@@ -116,11 +115,6 @@ def _onboard_waba_assets(
                 }
             )
 
-        if user and create_lead:
-            # create lead in b24
-            from separator.home.tasks import prepare_lead
-            prepare_lead.delay(user.id, f'New WhatsApp Cloud: {phone_number}')
-
         if user and "separator.home" in settings.INSTALLED_APPS and not phone.date_end:
             from separator.home.utils import get_trial
             phone.date_end = get_trial(user, "waba")
@@ -139,7 +133,6 @@ def force_sync_waba_phones(waba_id):
         user=waba.owner,
         register=False,
         save_templates=False,
-        create_lead=False,
     )
 
 
@@ -428,7 +421,6 @@ def add_phone_number_to_waba(waba_id, phone_number):
         register=False,
         target_phone_number=phone_number,
         save_templates=False,
-        create_lead=True,
     )
 
 

@@ -15,7 +15,6 @@ from .retry import RETRY_KWARGS, TRANSIENT_ERRORS
 from separator.waba.models import Phone
 from separator.waweb.models import Session
 from separator.users.models import User
-import separator.home.tasks as home_tasks
 
 logger = logging.getLogger("django")
 
@@ -55,7 +54,7 @@ def _feature_date_end(app_instance, code, existing_grant=None):
     if existing_grant and existing_grant.date_end is not None:
         return existing_grant.date_end
     owner = _feature_owner(app_instance)
-    if not owner or not code:
+    if not owner or not code or "separator.home" not in settings.INSTALLED_APPS:
         return None
     from separator.home.utils import get_trial
     return get_trial(owner, code)
@@ -246,7 +245,9 @@ def get_app_info(instance_id=None):
             app_instance.portal.save(update_fields=["license"])
         return resp
     except BitrixAccessDeniedError:
-        if app_instance.owner_id:
+        if app_instance.owner_id and "separator.home" in settings.INSTALLED_APPS:
+            import separator.home.tasks as home_tasks
+
             lead_title = home_tasks.build_lead_title(
                 app_instance.owner.site if app_instance.owner_id else None,
                 "bitrix_license_title",

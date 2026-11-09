@@ -7,3 +7,6 @@ django-recaptcha
 flower
 django-health-check
 pypdf
+xlrd==2.0.2
+dkimpy[ed25519]==1.1.8
+weasyprint

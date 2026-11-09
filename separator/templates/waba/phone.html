@@ -126,7 +126,7 @@
               <tr>
                 <th>{% trans "Name" %}</th>
                 <th>{% trans "Default" %}</th>
-                <th>{% trans "Status" %}</th>
+                <th>{% trans "Template type" %}</th>
                 <th>{% trans "Language" %}</th>
                 <th>{% trans "Bitrix Code" %}</th>
                 <th>{% trans "Available in Bitrix24" %}</th>
@@ -138,9 +138,9 @@
               <tr>
                 <td>{{ template.name }}</td>
                 <td>
-                  <input type="radio" name="default_template" value="{{ template.id }}" {% if template.default %}checked{% endif %}>
+                  <input type="checkbox" name="default_template" value="{{ template.id }}" {% if template.default %}checked{% endif %}>
                 </td>
-                <td>{{ template.status }}</td>
+                <td>{{ template.category }}</td>
                 <td>{{ template.lang }}</td>
                 <td>{{ template.bitrix_code }}</td>
                 <td>
@@ -270,6 +270,52 @@
       tabindex="0"
     >
       <h3>{% trans "Bitrix" %}</h3>
+      <table class="table table-bordered mb-4">
+        <thead>
+          <tr>
+            <th>{% trans "Line ID" %}</th>
+            <th>{% trans "Bitrix24 Line" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              {% if phone.line %}
+                {% if phone.line.portal and phone.line.connector %}
+                  <a href="https://{{ phone.line.portal.domain }}/contact_center/connector/?ID={{ phone.line.connector.code }}&LINE={{ phone.line.line_id }}" target="_blank" rel="noopener noreferrer">
+                    {{ phone.line.name }} ({{ phone.line.line_id }})
+                  </a>
+                {% else %}
+                  {{ phone.line.name }} ({{ phone.line.line_id }})
+                {% endif %}
+              {% else %}
+                {% trans "No line" %}
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" id="waba-line-form" data-has-line="{% if phone.line %}1{% else %}0{% endif %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="link_line">
+                <input type="hidden" name="tab" value="bitrix">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <select name="line_id" class="form-control" style="max-width: 420px;" required>
+                    <option value="" disabled selected>{% trans "Select a line" %}</option>
+                    {% for line in waba_lines %}
+                      {% if phone.line_id != line.id %}
+                        <option value="{{ line.id }}">{{ line.status_label }}</option>
+                      {% endif %}
+                    {% endfor %}
+                    {% for instance in instances %}
+                      <option value="create__{{ instance.id }}">+ {% trans "add line" %} {{ instance.portal.domain }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-secondary">{% trans "Connect" %}</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <form method="POST" class="mb-4">
         {% csrf_token %}
         <input type="hidden" name="action" value="update_bitrix">
@@ -310,17 +356,19 @@
             {% trans "Allow Bitrix portal admins to access this number." %}
           </label>
         </div>
-        <div class="form-group mb-3">
-          <label for="tokens">{% trans "Transcribe tokens" %}</label>
-          <input type="number" min="0" class="form-control" id="tokens" value="{{ phone.tokens }}" readonly>
-        </div>
-        <div class="form-group mb-3">
-          <label for="transcribe_model">{% trans "Transcribe model" %}</label>
-          <select class="form-control" id="transcribe_model" name="transcribe_model">
-            {% for value, label in transcribe_model_choices %}
-              <option value="{{ value }}" {% if phone.transcribe_model == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
+        <div style="max-width: 360px;">
+          <div class="form-group mb-3">
+            <label for="tokens">{% trans "Transcribe tokens" %}</label>
+            <input type="number" min="0" class="form-control" id="tokens" value="{{ phone.tokens }}" readonly>
+          </div>
+          <div class="form-group mb-3">
+            <label for="transcribe_model">{% trans "Transcribe model" %}</label>
+            <select class="form-control" id="transcribe_model" name="transcribe_model">
+              {% for value, label in transcribe_model_choices %}
+                <option value="{{ value }}" {% if phone.transcribe_model == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
       </form>
@@ -368,8 +416,23 @@
         <div id="server_block">
           <div class="form-group mb-3">
             <label for="sip_user_password">{% trans "SIP User Password" %}</label>
-            <input type="text" class="form-control" id="sip_user_password" name="sip_user_password"
-            value="{{ phone.sip_user_password }}" readonly>
+            <div class="input-group">
+              <input type="password" class="form-control" id="sip_user_password" name="sip_user_password"
+              value="{{ phone.sip_user_password }}" readonly>
+              <button type="button" class="btn btn-outline-secondary" id="toggle_sip_user_password"
+                      title="{% trans 'Show password' %}" aria-label="{% trans 'Show password' %}">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M8 3.5c-3.3 0-5.5 3-6.2 4 .7 1 2.9 4 6.2 4s5.5-3 6.2-4c-.7-1-2.9-4-6.2-4Zm0 6.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Zm0-1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
+                </svg>
+              </button>
+              <button type="button" class="btn btn-outline-secondary" id="copy_sip_user_password"
+                      title="{% trans 'Copy' %}" aria-label="{% trans 'Copy' %}">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M5 1.5A1.5 1.5 0 0 1 6.5 0h6A1.5 1.5 0 0 1 14 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 5 9.5v-8Zm1.5-.5a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h6a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-6Z"/>
+                  <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H4v1h-.5a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h6a.5.5 0 0 0 .5-.5V12h1v.5A1.5 1.5 0 0 1 9.5 14h-6A1.5 1.5 0 0 1 2 12.5v-8Z"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="form-group mb-3">
             <label for="sip_hostname">{% trans "SIP Hostname" %}</label>
@@ -573,9 +636,22 @@
   </div>
 
   <script>
+    {% trans "Changing the connected line may desynchronize existing chats. Continue?" as line_change_warning %}
     (function () {
+      var lineForm = document.getElementById("waba-line-form");
+      if (lineForm && lineForm.dataset.hasLine === "1") {
+        lineForm.addEventListener("submit", function (event) {
+          if (!confirm("{{ line_change_warning|escapejs }}")) event.preventDefault();
+        });
+      }
       var templatesForm = document.getElementById("templates-form");
       if (templatesForm) {
+        templatesForm.addEventListener("change", function (event) {
+          if (event.target.name !== "default_template" || !event.target.checked) return;
+          templatesForm.querySelectorAll('input[name="default_template"]').forEach(function (checkbox) {
+            if (checkbox !== event.target) checkbox.checked = false;
+          });
+        });
         templatesForm.addEventListener("submit", function (event) {
           var checkedToDelete = templatesForm.querySelectorAll('input[name="delete_templates"]:checked');
           if (!checkedToDelete.length) {
@@ -623,28 +699,29 @@
         toggleCallingBlocks();
       }
 
-      var copySipPasswordButton = document.getElementById("copy_sip_extension_password");
-      var toggleSipPasswordButton = document.getElementById("toggle_sip_extension_password");
-      var sipPasswordInput = document.getElementById("sip_extension_password");
-      if (toggleSipPasswordButton && sipPasswordInput) {
-        toggleSipPasswordButton.addEventListener("click", function () {
-          var isHidden = sipPasswordInput.type === "password";
-          sipPasswordInput.type = isHidden ? "text" : "password";
-          toggleSipPasswordButton.title = isHidden ? "{% trans 'Hide password' %}" : "{% trans 'Show password' %}";
-          toggleSipPasswordButton.setAttribute("aria-label", toggleSipPasswordButton.title);
-        });
-      }
-
-      if (copySipPasswordButton && sipPasswordInput) {
-        copySipPasswordButton.addEventListener("click", function () {
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(sipPasswordInput.value);
-          } else {
-            sipPasswordInput.select();
-            document.execCommand("copy");
-          }
-        });
-      }
+      ["sip_user_password", "sip_extension_password"].forEach(function (id) {
+        var input = document.getElementById(id);
+        var toggle = document.getElementById("toggle_" + id);
+        var copy = document.getElementById("copy_" + id);
+        if (toggle && input) {
+          toggle.addEventListener("click", function () {
+            var isHidden = input.type === "password";
+            input.type = isHidden ? "text" : "password";
+            toggle.title = isHidden ? "{% trans 'Hide password' %}" : "{% trans 'Show password' %}";
+            toggle.setAttribute("aria-label", toggle.title);
+          });
+        }
+        if (copy && input) {
+          copy.addEventListener("click", function () {
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(input.value);
+            } else {
+              input.select();
+              document.execCommand("copy");
+            }
+          });
+        }
+      });
     })();
   </script>
 </div>

@@ -37,4 +37,13 @@ def settings_module(request):
     return {"DJANGO_SETTINGS_MODULE": os.environ.get("DJANGO_SETTINGS_MODULE")}
 
 def default_language_code(request):
-    return {"DEFAULT_LANGUAGE_CODE": getattr(settings, "LANGUAGE_CODE", "en")}
+    from separator.users.models import SiteProfile
+
+    hostname = request.get_host().split(':')[0]
+    return {
+        "DEFAULT_LANGUAGE_CODE": getattr(settings, "LANGUAGE_CODE", "en"),
+        "HIDE_LANGUAGE_SELECTOR": SiteProfile.objects.filter(
+            site__domain__iexact=hostname,
+            hide_language_selector=True,
+        ).exists(),
+    }
