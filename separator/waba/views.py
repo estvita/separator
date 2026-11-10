@@ -31,6 +31,7 @@ from separator.bitrix.models import Line, User as BitrixUser
 
 from .forms import InteractiveForm, PartnerAppForm
 from .models import App, Interactive, PartnerApp, Waba, Phone, Template, TemplateBroadcast, TemplateBroadcastRecipient, CtwaEvents
+from separator.users.models import SiteProfile
 import separator.waba.bitrix as waba_bitrix
 import separator.waba.utils as waba_utils
 import separator.waba.tasks as waba_tasks
@@ -303,6 +304,11 @@ def phone_details(request, phone_id):
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
             allowed_call_dest = {choice[0] for choice in Phone.CALL_DEST}
+            if SiteProfile.objects.filter(
+                site__domain__iexact=request.get_host().split(':')[0],
+                hide_pbx=True,
+            ).exists():
+                allowed_call_dest.discard("pbx")
             if call_dest not in allowed_call_dest:
                 messages.error(request, _("Invalid call destination"))
                 return redirect_to_phone_tab("calls")

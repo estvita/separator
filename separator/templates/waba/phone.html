@@ -410,7 +410,7 @@
             <option value="disabled" {% if phone.call_dest == "disabled" %}selected{% endif %}>{% trans "Disabled" %}</option>
             <option value="b24" {% if phone.call_dest == "b24" %}selected{% endif %}>{% trans "To Bitrix24" %}</option>
             <option value="ext" {% if phone.call_dest == "ext" %}selected{% endif %}>{% trans "To SIP extension" %}</option>
-            <option value="pbx" {% if phone.call_dest == "pbx" %}selected{% endif %}>{% trans "To SIP server" %}</option>
+            {% if not HIDE_PBX %}<option value="pbx" {% if phone.call_dest == "pbx" %}selected{% endif %}>{% trans "To SIP server" %}</option>{% endif %}
           </select>
         </div>
         <div id="server_block">

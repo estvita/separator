@@ -40,10 +40,9 @@ def default_language_code(request):
     from separator.users.models import SiteProfile
 
     hostname = request.get_host().split(':')[0]
+    site_profile = SiteProfile.objects.filter(site__domain__iexact=hostname).first()
     return {
         "DEFAULT_LANGUAGE_CODE": getattr(settings, "LANGUAGE_CODE", "en"),
-        "HIDE_LANGUAGE_SELECTOR": SiteProfile.objects.filter(
-            site__domain__iexact=hostname,
-            hide_language_selector=True,
-        ).exists(),
+        "HIDE_LANGUAGE_SELECTOR": bool(site_profile and site_profile.hide_language_selector),
+        "HIDE_PBX": bool(site_profile and site_profile.hide_pbx),
     }
