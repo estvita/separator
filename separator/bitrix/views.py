@@ -15,9 +15,14 @@ from django.utils import timezone
 from django.http import HttpResponse, FileResponse, Http404, HttpResponseForbidden, JsonResponse, StreamingHttpResponse
 from django.core import signing
 from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
+from django.urls import reverse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
 from django.utils.translation import gettext as _
+from redis.exceptions import RedisError
 
+from . import auth as bitrix_auth
 from .crest import call_method
 from .tasks import call_api
 from .utils import get_b24_user, get_instances, get_app, get_line_app_instance
@@ -28,8 +33,8 @@ from .models import User as B24_user
 
 from separator.decorators import login_message_required
 
-from django.contrib.auth import get_user_model, login, logout
-User = get_user_model()
+from django.contrib.auth import login, logout
+from django.contrib.auth.views import redirect_to_login
 logger = logging.getLogger("django")
 
 
@@ -64,16 +69,6 @@ def link_portal(request, code):
 
 @login_message_required(code="bitrix")
 def portals(request):
-    b24_data = request.session.get('b24_data', None)
-    page_url = request.session.pop('page_url', None)
-    if b24_data and page_url:
-        try:
-            member_id = b24_data.get("member_id")
-            portal = Bitrix.objects.get(member_id=member_id)
-            link_ojects(portal, request.user)
-        except Bitrix.DoesNotExist:
-            pass
-        return redirect(page_url)
     user_portals = Bitrix.objects.filter(
         Q(users__owner=request.user) | Q(owner=request.user)
     ).distinct()
@@ -143,6 +138,7 @@ def portals(request):
 
 
 def get_owner(request, app=None, portal=None):
+    """Return the linked local user or a response starting account linking."""
     protocol = request.GET.get("PROTOCOL")
     domain = request.GET.get("DOMAIN")
     data = request.POST
@@ -153,9 +149,12 @@ def get_owner(request, app=None, portal=None):
     try:
         app = app or get_app(auth_id)
         if not app.autologin:
-            return None
+            return None, None
     except Exception as e:
-        return None
+        return None, None
+
+    if not member_id or not auth_id:
+        raise ValueError(_("Bitrix24 authorization data is missing."))
     
     if not portal:
         portal, created = Bitrix.objects.get_or_create(
@@ -166,60 +165,24 @@ def get_owner(request, app=None, portal=None):
             }
         )
 
-    try:
-        b24_user = get_b24_user(app, portal, auth_id, refresh_id)
-    except Exception as e:
-        raise
-    
-    if b24_user.owner:
-        owner_user = b24_user.owner
-    else:
-        if request.user.is_authenticated:
-            owner_user = request.user
-        else:
-            user_name = ""
-            user_last_name = ""
-            user_phone = None
-            try:
-                user_data = requests.post(f"{proto}://{domain}/rest/user.current", json={"auth": auth_id})
-                user_data.raise_for_status()
-                user_data = user_data.json().get("result")
-                user_name = user_data.get("NAME")
-                user_last_name = user_data.get("LAST_NAME")
-                user_email = user_data.get("EMAIL")
-                user_phone = user_data.get("PERSONAL_MOBILE") or user_data.get("WORK_PHONE")
-            except Exception as e:
-                print("Error", e)
-                user_email = None
+    b24_user = get_b24_user(app, portal, auth_id, refresh_id)
+    if not b24_user.owner_id:
+        return None, redirect(bitrix_auth.create_link(request, app, b24_user))
 
-            if not user_email:
-                user_email = f"bitrix-{portal.id}-{b24_user.user_id}@local"
-
-            from separator.users.tasks import get_site
-            
-            owner_user, created = User.objects.get_or_create(
-                email=user_email,
-                defaults={
-                    "name": f"{user_name} {user_last_name}".strip() or f"Bitrix user {b24_user.user_id}",
-                    "first_name": user_name,
-                    "last_name": user_last_name,
-                    "phone_number": user_phone,
-                    "site": get_site(request)
-                }
-            )
-        b24_user.owner = owner_user
-        b24_user.save()
+    owner_user = b24_user.owner
+    if not owner_user.is_active:
+        raise ValueError(_("This account is inactive."))
 
     if not portal.owner:
         portal.owner = owner_user
         portal.save()
 
-    return owner_user
+    return owner_user, None
 
 
 def autologin_owner(request, app, user, redirect_url=None):
     should_login = user and (not request.user.is_authenticated or request.user != user)
-    if should_login and app.autologin:
+    if should_login and app.autologin and user.is_active:
         if request.user.is_authenticated:
             logout(request)
         try:
@@ -228,6 +191,26 @@ def autologin_owner(request, app, user, redirect_url=None):
             if redirect_url:
                 return redirect(redirect_url)
     return None
+
+
+@never_cache
+@require_GET
+def bitrix_link(request, token):
+    try:
+        data = bitrix_auth.get_link(token, request)
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.path, reverse("account_login"))
+        if data.get("confirmed_user_id") != request.user.pk:
+            return redirect_to_login(request.path, reverse("account_reauthenticate"))
+        app, portal = bitrix_auth.complete_link(token, request.user)
+        return redirect(bitrix_auth.finish_link(request, token, request.user, app, portal))
+    except bitrix_auth.LinkError as exc:
+        messages.error(request, str(exc))
+        return render(request, "base.html", status=400)
+    except RedisError:
+        messages.error(request, _("Account linking is temporarily unavailable. Open the application again later."))
+        return render(request, "base.html", status=503)
+
 
 @csrf_exempt
 def process_placement(request):
@@ -263,11 +246,13 @@ def process_placement(request):
             return placements.templates(request, appinstance)
 
         try:
-            user = get_owner(request, app=app, portal=portal)
+            user, owner_redirect = get_owner(request, app=app, portal=portal)
         except Exception as e:
             messages.error(request, e)
             return redirect("/")
 
+        if owner_redirect:
+            return owner_redirect
         login_redirect = autologin_owner(request, app, user)
         if login_redirect:
             return login_redirect
@@ -301,12 +286,6 @@ def app_install(request):
 
     try:
         app = get_app(auth_id)
-    except Exception as e:
-        messages.error(request, e)
-        return redirect("/")
-
-    try:
-        user = get_owner(request)
     except Exception as e:
         messages.error(request, e)
         return redirect("/")
@@ -364,38 +343,31 @@ def app_settings(request):
             pass
 
         placement = data.get("PLACEMENT")
-        request.session['b24_data'] = request.POST.dict()
-        request.session['page_url'] = app.page_url
+        request.session['b24_data'] = {"member_id": member_id}
         # legacy support for old placement handler url
         if placement == "SETTING_CONNECTOR":
             return process_placement(request)
         
         elif placement == "DEFAULT":
-            installed_app = None
-            try:
-                installed_app = request.session.pop("installed_app")
-            except Exception:
-                pass
             app_url = app.page_url
             try:
-                user = get_owner(request)
+                user, owner_redirect = get_owner(request, app=app, portal=portal)
             except Exception as e:
                 messages.error(request, e)
                 return redirect("/")
-            
+
+            if owner_redirect:
+                return owner_redirect
+            if not portal:
+                portal = Bitrix.objects.filter(member_id=member_id).first()
             if user and portal:
                 link_ojects(portal, user)
 
+            installed_app = request.session.pop("installed_app", None)
             login_redirect = autologin_owner(request, app, user, redirect_url=app_url)
             if login_redirect:
                 return login_redirect
-            if installed_app and user and "separator.home" in settings.INSTALLED_APPS:
-                if user.phone_number and not user.integrator:
-                    from separator.home.tasks import prepare_lead
-
-                    prepare_lead.delay(user.id, f"App installed: {app.name}")
-                else:
-                    request.session["installed_app"] = installed_app
+            bitrix_auth.prepare_app_open(request, app, user, installed_app=installed_app)
             return render(request, "bitrix/cookie_test.html", {"app_url": app_url})
         else:
             return portals(request)

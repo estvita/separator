@@ -149,7 +149,7 @@ def call_method(appinstance: AppInstance,
                 elif error == "authorization_error":
                     b24_user.active = False
                     try:
-                        b24_user.save()
+                        b24_user.save(update_fields=["active"])
                     except Exception:
                         pass
                 

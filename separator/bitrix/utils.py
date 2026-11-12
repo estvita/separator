@@ -339,7 +339,7 @@ def get_b24_user(app: App, portal: Bitrix, auth_id, refresh_id=None):
     if not user_created:
         b24_user.admin = admin
         b24_user.active = True
-        b24_user.save()
+        b24_user.save(update_fields=["admin", "active"])
 
     app_instance = AppInstance.objects.filter(portal=portal, app=app).first()
     if app_instance:
@@ -1435,10 +1435,7 @@ def event_processor(self, data):
             )
 
             try:
-                b24_user = get_b24_user(app, portal, access_token, refresh_token)
-                if portal.owner and not b24_user.owner:
-                    b24_user.owner = portal.owner
-                    b24_user.save(update_fields=["owner"])
+                get_b24_user(app, portal, access_token, refresh_token)
             except Exception:
                 pass
 

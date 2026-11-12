@@ -236,7 +236,7 @@ class UserAdmin(admin.ModelAdmin):
     inlines = [CredentialUserInline]
     list_display = ("id", "portal_link", "user_id", "admin", "active", "owner")
     list_filter = ("admin", "active")
-    search_fields = ['user_id']
+    search_fields = ['user_id', 'owner__email']
 
     def portal_link(self, obj):
         if obj.bitrix:
