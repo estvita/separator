@@ -36,7 +36,7 @@
       </thead>
       <tbody>
         {% for session in sessions %}
-          <tr {% if session.expiring_soon %}style="background: #ffdddd;"{% endif %}>
+          <tr id="session-{{ session.pk }}" {% if session.expiring_soon %}style="background: #ffdddd;"{% endif %}>
             <!-- Phone -->
             <td>
               {% if session.show_link %}

@@ -158,7 +158,7 @@ def call_method(appinstance: AppInstance,
             elif response.status_code == 403:
                 try:
                     resp_data = _response_json(response, b24_method)
-                    if resp_data.get("error") == "ACCESS_DENIED":
+                    if resp_data.get("error") in ("ACCESS_DENIED", "PORTAL_BLOCKED_BY_LICENSE_SCANNER"):
                         if not portal.license_expired:
                             portal.license_expired = True
                             try:

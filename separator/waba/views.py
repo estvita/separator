@@ -228,18 +228,15 @@ def phone_details(request, phone_id):
     active_tab = request.POST.get("tab") or request.GET.get("tab") or "templates"
     if active_tab not in {"templates", "ctwa", "bitrix", "calls", "status"}:
         active_tab = "templates"
-    waba_lines = []
-    instances = []
-    if active_tab == "bitrix":
-        portals, instances, _lines = bitrix_utils.get_instances(request, "waba")
-        instances = list(instances)
-        waba_lines = list(
-            Line.objects.filter(portal__in=portals)
-            .select_related("portal", "connector")
-            .order_by("portal__domain", "name", "line_id")
-        )
-        for line in waba_lines:
-            line.status_label = waba_bitrix.line_status_label(line)
+    portals, instances, _lines = bitrix_utils.get_instances(request, "waba")
+    instances = list(instances)
+    waba_lines = list(
+        Line.objects.filter(portal__in=portals)
+        .select_related("portal", "connector")
+        .order_by("portal__domain", "name", "line_id")
+    )
+    for line in waba_lines:
+        line.status_label = waba_bitrix.line_status_label(line)
 
     def redirect_to_phone_tab(tab_name):
         return redirect(f"{reverse('phone-details', kwargs={'phone_id': phone.phone_id})}?tab={tab_name}")
@@ -304,7 +301,7 @@ def phone_details(request, phone_id):
         elif action == 'update_calling':
             call_dest = request.POST.get('call_dest')
             allowed_call_dest = {choice[0] for choice in Phone.CALL_DEST}
-            if SiteProfile.objects.filter(
+            if not request.user.is_superuser and SiteProfile.objects.filter(
                 site__domain__iexact=request.get_host().split(':')[0],
                 hide_pbx=True,
             ).exists():
