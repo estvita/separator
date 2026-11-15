@@ -180,7 +180,7 @@ def templates(request, appinstance):
         .first()
     )
     phone = Phone.objects.filter(line=line).order_by("id").first() if line else None
-    if not phone or not phone.waba_id or not phone.availableInB24:
+    if not phone or not phone.waba_id:
         return render(request, template_name, {"widget_error": _("The chat is not linked to an available WABA number.")})
 
     system_messages = {}

@@ -17,7 +17,7 @@ from django.contrib import messages
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 
-from celery import shared_task
+from celery import current_app, shared_task
 
 import separator.olx.tasks as olx_tasks
 import separator.waba.utils as waba
@@ -48,6 +48,17 @@ WABA_IMAGE_MIME_TYPES = {"image/jpeg", "image/png"}
 WABA_AUDIO_MIME_TYPES = {"audio/aac", "audio/amr", "audio/mpeg", "audio/mp4"}
 WABA_VIDEO_MIME_TYPES = {"video/3gpp", "video/mp4"}
 WABA_STREAM_UPLOAD_ATTEMPTS = 3
+
+IMBOT_V2_EVENTS = frozenset({
+    "ONIMBOTV2MESSAGEADD",
+    "ONIMBOTV2MESSAGEUPDATE",
+    "ONIMBOTV2MESSAGEDELETE",
+    "ONIMBOTV2REACTIONCHANGE",
+    "ONIMBOTV2COMMANDADD",
+    "ONIMBOTV2JOINCHAT",
+    "ONIMBOTV2CONTEXTGET",
+    "ONIMBOTV2DELETE",
+})
 
 
 def _normalize_phone_value(value):
@@ -1618,6 +1629,14 @@ def event_processor(self, data):
                 portal=appinstance.portal,
                 content=json.dumps(data, ensure_ascii=False, default=str),
             )
+
+        if event in IMBOT_V2_EVENTS:
+            current_app.send_task(
+                "imbot.process_event",
+                args=[dict(data.items())],
+                queue="imbot",
+            )
+            return
         
         if event == "ONIMCONNECTORMESSAGEADD":
             connector_code = data.get("data[CONNECTOR]")

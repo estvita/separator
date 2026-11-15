@@ -20,6 +20,18 @@ def bitrix_bool(value):
     return value == "Y"
 
 
+def _update_registered_bot(bot, fields):
+    response = call_method(
+        bot.app_instance,
+        "imbot.v2.Bot.update",
+        {"botId": bot.bot_id, "fields": fields},
+    )
+    result = response.get("result") if isinstance(response, dict) else None
+    updated_bot = result.get("bot") if isinstance(result, dict) else None
+    if not isinstance(updated_bot, dict) or str(updated_bot.get("id")) != str(bot.bot_id):
+        raise ValueError("Bitrix24 did not confirm the bot update")
+
+
 class BotListView(LoginRequiredMixin, ListView):
     model = ChatBot
     template_name = "bitbot/list.html"
@@ -74,10 +86,27 @@ class ConnectorEditView(LoginRequiredMixin, View):
     def post(self, request, pk=None):
         connector = self._get_connector(pk)
         if "save_connector" in request.POST:
+            previous_url = (connector.url or "").strip() if connector else ""
             form = ConnectorForm(request.POST, instance=connector)
             if form.is_valid():
                 obj = form.save(commit=False)
                 obj.owner = request.user
+                webhook_url = (obj.url or "").strip()
+                if connector and webhook_url != previous_url:
+                    failed_bots = []
+                    for bot in obj.chatbots.filter(bot_id__gt=0).select_related("app_instance"):
+                        try:
+                            _update_registered_bot(bot, {
+                                "eventMode": "webhook",
+                                "webhookUrl": webhook_url,
+                            })
+                        except Exception:
+                            failed_bots.append(str(bot.id))
+                    if failed_bots:
+                        form.add_error("url", _("Failed to update bots in Bitrix24: %(ids)s") % {
+                            "ids": ", ".join(failed_bots),
+                        })
+                        return render(request, self.template_name, {"object": connector, "form": form})
                 obj.save()
                 messages.success(request, _("Connector saved."))
                 return redirect("connector_list")
@@ -127,12 +156,24 @@ class BotEditView(LoginRequiredMixin, View):
                 bot = form.save(commit=False)
                 if not bot.owner:
                     bot.owner = request.user
-                bot.save()
-                if bot.bot_id == 0:
-                    webhook_url = (bot.connector.url or "").strip()
-                    if not webhook_url:
-                        messages.error(request, _("Connector URL is required for bot events."))
-                        return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
+                webhook_url = (bot.connector.url or "").strip()
+                if not webhook_url:
+                    messages.error(request, _("Connector URL is required for bot events."))
+                    return self.get(request, pk=bot.pk)
+                if bot.bot_id:
+                    try:
+                        _update_registered_bot(bot, {
+                            "eventMode": "webhook",
+                            "webhookUrl": webhook_url,
+                            "isSupportOpenline": bot.bot_type == "openline",
+                            "properties": {"name": bot.name},
+                        })
+                    except Exception:
+                        messages.error(request, _("Failed to update bot in Bitrix24."))
+                        return self.get(request, pk=bot.pk)
+                    bot.save()
+                else:
+                    bot.save()
                     payload = {
                         "fields": {
                             "code": f"bitbot_{bot.id}",

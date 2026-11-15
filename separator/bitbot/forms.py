@@ -17,6 +17,8 @@ class ConnectorForm(forms.ModelForm):
 
         if provider and provider.type == "custom" and not url:
             self.add_error("url", _("Webhook URL is required for Custom API provider."))
+        elif self.instance.pk and self.instance.chatbots.filter(bot_id__gt=0).exists() and not url:
+            self.add_error("url", _("Webhook URL is required for registered bots."))
 
         return cleaned_data
 
@@ -55,6 +57,9 @@ class ChatBotForm(forms.ModelForm):
         ).distinct()
         
         self.fields['connector'].queryset = Connector.objects.filter(owner=user)
+        if self.instance.pk and self.instance.bot_id:
+            self.fields['bot_type'].disabled = True
+            self.fields['app_instance'].disabled = True
 
 class CommandCreateForm(forms.ModelForm):
     class Meta:
