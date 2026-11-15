@@ -29,12 +29,14 @@
 {% endif %}
 {{ templates_data|json_script:"chat-templates-data" }}
 {{ interactives_data|json_script:"chat-interactives-data" }}
+{{ system_messages_data|json_script:"chat-system-messages-data" }}
 
 <div class="row">
     <label for="messageType">{% trans "Message type" %}</label>
     <select id="messageType">
         <option value="template">{% trans "Template" %}</option>
         <option value="interactive">{% trans "Interactive message" %}</option>
+        {% if system_messages_data %}<option value="system">{% trans "System message" %}</option>{% endif %}
     </select>
 </div>
 <div class="row" id="templateRow">
@@ -44,6 +46,10 @@
 <div class="row" id="interactiveRow" hidden>
     <label for="interactiveSelect">{% trans "Interactive message" %}</label>
     <select id="interactiveSelect"></select>
+</div>
+<div class="row" id="systemRow" hidden>
+    <label for="systemSelect">{% trans "System message" %}</label>
+    <select id="systemSelect"></select>
 </div>
 <div id="parameters"></div>
 <div id="warning" hidden>{% trans "Some parameters of this template are not available when sending from the chat." %}</div>
@@ -81,9 +87,11 @@
     const dialogId = "{{ dialog_id|escapejs }}";
     const templates = JSON.parse(document.getElementById('chat-templates-data').textContent);
     const interactives = JSON.parse(document.getElementById('chat-interactives-data').textContent);
+    const systemMessages = JSON.parse(document.getElementById('chat-system-messages-data').textContent);
     const typeNode = document.getElementById('messageType');
     const templateNode = document.getElementById('templateSelect');
     const interactiveNode = document.getElementById('interactiveSelect');
+    const systemNode = document.getElementById('systemSelect');
     const fieldsNode = document.getElementById('parameters');
     const warningNode = document.getElementById('warning');
     const statusNode = document.getElementById('status');
@@ -110,6 +118,9 @@
     function selectedItem() {
         if (typeNode.value === 'interactive') {
             return interactives.find(function (item) { return item.id === interactiveNode.value; });
+        }
+        if (typeNode.value === 'system') {
+            return systemMessages.find(function (item) { return item.id === systemNode.value; });
         }
         return templates.find(function (item) { return item.id === templateNode.value; });
     }
@@ -185,7 +196,9 @@
     function renderFields() {
         fieldsNode.replaceChildren();
         const item = selectedItem();
-        const config = item ? (typeNode.value === 'template' ? templateFields(item) : interactiveFields(item)) : { fields: [], unsupported: false };
+        const config = item && typeNode.value === 'template' ? templateFields(item)
+            : item && typeNode.value === 'interactive' ? interactiveFields(item)
+            : { fields: [], unsupported: false };
         config.fields.forEach(function (field) {
             const row = document.createElement('div');
             row.className = 'row';
@@ -260,7 +273,9 @@
         if (!ready || !item || sending) {
             return;
         }
-        const message = typeNode.value === 'template' ? templateCode(item) : interactiveCode(item);
+        const message = typeNode.value === 'template' ? templateCode(item)
+            : typeNode.value === 'interactive' ? interactiveCode(item)
+            : item.id;
         sending = true;
         sendButton.disabled = true;
         setStatus(translations.addingMessage);
@@ -282,15 +297,17 @@
 
     fillSelect(templateNode, templates, 'widget_label', translations.noTemplates);
     fillSelect(interactiveNode, interactives, 'label', translations.noInteractives);
+    fillSelect(systemNode, systemMessages, 'label', '');
     typeNode.addEventListener('change', function () {
-        const isInteractive = typeNode.value === 'interactive';
-        document.getElementById('templateRow').hidden = isInteractive;
-        document.getElementById('interactiveRow').hidden = !isInteractive;
+        document.getElementById('templateRow').hidden = typeNode.value !== 'template';
+        document.getElementById('interactiveRow').hidden = typeNode.value !== 'interactive';
+        document.getElementById('systemRow').hidden = typeNode.value !== 'system';
         setStatus('');
         renderFields();
     });
     templateNode.addEventListener('change', renderFields);
     interactiveNode.addEventListener('change', renderFields);
+    systemNode.addEventListener('change', renderFields);
     sendButton.addEventListener('click', sendMessage);
     renderFields();
     if (!window.BX24 || typeof BX24.init !== 'function') {

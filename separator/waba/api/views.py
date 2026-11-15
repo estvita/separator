@@ -113,19 +113,22 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
         if settings.WABA_EVENTS_SEPARATOR:
             try:
                 data = json.loads(raw_body)
-                entry = data.get("entry", [{}])[0]
-                changes = entry.get("changes", [{}])
-                if changes:
-                    change = changes[0]
-                    field = change.get("field")
-                    value = change.get("value", {})
-                    standby = value.get("standby") or {}
-                    if (
-                        (field == "messages" and value.get("messages"))
-                        or field == "smb_message_echoes"
-                        or (field == "standby" and (standby.get("messages") or standby.get("message_echoes")))
-                    ):
-                        task = messages_processing
+                for entry in data.get("entry") or []:
+                    for change in entry.get("changes") or []:
+                        field = change.get("field")
+                        value = change.get("value") or {}
+                        standby = value.get("standby") or {}
+                        if (
+                            (field == "messages" and value.get("messages"))
+                            or field == "smb_message_echoes"
+                            or field == "messaging_handovers"
+                            or field == "user_preferences"
+                            or (field == "standby" and (standby.get("messages") or standby.get("message_echoes")))
+                        ):
+                            task = messages_processing
+                            break
+                    if task == messages_processing:
+                        break
             except Exception:
                 pass
 

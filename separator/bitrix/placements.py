@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from separator.waba.models import Interactive, Phone, Template
+from separator.users.models import Message
 import separator.waba.bitrix as waba_bitrix
 from separator.olx.models import OlxUser
 from separator.waweb.models import Session
@@ -182,10 +183,28 @@ def templates(request, appinstance):
     if not phone or not phone.waba_id or not phone.availableInB24:
         return render(request, template_name, {"widget_error": _("The chat is not linked to an available WABA number.")})
 
+    system_messages = {}
+    if appinstance.app and appinstance.app.site_id:
+        for code, message in (
+            Message.objects.filter(
+                sites__id=appinstance.app.site_id,
+                code__startswith="system_#wa_",
+            )
+            .order_by("id")
+            .values_list("code", "message")
+        ):
+            command = code.removeprefix("system_")
+            if message and re.fullmatch(r"#wa_[a-zA-Z0-9_]+", command):
+                system_messages.setdefault(command, message)
+
     widget = WabaPlacementModule(appinstance=appinstance)
     return render(request, template_name, {
         "dialog_id": dialog_id,
         "portal_app_url": widget._portal_app_url(appinstance, request.POST.get("AUTH_ID"), portal_only=True),
+        "system_messages_data": [
+            {"id": command, "label": message}
+            for command, message in system_messages.items()
+        ],
         "templates_data": waba_utils.serialize_templates_for_frontend(
             widget._templates_for_sender(phone), stringify_ids=True
         ),

@@ -23,6 +23,7 @@ import separator.olx.tasks as olx_tasks
 import separator.waba.utils as waba
 import separator.waba.tasks as waba_tasks
 from separator.waba.models import Ctwa, Phone
+from separator.users.models import Message
 
 from separator.waweb.models import Session
 import separator.waweb.tasks as waweb_tasks
@@ -54,6 +55,16 @@ def _normalize_phone_value(value):
         return []
     digits = re.sub(r"\D", "", str(value))
     return [f"+{digits}", digits] if digits else []
+
+
+def _is_waba_bsuid(value):
+    return isinstance(value, str) and re.fullmatch(r"[A-Z]{2}\.(?:ENT\.)?\d+", value) is not None
+
+
+def _waba_recipient_fields(value):
+    if _is_waba_bsuid(value):
+        return {"recipient_type": "individual", "recipient": value}
+    return {"to": value}
 
 
 def _parse_file_size(value):
@@ -1166,6 +1177,105 @@ def parse_block_command(command: str, phone, chat, appinstance_id=None, chat_id=
     return result
 
 
+def _format_wa_command_error(result):
+    error_data = waba.extract_error_data(result)
+    if error_data:
+        try:
+            error_obj = waba.save_error_data(error_data)
+        except Exception:
+            error_obj = None
+        if error_obj and not error_obj.original:
+            custom_text = "\n".join(str(part) for part in (error_obj.message, error_obj.details) if part)
+            if custom_text:
+                return custom_text
+        details = error_data.get("error_data") or {}
+        details = details.get("details") if isinstance(details, dict) else ""
+        provider_text = "\n".join(
+            str(part) for part in (error_data.get("message") or error_data.get("title"), details) if part
+        )
+        if provider_text:
+            return provider_text
+    if isinstance(result, dict):
+        if isinstance(result.get("error"), str) and result["error"]:
+            return result["error"]
+        if result.get("message"):
+            return str(result["message"])
+    return "WABA command failed."
+
+
+def _wa_command_exception_text(error):
+    detail = error.args[0] if error.args else None
+    if isinstance(detail, dict):
+        return _format_wa_command_error(detail)
+    parsed_error = waba.extract_error_data({"message": str(error)})
+    if parsed_error:
+        return _format_wa_command_error({"error": parsed_error})
+    return str(error)
+
+
+def parse_ai_command(phone, chat, appinstance_id=None, chat_id=None, site_id=None) -> dict:
+    if not phone or not phone.waba or not phone.phone_id:
+        raise ValueError("WABA phone not found")
+    chat = str(chat or "").strip()
+    if not chat:
+        raise ValueError("WhatsApp recipient not found")
+
+    if _is_waba_bsuid(chat):
+        recipient = {"recipient": chat}
+    elif re.fullmatch(r"\+?[1-9]\d{6,14}", chat):
+        recipient = {"to": chat}
+    else:
+        raise ValueError("Unsupported WhatsApp recipient")
+    _, access_token = waba.get_api_credentials(waba=phone.waba)
+    response = requests.post(
+        f"https://api.facebook.com/business/whatsapp/phone_numbers/{phone.phone_id}/thread_control",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={
+            "messaging_product": "whatsapp",
+            "action": "pass",
+            "control_pass": {"target_role": "ai_agent"},
+            **recipient,
+        },
+        timeout=(10, 60),
+    )
+    try:
+        result = response.json()
+    except ValueError:
+        result = {}
+    if response.status_code != 200:
+        error_result = result or {"error": {"message": f"Meta Thread Control returned HTTP {response.status_code}"}}
+        raise ValueError(_format_wa_command_error(error_result))
+
+    if appinstance_id and chat_id:
+        message = (
+            Message.objects.filter(code="waba_ai_passed", sites__id=site_id)
+            .values_list("message", flat=True)
+            .first()
+            if site_id else None
+        )
+        bitrix_tasks.call_api.delay(appinstance_id, "im.message.add", {
+            "DIALOG_ID": f"chat{chat_id}",
+            "MESSAGE": message or "Conversation handed back to Meta Business Agent.",
+            "SYSTEM": "Y",
+        })
+    return result
+
+
+def dispatch_wa_command(command, phone, chat, appinstance_id=None, chat_id=None, site_id=None):
+    if command == "#wa_ai":
+        return parse_ai_command(phone, chat, appinstance_id, chat_id, site_id)
+    if command in ("#wa_block", "#wa_unblock"):
+        return parse_block_command(command, phone, chat, appinstance_id, chat_id)
+    raise ValueError(f"Unsupported WABA command: {command}")
+
+
+def _extract_wa_command(body):
+    body = str(body or "").replace("[br]", "\n")
+    body = re.sub(r"\[/?[a-zA-Z*][a-zA-Z0-9*]*\]|\[[a-zA-Z0-9\s]+=[^\]]+\]", "", body).strip()
+    match = re.fullmatch(r"(?:[^:\r\n]{1,100}:\s*)?(#wa_[a-zA-Z0-9_]+)", body, re.I)
+    return match.group(1).lower() if match else ""
+
+
 def send_delivery_status(appinstance_id, connector_code, line_id, chat_id, message_id):
     status_data = {
         "CONNECTOR": connector_code,
@@ -1272,7 +1382,7 @@ def sms_processor(self, data, service):
                 "bitrix_user_id": manager_id,
                 "sms_message_id": message_id
             },
-            "to": target,
+            **_waba_recipient_fields(target),
         }
         if "template+" in body:
             template_start = body.index("template+")
@@ -1345,12 +1455,12 @@ def sms_processor(self, data, service):
             wa = Session.objects.get(phone=sender)
             line = wa.line
 
-        command = str(message_body or "").strip().lower()
-        if service == "waba" and line and command in ["#wa_block", "#wa_unblock"]:
+        command = _extract_wa_command(message_body)
+        if service == "waba" and command:
             try:
-                send_result = parse_block_command(command, phone, message_to)
+                send_result = dispatch_wa_command(command, phone, message_to)
             except Exception as e:
-                return {"error": True, "message": str(e)}
+                return {"error": True, "message": _wa_command_exception_text(e)}
             return send_result
 
         if service == "waba":
@@ -1521,7 +1631,7 @@ def event_processor(self, data):
             
             file_type = data.get("data[MESSAGES][0][message][files][0][type]", None)
             text = data.get("data[MESSAGES][0][message][text]", "")
-            command_text = ""
+            command_text = _extract_wa_command(text)
             
             quoted_msg_id = None
             if text:
@@ -1540,10 +1650,6 @@ def event_processor(self, data):
 
                 text = text.replace("[br]", "\n")
                 text = re.sub(r"\[/?[a-zA-Z*][a-zA-Z0-9*]*\]|\[[a-zA-Z0-9\s]+=[^\]]+\]", "", text)
-                command_lines = [line.strip() for line in text.splitlines() if line.strip()]
-                if command_lines:
-                    command_text = command_lines[-1].lower()
-
             files = []
             if file_type:
                 files = extract_files(data)
@@ -1564,11 +1670,23 @@ def event_processor(self, data):
                     send_waba_error_to_openline(appinstance.id, chat, error_result, connector.code, line_id)
                     return error_result["message"]
 
-                if not files and command_text in ["#wa_block", "#wa_unblock"]:
+                if not files and command_text:
                     try:
-                        send_result = parse_block_command(command_text, phone, chat, appinstance.id, chat_id)
+                        if phone.line.connector_id != connector.id:
+                            raise ValueError("WABA connector does not match the Bitrix line")
+                        send_result = dispatch_wa_command(
+                            command_text, phone, chat, appinstance.id, chat_id,
+                            appinstance.app.site_id if appinstance.app else None,
+                        )
                     except Exception as e:
-                        return {"error": True, "message": str(e)}
+                        error_text = _wa_command_exception_text(e)
+                        if chat_id:
+                            bitrix_tasks.call_api.delay(appinstance.id, "im.message.add", {
+                                "DIALOG_ID": f"chat{chat_id}",
+                                "MESSAGE": f"[color=#ff0000]{error_text}[/color]",
+                                "SYSTEM": "Y",
+                            })
+                        return {"error": True, "message": error_text}
                     if "error" not in (send_result or {}):
                         send_delivery_status(appinstance.id, connector_code, line_id, chat_id, message_id)
                     return send_result
@@ -1576,7 +1694,7 @@ def event_processor(self, data):
                 message = {
                     "messaging_product": "whatsapp",
                     "biz_opaque_callback_data": {"bitrix_user_id": user_id},
-                    "to": chat,
+                    **_waba_recipient_fields(chat),
                 }
                 
                 if quoted_msg_id:

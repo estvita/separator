@@ -910,17 +910,6 @@ def error_message(data):
 
 
 
-def extract_waba_id(data):
-    entry = data.get("entry", [{}])[0]
-    waba_id = entry.get("id")
-    changes = entry.get("changes", [{}])
-    if changes:
-        value = changes[0].get("value", {})
-        if "waba_info" in value:
-            waba_id = value["waba_info"].get("waba_id", waba_id)
-    return waba_id
-
-
 def _normalize_type(value):
     if not value:
         return None
@@ -1481,22 +1470,41 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         logger.error("Failed to decode JSON from raw_body")
         raise Exception("Invalid JSON")
 
-    waba_id = extract_waba_id(data)
-    waba = Waba.objects.filter(waba_id=waba_id).first()
-    try:
-        if waba:
-            if waba.app and waba.app.events:
-                Event.objects.create(waba=waba, content=json.dumps(data, ensure_ascii=False))
-        else:
-            if settings.SAVE_UNBOUND_WABA_EVENTS:
-                Event.objects.create(content=json.dumps(data, ensure_ascii=False))
-    except Exception as e:
-        pass
+    send_result = None
+    first_error = None
+    for entry in data.get("entry") or []:
+        for index, change in enumerate(entry.get("changes") or []):
+            try:
+                result = _process_waba_change(
+                    data, entry, change, app_id, host, log_event=index == 0
+                )
+                if result is not None:
+                    send_result = result
+            except Exception as error:
+                logger.exception("Failed to process WABA webhook change: field=%s", change.get("field"))
+                if first_error is None:
+                    first_error = error
+    if first_error is not None:
+        raise first_error
+    return send_result
 
-    entry = data["entry"][0]
-    changes = entry["changes"][0]
-    field = changes.get('field')
-    value = changes.get('value', {})
+
+def _process_waba_change(data, entry, change, app_id, host, log_event=False):
+    value = change.get("value") or {}
+    single_entry = {**entry, "changes": [change]}
+    waba_id = (value.get("waba_info") or {}).get("waba_id") or entry.get("id")
+    waba = Waba.objects.filter(waba_id=waba_id).first()
+    if log_event:
+        try:
+            if waba:
+                if waba.app and waba.app.events:
+                    Event.objects.create(waba=waba, content=json.dumps(data, ensure_ascii=False))
+            elif settings.SAVE_UNBOUND_WABA_EVENTS:
+                Event.objects.create(content=json.dumps(data, ensure_ascii=False))
+        except Exception:
+            pass
+
+    field = change.get('field')
     is_standby = field == 'standby'
     if is_standby:
         standby = value.get('standby') or {}
@@ -1599,13 +1607,13 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             raise Exception(data)
 
     if field == 'message_template_status_update':
-        return message_template_status_update(entry)
+        return message_template_status_update(single_entry)
 
     if field == 'message_template_components_update':
-        return message_template_components_update(entry)
+        return message_template_components_update(single_entry)
 
     if field == 'template_category_update':
-        return template_category_update(entry)
+        return template_category_update(single_entry)
 
     broadcast_recipient_wamids = set()
     if field == 'messages':
@@ -1632,7 +1640,9 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             except Exception:
                 pass
     
-    metadata = value.get("metadata", {})
+    metadata = value.get("metadata") or (
+        value.get("recipient", {}) if field == "messaging_handovers" else {}
+    )
     if metadata:    
         phone_number = metadata.get('display_phone_number')
         phone_number_id = metadata.get('phone_number_id')
@@ -1669,7 +1679,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     # ctwa bot
     bot = Bot.objects.filter(phone=phone).first()
     if bot and field == 'messages' and not is_standby:
-        bot_processor.delay(data, bot.id)
+        bot_processor.delay({"object": data.get("object"), "entry": [single_entry]}, bot.id)
 
     elif field == 'phone_number_name_update':
         display_phone_number = value.get('display_phone_number')
@@ -1708,6 +1718,98 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 pass
         else:
             raise
+
+    elif field == "user_preferences":
+        if not appinstance or not phone.line_id or not phone.line.connector_id:
+            return "WABA phone is not connected to Bitrix line"
+
+        for index, preference in enumerate(value.get("user_preferences") or []):
+            user_identy = preference.get("wa_id") or preference.get("user_id")
+            if not user_identy:
+                logger.warning(
+                    "Cannot route user preference without user ID: waba=%s, phone=%s",
+                    waba_id, phone.phone_id,
+                )
+                continue
+
+            if phone.date_end and timezone.now() > phone.date_end:
+                bitrix_utils.send_waba_error_to_openline(
+                    appinstance.id,
+                    user_identy,
+                    {"error": True, "message": "tariff expired"},
+                    phone.line.connector.code,
+                    phone.line.line_id,
+                    phone=phone,
+                )
+                send_result = "subscription ended"
+                continue
+
+            category = preference.get("category") or "preference"
+            action = preference.get("value") or "changed"
+            detail = preference.get("detail") or f"{category}: {action}"
+            send_result = send_bitrix_message_from_waba(
+                appinstance.id,
+                user_identy,
+                f"WhatsApp: {detail}",
+                phone.line.connector.code,
+                phone.line.line_id,
+                message_id=f"user_preferences:{phone.phone_id}:{user_identy}:{preference.get('timestamp')}:{category}:{action}:{index}",
+                manager_id=0,
+            )
+        return send_result
+
+    elif field == "messaging_handovers":
+        if not appinstance or not phone.line_id or not phone.line.connector_id:
+            return "WABA phone is not connected to Bitrix line"
+
+        sender = value.get("sender") or {}
+        user_identy = sender.get("phone_number")
+        if not user_identy:
+            logger.warning(
+                "Cannot route messaging_handovers without sender phone_number: waba=%s, phone=%s, type=%s",
+                waba_id, phone.phone_id, value.get("type"),
+            )
+            return None
+
+        if phone.date_end and timezone.now() > phone.date_end:
+            bitrix_utils.send_waba_error_to_openline(
+                appinstance.id,
+                user_identy,
+                {"error": True, "message": "tariff expired"},
+                phone.line.connector.code,
+                phone.line.line_id,
+                phone=phone,
+            )
+            return "subscription ended"
+
+        handover_type = value.get("type")
+        handover = value.get(handover_type) or {}
+
+        previous_role = handover.get("previous_owner_role")
+        new_role = handover.get("new_owner_role")
+        transition = " → ".join(role for role in (previous_role, new_role) if role)
+        lines = [f"[b]{handover_type}[/b]"]
+        if transition:
+            lines.append(transition)
+
+        metadata_text = handover.get("metadata")
+        if metadata_text:
+            lines.append(str(metadata_text))
+
+        conversation_context = handover.get("conversation_context") or {}
+        summary_text = (conversation_context.get("summary") or {}).get("text")
+        if summary_text:
+            lines.append(str(summary_text))
+
+        return send_bitrix_message_from_waba(
+            appinstance.id,
+            user_identy,
+            "[br]".join(lines),
+            phone.line.connector.code,
+            phone.line.line_id,
+            message_id=f"handover:{phone.phone_id}:{user_identy}:{value.get('timestamp')}:{handover_type}",
+            manager_id=0,
+        )
     
     elif field == 'messages':
         if not appinstance or not phone.line_id or not phone.line.connector_id:
@@ -1730,25 +1832,55 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             return "subscription ended"
 
         messages = value.get("messages", [])
-        filename = None
-        file_url = None
-        text = None
-        attach = None
-        user_name = None
-        source_url = None
-        ctwa_id = None
-        source_id = None
-        referral_body = None
-        user_identy = None
+        contacts = value.get("contacts") or []
+        conversation_context = value.get("conversation_context") or {}
+        summary_text = (conversation_context.get("summary") or {}).get("text")
+        if summary_text and messages:
+            first_message = messages[0]
+            first_contact = contacts[0] if contacts else {}
+            summary_recipient = (
+                first_contact.get("wa_id") or first_contact.get("user_id")
+                or first_message.get("from") or first_message.get("from_user_id")
+            )
+            if summary_recipient:
+                send_result = send_bitrix_message_from_waba(
+                    appinstance.id,
+                    summary_recipient,
+                    str(summary_text),
+                    phone.line.connector.code,
+                    phone.line.line_id,
+                    message_id=f"{first_message['id']}:context",
+                    manager_id=0,
+                )
         for message in messages:
+            if phone.skip_errors and (message.get("errors") or message.get("type") == "unsupported"):
+                continue
+            filename = None
+            file_url = None
+            text = None
             attach = None
-            contacts = value.get("contacts", [])
-            if contacts:
-                wa_id = contacts[0].get("wa_id")
+            caption = None
+            user_name = None
+            source_url = None
+            ctwa_id = None
+            source_id = None
+            referral_body = None
+            message_manager_id = None
+            sender_id = message.get("from") or message.get("from_user_id")
+            contact = next(
+                (
+                    item for item in contacts
+                    if sender_id in (item.get("wa_id"), item.get("user_id"))
+                ),
+                contacts[0] if len(contacts) == 1 else {},
+            )
+            user_identy = sender_id
+            if contact:
+                wa_id = contact.get("wa_id")
                 if wa_id and not str(wa_id).startswith("+"):
                     wa_id = f"+{wa_id}"
-                user_identy = wa_id or contacts[0].get("user_id")
-                user_name = contacts[0].get("profile", {}).get("name")
+                user_identy = wa_id or contact.get("user_id") or sender_id
+                user_name = contact.get("profile", {}).get("name")
                 if user_name:
                     user_name = re.sub(r'[^\w\s\-\']', '', user_name).strip()
             referral = message.get("referral")
@@ -1787,7 +1919,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 text = message["button"]["text"]
 
             elif message_type in ["image", "video", "audio", "document", "sticker"]:
-                media_data = value["messages"][0][message_type]
+                media_data = message[message_type]
                 media_id = media_data["id"]
                 media_url = media_data.get("url")
                 original_filename = media_data.get("filename")
@@ -1869,7 +2001,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             elif message_type == "interactive":
                 if message.get("errors"):
                     error_text = error_message(message)
-                    text = None if phone.skip_errors else f"[color=#ff0000]{error_text}[/color]"
+                    text = f"[color=#ff0000]{error_text}[/color]"
                 else:
                     interactive = message.get("interactive", {})
                     interactive_type = interactive.get("type")
@@ -1881,15 +2013,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                         if expiration:
                             dt = datetime.fromtimestamp(expiration)
                             expiration = dt.strftime('%Y-%m-%d %H:%M:%S')
-                        msg = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
-                        return send_bitrix_message_from_waba(
-                            appinstance.id,
-                            user_identy,
-                            msg,
-                            phone.line.connector.code,
-                            phone.line.line_id,
-                            manager_id=0,
-                        )
+                        text = f"WhatsApp Call for {user_identy} permission changed: {responce} {expiration}"
+                        message_manager_id = 0
                     elif interactive_type == "nfm_reply":
                         text = _format_nfm_reply(interactive)
                         attach = _build_nfm_reply_attachment(appinstance, interactive, message_timestamp)
@@ -1917,7 +2042,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             lines.append(f"ID: {reply_id}")
                         text = "\n".join(lines) if lines else None
                     else:
-                        raise Exception(f"Unsupported interactive_type: {interactive_type}")
+                        text = f"WhatsApp interactive: {json.dumps(interactive, ensure_ascii=False)}"
 
             elif message_type == "edit":
                 edit_data = message.get("edit", {})
@@ -1937,18 +2062,29 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     caption = f"📝: {caption.strip()}" if caption.strip() else "📝"
                     file_url = get_file(media_url, filename, appinstance, phone.waba, media_id=media_id, phone=phone)
                 else:
-                    raise Exception(f"Unsupported edit.message type: {edited_type}")
+                    text = f"WhatsApp edit: {json.dumps(edit_data, ensure_ascii=False)}"
 
             elif message_type == "reaction":
                  reaction = message.get("reaction")
-                 text = reaction.get("emoji")
+                 text = (reaction or {}).get("emoji") or "WhatsApp reaction removed"
 
             elif message_type == "unsupported":
                 error_text = error_message(message)
-                text = None if phone.skip_errors else f"[color=#ff0000]{error_text}[/color]"
+                text = f"[color=#ff0000]{error_text}[/color]"
+
+            elif message_type == "revoke":
+                original_id = (message.get("revoke") or {}).get("original_message_id")
+                text = f"WhatsApp message revoked: {original_id or message['id']}"
 
             else:
-                raise Exception(f"Unsupported message type")
+                text = f"WhatsApp {message_type}: {json.dumps(message.get(message_type) or message, ensure_ascii=False)}"
+
+            if message_type in ["image", "video", "audio", "document", "sticker"] and not file_url:
+                text = caption or f"WhatsApp {message_type}: {filename}"
+            elif message_type == "edit" and filename and not file_url:
+                text = caption or f"WhatsApp edit: {filename}"
+            if not text and not file_url and not attach:
+                text = f"WhatsApp {message_type}: {json.dumps(message, ensure_ascii=False)}"
 
             if file_url and user_identy:
                 attach = [
@@ -2001,6 +2137,34 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             )
                     except Exception as e:
                         logger.warning(f"Failed to queue voice transcription for message {message_id}: {e}")
+
+            elif text and user_identy:
+                if not ctwa_enabled:
+                    ctwa_id = None
+                    source_id = None
+                send_result = send_bitrix_message_from_waba(
+                    appinstance.id,
+                    user_identy,
+                    text,
+                    phone.line.connector.code,
+                    phone.line.line_id,
+                    pushName=user_name,
+                    message_id=message_id,
+                    attachments=attach,
+                    chat_url=source_url,
+                    ctwa_id=ctwa_id,
+                    source_id=source_id,
+                    referral_body=referral_body,
+                    manager_id=message_manager_id,
+                )
+                if message_type not in ["unsupported", "system"] and not message.get("errors"):
+                    if not is_standby:
+                        _queue_waba_read_status(waba, phone, message_id)
+            elif not user_identy:
+                logger.warning(
+                    "Cannot route message without sender: waba=%s, phone=%s, message=%s",
+                    waba_id, phone.phone_id, message_id,
+                )
 
         statuses = value.get("statuses", [])
         if statuses:
@@ -2102,40 +2266,21 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     except Exception:
                         pass
 
-        if text and user_identy:
-            if not ctwa_enabled:
-                ctwa_id = None
-                source_id = None
-            send_result = send_bitrix_message_from_waba(
-                appinstance.id,
-                user_identy,
-                text,
-                phone.line.connector.code,
-                phone.line.line_id,
-                pushName=user_name,
-                message_id=message_id,
-                attachments=attach,
-                chat_url=source_url,
-                ctwa_id=ctwa_id,
-                source_id=source_id,
-                referral_body=referral_body,
-            )
-            if message_type not in ["unsupported", "system"] and not message.get("errors"):
-                if not is_standby:
-                    _queue_waba_read_status(waba, phone, message_id)
-
     elif field == 'smb_message_echoes':
         if not appinstance or not phone.line_id or not phone.line.connector_id:
             return "WABA phone is not connected to Bitrix line"
 
-        text = None
-        attach= None
-        message_echoes = value.get("message_echoes", {})
+        message_echoes = value.get("message_echoes") or []
         for message in message_echoes:
-            if is_standby:
-                text = None
-                attach = None
-            user_identy = message.get("to") or message.get("recipient")
+            if phone.skip_errors and (message.get("errors") or message.get("type") == "unsupported"):
+                continue
+            text = None
+            attach = None
+            user_identy = message.get("to") or message.get("to_user_id") or message.get("recipient")
+            if not user_identy:
+                contacts = value.get("contacts") or []
+                contact = contacts[0] if len(contacts) == 1 else {}
+                user_identy = contact.get("wa_id") or contact.get("user_id")
             message_type = message.get("type")
             if message_type == "text":
                 text = message.get("text", {}).get("body")
@@ -2184,10 +2329,12 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                             "name": filename,
                         }
                     ]
+                else:
+                    text = text or f"WhatsApp {message_type}: {filename}"
             
             elif message_type == "reaction":
                  reaction = message.get("reaction")
-                 text = reaction.get("emoji")
+                 text = (reaction or {}).get("emoji") or "WhatsApp reaction removed"
 
             elif message_type == "edit":
                 edit_data = message.get("edit", {})
@@ -2197,16 +2344,23 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     edited_text = (edited_message.get("text") or {}).get("body")
                     text = f"📝: {edited_text}" if edited_text else "Edited:"
                 else:
-                    raise Exception(f"Unsupported edit.message type: {edited_type}")
+                    text = f"WhatsApp edit: {json.dumps(edit_data, ensure_ascii=False)}"
+
+            elif message_type == "revoke":
+                original_id = (message.get("revoke") or {}).get("original_message_id")
+                text = f"WhatsApp message revoked: {original_id or message.get('id')}"
 
             elif message_type == "unsupported":
                 error_text = error_message(message)
-                text = None if phone.skip_errors else f"[color=#ff0000]{error_text}[/color]"
+                text = f"[color=#ff0000]{error_text}[/color]"
 
             else:
-                raise Exception(f"Unsupported smb_message_echoes message_type: {message_type}")
+                text = f"WhatsApp {message_type}: {json.dumps(message.get(message_type) or message, ensure_ascii=False)}"
 
-            if text or attach:
+            if not text and not attach:
+                text = f"WhatsApp {message_type}: {json.dumps(message, ensure_ascii=False)}"
+
+            if (text or attach) and user_identy:
                 if is_standby and text:
                     callback_data = message.get("biz_opaque_callback_data")
                     try:
@@ -2225,11 +2379,14 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     phone.line.connector.code,
                     phone.line.line_id,
                     attachments=attach,
-                    message_id=message.get("id") if is_standby else None,
+                    message_id=message.get("id"),
                     manager_id=0,
                 )
-                if not is_standby:
-                    return send_result
+            elif not user_identy:
+                logger.warning(
+                    "Cannot route message echo without recipient: waba=%s, phone=%s, message=%s",
+                    waba_id, phone.phone_id, message.get("id"),
+                )
     else:
         raise Exception(f"this event is not handled")
 
