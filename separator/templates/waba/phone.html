@@ -26,6 +26,20 @@
   <ul class="nav nav-tabs mb-3" id="phone-settings-tabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button
+        class="nav-link {% if active_tab == 'crm' %}active{% endif %}"
+        id="crm-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#crm-pane"
+        type="button"
+        role="tab"
+        aria-controls="crm-pane"
+        aria-selected="{% if active_tab == 'crm' %}true{% else %}false{% endif %}"
+      >
+        CRM
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
         class="nav-link {% if active_tab == 'templates' %}active{% endif %}"
         id="templates-tab"
         data-bs-toggle="tab"
@@ -50,20 +64,6 @@
         aria-selected="{% if active_tab == 'ctwa' %}true{% else %}false{% endif %}"
       >
         CTWA list
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button
-        class="nav-link {% if active_tab == 'bitrix' %}active{% endif %}"
-        id="bitrix-tab"
-        data-bs-toggle="tab"
-        data-bs-target="#bitrix-pane"
-        type="button"
-        role="tab"
-        aria-controls="bitrix-pane"
-        aria-selected="{% if active_tab == 'bitrix' %}true{% else %}false{% endif %}"
-      >
-        {% trans "Bitrix" %}
       </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -263,13 +263,30 @@
     </div>
 
     <div
-      class="tab-pane fade {% if active_tab == 'bitrix' %}show active{% endif %}"
-      id="bitrix-pane"
+      class="tab-pane fade {% if active_tab == 'crm' %}show active{% endif %}"
+      id="crm-pane"
       role="tabpanel"
-      aria-labelledby="bitrix-tab"
+      aria-labelledby="crm-tab"
       tabindex="0"
     >
-      <h3>{% trans "Bitrix" %}</h3>
+      <ul class="nav nav-tabs mb-3" id="crm-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link active"
+            id="crm-bitrix-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#crm-bitrix-pane"
+            type="button"
+            role="tab"
+            aria-controls="crm-bitrix-pane"
+            aria-selected="true"
+          >
+            {% trans "Bitrix" %}
+          </button>
+        </li>
+      </ul>
+      <div class="tab-content" id="crm-tab-content">
+        <div class="tab-pane fade show active" id="crm-bitrix-pane" role="tabpanel" aria-labelledby="crm-bitrix-tab" tabindex="0">
       <table class="table table-bordered mb-4">
         <thead>
           <tr>
@@ -296,7 +313,7 @@
               <form method="post" id="waba-line-form" data-has-line="{% if phone.line %}1{% else %}0{% endif %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="link_line">
-                <input type="hidden" name="tab" value="bitrix">
+                <input type="hidden" name="tab" value="crm">
                 <div class="d-flex flex-wrap align-items-center gap-2">
                   <select name="line_id" class="form-control" style="max-width: 420px;" required>
                     <option value="" disabled selected>{% trans "Select a line" %}</option>
@@ -319,7 +336,7 @@
       <form method="POST" class="mb-4">
         {% csrf_token %}
         <input type="hidden" name="action" value="update_bitrix">
-        <input type="hidden" name="tab" value="bitrix">
+        <input type="hidden" name="tab" value="crm">
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="sms_service" name="sms_service" {% if phone.sms_service %}checked{% endif %}>
           <label class="form-check-label" for="sms_service">
@@ -372,6 +389,8 @@
         </div>
         <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
       </form>
+        </div>
+      </div>
     </div>
     
     <div

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 19:17+0500\n"
+"POT-Creation-Date: 2026-11-14 21:26+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -75,7 +75,6 @@ msgstr "При звонке"
 msgid "On answer"
 msgstr "При ответе"
 
-#| msgid "Create"
 msgid "Create CRM"
 msgstr "Создавать запись в CRM"
 
@@ -154,6 +153,39 @@ msgstr "Пожалуйста, исправьте форму команды/пе�
 msgid "Command not found."
 msgstr "Команда не найдена."
 
+#, python-brace-format
+msgid "Link Bitrix24 user {user_id} on {portal} to your Separator account."
+msgstr "Привязать пользователя Bitrix24 {user_id} на портале {portal} к вашей учётной записи Separator."
+
+msgid ""
+"The linking session has expired. Open the application in Bitrix24 again."
+msgstr "Сеанс привязки истёк. Снова откройте приложение в Bitrix24."
+
+msgid ""
+"The linking request has expired. Open the application in Bitrix24 again."
+msgstr "Срок действия запроса на привязку истёк. Снова откройте приложение в Bitrix24."
+
+msgid "This linking request already belongs to another registration."
+msgstr "Этот запрос на привязку уже относится к другой регистрации."
+
+msgid "This account is inactive."
+msgstr "Эта учётная запись неактивна."
+
+msgid "Sign in with the account used for this registration."
+msgstr "Войдите с помощью учётной записи, использованной для этой регистрации."
+
+msgid "Confirm your email address to finish linking Bitrix24."
+msgstr "Подтвердите адрес электронной почты, чтобы завершить привязку Bitrix24."
+
+msgid "This Bitrix24 linking request is no longer available."
+msgstr "Этот запрос на привязку Bitrix24 больше недоступен."
+
+msgid "This Bitrix24 user is already linked to another account."
+msgstr "Этот пользователь Bitrix24 уже привязан к другой учётной записи."
+
+msgid "Bitrix24 account linked. Open the application in Bitrix24 to continue."
+msgstr "Учётная запись Bitrix24 привязана. Откройте приложение в Bitrix24, чтобы продолжить."
+
 msgid "Код подтверждения"
 msgstr "Код подтверждения"
 
@@ -181,15 +213,12 @@ msgstr "Линия не найдена"
 msgid "Connected"
 msgstr "Подключён"
 
-#| msgid "appinstance not found"
 msgid "Portal application not found."
 msgstr "Приложение портала не найдено."
 
-#| msgid "Invalid schedule time"
 msgid "Invalid placement."
 msgstr "Недопустимое размещение."
 
-#| msgid "Command not found."
 msgid "Chat not found."
 msgstr "Чат не найден."
 
@@ -296,6 +325,13 @@ msgstr "Код подтверждения отправлен на ваш пор�
 msgid "Портал не найден или уже закреплен за другим пользователем."
 msgstr "Портал не найден или уже закреплен за другим пользователем."
 
+msgid "Bitrix24 authorization data is missing."
+msgstr "Отсутствуют данные авторизации Bitrix24."
+
+msgid ""
+"Account linking is temporarily unavailable. Open the application again later."
+msgstr "Привязка учётной записи временно недоступна. Откройте приложение позже."
+
 msgid "Administrator rights are required to edit the portal."
 msgstr "Для редактирования настроек нужны права администратора"
 
@@ -308,7 +344,6 @@ msgstr "Не удалось проверить файловое поле CRM Б�
 msgid "Select a single Bitrix CRM file field."
 msgstr "Выберите одно файловое поле CRM Битрикс24."
 
-#| msgid "Select a line"
 msgid "Select a payer."
 msgstr "Выберите плательщика."
 
@@ -318,7 +353,6 @@ msgstr "Выберите срок от одного до шести месяце
 msgid "Site must match the owner's site."
 msgstr "Сайт должен совпадать с сайтом владельца."
 
-#| msgid "Choose an action for the selected user number."
 msgid "Company must belong to the scheduler owner."
 msgstr "Компания должна принадлежать владельцу планировщика."
 
@@ -337,7 +371,6 @@ msgstr "Название плательщика"
 msgid "BIN/IIN"
 msgstr "БИН/ИИН"
 
-#| msgid "email address"
 msgid "Address"
 msgstr "Адрес"
 
@@ -347,72 +380,58 @@ msgstr "Плательщик"
 msgid "Period"
 msgstr "Период"
 
-#| msgid "Month"
 msgid "Months"
 msgstr "Месяцы"
 
-#| msgid "Select a line"
 msgid "Select a payer"
 msgstr "Выберите плательщика"
 
 msgid "No payer"
 msgstr "Плательщик не указан"
 
-#| msgid "Connector"
 msgid "Connection ID"
 msgstr "ID подключения"
 
-#| msgid "Connector deleted."
 msgid "Connection type"
 msgstr "Тип подключения"
 
-#| msgid "Select a line"
 msgid "Select a connection type"
 msgstr "Выберите тип подключения"
 
-#| msgid "Select a line"
 msgid "Select a connection"
 msgstr "Выберите подключение"
 
 msgid "Unsupported connection type."
 msgstr "Неподдерживаемый тип подключения."
 
-#| msgid "session not found"
 msgid "Connection not found."
 msgstr "Подключение не найдено."
 
 msgid "Connection does not belong to you."
 msgstr "Подключение вам не принадлежит."
 
-#| msgid "WABA account is not connected to this phone."
 msgid "Calls are not active for this phone."
 msgstr "Звонки для этого номера не активны."
 
 msgid "Connection is already in this scheduler."
 msgstr "Подключение уже добавлено в этот планировщик."
 
-msgid "Connection already belongs to another active scheduler."
-msgstr "Подключение уже входит в другой активный планировщик."
+msgid "Connection already belongs to another scheduler."
+msgstr "Подключение уже добавлено в другой планировщик."
 
 msgid ""
 "This connection has no valid end date and cannot be added to this scheduler."
-msgstr "У подключения нет корректной даты окончания, поэтому его нельзя добавить в этот планировщик."
-
-msgid "This connection has expired and cannot be added to this scheduler."
-msgstr "Срок действия подключения истёк, поэтому его нельзя добавить в этот планировщик."
+msgstr ""
+"У подключения нет корректной даты окончания, поэтому его нельзя добавить в "
+"этот планировщик."
 
 #, python-format
 msgid ""
 "This connection would renew until %(renewal)s, before the scheduler's "
 "billing date %(billing)s. Use a separate scheduler."
-msgstr "Подключение будет продлено до %(renewal)s, что раньше даты выставления счёта планировщиком %(billing)s. Используйте отдельный планировщик."
-
-msgid "A connection can only be added once."
-msgstr "Подключение можно добавить только один раз."
-
-#| msgid "Add at least one translation (language and title)."
-msgid "Add at least one connection."
-msgstr "Добавьте хотя бы одно подключение."
+msgstr ""
+"Подключение будет продлено до %(renewal)s, что раньше даты выставления счёта "
+"планировщиком %(billing)s. Используйте отдельный планировщик."
 
 msgid "Day"
 msgstr "День"
@@ -468,15 +487,12 @@ msgstr "Звонки WABA"
 msgid "OLX"
 msgstr "OLX"
 
-#| msgid "Your BitBots"
 msgid "BitBot"
 msgstr "BitBot"
 
-#| msgid "Your WhatsApp Web Numbers"
 msgid "WhatsApp Web"
 msgstr "WhatsApp Web"
 
-#| msgid "AsterX Servers"
 msgid "AsterX"
 msgstr "AsterX"
 
@@ -489,18 +505,75 @@ msgstr "Выставлен"
 msgid "Paid"
 msgstr "Оплачен"
 
-#| msgid "Cancel edit"
 msgid "Cancelled"
 msgstr "Отменён"
 
-#| msgid "Update"
+msgid "Invalid deal ID."
+msgstr "Некорректный ID сделки."
+
+msgid "Bitrix24 authorization failed. Reopen the tab."
+msgstr "Ошибка авторизации Bitrix24. Откройте вкладку повторно."
+
+msgid "Access denied."
+msgstr "Доступ запрещён."
+
+msgid "Invoice not found for this deal."
+msgstr "Счёт для этой сделки не найден."
+
+msgid "Invalid action."
+msgstr "Недопустимое действие."
+
+msgid "Only an issued invoice can be changed or paid."
+msgstr "Изменить или оплатить можно только выставленный счёт."
+
+msgid "Invoice amount saved."
+msgstr "Сумма счёта сохранена."
+
+msgid "Enter a valid invoice amount."
+msgstr "Введите корректную сумму счёта."
+
+msgid "Invoice position not found."
+msgstr "Позиция счёта не найдена."
+
+msgid "Invoice position removed."
+msgstr "Позиция счёта удалена."
+
+msgid "Renewal date saved."
+msgstr "Дата продления сохранена."
+
+msgid "Enter a valid renewal date."
+msgstr "Введите корректную дату продления."
+
+msgid "An invoice needs at least one position before payment."
+msgstr "Перед оплатой в счёте должна быть хотя бы одна позиция."
+
+msgid "Payment confirmed."
+msgstr "Оплата подтверждена."
+
+msgid "Could not update the invoice."
+msgstr "Не удалось обновить счёт."
+
 msgid "Updated"
 msgstr "Обновлён"
 
-msgid "Remove"
-msgstr "Удалить"
+msgid "Selected"
+msgstr "Выбрано"
 
-#| msgid "Invalid schedule time"
+msgid "Connection"
+msgstr "Подключение"
+
+msgid "Subscription end date"
+msgstr "Дата окончания подписки"
+
+msgid "Renewal cost"
+msgstr "Стоимость продления"
+
+msgid "Already in another scheduler"
+msgstr "Уже в другом планировщике"
+
+msgid "No available connections for this period."
+msgstr "Нет доступных подключений на этот период."
+
 msgid "Invoice scheduler"
 msgstr "Планировщик счетов"
 
@@ -513,14 +586,12 @@ msgstr "ID внешнего аккаунта"
 msgid "Server"
 msgstr "Сервер"
 
-#| msgid "Expiry Date"
 msgid "Expiry date"
 msgstr "Дата окончания"
 
 msgid "Billing"
 msgstr "Счета"
 
-#| msgid "Calling Settings"
 msgid "Billing sections"
 msgstr "Разделы счетов"
 
@@ -530,7 +601,6 @@ msgstr "Плательщики"
 msgid "Invoices"
 msgstr "Счета"
 
-#| msgid "Add advert"
 msgid "Add payer"
 msgstr "Добавить плательщика"
 
@@ -546,19 +616,15 @@ msgstr "Действие"
 msgid "Edit"
 msgstr "Редактировать"
 
-#| msgid "No adverts yet."
 msgid "No payers yet."
 msgstr "Плательщиков пока нет."
 
-#| msgid "Invalid schedule time"
 msgid "Invoice schedulers"
 msgstr "Планировщики счетов"
 
-#| msgid "Add number"
 msgid "Add scheduler"
 msgstr "Добавить планировщик"
 
-#| msgid "Connectors"
 msgid "Connections"
 msgstr "Подключения"
 
@@ -571,89 +637,83 @@ msgstr "Активен"
 msgid "Stopped"
 msgstr "Остановлен"
 
-#| msgid "No adverts yet."
 msgid "No schedulers yet."
 msgstr "Планировщиков пока нет."
 
-#| msgid "Edit advert"
 msgid "Edit payer"
 msgstr "Редактировать плательщика"
 
 msgid "Save payer"
 msgstr "Сохранить плательщика"
 
-#| msgid "Cancel edit"
 msgid "Cancel"
 msgstr "Отменить"
 
-#| msgid "Create"
+msgid "Invoice"
+msgstr "Счёт"
+
+msgid "Paid at"
+msgstr "Дата оплаты"
+
+msgid "Position"
+msgstr "Позиция"
+
+msgid "Amount"
+msgstr "Сумма"
+
+msgid "Current subscription end"
+msgstr "Текущая дата окончания подписки"
+
+msgid "Planned renewal date"
+msgstr "Плановая дата продления"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgid "Remove"
+msgstr "Удалить"
+
+msgid "No invoice positions."
+msgstr "В счёте нет позиций."
+
+msgid "Invoice total"
+msgstr "Итого по счёту"
+
+msgid "Save amount"
+msgstr "Сохранить сумму"
+
+msgid "Confirm payment"
+msgstr "Подтвердить оплату"
+
 msgid "Create now"
 msgstr "Создать сейчас"
 
-#| msgid "Stop scheduled broadcast"
 msgid "Stop scheduler"
 msgstr "Остановить планировщик"
 
 msgid "Resume scheduler"
 msgstr "Возобновить планировщик"
 
-#| msgid "Schedule time (optional)"
 msgid "Scheduler settings"
 msgstr "Настройки планировщика"
 
-#| msgid "Connector settings"
 msgid "Save settings"
 msgstr "Сохранить настройки"
 
 msgid "Next invoice date"
 msgstr "Дата следующего счёта"
 
-#| msgid "Stop scheduled broadcast"
 msgid "Not scheduled yet"
 msgstr "Пока не запланировано"
 
-msgid "Type"
-msgstr "Тип"
-
-#| msgid "Connector saved."
-msgid "Connection unavailable"
-msgstr "Подключение недоступно"
-
-#| msgid "No connectors"
-msgid "No connections yet."
-msgstr "Подключений пока нет."
-
-#| msgid "Add section"
-msgid "Add connections"
-msgstr "Добавить подключения"
-
-#| msgid "No available servers."
-msgid "No available connections"
-msgstr "Нет доступных подключений"
-
-msgid "Could not load connections"
-msgstr "Не удалось загрузить подключения"
-
-msgid "No priced tariff is available for the selected period."
-msgstr "Для выбранного периода нет тарифа с ценой."
-
-#| msgid "Add section"
-msgid "Add another connection"
-msgstr "Добавить ещё подключение"
-
-#| msgid "No connectors"
 msgid "Save connections"
 msgstr "Сохранить подключения"
 
 msgid "Created invoices"
 msgstr "Созданные счета"
 
-#| msgid "Refresh templates"
 msgid "Refresh list"
 msgstr "Обновить список"
-
-msgid "Amount"
-msgstr "Сумма"
 
 msgid "File"
 msgstr "Файл"
@@ -661,13 +721,14 @@ msgstr "Файл"
 msgid "Download PDF"
 msgstr "Скачать PDF"
 
-#| msgid "Cancel edit"
 msgid "Cancel invoice"
 msgstr "Отменить счёт"
 
-#| msgid "No adverts yet."
 msgid "No invoices yet."
 msgstr "Счетов пока нет."
+
+msgid "Could not load connections"
+msgstr "Не удалось загрузить подключения"
 
 msgid "Create scheduler"
 msgstr "Создать планировщик"
@@ -705,25 +766,26 @@ msgstr "Отправить"
 msgid "Thank you, message sent"
 msgstr "Спасибо, сообщение отправлено."
 
-#| msgid "Connector saved."
+msgid "Connection unavailable"
+msgstr "Подключение недоступно"
+
+msgid "Invalid connection selection."
+msgstr "Некорректный выбор подключений."
+
 msgid "Payer saved."
 msgstr "Плательщик сохранён."
+
+msgid "Add at least one connection."
+msgstr "Добавьте хотя бы одно подключение."
 
 msgid "Scheduler created."
 msgstr "Планировщик создан."
 
-msgid "Could not save the scheduler or reissue its invoice."
-msgstr "Не удалось сохранить планировщик или перевыставить счёт."
-
-msgid "Unpaid invoice reissued with updated settings."
-msgstr "Неоплаченный счёт перевыставлен с обновлёнными настройками."
-
 msgid "Scheduler saved."
 msgstr "Планировщик сохранён."
 
-#| msgid "Connector saved."
-msgid "Connections added."
-msgstr "Подключения добавлены."
+msgid "Connections saved."
+msgstr "Подключения сохранены."
 
 msgid "Add a connection before creating an invoice."
 msgstr "Добавьте подключение перед созданием счёта."
@@ -749,19 +811,14 @@ msgstr "Подключение входит в другой активный п�
 msgid "Scheduler resumed."
 msgstr "Планировщик возобновлён."
 
-msgid "An active scheduler needs at least one connection."
-msgstr "Для активного планировщика требуется хотя бы одно подключение."
-
-#| msgid "Connector saved."
-msgid "Connection removed."
-msgstr "Подключение удалено."
-
-#| msgid "Voice call"
 msgid "Invoice cancelled."
 msgstr "Счёт отменён."
 
 msgid "Only an issued invoice can be cancelled."
 msgstr "Отменить можно только выставленный счёт."
+
+msgid "The invoice file is not ready yet. Please try again later."
+msgstr "Файл счёта ещё не готов. Повторите попытку позже."
 
 msgid "Sign In"
 msgstr "Войти"
@@ -851,8 +908,8 @@ msgstr "Контекст"
 msgid "Endpoint (example)"
 msgstr "Учётка (пример)"
 
-msgid "Save"
-msgstr "Сохранить"
+msgid "Type"
+msgstr "Тип"
 
 msgid "Back to list"
 msgstr "Вернуться к списку"
@@ -890,7 +947,6 @@ msgstr "Звонить сначала клиенту"
 msgid "Database"
 msgstr "База данных"
 
-#| msgid "Not connected"
 msgid "Disconnected"
 msgstr "Не подключён"
 
@@ -1061,11 +1117,9 @@ msgstr ""
 "Смена подключенной линии может привести к рассинхрону существующих чатов. "
 "Продолжить?"
 
-#| msgid "Available in Bitrix24"
 msgid "Open app in Bitrix24"
 msgstr "Открыть приложение в Битрикс24"
 
-#| msgid "Message sent"
 msgid "Message type"
 msgstr "Тип сообщения"
 
@@ -1080,15 +1134,12 @@ msgstr "Тело"
 msgid "Header"
 msgstr "Заголовок"
 
-#| msgid "Images"
 msgid "Image"
 msgstr "Изображение"
 
-#| msgid "Video URL"
 msgid "Video"
 msgstr "Видео"
 
-#| msgid "Document URL"
 msgid "Document"
 msgstr "Документ"
 
@@ -1098,26 +1149,21 @@ msgstr "GIF"
 msgid "Adding the message to the chat..."
 msgstr "Добавляем сообщение в чат..."
 
-#| msgid "The mailing has been added to the queue."
 msgid "The message has been added to the chat. Delivery is being processed."
 msgstr "Сообщение добавлено в чат. Идёт доставка."
 
-#| msgid "No templates found."
 msgid "No templates available"
 msgstr "Нет доступных шаблонов"
 
-#| msgid "No interactive messages found."
 msgid "No interactive messages available"
 msgstr "Нет доступных интерактивных сообщений"
 
-#| msgid "Bitrix24 Line"
 msgid "Bitrix24 is unavailable."
 msgstr "Битрикс24 недоступен."
 
 msgid "WABA Widget"
 msgstr "Виджет WABA"
 
-#| msgid "WhatsApp Cloud number settings"
 msgid "WhatsApp Cloud numbers were not found."
 msgstr "Номера WhatsApp Cloud не найдены."
 
@@ -1205,11 +1251,9 @@ msgstr "ID линии"
 msgid "Deleting a line will remove it from the portal with all chats."
 msgstr "Удаление линии приведёт к удалению её с портала со всеми чатами!"
 
-#| msgid "Application (status)"
 msgid "Applications"
 msgstr "Приложения"
 
-#| msgid "Apply"
 msgid "App"
 msgstr "Приложение"
 
@@ -1222,11 +1266,9 @@ msgstr "Функции"
 msgid "Feature"
 msgstr "Функция"
 
-#| msgid "QR Code"
 msgid "Code"
 msgstr "Код"
 
-#| msgid "Expiry Date"
 msgid "Expires At"
 msgstr "Истекает"
 
@@ -1563,8 +1605,8 @@ msgstr "Ваши номера WhatsApp Cloud"
 msgid "Expires in (days)"
 msgstr "Истекает в течение (дни)"
 
-msgid "Bitrix24 Line"
-msgstr "Линия Bitrix24"
+msgid "CRM"
+msgstr "CRM"
 
 msgid "Messages"
 msgstr "Сообщения"
@@ -1572,11 +1614,8 @@ msgstr "Сообщения"
 msgid "Disabled"
 msgstr "Отключено"
 
-msgid "Select a line"
-msgstr "Выберите линию"
-
-msgid "add line"
-msgstr "новая линия"
+msgid "Connect CRM"
+msgstr "Подключить CRM"
 
 msgid "You don't have any connected sessions."
 msgstr "У вас нет подключенных сессий."
@@ -1590,15 +1629,12 @@ msgstr "Партнёрские приложения WABA"
 msgid "API token"
 msgstr "API-токен"
 
-#| msgid "Show Card"
 msgid "Show"
 msgstr "Показать"
 
-#| msgid "Reset"
 msgid "Reset token"
 msgstr "Сбросить токен"
 
-#| msgid "Chek for Separator partner App"
 msgid "Create partner app"
 msgstr "Создать партнёрское приложение"
 
@@ -1647,6 +1683,9 @@ msgstr "Обновить шаблоны"
 msgid "Default"
 msgstr "по умолчанию"
 
+msgid "Template type"
+msgstr "Тип шаблона"
+
 msgid "Bitrix Code"
 msgstr "Код для Bitrix24"
 
@@ -1680,20 +1719,29 @@ msgstr "ID источника"
 msgid "Source URL"
 msgstr "URL источника"
 
-#| msgid "Last Name"
 msgid "Last event"
 msgstr "Последнее событие"
 
-#| msgid "No recipients found."
 msgid "No CTWA records found."
 msgstr "Записи CTWA не найдены."
 
-#| msgid "Add translation"
 msgid "CTWA pagination"
 msgstr "Навигация по списку CTWA"
 
+msgid "Bitrix24 Line"
+msgstr "Линия Bitrix24"
+
+msgid "No line"
+msgstr "Нет линии"
+
+msgid "Select a line"
+msgstr "Выберите линию"
+
+msgid "add line"
+msgstr "новая линия"
+
 msgid "Enable SMS provider in Bitrix."
-msgstr "Активирвоать СМС провайдер"
+msgstr "Активировоать СМС провайдер"
 
 msgid "Send SMS through Bitrix open lines."
 msgstr "Отправка SMS открывает чат в ОЛ"
@@ -1710,7 +1758,6 @@ msgstr "Отображать номер в виджете Битрикс24"
 msgid "Allow Bitrix portal admins to access this number."
 msgstr "Предоставить доступ к настройкам номера всем администраторам"
 
-#| msgid "Translations"
 msgid "Transcribe tokens"
 msgstr "Токены транскрибации"
 
@@ -1738,6 +1785,9 @@ msgstr "На SIP сервер"
 msgid "SIP User Password"
 msgstr "Пароль SIP"
 
+msgid "Show password"
+msgstr "Показывать пароль"
+
 msgid "SIP Hostname"
 msgstr "SIP домен"
 
@@ -1749,9 +1799,6 @@ msgstr "Данные SIP транка"
 
 msgid "Login"
 msgstr "Логин"
-
-msgid "Show password"
-msgstr "Показывать пароль"
 
 msgid "No extension assigned"
 msgstr "Нет привязанных SIP аккаунтов"
@@ -1855,9 +1902,6 @@ msgstr "Сессии WAWeb"
 msgid "Your WhatsApp Web Numbers"
 msgstr "Ваши номера WhatsApp Web"
 
-msgid "No line"
-msgstr "Нет линии"
-
 msgid "Personal info"
 msgstr "Личные данные"
 
@@ -1952,9 +1996,11 @@ msgstr "Сервер не подключен"
 msgid "SIP extension creation failed."
 msgstr "Ошибка создания SIP аккаунта"
 
-#| msgid "This number is already connected."
 msgid "This number is linked to another user."
 msgstr "Этот номер привязан к другому пользователю."
+
+msgid "Line connected"
+msgstr "Линия подключена."
 
 msgid "The mailing has been added to the queue."
 msgstr "Рассылка добавлена в очередь"
@@ -1972,7 +2018,6 @@ msgstr "Аккаунт WABA не подключен для этого номер
 msgid "Template sync has been queued."
 msgstr "Обновление списка шаблонов добавлено в очередь"
 
-#| msgid "Call destination"
 msgid "Invalid call destination"
 msgstr "Недопустимое направление звонка."
 
@@ -1988,7 +2033,9 @@ msgstr "Направление звонка активировано: %(dest)s"
 
 msgid ""
 "Bitrix portal is not connected for this phone, SMS provider sync was skipped."
-msgstr "Портал Битрикс24 не подключён к этому номеру; синхронизация SMS-провайдера пропущена."
+msgstr ""
+"Портал Битрикс24 не подключён к этому номеру; синхронизация SMS-провайдера "
+"пропущена."
 
 msgid "Bitrix settings updated."
 msgstr "Настройки Битрикс24 обновлены."
@@ -2008,7 +2055,6 @@ msgstr "Код подтверждения запрошен."
 msgid "Enter verification code."
 msgstr "Введите код подтверждения."
 
-#| msgid "Official Business Account application"
 msgid "Official Business Account application is not available."
 msgstr "Подача заявки на официальный бизнес-аккаунт недоступна."
 
@@ -2043,7 +2089,6 @@ msgstr "Нет доступных шаблонов"
 msgid "Invalid schedule time"
 msgstr "Неправильное время"
 
-#| msgid "The mailing has been added to the queue."
 msgid "The mailing has been scheduled."
 msgstr "Рассылка запланирована."
 
@@ -2056,33 +2101,24 @@ msgstr "Интерактивное сообщение сохранено."
 msgid "Interactive message deleted."
 msgstr "Интерактивное сообщение удалено."
 
-#| msgid "This number is already connected."
 msgid "This waba is linked to another user"
 msgstr "Этот WABA-аккаунт привязан к другому пользователю."
 
 msgid "App is not connected to this WABA account."
 msgstr "Приложение не подключено к этому WABA-аккаунту."
 
-#| msgid "Not connected"
-msgid "Line connected"
-msgstr "Линия подключена."
-
 msgid "Only integrators can manage partner applications."
 msgstr "Управлять партнёрскими приложениями могут только интеграторы."
 
-#| msgid "Phone registration has been queued."
 msgid "API token has been reset."
 msgstr "API-токен сброшен."
 
-#| msgid "Verification code has been requested."
 msgid "Partner application has been created."
 msgstr "Партнёрское приложение создано."
 
-#| msgid "Verification code has been requested."
 msgid "Partner application has been deleted."
 msgstr "Партнёрское приложение удалено."
 
-#| msgid "Phone registration has been queued."
 msgid "Partner application has been updated."
 msgstr "Партнёрское приложение обновлено."
 
@@ -2128,6 +2164,3 @@ msgstr "Телефон не подключен. Необходимо произ�
 
 msgid "Message sending task created."
 msgstr "Задача на отправку сообщений создана."
-
-#~ msgid "Additional codecs"
-#~ msgstr "Дополнительные кодеки"

@@ -225,9 +225,9 @@ def phone_details(request, phone_id):
     elif ctwa_status:
         ctwa_qs = ctwa_qs.filter(last_event=ctwa_status)
     ctwa_page_obj = Paginator(ctwa_qs, 50).get_page(request.GET.get("ctwa_page"))
-    active_tab = request.POST.get("tab") or request.GET.get("tab") or "templates"
-    if active_tab not in {"templates", "ctwa", "bitrix", "calls", "status"}:
-        active_tab = "templates"
+    active_tab = request.POST.get("tab") or request.GET.get("tab") or "crm"
+    if active_tab not in {"crm", "templates", "ctwa", "calls", "status"}:
+        active_tab = "crm"
     portals, instances, _lines = bitrix_utils.get_instances(request, "waba")
     instances = list(instances)
     waba_lines = list(
@@ -255,7 +255,7 @@ def phone_details(request, phone_id):
                     messages.success(request, _("Line connected"))
                 except Exception as e:
                     messages.error(request, str(e))
-            return redirect_to_phone_tab("bitrix")
+            return redirect_to_phone_tab("crm")
         if action == 'send_message':
             template = request.POST.get('template')
             recipient_phones_raw = request.POST.get('recipient_phone')
@@ -449,7 +449,7 @@ def phone_details(request, phone_id):
                 messages.success(request, _("Bitrix settings updated."))
             else:
                 messages.info(request, _("No Bitrix settings were changed."))
-            return redirect_to_phone_tab("bitrix")
+            return redirect_to_phone_tab("crm")
         elif action == "check_phone_status":
             if not phone.waba or not phone.waba.app:
                 phone_status_error = _("App is not connected to this phone WABA account.")
@@ -911,9 +911,8 @@ def waba_account_details(request, waba_id):
 
 @login_message_required(code="waba")
 def waba_view(request):
-    connector_service = "waba"
-    portals, instances, _lines = bitrix_utils.get_instances(request, connector_service)
-    if not instances:
+    portals, instances, _lines = bitrix_utils.get_instances(request, "waba")
+    if not instances.exists():
         user_message(request, "waba_install")
 
     if request.method == "POST" and "filter_portal_id" in request.POST:
@@ -939,61 +938,16 @@ def waba_view(request):
         phones = Phone.objects.filter(
             Q(line__portal=selected_portal) | Q(owner=request.user, line__isnull=True)
         ).distinct()
-        instances = instances.filter(portal=selected_portal)
     elif show_free_numbers:
         phones = Phone.objects.filter(owner=request.user, line__isnull=True)
     else:
         phones = Phone.objects.filter(
             Q(line__portal__in=portals) | Q(owner=request.user)
         ).distinct()
-    phones = phones.select_related("line", "line__portal", "line__connector", "sip_extensions").order_by("phone", "id")
+    phones = phones.select_related("sip_extensions").order_by("phone", "id")
 
-    lines = (
-        Line.objects.filter(portal__in=portals)
-        .select_related("portal", "connector")
-        .order_by("portal__domain", "name", "line_id")
-    )
-    if selected_portal:
-        lines = lines.filter(portal=selected_portal)
-
-    linked_phone_by_line = {
-        phone.line_id: phone
-        for phone in Phone.objects.filter(line__portal__in=portals)
-        .select_related("line", "line__portal")
-        .order_by("phone", "id")
-        if phone.line_id
-    }
-    for line in lines:
-        line.linked_waba_phone = linked_phone_by_line.get(line.id)
-        line.status_label = waba_bitrix.line_status_label(line)
-
-    if request.method == "POST":
-        days = request.POST.get('days')
-        if days:
-            request.session['waba_days'] = days
-        else:
-            phone_id = request.POST.get("phone_id")
-            line_id = request.POST.get("line_id")
-            phone = get_object_or_404(phones, id=phone_id)
-            if (
-                not request.user.is_superuser
-                and phone.owner_id != request.user.id
-                and not (phone.owner_id and phone.availabletoB24admins)
-            ):
-                raise Http404
-            allowed_lines = {str(line.id) for line in lines}
-            allowed_lines.update(f"create__{instance.id}" for instance in instances)
-            if line_id not in allowed_lines:
-                messages.error(request, _("Select a line"))
-                return redirect("waba")
-            try:
-                waba_bitrix.relink_waba_phone(phone, line_id)
-                messages.success(request, _("Line connected"))
-            except Exception as e:
-                messages.error(request, str(e))
-            return redirect("waba")
-    else:
-        days = request.session.get('waba_days', 7)
+    if request.method == "POST" and request.POST.get("days"):
+        request.session['waba_days'] = request.POST["days"]
 
     try:
         days = int(request.session.get('waba_days', 7))
@@ -1015,8 +969,6 @@ def waba_view(request):
         waba_open_url = f"{reverse('waba-open')}?{urlencode({'token': token})}"
     return render(request, "waba/list.html", {
         "phones": phones,
-        "waba_lines": lines,
-        "instances": instances,
         "days": days,
         "portals": portals,
         "selected_portal_id": selected_portal_id,

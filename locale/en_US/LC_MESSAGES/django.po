@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 19:17+0500\n"
+"POT-Creation-Date: 2026-11-14 21:26+0500\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -151,6 +151,39 @@ msgstr ""
 msgid "Command not found."
 msgstr ""
 
+#, python-brace-format
+msgid "Link Bitrix24 user {user_id} on {portal} to your Separator account."
+msgstr ""
+
+msgid ""
+"The linking session has expired. Open the application in Bitrix24 again."
+msgstr ""
+
+msgid ""
+"The linking request has expired. Open the application in Bitrix24 again."
+msgstr ""
+
+msgid "This linking request already belongs to another registration."
+msgstr ""
+
+msgid "This account is inactive."
+msgstr ""
+
+msgid "Sign in with the account used for this registration."
+msgstr ""
+
+msgid "Confirm your email address to finish linking Bitrix24."
+msgstr ""
+
+msgid "This Bitrix24 linking request is no longer available."
+msgstr ""
+
+msgid "This Bitrix24 user is already linked to another account."
+msgstr ""
+
+msgid "Bitrix24 account linked. Open the application in Bitrix24 to continue."
+msgstr ""
+
 msgid "Код подтверждения"
 msgstr ""
 
@@ -289,6 +322,13 @@ msgstr ""
 msgid "Портал не найден или уже закреплен за другим пользователем."
 msgstr ""
 
+msgid "Bitrix24 authorization data is missing."
+msgstr ""
+
+msgid ""
+"Account linking is temporarily unavailable. Open the application again later."
+msgstr ""
+
 msgid "Administrator rights are required to edit the portal."
 msgstr ""
 
@@ -373,26 +413,17 @@ msgstr ""
 msgid "Connection is already in this scheduler."
 msgstr ""
 
-msgid "Connection already belongs to another active scheduler."
+msgid "Connection already belongs to another scheduler."
 msgstr ""
 
 msgid ""
 "This connection has no valid end date and cannot be added to this scheduler."
 msgstr ""
 
-msgid "This connection has expired and cannot be added to this scheduler."
-msgstr ""
-
 #, python-format
 msgid ""
 "This connection would renew until %(renewal)s, before the scheduler's "
 "billing date %(billing)s. Use a separate scheduler."
-msgstr ""
-
-msgid "A connection can only be added once."
-msgstr ""
-
-msgid "Add at least one connection."
 msgstr ""
 
 msgid "Day"
@@ -470,10 +501,70 @@ msgstr ""
 msgid "Cancelled"
 msgstr ""
 
+msgid "Invalid deal ID."
+msgstr ""
+
+msgid "Bitrix24 authorization failed. Reopen the tab."
+msgstr ""
+
+msgid "Access denied."
+msgstr ""
+
+msgid "Invoice not found for this deal."
+msgstr ""
+
+msgid "Invalid action."
+msgstr ""
+
+msgid "Only an issued invoice can be changed or paid."
+msgstr ""
+
+msgid "Invoice amount saved."
+msgstr ""
+
+msgid "Enter a valid invoice amount."
+msgstr ""
+
+msgid "Invoice position not found."
+msgstr ""
+
+msgid "Invoice position removed."
+msgstr ""
+
+msgid "Renewal date saved."
+msgstr ""
+
+msgid "Enter a valid renewal date."
+msgstr ""
+
+msgid "An invoice needs at least one position before payment."
+msgstr ""
+
+msgid "Payment confirmed."
+msgstr ""
+
+msgid "Could not update the invoice."
+msgstr ""
+
 msgid "Updated"
 msgstr ""
 
-msgid "Remove"
+msgid "Selected"
+msgstr ""
+
+msgid "Connection"
+msgstr ""
+
+msgid "Subscription end date"
+msgstr ""
+
+msgid "Renewal cost"
+msgstr ""
+
+msgid "Already in another scheduler"
+msgstr ""
+
+msgid "No available connections for this period."
 msgstr ""
 
 msgid "Invoice scheduler"
@@ -551,6 +642,42 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
+msgid "Invoice"
+msgstr ""
+
+msgid "Paid at"
+msgstr ""
+
+msgid "Position"
+msgstr ""
+
+msgid "Amount"
+msgstr ""
+
+msgid "Current subscription end"
+msgstr ""
+
+msgid "Planned renewal date"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "No invoice positions."
+msgstr ""
+
+msgid "Invoice total"
+msgstr ""
+
+msgid "Save amount"
+msgstr ""
+
+msgid "Confirm payment"
+msgstr ""
+
 msgid "Create now"
 msgstr ""
 
@@ -572,30 +699,6 @@ msgstr ""
 msgid "Not scheduled yet"
 msgstr ""
 
-msgid "Type"
-msgstr ""
-
-msgid "Connection unavailable"
-msgstr ""
-
-msgid "No connections yet."
-msgstr ""
-
-msgid "Add connections"
-msgstr ""
-
-msgid "No available connections"
-msgstr ""
-
-msgid "Could not load connections"
-msgstr ""
-
-msgid "No priced tariff is available for the selected period."
-msgstr ""
-
-msgid "Add another connection"
-msgstr ""
-
 msgid "Save connections"
 msgstr ""
 
@@ -603,9 +706,6 @@ msgid "Created invoices"
 msgstr ""
 
 msgid "Refresh list"
-msgstr ""
-
-msgid "Amount"
 msgstr ""
 
 msgid "File"
@@ -618,6 +718,9 @@ msgid "Cancel invoice"
 msgstr ""
 
 msgid "No invoices yet."
+msgstr ""
+
+msgid "Could not load connections"
 msgstr ""
 
 msgid "Create scheduler"
@@ -656,22 +759,25 @@ msgstr ""
 msgid "Thank you, message sent"
 msgstr ""
 
+msgid "Connection unavailable"
+msgstr ""
+
+msgid "Invalid connection selection."
+msgstr ""
+
 msgid "Payer saved."
+msgstr ""
+
+msgid "Add at least one connection."
 msgstr ""
 
 msgid "Scheduler created."
 msgstr ""
 
-msgid "Could not save the scheduler or reissue its invoice."
-msgstr ""
-
-msgid "Unpaid invoice reissued with updated settings."
-msgstr ""
-
 msgid "Scheduler saved."
 msgstr ""
 
-msgid "Connections added."
+msgid "Connections saved."
 msgstr ""
 
 msgid "Add a connection before creating an invoice."
@@ -698,16 +804,13 @@ msgstr ""
 msgid "Scheduler resumed."
 msgstr ""
 
-msgid "An active scheduler needs at least one connection."
-msgstr ""
-
-msgid "Connection removed."
-msgstr ""
-
 msgid "Invoice cancelled."
 msgstr ""
 
 msgid "Only an issued invoice can be cancelled."
+msgstr ""
+
+msgid "The invoice file is not ready yet. Please try again later."
 msgstr ""
 
 msgid "Sign In"
@@ -794,7 +897,7 @@ msgstr ""
 msgid "Endpoint (example)"
 msgstr ""
 
-msgid "Save"
+msgid "Type"
 msgstr ""
 
 msgid "Back to list"
@@ -1483,7 +1586,7 @@ msgstr ""
 msgid "Expires in (days)"
 msgstr ""
 
-msgid "Bitrix24 Line"
+msgid "CRM"
 msgstr ""
 
 msgid "Messages"
@@ -1492,10 +1595,7 @@ msgstr ""
 msgid "Disabled"
 msgstr ""
 
-msgid "Select a line"
-msgstr ""
-
-msgid "add line"
+msgid "Connect CRM"
 msgstr ""
 
 msgid "You don't have any connected sessions."
@@ -1564,6 +1664,9 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
+msgid "Template type"
+msgstr ""
+
 msgid "Bitrix Code"
 msgstr ""
 
@@ -1604,6 +1707,18 @@ msgid "No CTWA records found."
 msgstr ""
 
 msgid "CTWA pagination"
+msgstr ""
+
+msgid "Bitrix24 Line"
+msgstr ""
+
+msgid "No line"
+msgstr ""
+
+msgid "Select a line"
+msgstr ""
+
+msgid "add line"
 msgstr ""
 
 msgid "Enable SMS provider in Bitrix."
@@ -1651,6 +1766,9 @@ msgstr ""
 msgid "SIP User Password"
 msgstr ""
 
+msgid "Show password"
+msgstr ""
+
 msgid "SIP Hostname"
 msgstr ""
 
@@ -1661,9 +1779,6 @@ msgid "SIP Extension Info"
 msgstr ""
 
 msgid "Login"
-msgstr ""
-
-msgid "Show password"
 msgstr ""
 
 msgid "No extension assigned"
@@ -1768,9 +1883,6 @@ msgstr ""
 msgid "Your WhatsApp Web Numbers"
 msgstr ""
 
-msgid "No line"
-msgstr ""
-
 msgid "Personal info"
 msgstr ""
 
@@ -1865,6 +1977,9 @@ msgid "SIP extension creation failed."
 msgstr ""
 
 msgid "This number is linked to another user."
+msgstr ""
+
+msgid "Line connected"
 msgstr ""
 
 msgid "The mailing has been added to the queue."
@@ -1966,9 +2081,6 @@ msgid "This waba is linked to another user"
 msgstr ""
 
 msgid "App is not connected to this WABA account."
-msgstr ""
-
-msgid "Line connected"
 msgstr ""
 
 msgid "Only integrators can manage partner applications."

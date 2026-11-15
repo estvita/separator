@@ -119,7 +119,12 @@ class WabaWebhook(GenericViewSet, CreateModelMixin):
                     change = changes[0]
                     field = change.get("field")
                     value = change.get("value", {})
-                    if (field == "messages" and value.get("messages")) or field == "smb_message_echoes":
+                    standby = value.get("standby") or {}
+                    if (
+                        (field == "messages" and value.get("messages"))
+                        or field == "smb_message_echoes"
+                        or (field == "standby" and (standby.get("messages") or standby.get("message_echoes")))
+                    ):
                         task = messages_processing
             except Exception:
                 pass

@@ -1497,6 +1497,23 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
     changes = entry["changes"][0]
     field = changes.get('field')
     value = changes.get('value', {})
+    is_standby = field == 'standby'
+    if is_standby:
+        standby = value.get('standby') or {}
+        if standby.get('messages'):
+            value = {**value, 'contacts': standby.get('contacts', []), 'messages': standby['messages']}
+            field = 'messages'
+        elif standby.get('message_echoes'):
+            value = {
+                **value,
+                'message_echoes': [
+                    {**echo.get('message', {}), 'id': echo.get('id'), 'timestamp': echo.get('timestamp')}
+                    for echo in standby['message_echoes']
+                ],
+            }
+            field = 'smb_message_echoes'
+        else:
+            return None
     event = value.get('event')
     ctwa_enabled = False
     phone = None
@@ -1651,7 +1668,7 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
 
     # ctwa bot
     bot = Bot.objects.filter(phone=phone).first()
-    if bot and field == 'messages':
+    if bot and field == 'messages' and not is_standby:
         bot_processor.delay(data, bot.id)
 
     elif field == 'phone_number_name_update':
@@ -1697,6 +1714,19 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
             return "WABA phone is not connected to Bitrix line"
 
         if phone.date_end and timezone.now() > phone.date_end:
+            if is_standby:
+                contacts = value.get('contacts') or []
+                contact = contacts[0] if contacts else {}
+                user_identy = contact.get('wa_id') or contact.get('user_id')
+                if user_identy:
+                    bitrix_utils.send_waba_error_to_openline(
+                        appinstance.id,
+                        user_identy,
+                        {'error': 'tariff expired', 'message': 'tariff expired'},
+                        phone.line.connector.code,
+                        phone.line.line_id,
+                        phone=phone,
+                    )
             return "subscription ended"
 
         messages = value.get("messages", [])
@@ -1950,7 +1980,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                     attachments=attach,
                     chat_url=source_url,
                 )
-                _queue_waba_read_status(waba, phone, message_id)
+                if not is_standby:
+                    _queue_waba_read_status(waba, phone, message_id)
                 if message_type == "audio" and media_data.get("voice") is True and media_url:
                     try:
                         app = phone.waba.app if phone.waba_id and phone.waba else None
@@ -2090,7 +2121,8 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 referral_body=referral_body,
             )
             if message_type not in ["unsupported", "system"] and not message.get("errors"):
-                _queue_waba_read_status(waba, phone, message_id)
+                if not is_standby:
+                    _queue_waba_read_status(waba, phone, message_id)
 
     elif field == 'smb_message_echoes':
         if not appinstance or not phone.line_id or not phone.line.connector_id:
@@ -2100,7 +2132,10 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
         attach= None
         message_echoes = value.get("message_echoes", {})
         for message in message_echoes:
-            user_identy = message.get("to")
+            if is_standby:
+                text = None
+                attach = None
+            user_identy = message.get("to") or message.get("recipient")
             message_type = message.get("type")
             if message_type == "text":
                 text = message.get("text", {}).get("body")
@@ -2172,15 +2207,29 @@ def event_processing(raw_body=None, signature=None, app_id=None, host=None):
                 raise Exception(f"Unsupported smb_message_echoes message_type: {message_type}")
 
             if text or attach:
-                return send_bitrix_message_from_waba(
+                if is_standby and text:
+                    callback_data = message.get("biz_opaque_callback_data")
+                    try:
+                        callback_data = json.loads(callback_data) if isinstance(callback_data, str) else callback_data
+                    except (TypeError, ValueError):
+                        callback_data = None
+                    originator = callback_data.get("originator") if isinstance(callback_data, dict) else None
+                    if isinstance(originator, str):
+                        originator = re.sub(r'[^A-Za-z0-9_-]', '', originator)[:50]
+                        if originator:
+                            text = f"[b]{originator}:[/b] [br]{text}"
+                send_result = send_bitrix_message_from_waba(
                     appinstance.id,
                     user_identy,
                     text,
                     phone.line.connector.code,
                     phone.line.line_id,
                     attachments=attach,
+                    message_id=message.get("id") if is_standby else None,
                     manager_id=0,
                 )
+                if not is_standby:
+                    return send_result
     else:
         raise Exception(f"this event is not handled")
 

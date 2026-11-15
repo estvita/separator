@@ -33,8 +33,7 @@
           <th>{% trans "Type" %}</th>
           <th>{% trans "Expiry Date" %} </th>
           <th>{% trans "Calls" %} </th>
-          <th>{% trans "Line ID" %}</th>
-          <th>{% trans "Bitrix24 Line" %}</th>
+          <th>{% trans "CRM" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -60,36 +59,9 @@
             </a>
             </td>
             <td>
-              {% if phone.line %}
-                <span style="color: green;">
-                  <a href="https://{{ phone.line.portal.domain }}/contact_center/connector/?ID={{ phone.line.connector.code }}&LINE={{ phone.line.line_id }}" target="_blank">
-                    {{ phone.line.name }} ({{ phone.line.line_id }})</a>
-                </span>
-              {% else %}
-              No line
-              {% endif %}
-            </td>
-            <td>
-              <form method="POST" action="{% url 'waba' %}" class="waba-line-form" data-has-line="{% if phone.line %}1{% else %}0{% endif %}">
-                {% csrf_token %}
-                <div class="form-group d-flex align-items-center">
-                  <select id="line_id" name="line_id" class="form-control mr-2" style="width:70%;">
-                    <option value="" disabled selected>{% trans "Select a line" %}</option>
-                  
-                    {% for line in waba_lines %}
-                      {% if phone.line_id != line.id %}
-                        <option value="{{ line.id }}">{{ line.status_label }}</option>
-                      {% endif %}
-                    {% endfor %}
-
-                    {% for instance in instances %}
-                    <option value="create__{{ instance.id }}">+ {% trans "add line" %} {{ instance.portal.domain }}</option>
-                    {% endfor %}
-                  </select>
-                  <input type="hidden" name="phone_id" value="{{ phone.id }}" />
-                  <button type="submit" name="action" value="link" class="btn btn-secondary connect-btn">{% trans "Connect" %}</button>
-                </div>
-              </form>
+              <a href="{% url 'phone-details' phone.phone_id %}?tab=crm" class="btn btn-outline-primary btn-sm text-nowrap">
+                {% trans "Connect CRM" %}
+              </a>
             </td>
           </tr>
         {% endfor %}
@@ -341,17 +313,5 @@ document.getElementById('add-waba-number').addEventListener('click', function ()
     });
 });
 
-document.querySelectorAll('.waba-line-form').forEach(function (form) {
-  form.addEventListener('submit', function (event) {
-    if (form.dataset.hasLine !== '1') {
-      return;
-    }
-
-    const confirmed = window.confirm('{% trans "Changing the connected line may desynchronize existing chats. Continue?" %}');
-    if (!confirmed) {
-      event.preventDefault();
-    }
-  });
-});
 </script>
 {% endblock content %}
