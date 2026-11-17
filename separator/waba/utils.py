@@ -7,9 +7,11 @@ import uuid
 import redis
 import logging
 import hashlib
+import ipaddress
 import requests
 import mimetypes
-from urllib.parse import urlparse, urlencode
+import socket
+from urllib.parse import urljoin, urlparse, urlencode
 from datetime import datetime
 
 from django.db import models
@@ -48,10 +50,56 @@ API_URL = settings.FACEBOOK_API_URL
 logger = logging.getLogger("django")
 # Add timeouts to prevent hanging if Redis is unavailable
 redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
+TEMPLATE_MEDIA_MAX_BYTES = 25 * 1024 * 1024
 
 
 class WabaNonRetryableError(Exception):
     pass
+
+
+class MediaTooLargeError(ValueError):
+    pass
+
+
+def read_limited_media(chunks):
+    content = bytearray()
+    for chunk in chunks:
+        if len(content) + len(chunk) > TEMPLATE_MEDIA_MAX_BYTES:
+            raise MediaTooLargeError("Media file exceeds 25MB limit")
+        content.extend(chunk)
+    return bytes(content)
+
+
+def validate_media_url(url):
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Media URL must be http/https")
+
+    hostname = parsed.hostname.rstrip(".").lower()
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        raise ValueError("Localhost media URLs are not allowed")
+
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    for address in socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM):
+        ip = ipaddress.ip_address(address[4][0].split("%", 1)[0])
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        if ip.is_loopback or ip.is_unspecified:
+            raise ValueError("Localhost media URLs are not allowed")
+
+
+def request_media_url(url, *, method="GET", timeout=20):
+    for _ in range(6):
+        validate_media_url(url)
+        response = requests.request(
+            method, url, timeout=timeout, stream=True, allow_redirects=False,
+        )
+        if not response.is_redirect:
+            return response
+        location = response.headers.get("Location")
+        response.close()
+        url = urljoin(url, location)
+    raise ValueError("Too many media redirects")
 
 
 def extract_error_data(data):
@@ -1181,35 +1229,23 @@ def build_template_components_payload(template, post_data, files_data, phone):
             media_id = None
 
             if file_obj:
-                media_content = file_obj.read()
+                media_content = read_limited_media(file_obj.chunks(chunk_size=256 * 1024))
                 media_type = file_obj.content_type or "application/octet-stream"
                 media_name = file_obj.name
             elif file_url:
+                validate_media_url(file_url)
                 parsed = urlparse(file_url)
-                if parsed.scheme not in ("http", "https"):
-                    raise Exception("Media URL must be http/https")
                 # Check URL cache before downloading media from the customer-provided source.
                 media_id = get_cached_media_id_for_phone(phone, file_url)
                 if not media_id:
                     try:
-                        resp = requests.get(file_url, timeout=20, stream=True)
-                        resp.raise_for_status()
+                        with request_media_url(file_url, timeout=20) as resp:
+                            resp.raise_for_status()
+                            media_content = read_limited_media(resp.iter_content(chunk_size=256 * 1024))
+                            media_type = resp.headers.get("Content-Type") or "application/octet-stream"
                     except Exception as exc:
                         raise Exception(f"Media download failed: {exc}") from exc
 
-                    max_bytes = 25 * 1024 * 1024
-                    total = 0
-                    chunks = []
-                    for chunk in resp.iter_content(chunk_size=1024 * 256):
-                        if not chunk:
-                            continue
-                        total += len(chunk)
-                        if total > max_bytes:
-                            # This message is shown to the user in Bitrix as a send error.
-                            raise Exception("Media file exceeds 25MB limit")
-                        chunks.append(chunk)
-                    media_content = b"".join(chunks)
-                    media_type = resp.headers.get("Content-Type") or "application/octet-stream"
                     path = parsed.path or ""
                     media_name = os.path.basename(path) or "media"
 

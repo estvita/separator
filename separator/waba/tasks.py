@@ -438,7 +438,7 @@ def register_phone(phone_id):
 
 
 @shared_task(bind=True, queue='waba', **RETRY_KWARGS)
-def send_phone_message(self, phone_id, message, bitrix_echo=None):
+def send_phone_message(self, phone_id, message, bitrix_echo=None, followup=None):
     phone = Phone.objects.select_related("waba").get(id=phone_id)
     try:
         send_result = utils.send_message_from_phone(phone, message)
@@ -447,26 +447,32 @@ def send_phone_message(self, phone_id, message, bitrix_echo=None):
             raise
         send_result = {"error": True, "message": str(exc)}
 
-    if not bitrix_echo:
-        return send_result
-
-    echo = dict(bitrix_echo)
-    echo.pop("message_id", None)
-    if not isinstance(send_result, dict) or send_result.get("error"):
+    send_failed = not isinstance(send_result, dict) or send_result.get("error")
+    if bitrix_echo:
+        echo = dict(bitrix_echo)
+        echo.pop("message_id", None)
+    if bitrix_echo and send_failed:
         from separator.bitrix.utils import format_waba_error
         error_text = format_waba_error(send_result) or "send failed"
         echo["text"] = f"[color=#ff0000]{error_text}[/color]"
-    else:
+        echo.pop("attachments", None)
+    elif bitrix_echo:
         messages = send_result.get("messages") or []
         if messages and isinstance(messages[0], dict):
             message_id = messages[0].get("id")
             if message_id:
                 echo["message_id"] = message_id
 
-    try:
-        bitrix_tasks.send_messages.delay(**echo)
-    except Exception:
-        logger.exception("Failed to queue Bitrix echo for WABA message")
+    if bitrix_echo:
+        try:
+            bitrix_tasks.send_messages.delay(**echo)
+        except Exception:
+            logger.exception("Failed to queue Bitrix echo for WABA message")
+    if followup and not send_failed:
+        try:
+            send_phone_message.delay(phone_id, followup["message"], bitrix_echo=followup["bitrix_echo"])
+        except Exception:
+            logger.exception("Failed to queue follow-up WABA message")
     return send_result
 
 

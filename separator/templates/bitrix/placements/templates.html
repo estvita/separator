@@ -15,6 +15,16 @@
         select, input, textarea { padding: 8px; border: 1px solid #c8cdd3; border-radius: 4px; }
         button { padding: 10px; border: 0; border-radius: 4px; background: #1f74d1; color: #fff; cursor: pointer; }
         button:disabled { opacity: .5; cursor: default; }
+        #messageFile { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; }
+        #fileDropZone { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px; border: 1px dashed #a8bfd9; border-radius: 8px; background: #f5f8fc; }
+        #fileDropZone.drag-active { border-color: #1f74d1; background: #e8f2ff; }
+        #fileDropZone:focus-within { outline: 2px solid #1f74d1; outline-offset: 2px; }
+        #filePicker { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 9px 13px; border-radius: 6px; background: #1f74d1; color: #fff; font: inherit; cursor: pointer; white-space: nowrap; }
+        #filePicker svg { width: 18px; height: 18px; flex: none; }
+        #filePicker:hover { background: #155ea9; }
+        #selectedFileName { min-width: 0; font-size: 13px; color: #4e6177; overflow-wrap: anywhere; }
+        #removeFile { width: auto; padding: 6px 8px; margin-left: auto; background: transparent; color: #4e6177; }
+        #removeFile:hover { background: #e8edf3; }
         .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
         .tabs button { flex: 1; }
         .tabs button[aria-selected="false"] { background: #e8edf3; color: #333; }
@@ -36,7 +46,7 @@
 
 <div class="tabs" role="tablist">
     <button id="templatesTab" type="button" role="tab" aria-controls="templatesPanel" aria-selected="true">{% trans "Templates" %}</button>
-    <button id="textTab" type="button" role="tab" aria-controls="textPanel" aria-selected="false">{% trans "Text" %}</button>
+    <button id="textTab" type="button" role="tab" aria-controls="textPanel" aria-selected="false">{% if LANGUAGE_CODE|slice:":2" == "ru" %}Сообщение{% else %}{% trans "Message" %}{% endif %}</button>
 </div>
 <section id="templatesPanel" role="tabpanel" aria-labelledby="templatesTab">
 <div class="row">
@@ -60,6 +70,7 @@
     <select id="systemSelect"></select>
 </div>
 <div id="parameters"></div>
+<div id="templateFileSlot"></div>
 <div id="warning" hidden>{% trans "Some parameters of this template are not available when sending from the chat." %}</div>
 <div id="status" role="status"></div>
 <button id="sendButton" type="button" disabled>{% trans "Send" %}</button>
@@ -68,6 +79,21 @@
     <div class="row">
         <label for="textMessage">{% trans "Text" %}</label>
         <textarea id="textMessage" rows="5" maxlength="4096"></textarea>
+    </div>
+    <div id="textFileSlot">
+    <div class="row" id="fileRow">
+        <div id="fileDropZone">
+            <input id="messageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.mp4,.3gp,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+            <label id="filePicker" for="messageFile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 16V4m0 0L8 8m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>
+                </svg>
+                {% trans "File" %}
+            </label>
+            <span id="selectedFileName" role="status" aria-live="polite"></span>
+            <button id="removeFile" type="button" hidden>{% trans "Remove" %}</button>
+        </div>
+    </div>
     </div>
     <div id="textStatus" role="status"></div>
     <button id="sendTextButton" type="button" disabled>{% trans "Send" %}</button>
@@ -124,11 +150,19 @@
     const templatesPanel = document.getElementById('templatesPanel');
     const textPanel = document.getElementById('textPanel');
     const textNode = document.getElementById('textMessage');
+    const templateFileSlot = document.getElementById('templateFileSlot');
+    const textFileSlot = document.getElementById('textFileSlot');
+    const fileRow = document.getElementById('fileRow');
+    const fileNode = document.getElementById('messageFile');
+    const fileDropZone = document.getElementById('fileDropZone');
+    const selectedFileName = document.getElementById('selectedFileName');
+    const removeFileNode = document.getElementById('removeFile');
     const textStatusNode = document.getElementById('textStatus');
     const sendTextButton = document.getElementById('sendTextButton');
     let ready = false;
     let sending = false;
     let sendingText = false;
+    let selectedFile = null;
 
     function setStatus(message, isError) {
         statusNode.textContent = message || '';
@@ -145,10 +179,27 @@
         textTab.setAttribute('aria-selected', String(textActive));
         templatesPanel.hidden = textActive;
         textPanel.hidden = !textActive;
+        (textActive ? textFileSlot : templateFileSlot).appendChild(fileRow);
+        fileRow.hidden = !textActive && typeNode.value === 'system';
     }
 
     function updateTextButton() {
-        sendTextButton.disabled = !ready || sendingText || !textNode.value.trim();
+        sendTextButton.disabled = !ready || sendingText || (!textNode.value.trim() && !selectedFile);
+    }
+
+    function selectFile(file) {
+        selectedFile = file;
+        selectedFileName.textContent = file ? file.name : '';
+        removeFileNode.hidden = !file;
+        setTextStatus('');
+        setStatus('');
+        updateTextButton();
+    }
+
+    function isFileDrag(event) {
+        return event.dataTransfer && (
+            event.dataTransfer.files.length || Array.from(event.dataTransfer.types || []).includes('Files')
+        );
     }
 
     function fillSelect(node, items, labelKey, emptyLabel) {
@@ -288,7 +339,7 @@
                 });
             }
             if (type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(format)) {
-                const mediaUrl = fieldValue('media__' + component.id);
+                const mediaUrl = selectedFile ? '' : fieldValue('media__' + component.id);
                 if (mediaUrl) {
                     segments.push('file_link:' + mediaUrl);
                 }
@@ -315,6 +366,61 @@
         return 'interactive+' + interactive.id + (segments.length ? '+' + segments.join('|') : '');
     }
 
+    function queueMessage(action, value, setMessageStatus, onSuccess, onDone, file) {
+        let requestStarted = false;
+        const profileTimeout = setTimeout(function () { sendRequest(null); }, 2000);
+
+        function sendRequest(profile) {
+            if (requestStarted) {
+                return;
+            }
+            requestStarted = true;
+            clearTimeout(profileTimeout);
+            const payload = new FormData();
+            payload.append('action', action);
+            payload.append('AUTH_ID', authId);
+            payload.append('member_id', memberId);
+            payload.append('PLACEMENT', 'IM_TEXTAREA');
+            payload.append('PLACEMENT_OPTIONS', JSON.stringify({ dialogId: dialogId }));
+            payload.append(action === 'send_text' ? 'text' : 'code', value);
+            if (file) {
+                payload.append('file', file);
+            }
+            if (profile && profile.ID) {
+                payload.append('bitrix_user_id', profile.ID);
+                payload.append('bitrix_user_name', [profile.NAME, profile.LAST_NAME].filter(Boolean).join(' '));
+            }
+
+            fetch(window.location.pathname + window.location.search, {
+                method: 'POST',
+                body: payload,
+                credentials: 'same-origin'
+            })
+            .then(function (response) { return response.json(); })
+            .then(function (result) {
+                if (!result.ok) {
+                    setMessageStatus(result.error || '', true);
+                    return;
+                }
+                onSuccess();
+                setMessageStatus(translations.textQueued);
+            })
+            .catch(function () {
+                setMessageStatus(translations.bitrixUnavailable, true);
+            })
+            .finally(onDone);
+        }
+
+        try {
+            BX24.callMethod('profile', {}, function (result) {
+                const profile = result.error() ? null : result.data();
+                sendRequest(profile);
+            });
+        } catch (e) {
+            sendRequest(null);
+        }
+    }
+
     function sendMessage() {
         const item = selectedItem();
         if (!ready || !item || sending) {
@@ -325,6 +431,17 @@
             : item.id;
         sending = true;
         sendButton.disabled = true;
+        if (typeNode.value !== 'system') {
+            setStatus(translations.sendingText);
+            queueMessage('send_' + typeNode.value, message, setStatus, function () {
+                fileNode.value = '';
+                selectFile(null);
+            }, function () {
+                sending = false;
+                sendButton.disabled = !selectedItem();
+            }, selectedFile);
+            return;
+        }
         setStatus(translations.addingMessage);
         BX24.callMethod('im.message.add', {
             DIALOG_ID: dialogId,
@@ -344,64 +461,21 @@
 
     function sendText() {
         const text = textNode.value.trim();
-        if (!ready || sendingText || !text) {
+        const file = selectedFile;
+        if (!ready || sendingText || (!text && !file)) {
             return;
         }
         sendingText = true;
         updateTextButton();
         setTextStatus(translations.sendingText);
-        let requestStarted = false;
-        const profileTimeout = setTimeout(function () { sendRequest(null); }, 2000);
-
-        function sendRequest(profile) {
-            if (requestStarted) {
-                return;
-            }
-            requestStarted = true;
-            clearTimeout(profileTimeout);
-            const payload = new FormData();
-            payload.append('action', 'send_text');
-            payload.append('AUTH_ID', authId);
-            payload.append('member_id', memberId);
-            payload.append('PLACEMENT', 'IM_TEXTAREA');
-            payload.append('PLACEMENT_OPTIONS', JSON.stringify({ dialogId: dialogId }));
-            payload.append('text', text);
-            if (profile && profile.ID) {
-                payload.append('bitrix_user_id', profile.ID);
-                payload.append('bitrix_user_name', [profile.NAME, profile.LAST_NAME].filter(Boolean).join(' '));
-            }
-
-            fetch(window.location.pathname + window.location.search, {
-                method: 'POST',
-                body: payload,
-                credentials: 'same-origin'
-            })
-            .then(function (response) { return response.json(); })
-            .then(function (result) {
-                if (!result.ok) {
-                    setTextStatus(result.error || '', true);
-                    return;
-                }
-                textNode.value = '';
-                setTextStatus(translations.textQueued);
-            })
-            .catch(function () {
-                setTextStatus(translations.bitrixUnavailable, true);
-            })
-            .finally(function () {
-                sendingText = false;
-                updateTextButton();
-            });
-        }
-
-        try {
-            BX24.callMethod('profile', {}, function (result) {
-                const profile = result.error() ? null : result.data();
-                sendRequest(profile);
-            });
-        } catch (e) {
-            sendRequest(null);
-        }
+        queueMessage('send_text', text, setTextStatus, function () {
+            textNode.value = '';
+            fileNode.value = '';
+            selectFile(null);
+        }, function () {
+            sendingText = false;
+            updateTextButton();
+        }, file);
     }
 
     fillSelect(templateNode, templates, 'widget_label', translations.noTemplates);
@@ -411,6 +485,7 @@
         document.getElementById('templateRow').hidden = typeNode.value !== 'template';
         document.getElementById('interactiveRow').hidden = typeNode.value !== 'interactive';
         document.getElementById('systemRow').hidden = typeNode.value !== 'system';
+        fileRow.hidden = typeNode.value === 'system';
         setStatus('');
         renderFields();
     });
@@ -421,7 +496,65 @@
     templatesTab.addEventListener('click', function () { selectTab(false); });
     textTab.addEventListener('click', function () { selectTab(true); });
     textNode.addEventListener('input', updateTextButton);
+    fileNode.addEventListener('change', function () { selectFile(fileNode.files[0] || null); });
+    removeFileNode.addEventListener('click', function () {
+        fileNode.value = '';
+        selectFile(null);
+    });
+    document.addEventListener('dragenter', function (event) {
+        if (isFileDrag(event)) {
+            if (typeNode.value === 'system') {
+                selectTab(true);
+            }
+            fileDropZone.classList.add('drag-active');
+        }
+    });
+    document.addEventListener('dragover', function (event) {
+        if (isFileDrag(event)) {
+            event.preventDefault();
+            fileDropZone.classList.add('drag-active');
+        }
+    });
+    document.addEventListener('dragleave', function (event) {
+        if (!event.relatedTarget || !document.documentElement.contains(event.relatedTarget)) {
+            fileDropZone.classList.remove('drag-active');
+        }
+    });
+    document.addEventListener('drop', function (event) {
+        if (!isFileDrag(event)) {
+            return;
+        }
+        event.preventDefault();
+        fileDropZone.classList.remove('drag-active');
+        if (event.dataTransfer.files.length) {
+            if (typeNode.value === 'system') {
+                selectTab(true);
+            }
+            fileNode.value = '';
+            selectFile(event.dataTransfer.files[0]);
+        }
+    });
+    document.addEventListener('paste', function (event) {
+        const extensions = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+        const image = Array.from(event.clipboardData && event.clipboardData.items || []).find(function (item) {
+            return item.kind === 'file' && extensions[item.type];
+        });
+        if (!image) {
+            return;
+        }
+        const blob = image.getAsFile();
+        if (!blob) {
+            return;
+        }
+        event.preventDefault();
+        if (typeNode.value === 'system') {
+            selectTab(true);
+        }
+        fileNode.value = '';
+        selectFile(new File([blob], 'screenshot-' + Date.now() + '.' + extensions[image.type], { type: image.type }));
+    });
     sendTextButton.addEventListener('click', sendText);
+    selectTab(false);
     renderFields();
     if (!window.BX24 || typeof BX24.init !== 'function') {
         setStatus(translations.bitrixUnavailable, true);

@@ -346,6 +346,73 @@ def save_ctwa(instace_id, ctwa_id, chat_id, source_id=None):
         pass
 
 
+@shared_task(queue='bitrix', **RETRY_KWARGS)
+def prepare_waba_message(phone_id, app_instance_id, line_id, code, recipient_field, bitrix_echo, uploaded_media=None):
+    from .utils import parse_interactive_code, parse_template_code
+    from separator.waba.models import Interactive, TemplateComponent
+    from separator.waba.tasks import send_phone_message
+
+    phone = Phone.objects.select_related("waba").get(id=phone_id)
+    app_instance = AppInstance.objects.get(id=app_instance_id)
+    try:
+        if code.startswith("template+"):
+            media_header = False
+            if uploaded_media:
+                template_id = code.split("+", 2)[1]
+                header_format = TemplateComponent.objects.filter(
+                    template_id=template_id, type="HEADER",
+                ).values_list("format", flat=True).first()
+                media_header = header_format == uploaded_media["type"].upper()
+                if media_header:
+                    code_parts = code.split("+", 2)
+                    if len(code_parts) > 2:
+                        params = [item for item in code_parts[2].split("|") if not item.strip().startswith("file_link:")]
+                        code = "+".join(code_parts[:2]) + ("+" + "|".join(params) if params else "")
+            content = parse_template_code(code, appinstance=app_instance, line_id=line_id)
+        elif code.startswith("interactive+"):
+            media_header = bool(uploaded_media) and Interactive.objects.filter(
+                id=code.split("+", 2)[1], type__in={"button", "cta_url"},
+            ).exists()
+            content = parse_interactive_code(code, appinstance=app_instance, phone=None if media_header else phone)
+        else:
+            raise ValueError("Invalid message code")
+    except TRANSIENT_ERRORS:
+        raise
+    except Exception as exc:
+        error_echo = dict(bitrix_echo)
+        error_echo["text"] = f"[color=#ff0000]{exc}[/color]"
+        send_messages.delay(**error_echo)
+        return None
+
+    followup = None
+    if uploaded_media:
+        media_type = uploaded_media["type"]
+        media = {"id": uploaded_media["id"]}
+        if media_type == "document":
+            media["filename"] = uploaded_media["filename"]
+        attachment = {"url": uploaded_media["url"], "name": uploaded_media["filename"]}
+        if media_header:
+            echo = dict(bitrix_echo)
+            echo["attachments"] = [attachment]
+            bitrix_echo = echo
+            if content["type"] == "template":
+                components = content["template"].setdefault("components", [])
+                components.insert(0, {"type": "header", "parameters": [{"type": media_type, media_type: media}]})
+            else:
+                content["interactive"]["header"] = {"type": media_type, media_type: media}
+        else:
+            file_echo = dict(bitrix_echo)
+            file_echo["text"] = uploaded_media["echo_text"]
+            file_echo["attachments"] = [attachment]
+            followup = {
+                "message": {"messaging_product": "whatsapp", **recipient_field, "type": media_type, media_type: media},
+                "bitrix_echo": file_echo,
+            }
+
+    message = {"messaging_product": "whatsapp", **recipient_field, **content}
+    return send_phone_message.delay(phone_id, message, bitrix_echo=bitrix_echo, followup=followup).id
+
+
 @shared_task(bind=True, max_retries=5, default_retry_delay=5, queue='bitrix')
 def send_messages(self, app_instance_id, user_phone, text, connector,
                   line, pushName=None,

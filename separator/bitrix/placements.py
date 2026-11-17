@@ -1,5 +1,7 @@
 import json
+import os
 import re
+import uuid
 import requests
 
 from django.conf import settings
@@ -9,7 +11,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from separator.waba.models import Interactive, Phone, Template
+from separator.waba.models import Interactive, Phone, Template, TemplateComponent
 from separator.users.models import Message
 import separator.waba.bitrix as waba_bitrix
 from separator.olx.models import OlxUser
@@ -19,8 +21,26 @@ import separator.waba.tasks as waba_tasks
 import separator.bitrix.tasks as bitrix_tasks
 
 from .crest import call_method
-from .utils import get_app, connect_line, format_waba_error, parse_interactive_code
+from .utils import get_app, connect_line, format_waba_error, parse_interactive_code, build_waba_media_proxy_url
 from .models import AppInstance, Bitrix, Line, Connector
+
+
+WIDGET_FILE_TYPES = {
+    ".jpg": ("image", "image/jpeg", 5 * 1024 * 1024),
+    ".jpeg": ("image", "image/jpeg", 5 * 1024 * 1024),
+    ".png": ("image", "image/png", 5 * 1024 * 1024),
+    ".webp": ("image", "image/webp", 5 * 1024 * 1024),
+    ".mp4": ("video", "video/mp4", 16 * 1024 * 1024),
+    ".3gp": ("video", "video/3gpp", 16 * 1024 * 1024),
+    ".txt": ("document", "text/plain", 25 * 1024 * 1024),
+    ".pdf": ("document", "application/pdf", 25 * 1024 * 1024),
+    ".doc": ("document", "application/msword", 25 * 1024 * 1024),
+    ".docx": ("document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 25 * 1024 * 1024),
+    ".xls": ("document", "application/vnd.ms-excel", 25 * 1024 * 1024),
+    ".xlsx": ("document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 25 * 1024 * 1024),
+    ".ppt": ("document", "application/vnd.ms-powerpoint", 25 * 1024 * 1024),
+    ".pptx": ("document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", 25 * 1024 * 1024),
+}
 
 def settings_connector(request, user):
     data = request.POST
@@ -192,11 +212,40 @@ def templates(request, appinstance):
         return fail(_("The chat is not linked to an available WABA number."))
 
     if action:
-        if action != "send_text":
+        if action not in {"send_text", "send_template", "send_interactive"}:
             return fail(_("Unknown action."))
-        text = (request.POST.get("text") or "").strip()
-        if not text or len(text) > 4096:
-            return fail(_("Enter a message of up to 4096 characters."))
+        files = request.FILES.getlist("file")
+        if len(files) > 1:
+            return fail(_("Attach one file."))
+        uploaded_file = files[0] if files else None
+
+        if action == "send_text":
+            echo_body = (request.POST.get("text") or "").strip()
+            if (not echo_body and not uploaded_file) or len(echo_body) > 4096:
+                return fail(_("Enter a message of up to 4096 characters."))
+            if uploaded_file and len(echo_body) > 1024:
+                return fail(_("File caption must be up to 1024 characters."))
+        else:
+            echo_body = (request.POST.get("code") or "").strip()
+            parts = echo_body.split("+", 2)
+            kind = action.removeprefix("send_")
+            if len(parts) < 2 or parts[0] != kind or not parts[1] or len(echo_body) > 8192:
+                return fail(_("Invalid message code."))
+            if action == "send_template":
+                allowed = Template.objects.filter(
+                    id=parts[1], waba_id=phone.waba_id,
+                    status="APPROVED", availableInB24=True,
+                ).exists()
+            else:
+                try:
+                    interactive_id = uuid.UUID(parts[1])
+                except ValueError:
+                    return fail(_("Invalid message code."))
+                allowed = WabaPlacementModule._interactives_for_portal(appinstance).filter(
+                    id=interactive_id
+                ).exists()
+            if not allowed:
+                return fail(_("Invalid message code."))
 
         chat_id = entity_parts[2]
         if re.fullmatch(r"\+?[1-9]\d{7,14}", chat_id):
@@ -208,13 +257,62 @@ def templates(request, appinstance):
         else:
             return fail(_("Failed to identify the recipient."))
 
-        message = {
-            "messaging_product": "whatsapp",
-            **recipient_field,
-            "type": "text",
-            "text": {"body": text},
-        }
-        echo_text = text
+        uploaded_media = None
+        if uploaded_file:
+            filename = os.path.basename(uploaded_file.name.replace("\\", "/"))
+            file_type = WIDGET_FILE_TYPES.get(os.path.splitext(filename)[1].lower())
+            if not file_type:
+                return fail(_("Unsupported file type."))
+            media_type, mime_type, max_size = file_type
+            if not uploaded_file.size or uploaded_file.size > max_size:
+                return fail(_("File size exceeds the limit for this type."))
+            if action == "send_template":
+                header_format = TemplateComponent.objects.filter(
+                    template_id=parts[1], type="HEADER",
+                ).values_list("format", flat=True).first()
+                if header_format in {"IMAGE", "VIDEO", "DOCUMENT", "GIF"} and header_format != media_type.upper():
+                    return fail(_("File type does not match the template header."))
+            upload_result = waba_utils.upload_media_for_phone(
+                phone, uploaded_file.read(), mime_type, filename,
+            )
+            media_id = upload_result.get("id") if isinstance(upload_result, dict) else None
+            if not media_id:
+                error_text = format_waba_error(upload_result) or _("Media upload failed.")
+                try:
+                    bitrix_tasks.send_messages.delay(
+                        appinstance.id, recipient, f"[color=#ff0000]{error_text}[/color]",
+                        line.connector.code, line.line_id, chat_id=chat_id, manager_id=0,
+                    )
+                except Exception:
+                    pass
+                return fail(error_text)
+            file_url = build_waba_media_proxy_url(appinstance, phone, media_id, filename)
+            if not file_url:
+                return fail(_("Failed to prepare file attachment for Bitrix24."))
+            uploaded_media = {"id": media_id, "type": media_type, "filename": filename, "url": file_url}
+
+        if action == "send_text" and uploaded_media:
+            media = {"id": uploaded_media["id"]}
+            if echo_body:
+                media["caption"] = echo_body
+            if uploaded_media["type"] == "document":
+                media["filename"] = uploaded_media["filename"]
+            message = {
+                "messaging_product": "whatsapp",
+                **recipient_field,
+                "type": uploaded_media["type"],
+                uploaded_media["type"]: media,
+            }
+            echo_body = echo_body or re.sub(r"[\[\]\r\n]", "", uploaded_media["filename"])
+        elif action == "send_text":
+            message = {
+                "messaging_product": "whatsapp",
+                **recipient_field,
+                "type": "text",
+                "text": {"body": echo_body},
+            }
+
+        attribution = ""
         bitrix_user_id = str(request.POST.get("bitrix_user_id") or "").strip()
         if re.fullmatch(r"[1-9][0-9]*", bitrix_user_id):
             user_name = re.sub(
@@ -224,21 +322,28 @@ def templates(request, appinstance):
                 f"{appinstance.portal.protocol}://{appinstance.portal.domain}"
                 f"/company/personal/user/{bitrix_user_id}/"
             )
-            echo_text = f"[url={profile_url}]{user_name or bitrix_user_id}[/url]:\n\n{text}"
+            attribution = f"[url={profile_url}]{user_name or bitrix_user_id}[/url]:\n\n"
+        bitrix_echo = {
+            "app_instance_id": appinstance.id,
+            "user_phone": recipient,
+            "text": attribution + echo_body,
+            "connector": line.connector.code,
+            "line": line.line_id,
+            "chat_id": chat_id,
+            "manager_id": 0,
+        }
+        if uploaded_media:
+            if action == "send_text":
+                bitrix_echo["attachments"] = [{"url": uploaded_media["url"], "name": uploaded_media["filename"]}]
+            else:
+                uploaded_media["echo_text"] = attribution + re.sub(r"[\[\]\r\n]", "", uploaded_media["filename"])
         try:
-            waba_tasks.send_phone_message.delay(
-                phone.id,
-                message,
-                bitrix_echo={
-                    "app_instance_id": appinstance.id,
-                    "user_phone": recipient,
-                    "text": echo_text,
-                    "connector": line.connector.code,
-                    "line": line.line_id,
-                    "chat_id": chat_id,
-                    "manager_id": 0,
-                },
-            )
+            if action == "send_text":
+                waba_tasks.send_phone_message.delay(phone.id, message, bitrix_echo=bitrix_echo)
+            else:
+                bitrix_tasks.prepare_waba_message.delay(
+                    phone.id, appinstance.id, line.line_id, echo_body, recipient_field, bitrix_echo, uploaded_media,
+                )
         except Exception as exc:
             return fail(str(exc))
         return JsonResponse({"ok": True}, status=202)

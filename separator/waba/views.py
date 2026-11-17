@@ -638,6 +638,15 @@ def broadcast_page(request):
                     messages.error(request, _("Template not found"))
                     return redirect('broadcast-page')
 
+                for component in template_obj.components.all():
+                    if component.type == "HEADER" and component.format in {"IMAGE", "VIDEO", "DOCUMENT", "GIF"}:
+                        media_key = f"media__{component.id}"
+                        if request.POST.get(media_key):
+                            raise ValueError("Upload a media file instead of a URL")
+                        media_file = request.FILES.get(media_key)
+                        if not media_file or not media_file.size:
+                            raise ValueError("Upload a media file for this template")
+
                 components_payload = waba_utils.build_template_components_payload(
                     template_obj, request.POST, request.FILES, phone
                 )

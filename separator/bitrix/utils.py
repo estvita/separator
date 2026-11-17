@@ -652,6 +652,7 @@ def _get_hashtag_interactive(text, appinstance):
 def _build_file_header_component(file_url, appinstance=None, line_id=None, phone_num=None):
     if not file_url:
         return None
+    waba.validate_media_url(file_url)
 
     upload_phone = None
     if appinstance and phone_num:
@@ -686,8 +687,11 @@ def _build_file_header_component(file_url, appinstance=None, line_id=None, phone
     file_type = ""
     file_headers = None
     try:
-        file_headers = requests.head(file_url, allow_redirects=True, timeout=10)
-        file_type = file_headers.headers.get("Content-Type", "")
+        with waba.request_media_url(file_url, method="HEAD", timeout=10) as response:
+            file_headers = response.headers
+            file_type = file_headers.get("Content-Type", "")
+    except ValueError:
+        raise
     except Exception:
         file_type = ""
 
@@ -705,7 +709,7 @@ def _build_file_header_component(file_url, appinstance=None, line_id=None, phone
     if waba_file_type == "document":
         filename = "file.pdf"
         if file_headers:
-            cd = file_headers.headers.get("Content-Disposition", "")
+            cd = file_headers.get("Content-Disposition", "")
             m = re.search(r"filename\*=utf-8''(.+)", cd)
             if m:
                 filename = unquote(m.group(1))
@@ -719,19 +723,22 @@ def _build_file_header_component(file_url, appinstance=None, line_id=None, phone
 
     if appinstance and (line_id or phone_num):
         try:
-            r = requests.get(file_url, timeout=30)
-            if r.status_code == 200:
-                up_res = waba.upload_media(
-                    appinstance,
-                    r.content,
-                    file_type,
-                    filename,
-                    line_id=line_id,
-                    phone_num=phone_num,
-                    source_url=file_url,
-                )
-                if up_res and "id" in up_res:
-                    uploaded_id = up_res["id"]
+            with waba.request_media_url(file_url, timeout=30) as response:
+                if response.status_code == 200:
+                    media_content = waba.read_limited_media(response.iter_content(chunk_size=256 * 1024))
+                    up_res = waba.upload_media(
+                        appinstance,
+                        media_content,
+                        file_type,
+                        filename,
+                        line_id=line_id,
+                        phone_num=phone_num,
+                        source_url=file_url,
+                    )
+                    if up_res and "id" in up_res:
+                        uploaded_id = up_res["id"]
+        except ValueError:
+            raise
         except Exception:
             pass
             
@@ -793,25 +800,29 @@ def _build_interactive_header(header, phone=None):
     if header_type == "text":
         return {"type": "text", "text": value}
     if header_type in {"image", "video", "document"}:
+        waba.validate_media_url(value)
         if phone:
             # Check cache before downloading media from the customer-provided source.
             media_id = waba.get_cached_media_id_for_phone(phone, value)
             if media_id:
                 return {"type": header_type, header_type: {"id": media_id}}
             try:
-                response = requests.get(value, timeout=(10, 60))
-                if response.status_code == 200:
-                    filename = os.path.basename(value.split("?", 1)[0]) or "file"
-                    upload = waba.upload_media_for_phone(
-                        phone,
-                        response.content,
-                        response.headers.get("Content-Type", "application/octet-stream"),
-                        filename,
-                        source_url=value,
-                    )
-                    media_id = upload.get("id") if isinstance(upload, dict) else None
-                    if media_id:
-                        return {"type": header_type, header_type: {"id": media_id}}
+                with waba.request_media_url(value, timeout=(10, 60)) as response:
+                    if response.status_code == 200:
+                        media_content = waba.read_limited_media(response.iter_content(chunk_size=256 * 1024))
+                        filename = os.path.basename(value.split("?", 1)[0]) or "file"
+                        upload = waba.upload_media_for_phone(
+                            phone,
+                            media_content,
+                            response.headers.get("Content-Type", "application/octet-stream"),
+                            filename,
+                            source_url=value,
+                        )
+                        media_id = upload.get("id") if isinstance(upload, dict) else None
+                        if media_id:
+                            return {"type": header_type, header_type: {"id": media_id}}
+            except ValueError:
+                raise
             except Exception as e:
                 logger.error(f"Interactive media upload failed: {e}")
         return {"type": header_type, header_type: {"link": value}}
