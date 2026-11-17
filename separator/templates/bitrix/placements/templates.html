@@ -180,7 +180,7 @@
         templatesPanel.hidden = textActive;
         textPanel.hidden = !textActive;
         (textActive ? textFileSlot : templateFileSlot).appendChild(fileRow);
-        fileRow.hidden = !textActive && typeNode.value === 'system';
+        updateFileRow();
     }
 
     function updateTextButton() {
@@ -221,6 +221,35 @@
             return systemMessages.find(function (item) { return item.id === systemNode.value; });
         }
         return templates.find(function (item) { return item.id === templateNode.value; });
+    }
+
+    function selectedHasMediaHeader() {
+        const item = selectedItem();
+        if (!item) {
+            return false;
+        }
+        if (typeNode.value === 'interactive') {
+            return item.has_media_header;
+        }
+        return typeNode.value === 'template' && (item.components || []).some(function (component) {
+            return String(component.type || '').toUpperCase() === 'HEADER'
+                && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(String(component.format || '').toUpperCase());
+        });
+    }
+
+    function updateFileRow() {
+        const visible = !textPanel.hidden || selectedHasMediaHeader();
+        if (!visible && selectedFile) {
+            fileNode.value = '';
+            selectFile(null);
+        }
+        fileRow.hidden = !visible;
+    }
+
+    function showFileTabIfNeeded() {
+        if (textPanel.hidden && !selectedHasMediaHeader()) {
+            selectTab(true);
+        }
     }
 
     function addField(fields, key, label, value) {
@@ -313,6 +342,7 @@
         });
         warningNode.hidden = !config.unsupported;
         sendButton.disabled = !ready || sending || !item;
+        updateFileRow();
     }
 
     function fieldValue(key) {
@@ -485,7 +515,6 @@
         document.getElementById('templateRow').hidden = typeNode.value !== 'template';
         document.getElementById('interactiveRow').hidden = typeNode.value !== 'interactive';
         document.getElementById('systemRow').hidden = typeNode.value !== 'system';
-        fileRow.hidden = typeNode.value === 'system';
         setStatus('');
         renderFields();
     });
@@ -503,9 +532,7 @@
     });
     document.addEventListener('dragenter', function (event) {
         if (isFileDrag(event)) {
-            if (typeNode.value === 'system') {
-                selectTab(true);
-            }
+            showFileTabIfNeeded();
             fileDropZone.classList.add('drag-active');
         }
     });
@@ -527,9 +554,7 @@
         event.preventDefault();
         fileDropZone.classList.remove('drag-active');
         if (event.dataTransfer.files.length) {
-            if (typeNode.value === 'system') {
-                selectTab(true);
-            }
+            showFileTabIfNeeded();
             fileNode.value = '';
             selectFile(event.dataTransfer.files[0]);
         }
@@ -547,9 +572,7 @@
             return;
         }
         event.preventDefault();
-        if (typeNode.value === 'system') {
-            selectTab(true);
-        }
+        showFileTabIfNeeded();
         fileNode.value = '';
         selectFile(new File([blob], 'screenshot-' + Date.now() + '.' + extensions[image.type], { type: image.type }));
     });

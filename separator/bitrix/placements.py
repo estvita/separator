@@ -616,6 +616,7 @@ class WabaPlacementModule:
         items = []
         for item in interactives:
             payload = item.payload or {}
+            header = payload.get("header") or {}
             variables = []
             for variable in payload.get("variables") or []:
                 name = str(variable.get("name", "")).strip()
@@ -630,6 +631,12 @@ class WabaPlacementModule:
                 "label": item.name,
                 "type": item.get_type_display(),
                 "variables": variables,
+                "has_media_header": (
+                    item.type in {"button", "cta_url"}
+                    and isinstance(header, dict)
+                    and str(header.get("type") or "").lower()
+                    in {"image", "video", "document"}
+                ),
             })
         return items
 
