@@ -437,6 +437,39 @@ def register_phone(phone_id):
     return utils.call_api(waba=phone.waba, endpoint=f"{phone.phone_id}/register", method="post", payload=payload)
 
 
+@shared_task(bind=True, queue='waba', **RETRY_KWARGS)
+def send_phone_message(self, phone_id, message, bitrix_echo=None):
+    phone = Phone.objects.select_related("waba").get(id=phone_id)
+    try:
+        send_result = utils.send_message_from_phone(phone, message)
+    except requests.RequestException as exc:
+        if self.request.retries < self.max_retries:
+            raise
+        send_result = {"error": True, "message": str(exc)}
+
+    if not bitrix_echo:
+        return send_result
+
+    echo = dict(bitrix_echo)
+    echo.pop("message_id", None)
+    if not isinstance(send_result, dict) or send_result.get("error"):
+        from separator.bitrix.utils import format_waba_error
+        error_text = format_waba_error(send_result) or "send failed"
+        echo["text"] = f"[color=#ff0000]{error_text}[/color]"
+    else:
+        messages = send_result.get("messages") or []
+        if messages and isinstance(messages[0], dict):
+            message_id = messages[0].get("id")
+            if message_id:
+                echo["message_id"] = message_id
+
+    try:
+        bitrix_tasks.send_messages.delay(**echo)
+    except Exception:
+        logger.exception("Failed to queue Bitrix echo for WABA message")
+    return send_result
+
+
 @shared_task(queue='waba', **RETRY_KWARGS)
 def send_single_message(template, recipient, id, components=None, broadcast_id=None):
     try:

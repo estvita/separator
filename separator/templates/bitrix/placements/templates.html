@@ -11,12 +11,15 @@
         body { font-family: Arial, sans-serif; margin: 16px; color: #333; }
         .row { margin-bottom: 12px; }
         label { display: block; margin-bottom: 5px; font-size: 13px; }
-        select, input, button { width: 100%; box-sizing: border-box; font: inherit; }
-        select, input { padding: 8px; border: 1px solid #c8cdd3; border-radius: 4px; }
+        select, input, textarea, button { width: 100%; box-sizing: border-box; font: inherit; }
+        select, input, textarea { padding: 8px; border: 1px solid #c8cdd3; border-radius: 4px; }
         button { padding: 10px; border: 0; border-radius: 4px; background: #1f74d1; color: #fff; cursor: pointer; }
         button:disabled { opacity: .5; cursor: default; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .tabs button { flex: 1; }
+        .tabs button[aria-selected="false"] { background: #e8edf3; color: #333; }
         #appLink { display: block; margin-bottom: 12px; font-size: 13px; }
-        #status { margin: 12px 0; white-space: pre-wrap; font-size: 13px; }
+        #status, #textStatus { margin: 12px 0; white-space: pre-wrap; font-size: 13px; }
         #warning { margin-bottom: 12px; color: #8a6d00; font-size: 13px; }
     </style>
 </head>
@@ -31,6 +34,11 @@
 {{ interactives_data|json_script:"chat-interactives-data" }}
 {{ system_messages_data|json_script:"chat-system-messages-data" }}
 
+<div class="tabs" role="tablist">
+    <button id="templatesTab" type="button" role="tab" aria-controls="templatesPanel" aria-selected="true">{% trans "Templates" %}</button>
+    <button id="textTab" type="button" role="tab" aria-controls="textPanel" aria-selected="false">{% trans "Text" %}</button>
+</div>
+<section id="templatesPanel" role="tabpanel" aria-labelledby="templatesTab">
 <div class="row">
     <label for="messageType">{% trans "Message type" %}</label>
     <select id="messageType">
@@ -55,6 +63,15 @@
 <div id="warning" hidden>{% trans "Some parameters of this template are not available when sending from the chat." %}</div>
 <div id="status" role="status"></div>
 <button id="sendButton" type="button" disabled>{% trans "Send" %}</button>
+</section>
+<section id="textPanel" role="tabpanel" aria-labelledby="textTab" hidden>
+    <div class="row">
+        <label for="textMessage">{% trans "Text" %}</label>
+        <textarea id="textMessage" rows="5" maxlength="4096"></textarea>
+    </div>
+    <div id="textStatus" role="status"></div>
+    <button id="sendTextButton" type="button" disabled>{% trans "Send" %}</button>
+</section>
 
 {% trans "Body" as label_body %}
 {% trans "Header" as label_header %}
@@ -68,6 +85,8 @@
 {% trans "No templates available" as message_no_templates %}
 {% trans "No interactive messages available" as message_no_interactives %}
 {% trans "Bitrix24 is unavailable." as message_bitrix_unavailable %}
+{% trans "Sending..." as message_sending_text %}
+{% trans "Message queued for sending." as message_text_queued %}
 <script>
 (function () {
     const translations = {
@@ -82,9 +101,13 @@
         messageAdded: "{{ message_added|escapejs }}",
         noTemplates: "{{ message_no_templates|escapejs }}",
         noInteractives: "{{ message_no_interactives|escapejs }}",
-        bitrixUnavailable: "{{ message_bitrix_unavailable|escapejs }}"
+        bitrixUnavailable: "{{ message_bitrix_unavailable|escapejs }}",
+        sendingText: "{{ message_sending_text|escapejs }}",
+        textQueued: "{{ message_text_queued|escapejs }}"
     };
     const dialogId = "{{ dialog_id|escapejs }}";
+    const authId = "{{ auth_id|escapejs }}";
+    const memberId = "{{ member_id|escapejs }}";
     const templates = JSON.parse(document.getElementById('chat-templates-data').textContent);
     const interactives = JSON.parse(document.getElementById('chat-interactives-data').textContent);
     const systemMessages = JSON.parse(document.getElementById('chat-system-messages-data').textContent);
@@ -96,12 +119,36 @@
     const warningNode = document.getElementById('warning');
     const statusNode = document.getElementById('status');
     const sendButton = document.getElementById('sendButton');
+    const templatesTab = document.getElementById('templatesTab');
+    const textTab = document.getElementById('textTab');
+    const templatesPanel = document.getElementById('templatesPanel');
+    const textPanel = document.getElementById('textPanel');
+    const textNode = document.getElementById('textMessage');
+    const textStatusNode = document.getElementById('textStatus');
+    const sendTextButton = document.getElementById('sendTextButton');
     let ready = false;
     let sending = false;
+    let sendingText = false;
 
     function setStatus(message, isError) {
         statusNode.textContent = message || '';
         statusNode.style.color = isError ? '#b00020' : '#333';
+    }
+
+    function setTextStatus(message, isError) {
+        textStatusNode.textContent = message || '';
+        textStatusNode.style.color = isError ? '#b00020' : '#333';
+    }
+
+    function selectTab(textActive) {
+        templatesTab.setAttribute('aria-selected', String(!textActive));
+        textTab.setAttribute('aria-selected', String(textActive));
+        templatesPanel.hidden = textActive;
+        textPanel.hidden = !textActive;
+    }
+
+    function updateTextButton() {
+        sendTextButton.disabled = !ready || sendingText || !textNode.value.trim();
     }
 
     function fillSelect(node, items, labelKey, emptyLabel) {
@@ -295,6 +342,68 @@
         });
     }
 
+    function sendText() {
+        const text = textNode.value.trim();
+        if (!ready || sendingText || !text) {
+            return;
+        }
+        sendingText = true;
+        updateTextButton();
+        setTextStatus(translations.sendingText);
+        let requestStarted = false;
+        const profileTimeout = setTimeout(function () { sendRequest(null); }, 2000);
+
+        function sendRequest(profile) {
+            if (requestStarted) {
+                return;
+            }
+            requestStarted = true;
+            clearTimeout(profileTimeout);
+            const payload = new FormData();
+            payload.append('action', 'send_text');
+            payload.append('AUTH_ID', authId);
+            payload.append('member_id', memberId);
+            payload.append('PLACEMENT', 'IM_TEXTAREA');
+            payload.append('PLACEMENT_OPTIONS', JSON.stringify({ dialogId: dialogId }));
+            payload.append('text', text);
+            if (profile && profile.ID) {
+                payload.append('bitrix_user_id', profile.ID);
+                payload.append('bitrix_user_name', [profile.NAME, profile.LAST_NAME].filter(Boolean).join(' '));
+            }
+
+            fetch(window.location.pathname + window.location.search, {
+                method: 'POST',
+                body: payload,
+                credentials: 'same-origin'
+            })
+            .then(function (response) { return response.json(); })
+            .then(function (result) {
+                if (!result.ok) {
+                    setTextStatus(result.error || '', true);
+                    return;
+                }
+                textNode.value = '';
+                setTextStatus(translations.textQueued);
+            })
+            .catch(function () {
+                setTextStatus(translations.bitrixUnavailable, true);
+            })
+            .finally(function () {
+                sendingText = false;
+                updateTextButton();
+            });
+        }
+
+        try {
+            BX24.callMethod('profile', {}, function (result) {
+                const profile = result.error() ? null : result.data();
+                sendRequest(profile);
+            });
+        } catch (e) {
+            sendRequest(null);
+        }
+    }
+
     fillSelect(templateNode, templates, 'widget_label', translations.noTemplates);
     fillSelect(interactiveNode, interactives, 'label', translations.noInteractives);
     fillSelect(systemNode, systemMessages, 'label', '');
@@ -309,14 +418,20 @@
     interactiveNode.addEventListener('change', renderFields);
     systemNode.addEventListener('change', renderFields);
     sendButton.addEventListener('click', sendMessage);
+    templatesTab.addEventListener('click', function () { selectTab(false); });
+    textTab.addEventListener('click', function () { selectTab(true); });
+    textNode.addEventListener('input', updateTextButton);
+    sendTextButton.addEventListener('click', sendText);
     renderFields();
     if (!window.BX24 || typeof BX24.init !== 'function') {
         setStatus(translations.bitrixUnavailable, true);
+        setTextStatus(translations.bitrixUnavailable, true);
         return;
     }
     BX24.init(function () {
         ready = true;
         renderFields();
+        updateTextButton();
     });
 })();
 </script>

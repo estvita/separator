@@ -15,6 +15,7 @@ import separator.waba.bitrix as waba_bitrix
 from separator.olx.models import OlxUser
 from separator.waweb.models import Session
 import separator.waba.utils as waba_utils
+import separator.waba.tasks as waba_tasks
 import separator.bitrix.tasks as bitrix_tasks
 
 from .crest import call_method
@@ -133,10 +134,17 @@ def settings_connector(request, user):
 
 def templates(request, appinstance):
     template_name = "bitrix/placements/templates.html"
+    action = request.POST.get("action")
+
+    def fail(message):
+        if action:
+            return JsonResponse({"ok": False, "error": message})
+        return render(request, template_name, {"widget_error": message})
+
     if not appinstance:
-        return render(request, template_name, {"widget_error": _("Portal application not found.")})
+        return fail(_("Portal application not found."))
     if request.POST.get("PLACEMENT") != "IM_TEXTAREA":
-        return render(request, template_name, {"widget_error": _("Invalid placement.")})
+        return fail(_("Invalid placement."))
 
     try:
         options = json.loads(request.POST.get("PLACEMENT_OPTIONS") or "{}")
@@ -144,7 +152,7 @@ def templates(request, appinstance):
         options = {}
     dialog_id = options.get("dialogId") if isinstance(options, dict) else None
     if not isinstance(dialog_id, str) or not re.fullmatch(r"chat[1-9]\d*", dialog_id):
-        return render(request, template_name, {"widget_error": _("Chat not found.")})
+        return fail(_("Chat not found."))
 
     endpoint = f"{appinstance.portal.protocol}://{appinstance.portal.domain}/rest/imopenlines.dialog.get"
     try:
@@ -156,18 +164,18 @@ def templates(request, appinstance):
         response.raise_for_status()
         response = response.json()
     except (requests.RequestException, ValueError):
-        return render(request, template_name, {"widget_error": _("Failed to retrieve chat data.")})
+        return fail(_("Failed to retrieve chat data."))
     if not isinstance(response, dict) or response.get("error"):
-        return render(request, template_name, {"widget_error": _("Failed to retrieve chat data.")})
+        return fail(_("Failed to retrieve chat data."))
     dialog = response.get("result")
     if not isinstance(dialog, dict) or dialog.get("entity_type") != "LINES":
-        return render(request, template_name, {"widget_error": _("This is not an open channel chat.")})
+        return fail(_("This is not an open channel chat."))
     if dialog.get("dialog_id") != dialog_id:
-        return render(request, template_name, {"widget_error": _("Chat not found.")})
+        return fail(_("Chat not found."))
 
     entity_parts = str(dialog.get("entity_id") or "").split("|", 3)
     if len(entity_parts) != 4 or not all(entity_parts):
-        return render(request, template_name, {"widget_error": _("Failed to identify the chat line.")})
+        return fail(_("Failed to identify the chat line."))
     connector_code, line_id = entity_parts[:2]
     line = (
         Line.objects.filter(
@@ -181,7 +189,59 @@ def templates(request, appinstance):
     )
     phone = Phone.objects.filter(line=line).order_by("id").first() if line else None
     if not phone or not phone.waba_id:
-        return render(request, template_name, {"widget_error": _("The chat is not linked to an available WABA number.")})
+        return fail(_("The chat is not linked to an available WABA number."))
+
+    if action:
+        if action != "send_text":
+            return fail(_("Unknown action."))
+        text = (request.POST.get("text") or "").strip()
+        if not text or len(text) > 4096:
+            return fail(_("Enter a message of up to 4096 characters."))
+
+        chat_id = entity_parts[2]
+        if re.fullmatch(r"\+?[1-9]\d{7,14}", chat_id):
+            recipient = chat_id.lstrip("+")
+            recipient_field = {"recipient_type": "individual", "to": recipient}
+        elif re.fullmatch(r"[A-Z]{2}\.(?:ENT\.)?\d+", chat_id):
+            recipient = chat_id
+            recipient_field = {"recipient_type": "individual", "recipient": recipient}
+        else:
+            return fail(_("Failed to identify the recipient."))
+
+        message = {
+            "messaging_product": "whatsapp",
+            **recipient_field,
+            "type": "text",
+            "text": {"body": text},
+        }
+        echo_text = text
+        bitrix_user_id = str(request.POST.get("bitrix_user_id") or "").strip()
+        if re.fullmatch(r"[1-9][0-9]*", bitrix_user_id):
+            user_name = re.sub(
+                r"[\[\]]", "", " ".join(str(request.POST.get("bitrix_user_name") or "").split())
+            )
+            profile_url = (
+                f"{appinstance.portal.protocol}://{appinstance.portal.domain}"
+                f"/company/personal/user/{bitrix_user_id}/"
+            )
+            echo_text = f"[url={profile_url}]{user_name or bitrix_user_id}[/url]:\n\n{text}"
+        try:
+            waba_tasks.send_phone_message.delay(
+                phone.id,
+                message,
+                bitrix_echo={
+                    "app_instance_id": appinstance.id,
+                    "user_phone": recipient,
+                    "text": echo_text,
+                    "connector": line.connector.code,
+                    "line": line.line_id,
+                    "chat_id": chat_id,
+                    "manager_id": 0,
+                },
+            )
+        except Exception as exc:
+            return fail(str(exc))
+        return JsonResponse({"ok": True}, status=202)
 
     system_messages = {}
     if appinstance.app and appinstance.app.site_id:
@@ -200,6 +260,8 @@ def templates(request, appinstance):
     widget = WabaPlacementModule(appinstance=appinstance)
     return render(request, template_name, {
         "dialog_id": dialog_id,
+        "auth_id": request.POST.get("AUTH_ID") or "",
+        "member_id": request.POST.get("member_id") or "",
         "portal_app_url": widget._portal_app_url(appinstance, request.POST.get("AUTH_ID"), portal_only=True),
         "system_messages_data": [
             {"id": command, "label": message}

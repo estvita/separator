@@ -218,11 +218,11 @@ def process_placement(request):
         data = request.POST
         auth_id = data.get("AUTH_ID")
         service = request.GET.get("service")
-        is_waba_action = service == "waba" and bool(data.get("action"))
+        is_placement_action = service in ("waba", "templates") and bool(data.get("action"))
         try:
             app = get_app(auth_id)
         except Exception as e:
-            if is_waba_action:
+            if is_placement_action:
                 return JsonResponse({"ok": False, "error": str(e)}, status=200)
             messages.error(request, e)
             return redirect("/")
@@ -240,7 +240,7 @@ def process_placement(request):
         appinstance = None
         if portal:
             appinstance = AppInstance.objects.filter(app=app, portal=portal).first()
-        if is_waba_action:
+        if service == "waba" and is_placement_action:
             return placements.WabaPlacementModule(app=app, portal=portal, appinstance=appinstance).handle(request)
         if service == "templates":
             return placements.templates(request, appinstance)
@@ -270,7 +270,7 @@ def process_placement(request):
         return redirect("/")
 
     except Exception as e:
-        if request.GET.get("service") == "waba" and request.POST.get("action"):
+        if request.GET.get("service") in ("waba", "templates") and request.POST.get("action"):
             return JsonResponse({"ok": False, "error": str(e)}, status=200)
         return HttpResponse(str(e))
 
