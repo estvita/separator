@@ -418,7 +418,7 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                   line, pushName=None,
                   message_id=None, attachments=None, profilepic_url=None,
                   chat_id=None, chat_url=None, user_id=None, ctwa_id=None, source_id=None, manager_id=None,
-                  referral_body=None):
+                  referral=None):
     try:
         app_instance = AppInstance.objects.get(id=app_instance_id)
         # BSUIDs from WhatsApp usernames include dots (for example, US.xxx), phone numbers do not.
@@ -451,19 +451,22 @@ def send_messages(self, app_instance_id, user_phone, text, connector,
                 }
             ],
         }
-        if referral_body:
-            bitrix_msg["MESSAGES"].append({
-                "user": {
-                    "id": user_id or user_phone,
-                },
-                "chat": {
-                    "id": chat_id or user_phone,
-                },
-                "message": {
-                    "text": referral_body,
-                    "user_id": 0,
-                },
-            })
+        if referral:
+            referral_body = referral.get("body")
+            if referral_body:
+                bitrix_msg["MESSAGES"].append({
+                    "user": {
+                        "id": user_id or user_phone,
+                    },
+                    "chat": {
+                        "id": chat_id or user_phone,
+                    },
+                    "message": {
+                        "text": referral_body,
+                        "user_id": 0,
+                        "id": f"source_type:{referral.get('source_type')}_id:{referral.get('source_id')}"
+                    },
+                })
         request_timeout = (10, 300)
         resp = call_method(app_instance, "imconnector.send.messages", bitrix_msg, timeout=request_timeout)
 

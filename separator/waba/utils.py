@@ -1900,7 +1900,7 @@ def _process_waba_change(data, entry, change, app_id, host, log_event=False):
             source_url = None
             ctwa_id = None
             source_id = None
-            referral_body = None
+            referral = None
             message_manager_id = None
             sender_id = message.get("from") or message.get("from_user_id")
             contact = next(
@@ -1926,7 +1926,6 @@ def _process_waba_change(data, entry, change, app_id, host, log_event=False):
                 source_type = referral.get("source_type")
                 source_id = referral.get("source_id")
                 source_url = referral.get("source_url")
-                referral_body = referral.get("body")
                 ctwa_clid = referral.get("ctwa_clid")
 
                 if ctwa_clid and waba:
@@ -2190,7 +2189,7 @@ def _process_waba_change(data, entry, change, app_id, host, log_event=False):
                     chat_url=source_url,
                     ctwa_id=ctwa_id,
                     source_id=source_id,
-                    referral_body=referral_body,
+                    referral=referral,
                     manager_id=message_manager_id,
                 )
                 if message_type not in ["unsupported", "system"] and not message.get("errors"):
