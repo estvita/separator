@@ -10,55 +10,145 @@
     {{ settings_instance.app_instance }}
   </h4>
 
-  <form method="post" class="mb-4">
-    {% csrf_token %}
+  <ul class="nav nav-tabs mb-3" id="asterx-settings-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link {% if active_tab == 'settings' %}active{% endif %}"
+        id="settings-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#settings-pane"
+        type="button"
+        role="tab"
+        aria-controls="settings-pane"
+        aria-selected="{% if active_tab == 'settings' %}true{% else %}false{% endif %}"
+      >
+        {% trans "Settings" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link {% if active_tab == 'lines' %}active{% endif %}"
+        id="lines-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#lines-pane"
+        type="button"
+        role="tab"
+        aria-controls="lines-pane"
+        aria-selected="{% if active_tab == 'lines' %}true{% else %}false{% endif %}"
+      >
+        {% trans "Lines" %}
+      </button>
+    </li>
+  </ul>
 
-    <div class="mb-3">
-      <b>{% trans "Default Usuer ID" %}</b>: 
-      {{ form.default_user_id }}
+  <div class="tab-content" id="asterx-settings-tab-content">
+    <div
+      class="tab-pane fade {% if active_tab == 'settings' %}show active{% endif %}"
+      id="settings-pane"
+      role="tabpanel"
+      aria-labelledby="settings-tab"
+      tabindex="0"
+    >
+      <form method="post" class="mb-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_settings">
+
+        <div class="mb-3">
+          <b>{% trans "Default User ID" %}</b>:
+          {{ form.default_user_id }}
+        </div>
+
+        <div class="mb-3">
+          <b>{% trans "Show Card" %}</b>:
+          {% for radio in form.show_card %}
+            <label style="display:inline-block; margin-right:16px;">
+              {{ radio.tag }} {{ radio.choice_label }}
+            </label>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <b>{% trans "CRM Create" %}</b>:
+          {{ form.crm_create }}
+        </div>
+
+        <div class="mb-3">
+          <b>{% trans "Forwarding to manager" %}</b>:
+          {{ form.smart_route }}
+        </div>
+
+        <div class="mb-3">
+          <b>{% trans "Send VoiceMail" %}</b>:
+          {{ form.vm_send }}
+        </div>
+
+        <div class="mb-3">
+          <b>{% trans "Timeout" %}</b>:
+          {{ form.timeout }}
+        </div>
+
+        <div class="mb-3">
+          <b>{% trans "Call client first" %}</b>:
+          {{ form.client_first }}
+        </div>
+
+        <div class="mb-3">
+          <b>{% trans "Send all failed call statuses to Bitrix" %}</b>:
+          {{ form.all_statuses }}
+        </div>
+
+        <button type="submit" class="btn btn-success">{% trans "Save" %}</button>
+        <a href="{% url 'asterx' %}" class="btn btn-secondary">{% trans "Back" %}</a>
+      </form>
     </div>
 
-    <div class="mb-3">
-      <b>{% trans "Show Card" %}</b>: 
-      {% for radio in form.show_card %}
-        <label style="display:inline-block; margin-right:16px;">
-          {{ radio.tag }} {{ radio.choice_label }}
-        </label>
-      {% endfor %}
-    </div>
+    <div
+      class="tab-pane fade {% if active_tab == 'lines' %}show active{% endif %}"
+      id="lines-pane"
+      role="tabpanel"
+      aria-labelledby="lines-tab"
+      tabindex="0"
+    >
+      {% if settings_instance.app_instance %}
+        <form method="post" class="mb-3">
+          {% csrf_token %}
+          <button type="submit" name="action" value="get_lines" class="btn btn-primary">
+            {% trans "Get Lines" %}
+          </button>
+        </form>
 
-    <div class="mb-3">
-      <b>{% trans "CRM Create" %}</b>: 
-      {{ form.crm_create }}
-    </div>
+        {% if lines is not None %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_lines">
 
-    <div class="mb-3">
-      <b>{% trans "Forwarding to manager" %}</b>: 
-      {{ form.smart_route }}
+            {% if lines %}
+              {% for number in lines %}
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="numbers"
+                    value="{{ number }}"
+                    id="external-line-{{ forloop.counter }}"
+                  >
+                  <label class="form-check-label" for="external-line-{{ forloop.counter }}">
+                    {{ number }}
+                  </label>
+                </div>
+              {% endfor %}
+              <button type="submit" class="btn btn-danger mt-3">{% trans "Delete" %}</button>
+            {% else %}
+              <p>{% trans "No external lines found." %}</p>
+            {% endif %}
+          </form>
+        {% endif %}
+      {% else %}
+        <div class="alert alert-warning">
+          {% trans "No Bitrix24 app is linked to these settings." %}
+        </div>
+      {% endif %}
     </div>
-
-    <div class="mb-3">
-      <b>{% trans "Send VoiceMail" %}</b>: 
-      {{ form.vm_send }}
-    </div>
-
-    <div class="mb-3">
-      <b>{% trans "Timeout" %}</b>:
-      {{ form.timeout }}
-    </div>
-
-    <div class="mb-3">
-      <b>{% trans "Call client first" %}</b>:
-      {{ form.client_first }}
-    </div>
-
-    <div class="mb-3">
-      <b>{% trans "Send all failed call statuses to Bitrix" %}</b>:
-      {{ form.all_statuses }}
-    </div>
-
-    <button type="submit" class="btn btn-success">{% trans "Save" %}</button>
-    <a href="{% url 'asterx' %}" class="btn btn-secondary">{% trans "Back" %}</a>
-  </form>
+  </div>
 </div>
 {% endblock %}

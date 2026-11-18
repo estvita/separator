@@ -5,63 +5,6 @@
 <div class="container">
   <h3>{% trans "Your PBX Servers" %}</h3>
 
-  {% if settings_form %}
-  <h4 class="mt-4">
-    {% trans "App Settings:" %}
-    {% if portal_settings and portal_settings.app_instance %}
-      {{ portal_settings.app_instance }}
-    {% endif %}
-  </h4>
-    <form method="post" class="mb-4">
-      {% csrf_token %}
-
-      <div class="mb-3">
-        <b>{% trans "Default Usuer ID" %}</b>: 
-        {{ settings_form.default_user_id }}
-      </div>
-
-      <div class="mb-3">
-        <b>{% trans "Show Card" %}</b>: 
-        {% for radio in settings_form.show_card %}
-          <label style="display:inline-block; margin-right:16px;">
-            {{ radio.tag }} {{ radio.choice_label }}
-          </label>
-        {% endfor %}
-      </div>
-      <div class="mb-3">
-        <b>{% trans "CRM Create" %}</b>: 
-        {{ settings_form.crm_create }}
-      </div>
-
-      <div class="mb-3">
-        <b>{% trans "Forwarding to manager" %}</b>: 
-        {{ settings_form.smart_route }}
-      </div>
-
-      <div class="mb-3">
-        <b>{% trans "Send VoiceMail" %}</b>: 
-        {{ settings_form.vm_send }}
-      </div>
-
-      <div class="mb-3">
-        <b>{% trans "Timeout" %}</b>:
-        {{ settings_form.timeout }}
-      </div>
-
-      <div class="mb-3">
-        <b>{% trans "Call client first" %}</b>:
-        {{ settings_form.client_first }}
-      </div>
-
-      <div class="mb-3">
-        <b>{% trans "Send all failed call statuses to Bitrix" %}</b>:
-        {{ settings_form.all_statuses }}
-      </div>
-
-      <button type="submit" name="save_settings" class="btn btn-success">{% trans "Save" %}</button>
-    </form>
-  {% endif %}
-  
   {% if servers %}
   <table class="table table-bordered">
     <thead>

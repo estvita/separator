@@ -115,12 +115,12 @@ class SettingsForm(forms.ModelForm):
 def server_list(request):
     b24_data = request.session.pop('b24_data', None)
     member_id = None
+    portal_settings = None
     if b24_data:
         member_id = b24_data.get('member_id')
         if member_id:
             request.session['member_id'] = member_id
 
-    portal_settings = None
     # POST "Обновить пользователей"
     if request.method == "POST" and "refresh_users" in request.POST:
         server_id = request.POST.get("server_id")
@@ -154,40 +154,6 @@ def server_list(request):
         server = Server.objects.create(owner=request.user, settings=portal_settings)
         return redirect('asterx')
 
-    settings_form = None
-
-    member_id = request.session.get('member_id', None)
-    if member_id:
-        portal_settings = get_portal_settings(member_id)
-        if request.method == "POST" and "save_settings" in request.POST:
-            settings_form = SettingsForm(request.POST, instance=portal_settings)
-            if settings_form.is_valid():
-                settings_form.save()
-                servers = Server.objects.filter(settings=portal_settings, owner=request.user).all()
-                # --- Websocket эвент ---
-                for server in servers:
-                    channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)(
-                        f"server_{server.id}",
-                        {"type": "send_event", "message": {
-                            "event": "settings_update",
-                            "show_card": portal_settings.show_card,
-                            "crm_create": portal_settings.crm_create,
-                            "vm_send": portal_settings.vm_send,
-                            "smart_route": portal_settings.smart_route,
-                            "default_user_id": portal_settings.default_user_id,
-                            "timeout": portal_settings.timeout,
-                            "client_first": portal_settings.client_first,
-                            "all_statuses": portal_settings.all_statuses,
-                        }}
-                    )
-                messages.success(request, 'Settings saved and sent to client!')
-                return redirect('asterx')
-        else:
-            settings_form = SettingsForm(instance=portal_settings)
-
-    #     servers = Server.objects.filter(owner=request.user, settings=portal_settings)
-    # else:
     servers = Server.objects.filter(
         Q(owner=request.user) |
         Q(settings__app_instance__portal__users__owner=request.user, settings__app_instance__portal__users__admin=True)
@@ -201,8 +167,6 @@ def server_list(request):
         "asterx/list.html",
         {
             "servers": servers,
-            "settings_form": settings_form,
-            "portal_settings": portal_settings
         }
     )
 
@@ -322,6 +286,24 @@ def edit_asterx(request, server_id):
     })
 
 
+def _call_asterx_api(app_instance, method, payload):
+    from separator.bitrix.crest import call_method
+
+    response = call_method(app_instance, method, payload)
+    if response.get("error"):
+        raise ValueError(response.get("error_description") or response["error"])
+    return response
+
+
+def _get_external_line_numbers(app_instance):
+    response = _call_asterx_api(app_instance, "telephony.externalLine.get", {})
+    return [
+        line["NUMBER"]
+        for line in response.get("result", [])
+        if isinstance(line, dict) and line.get("NUMBER")
+    ]
+
+
 @login_required
 def app_settings(request, id):
     try:
@@ -333,38 +315,81 @@ def app_settings(request, id):
     except Exception:
         return redirect("asterx")
     
+    form = SettingsForm(instance=settings_instance)
+    active_tab = "settings"
+    lines = None
+
     if request.method == 'POST':
-        form = SettingsForm(request.POST, instance=settings_instance)
-        if form.is_valid():
-            form.save()
+        action = request.POST.get("action")
+        if action in {"get_lines", "delete_lines"}:
+            active_tab = "lines"
 
-            servers = Server.objects.filter(settings=settings_instance)
-            from asgiref.sync import async_to_sync
-            from channels.layers import get_channel_layer
-            channel_layer = get_channel_layer()
+            if not settings_instance.app_instance:
+                messages.error(request, _("No Bitrix24 app is linked to these settings."))
+            elif action == "get_lines":
+                try:
+                    lines = _get_external_line_numbers(settings_instance.app_instance)
+                except Exception:
+                    messages.error(request, _("Could not load external lines."))
+                else:
+                    messages.success(request, _("External lines loaded."))
+            else:
+                selected_numbers = list(dict.fromkeys(request.POST.getlist("numbers")))
+                if not selected_numbers:
+                    messages.warning(request, _("Select at least one line to delete."))
 
-            for server in servers:
-                async_to_sync(channel_layer.group_send)(
-                    f"server_{server.id}",
-                    {"type": "send_event", "message": {
-                        "event": "settings_update",
-                        "show_card": settings_instance.show_card,
-                        "crm_create": settings_instance.crm_create,
-                        "vm_send": settings_instance.vm_send,
-                        "smart_route": settings_instance.smart_route,
-                        "default_user_id": settings_instance.default_user_id,
-                        "timeout": settings_instance.timeout,
-                        "client_first": settings_instance.client_first,
-                        "all_statuses": settings_instance.all_statuses,
-                    }}
-                )
+                deleted_count = 0
+                for number in selected_numbers:
+                    try:
+                        _call_asterx_api(
+                            settings_instance.app_instance,
+                            "telephony.externalLine.delete",
+                            {"NUMBER": number},
+                        )
+                    except Exception:
+                        messages.error(request, _("Could not delete an external line."))
+                    else:
+                        deleted_count += 1
 
-            messages.success(request, "Settings updated successfully.")
-            return redirect('asterx')
-    else:
-        form = SettingsForm(instance=settings_instance)
+                if selected_numbers and deleted_count == len(selected_numbers):
+                    messages.success(request, _("Selected lines were deleted."))
+
+                try:
+                    lines = _get_external_line_numbers(settings_instance.app_instance)
+                except Exception:
+                    messages.error(request, _("Could not refresh external lines."))
+        else:
+            form = SettingsForm(request.POST, instance=settings_instance)
+            if form.is_valid():
+                form.save()
+
+                servers = Server.objects.filter(settings=settings_instance)
+                from asgiref.sync import async_to_sync
+                from channels.layers import get_channel_layer
+                channel_layer = get_channel_layer()
+
+                for server in servers:
+                    async_to_sync(channel_layer.group_send)(
+                        f"server_{server.id}",
+                        {"type": "send_event", "message": {
+                            "event": "settings_update",
+                            "show_card": settings_instance.show_card,
+                            "crm_create": settings_instance.crm_create,
+                            "vm_send": settings_instance.vm_send,
+                            "smart_route": settings_instance.smart_route,
+                            "default_user_id": settings_instance.default_user_id,
+                            "timeout": settings_instance.timeout,
+                            "client_first": settings_instance.client_first,
+                            "all_statuses": settings_instance.all_statuses,
+                        }}
+                    )
+
+                messages.success(request, _("Settings updated successfully."))
+                return redirect('asterx')
 
     return render(request, "asterx/settings.html", {
         "form": form,
-        "settings_instance": settings_instance
+        "settings_instance": settings_instance,
+        "active_tab": active_tab,
+        "lines": lines,
     })
