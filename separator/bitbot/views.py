@@ -208,6 +208,9 @@ class BotEditView(LoginRequiredMixin, View):
             if not bot:
                 messages.error(request, _("Save the bot first."))
                 return redirect("bitbot_add")
+            if not bot.bot_id:
+                messages.error(request, _("Register the bot in Bitrix24 first."))
+                return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
             cmd_form = CommandCreateForm(request.POST)
             lang_formset = CommandLangFormSet(request.POST, prefix="lang")
             if cmd_form.is_valid() and lang_formset.is_valid():
@@ -226,46 +229,48 @@ class BotEditView(LoginRequiredMixin, View):
 
                 cmd = cmd_form.save(commit=False)
                 cmd.bot = bot
-                cmd.save()
-
-                CommandLang.objects.bulk_create([
-                    CommandLang(
-                        command=cmd,
-                        language=cd["language"].strip(),
-                        title=cd["title"].strip(),
-                        params=(cd.get("params") or "").strip() or None,
-                    ) for cd in valid_translations
-                ])
 
                 # Регистрация команды в Bitrix:
-                if cmd.command_id == 0:
-                    title = {}
-                    params = {}
-                    for cd in valid_translations:
-                        language = cd["language"].strip()
-                        title[language] = cd["title"].strip()
-                        command_params = (cd.get("params") or "").strip()
-                        if command_params:
-                            params[language] = command_params
+                title = {}
+                params = {}
+                for cd in valid_translations:
+                    language = cd["language"].strip()
+                    title[language] = cd["title"].strip()
+                    command_params = (cd.get("params") or "").strip()
+                    if command_params:
+                        params[language] = command_params
 
-                    payload = {
-                        "botId": bot.bot_id,
-                        "fields": {
-                            "command": cmd.command,
-                            "common": bitrix_bool(cmd.common),
-                            "hidden": bitrix_bool(cmd.hidden),
-                            "extranetSupport": bitrix_bool(cmd.extranet),
-                            "title": title,
-                            "params": params,
-                        },
-                    }
-                    try:
-                        resp = call_method(bot.app_instance, "imbot.v2.Command.register", payload)
-                        cmd.command_id = int(resp["result"]["command"]["id"]); cmd.save(update_fields=["command_id"])
-                        messages.success(request, _("Command added."))
-                        return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
-                    except Exception as e:
-                        messages.error(request, e)
+                payload = {
+                    "botId": bot.bot_id,
+                    "fields": {
+                        "command": cmd.command,
+                        "common": bitrix_bool(cmd.common),
+                        "hidden": bitrix_bool(cmd.hidden),
+                        "extranetSupport": bitrix_bool(cmd.extranet),
+                        "title": title,
+                        "params": params,
+                    },
+                }
+                try:
+                    resp = call_method(bot.app_instance, "imbot.v2.Command.register", payload)
+                    cmd.command_id = int(resp["result"]["command"]["id"])
+                    if not cmd.command_id:
+                        raise ValueError("Bitrix24 did not confirm the command registration")
+                    with transaction.atomic():
+                        cmd.save()
+                        CommandLang.objects.bulk_create([
+                            CommandLang(
+                                command=cmd,
+                                language=cd["language"].strip(),
+                                title=cd["title"].strip(),
+                                params=(cd.get("params") or "").strip() or None,
+                            ) for cd in valid_translations
+                        ])
+                    messages.success(request, _("Command added."))
+                    return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
+                except Exception as e:
+                    messages.error(request, e)
+                    return self.get(request, pk=bot.pk)
             messages.error(request, _("Please fix command form/translations."))
             return self.get(request, pk=bot.pk)
 
@@ -288,6 +293,9 @@ class BotEditView(LoginRequiredMixin, View):
                     messages.success(request, resp)
                 except Exception as e:
                     messages.error(request, e)
+            else:
+                cmd.delete()
+                messages.success(request, _("Command deleted."))
             return redirect(reverse("bitbot_edit", kwargs={"pk": bot.pk}))
 
         # Удаление бота (опционально, если добавите кнопку)
