@@ -1318,6 +1318,8 @@ def send_delivery_status(appinstance_id, connector_code, line_id, chat_id, messa
 def bizproc_processor(data):
     try:
         access_token = data.get("auth[access_token]")
+        if not access_token:
+            raise ValueError("Missing auth[access_token]")
         application_token = data.get("auth[application_token]")
         try:
             app = get_app(access_token)
